@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Паспорт Сада Черешни</title>
+<link href="https://fonts.googleapis.com/css2?family=Raleway:wght@300;400;600;700;900&family=JetBrains+Mono:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0d1117;--surface:#161b22;--surface2:#1f2937;--surface3:#263244;
+    --border:#2d3748;--accent:#e05c3a;--accent2:#f7944d;
+    --green:#22c55e;--yellow:#eab308;--red:#ef4444;--blue:#3b82f6;
+    --text:#e2e8f0;--text2:#94a3b8;--text3:#64748b;--radius:10px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Raleway',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;}
+  .mono{font-family:'JetBrains Mono',monospace;}
+  header{background:linear-gradient(135deg,#1a0a00 0%,#2d1200 40%,#1a1a2e 100%);border-bottom:1px solid var(--accent);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;gap:12px;flex-wrap:wrap;}
+  .logo{display:flex;align-items:center;gap:10px;}
+  .logo h1{font-size:18px;font-weight:900;letter-spacing:1px;color:var(--accent2);}
+  .logo p{font-size:10px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;}
+  .header-right{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .header-stats{display:flex;gap:16px;}
+  .hstat .val{font-size:20px;font-weight:700;color:var(--accent2);font-family:'JetBrains Mono',monospace;}
+  .hstat .lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;}
+  .sync-bar{display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid var(--border);background:var(--surface2);cursor:pointer;transition:all .2s;white-space:nowrap;}
+  .sync-bar:hover{border-color:var(--accent);}
+  .sync-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .sync-dot.ok{background:var(--green);box-shadow:0 0 6px var(--green);}
+  .sync-dot.error{background:var(--red);}
+  .sync-dot.syncing{background:var(--yellow);animation:pulse .8s infinite;}
+  .sync-dot.offline{background:var(--text3);}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  .tabs{display:flex;gap:2px;background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;overflow-x:auto;}
+  .tab{padding:11px 18px;cursor:pointer;font-size:12px;font-weight:600;color:var(--text3);border-bottom:3px solid transparent;transition:all .2s;text-transform:uppercase;letter-spacing:1px;white-space:nowrap;}
+  .tab:hover{color:var(--text2);}
+  .tab.active{color:var(--accent2);border-bottom-color:var(--accent);}
+  .main{padding:20px 24px;}
+  .panel{display:none;}
+  .panel.active{display:block;}
+  .map-controls{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center;}
+  .map-area{overflow-x:auto;padding-bottom:8px;}
+  .orchard-grid{display:inline-grid;gap:3px;background:var(--surface);padding:14px;border-radius:var(--radius);border:1px solid var(--border);}
+  .cell{width:68px;height:52px;border-radius:6px;border:2px solid transparent;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:9px;font-weight:700;text-align:center;transition:all .15s;position:relative;overflow:hidden;}
+  .cell:hover{transform:scale(1.06);z-index:5;}
+  .cell.selected{border-color:#fff!important;box-shadow:0 0 0 3px rgba(255,255,255,.3);z-index:5;}
+  .cell .variety-name{font-size:9px;font-weight:800;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.7);line-height:1.1;}
+  .cell .tree-age{font-size:8px;color:rgba(255,255,255,.7);}
+  .cell .row-label{font-size:8px;color:rgba(255,255,255,.5);}
+  .cell .tdot{position:absolute;top:3px;right:3px;width:7px;height:7px;border-radius:50%;}
+  .cell .ddot{position:absolute;top:3px;left:3px;width:7px;height:7px;border-radius:50%;}
+  .row-hdr{width:36px;height:52px;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--text3);font-weight:700;font-family:'JetBrains Mono',monospace;}
+  .col-header{display:flex;gap:3px;padding:0 14px;margin-bottom:2px;}
+  .col-hdr{width:68px;text-align:center;font-size:10px;color:var(--text3);font-family:'JetBrains Mono',monospace;}
+  .col-hdr-empty{width:36px;}
+  .legend{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+  .legend-item{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2);}
+  .legend-dot{width:14px;height:14px;border-radius:3px;}
+  .two-col{display:grid;grid-template-columns:1fr 370px;gap:16px;}
+  .cell-detail{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;min-height:200px;}
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:6px;border:none;cursor:pointer;font-family:'Raleway',sans-serif;font-size:12px;font-weight:700;letter-spacing:.5px;transition:all .2s;}
+  .btn-primary{background:var(--accent);color:#fff;}
+  .btn-primary:hover{background:var(--accent2);}
+  .btn-secondary{background:var(--surface2);color:var(--text2);border:1px solid var(--border);}
+  .btn-secondary:hover{border-color:var(--accent);color:var(--text);}
+  .btn-success{background:var(--green);color:#fff;}
+  .btn-danger{background:var(--red);color:#fff;}
+  .btn-sm{padding:4px 9px;font-size:11px;}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;}
+  .card-title{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:12px;font-weight:700;}
+  .table-wrap{overflow-x:auto;}
+  table{width:100%;border-collapse:collapse;}
+  thead th{background:var(--surface2);color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:1px;padding:9px 11px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap;}
+  tbody tr{border-bottom:1px solid var(--border);transition:background .15s;}
+  tbody tr:hover{background:var(--surface2);}
+  tbody td{padding:9px 11px;font-size:13px;vertical-align:middle;}
+  .badge{display:inline-block;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:700;}
+  .badge-green{background:rgba(34,197,94,.15);color:var(--green);}
+  .badge-yellow{background:rgba(234,179,8,.15);color:var(--yellow);}
+  .badge-red{background:rgba(239,68,68,.15);color:var(--red);}
+  .badge-gray{background:rgba(100,116,139,.15);color:var(--text3);}
+  .precip-input{display:flex;align-items:center;gap:8px;}
+  .precip-input input[type=number]{width:75px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:13px;}
+  .rain-effect{font-size:12px;color:var(--blue);padding:6px 11px;background:rgba(59,130,246,.1);border-radius:6px;border:1px solid rgba(59,130,246,.2);}
+  .dose-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);}
+  .dose-row:last-child{border-bottom:none;}
+  .dose-label{font-size:12px;color:var(--text2);}
+  .dose-val{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600;color:var(--accent2);}
+  .analysis-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;}
+  .analysis-card{background:var(--surface2);border-radius:8px;padding:12px;border:1px solid var(--border);}
+  .disease-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;}
+  .disease-card{background:var(--surface2);border-radius:8px;padding:13px;border-left:3px solid var(--red);}
+  .disease-card.mild{border-left-color:var(--yellow);}
+  .disease-card.none{border-left-color:var(--green);}
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;align-items:center;justify-content:center;}
+  .modal-overlay.open{display:flex;}
+  .modal{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:22px;width:560px;max-width:95vw;max-height:90vh;overflow-y:auto;}
+  .modal h2{font-size:17px;font-weight:800;margin-bottom:18px;color:var(--accent2);}
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:11px;}
+  .form-field{display:flex;flex-direction:column;gap:4px;}
+  .form-field.full{grid-column:1/-1;}
+  .form-field label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;}
+  .form-field input,.form-field select,.form-field textarea{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:8px 11px;color:var(--text);font-family:'Raleway',sans-serif;font-size:13px;}
+  .form-field input:focus,.form-field select:focus{outline:none;border-color:var(--accent);}
+  .form-field select option{background:var(--surface2);}
+  .modal-footer{display:flex;justify-content:flex-end;gap:10px;margin-top:18px;}
+  .v0{background:linear-gradient(135deg,#7c3aed,#a855f7);}
+  .v1{background:linear-gradient(135deg,#dc2626,#f87171);}
+  .v2{background:linear-gradient(135deg,#d97706,#f59e0b);}
+  .v3{background:linear-gradient(135deg,#065f46,#10b981);}
+  .v4{background:linear-gradient(135deg,#1d4ed8,#60a5fa);}
+  .v5{background:linear-gradient(135deg,#831843,#ec4899);}
+  .v6{background:linear-gradient(135deg,#78350f,#d97706);}
+  .empty-cell{background:var(--surface2);border:1px dashed var(--border)!important;}
+  .stats-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:16px;}
+  .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;}
+  .stat-card .s-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;}
+  .stat-card .s-value{font-size:24px;font-weight:900;font-family:'JetBrains Mono',monospace;color:var(--accent2);}
+  .stat-card .s-sub{font-size:11px;color:var(--text3);margin-top:2px;}
+  .tl-bar{position:relative;height:18px;background:var(--surface2);border-radius:4px;overflow:hidden;margin-top:5px;}
+  .tl-fill{height:100%;border-radius:4px;transition:width .3s;}
+  .tl-lbl{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.8);}
+  .section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px;}
+  .section-header h2{font-size:17px;font-weight:800;}
+  .setup-banner{background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.3);border-radius:10px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .setup-banner.hidden{display:none;}
+  .setup-banner input{flex:1;min-width:180px;background:var(--surface2);border:1px solid rgba(234,179,8,.4);border-radius:6px;padding:7px 11px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:11px;}
+  .setup-banner input:focus{outline:none;border-color:var(--yellow);}
+  ::-webkit-scrollbar{width:6px;height:6px;}
+  ::-webkit-scrollbar-track{background:var(--bg);}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+  @media(max-width:860px){.two-col{grid-template-columns:1fr;}.header-stats{display:none;}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <span style="font-size:26px;">🍒</span>
+    <div><h1>ПАСПОРТ САДА</h1><p>Черешня — Система управления</p></div>
+  </div>
+  <div class="header-right">
+    <div class="header-stats">
+      <div class="hstat"><div class="val" id="h-cells">0</div><div class="lbl">Клеток</div></div>
+      <div class="hstat"><div class="val" id="h-varieties">0</div><div class="lbl">Сортов</div></div>
+      <div class="hstat"><div class="val" id="h-treatments">0</div><div class="lbl">Обработок</div></div>
+      <div class="hstat"><div class="val" id="h-active">0</div><div class="lbl">Активных</div></div>
+    </div>
+    <div class="sync-bar" onclick="openModal('modal-sync')" id="sync-bar">
+      <div class="sync-dot offline" id="sync-dot"></div>
+      <span id="sync-label">Не настроено</span>
+    </div>
+  </div>
+</header>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('map',this)">🗺 Карта сада</div>
+  <div class="tab" onclick="switchTab('treatments',this)">💊 Обработки</div>
+  <div class="tab" onclick="switchTab('analysis',this)">🔬 Анализ листа</div>
+  <div class="tab" onclick="switchTab('diseases',this)">🦠 Болезни</div>
+  <div class="tab" onclick="switchTab('doses',this)">⚗️ Дозы</div>
+  <div class="tab" onclick="switchTab('settings',this)">⚙️ Настройки</div>
+</div>
+
+<div class="main">
+  <!-- MAP -->
+  <div class="panel active" id="panel-map">
+    <div class="setup-banner" id="setup-banner">
+      <span style="font-size:20px;">☁️</span>
+      <div style="flex:1;"><div style="font-weight:700;color:var(--yellow);margin-bottom:3px;">Подключите Google Sheets</div><div style="font-size:11px;color:var(--text3);">Вставьте URL Apps Script для синхронизации с командой</div></div>
+      <input type="text" id="script-url-banner" placeholder="https://script.google.com/macros/s/.../exec" oninput="saveScriptUrl()">
+      <button class="btn btn-success" onclick="testAndSync()">✓ Подключить</button>
+    </div>
+    <div class="stats-row" id="stats-row"></div>
+    <div class="map-controls">
+      <button class="btn btn-primary" onclick="openAddCellModal()">+ Добавить клетку</button>
+      <button class="btn btn-secondary" onclick="openVarietyModal()">🌿 Сорта</button>
+      <div style="margin-left:auto;font-size:12px;color:var(--text3);">Кликните по клетке для редактирования</div>
+    </div>
+    <div class="two-col">
+      <div>
+        <div class="map-area" id="map-area"></div>
+        <div class="legend" id="legend"></div>
+      </div>
+      <div><div class="cell-detail" id="cell-detail"><div style="font-size:13px;color:var(--text3);text-align:center;padding:40px;">👈 Выберите клетку</div></div></div>
+    </div>
+  </div>
+
+  <!-- TREATMENTS -->
+  <div class="panel" id="panel-treatments">
+    <div class="section-header">
+      <h2>💊 Журнал обработок</h2>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <div class="precip-input">
+          <span style="font-size:12px;color:var(--text2);">🌧 Осадки:</span>
+          <input type="number" id="precip-input" placeholder="мм" min="0" max="999" step="0.1" oninput="updateRain()">
+          <span style="font-size:12px;color:var(--text3);">мм</span>
+        </div>
+        <div class="rain-effect" id="rain-effect" style="display:none;"></div>
+        <button class="btn btn-primary" onclick="openTreatmentModal()">+ Обработка</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table><thead><tr>
+        <th>Дата</th><th>Препарат</th><th>Активное вещество</th><th>Доза</th>
+        <th>Клетка / Сорт</th><th>Срок действия</th><th>Конец срока</th>
+        <th>Статус</th><th>Смыв дождём</th><th></th>
+      </tr></thead><tbody id="treatments-tbody"></tbody></table>
+    </div>
+  </div>
+
+  <!-- ANALYSIS -->
+  <div class="panel" id="panel-analysis">
+    <div class="section-header"><h2>🔬 Анализ листа</h2><button class="btn btn-primary" onclick="openAnalysisModal()">+ Добавить</button></div>
+    <div style="margin-bottom:14px;">
+      <select id="analysis-cell-filter" onchange="renderAnalysis()" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:7px 12px;color:var(--text);font-family:'Raleway',sans-serif;">
+        <option value="">Все клетки</option>
+      </select>
+    </div>
+    <div class="analysis-grid" id="analysis-grid"></div>
+  </div>
+
+  <!-- DISEASES -->
+  <div class="panel" id="panel-diseases">
+    <div class="section-header"><h2>🦠 Болезни и вредители</h2><button class="btn btn-primary" onclick="openDiseaseModal()">+ Зафиксировать</button></div>
+    <div style="margin-bottom:14px;display:flex;gap:10px;flex-wrap:wrap;">
+      <select id="disease-cell-filter" onchange="renderDiseases()" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:7px 12px;color:var(--text);font-family:'Raleway',sans-serif;"><option value="">Все клетки</option></select>
+      <select id="disease-sort-filter" onchange="renderDiseases()" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:7px 12px;color:var(--text);font-family:'Raleway',sans-serif;"><option value="date">По дате</option><option value="severity">По тяжести</option></select>
+    </div>
+    <div class="disease-grid" id="disease-grid"></div>
+  </div>
+
+  <!-- DOSES -->
+  <div class="panel" id="panel-doses">
+    <div class="section-header"><h2>⚗️ Расчёт доз</h2></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div class="card"><div class="card-title">Параметры</div>
+        <div style="display:flex;flex-direction:column;gap:11px;">
+          <div class="form-field"><label>Сорт</label><select id="dose-variety" onchange="calcDose()"><option value="">— выбрать —</option></select></div>
+          <div class="form-field"><label>Возраст деревьев (лет)</label><input type="number" id="dose-age" value="5" min="1" max="50" oninput="calcDose()"></div>
+          <div class="form-field"><label>Площадь (га)</label><input type="number" id="dose-area" value="1.0" step="0.1" min="0.1" oninput="calcDose()"></div>
+          <div class="form-field"><label>Схема посадки (м × м)</label>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+              <input type="number" id="dose-row-spacing" value="5" step="0.5" min="1" placeholder="Ряды" oninput="calcDose()">
+              <input type="number" id="dose-tree-spacing" value="3" step="0.5" min="1" placeholder="Дер." oninput="calcDose()">
+            </div>
+          </div>
+          <div class="form-field"><label>Препарат</label><select id="dose-product" onchange="calcDose()"><option value="">— выбрать —</option></select></div>
+        </div>
+      </div>
+      <div class="card"><div class="card-title">Результат</div><div id="dose-result"><div style="color:var(--text3);font-size:12px;text-align:center;padding:30px;">Заполните параметры</div></div></div>
+    </div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="panel" id="panel-settings">
+    <div class="section-header"><h2>⚙️ Настройки</h2></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div class="card"><div class="card-title">Размер сетки</div>
+        <div style="display:flex;flex-direction:column;gap:11px;">
+          <div class="form-field"><label>Количество рядов</label><input type="number" id="set-rows" value="6" min="1" max="30" oninput="rebuildGrid()"></div>
+          <div class="form-field"><label>Клеток в ряду</label><input type="number" id="set-cols" value="8" min="1" max="40" oninput="rebuildGrid()"></div>
+        </div>
+      </div>
+      <div class="card"><div class="card-title">Пороги смыва осадками</div>
+        <div style="display:flex;flex-direction:column;gap:11px;">
+          <div class="form-field"><label>Частичный смыв (мм)</label><input type="number" id="wash-partial" value="10" min="1" oninput="saveSettings()"></div>
+          <div class="form-field"><label>Полный смыв (мм)</label><input type="number" id="wash-full" value="25" min="1" oninput="saveSettings()"></div>
+          <div style="font-size:11px;color:var(--text3);line-height:1.6;">Частичный: −30% срока действия<br>Полный: препарат считается смытым</div>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px;"><div class="card-title">Резервная копия</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn btn-secondary" onclick="exportData()">📥 Экспорт JSON</button>
+        <button class="btn btn-secondary" onclick="document.getElementById('import-file').click()">📤 Импорт JSON</button>
+        <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
+        <button class="btn btn-danger" onclick="if(confirm('Сбросить все данные?'))resetData()">🗑 Сброс</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SYNC MODAL -->
+<div class="modal-overlay" id="modal-sync">
+  <div class="modal">
+    <h2>☁️ Синхронизация — Google Sheets</h2>
+    <div style="background:var(--surface2);border-radius:8px;padding:14px;border:1px solid var(--border);margin-bottom:14px;">
+      <div style="font-size:12px;font-weight:700;color:var(--accent2);margin-bottom:8px;">Как подключить (один раз):</div>
+      <ol style="font-size:12px;color:var(--text2);line-height:2.2;padding-left:18px;">
+        <li>Открой <strong style="color:var(--text);">script.google.com</strong> → Новый проект</li>
+        <li>Вставь весь код из файла <strong style="color:var(--accent2);">apps-script.js</strong></li>
+        <li>Нажми <strong style="color:var(--text);">Развернуть → Новое развёртывание</strong></li>
+        <li>Тип: <strong style="color:var(--text);">Веб-приложение</strong> | Доступ: <strong style="color:var(--text);">Все</strong></li>
+        <li>Нажми <strong style="color:var(--text);">Развернуть</strong>, разреши доступ → скопируй URL</li>
+        <li>Вставь URL ниже и нажми <strong style="color:var(--green);">Проверить</strong></li>
+      </ol>
+    </div>
+    <div class="form-field" style="margin-bottom:12px;">
+      <label>URL Apps Script (веб-приложение)</label>
+      <input type="text" id="script-url-modal" placeholder="https://script.google.com/macros/s/.../exec" style="font-size:12px;font-family:'JetBrains Mono',monospace;">
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+      <button class="btn btn-success" onclick="testConnection()">🔌 Проверить соединение</button>
+      <button class="btn btn-primary" onclick="syncToSheets()">☁️ Сохранить в Sheets</button>
+      <button class="btn btn-secondary" onclick="syncFromSheets()">📥 Загрузить из Sheets</button>
+    </div>
+    <div id="sync-log" style="font-size:12px;color:var(--text2);min-height:28px;padding:10px;background:var(--surface2);border-radius:6px;border:1px solid var(--border);font-family:'JetBrains Mono',monospace;"></div>
+    <div style="margin-top:12px;padding:10px;background:rgba(34,197,94,.07);border-radius:6px;border:1px solid rgba(34,197,94,.2);font-size:11px;color:var(--text2);">
+      📊 Данные пишутся в: <a href="https://docs.google.com/spreadsheets/d/1-NEsF4J7gT71y2ysZzm_VsuFTPRxTU5TJWMkZoCw6co/edit" target="_blank" style="color:var(--accent2);">открыть таблицу Google Sheets</a>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modal-sync')">Закрыть</button></div>
+  </div>
+</div>
+
+<!-- CELL MODAL -->
+<div class="modal-overlay" id="modal-cell">
+  <div class="modal"><h2 id="modal-cell-title">Клетка</h2>
+    <div class="form-grid">
+      <div class="form-field"><label>Ряд</label><input type="number" id="f-row" min="1"></div>
+      <div class="form-field"><label>Номер клетки</label><input type="number" id="f-col" min="1"></div>
+      <div class="form-field"><label>Сорт</label><select id="f-variety"><option value="">— выбрать —</option></select></div>
+      <div class="form-field"><label>Возраст (лет)</label><input type="number" id="f-age" min="1" max="100"></div>
+      <div class="form-field"><label>Площадь (га)</label><input type="number" id="f-area" step="0.1" min="0.1" value="1.0"></div>
+      <div class="form-field"><label>Деревьев (шт)</label><input type="number" id="f-trees" min="1"></div>
+      <div class="form-field full"><label>Примечание</label><textarea id="f-note" rows="2"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-cell')">Отмена</button>
+      <button class="btn btn-primary" onclick="saveCell()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- VARIETY MODAL -->
+<div class="modal-overlay" id="modal-variety">
+  <div class="modal"><h2>🌿 Сорта и опылители</h2>
+    <div id="variety-list" style="margin-bottom:14px;"></div>
+    <div style="background:var(--surface2);border-radius:8px;padding:13px;border:1px solid var(--border);">
+      <div style="font-size:11px;color:var(--text3);margin-bottom:9px;text-transform:uppercase;letter-spacing:1px;">Добавить сорт</div>
+      <div class="form-grid">
+        <div class="form-field"><label>Название</label><input type="text" id="nv-name" placeholder="Регина"></div>
+        <div class="form-field"><label>Срок созревания</label><select id="nv-ripening"><option>Ранний</option><option>Средний</option><option>Поздний</option></select></div>
+        <div class="form-field"><label>Опылители (через запятую)</label><input type="text" id="nv-pollinators" placeholder="Коралл, Наполеон"></div>
+        <div class="form-field"><label>Цвет</label><select id="nv-color"><option value="v0">Фиолетовый</option><option value="v1">Красный</option><option value="v2">Оранжевый</option><option value="v3">Зелёный</option><option value="v4">Синий</option><option value="v5">Розовый</option><option value="v6">Коричневый</option></select></div>
+      </div>
+      <div style="margin-top:9px;"><button class="btn btn-primary btn-sm" onclick="addVariety()">+ Добавить</button></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modal-variety')">Закрыть</button></div>
+  </div>
+</div>
+
+<!-- TREATMENT MODAL -->
+<div class="modal-overlay" id="modal-treatment">
+  <div class="modal"><h2>💊 Обработка</h2>
+    <div class="form-grid">
+      <div class="form-field"><label>Дата</label><input type="date" id="t-date"></div>
+      <div class="form-field"><label>Препарат</label><input type="text" id="t-product" placeholder="Хорус, Скор..."></div>
+      <div class="form-field"><label>Активное вещество</label><input type="text" id="t-active" placeholder="Ципродинил..."></div>
+      <div class="form-field"><label>Доза (кг или л/га)</label><input type="number" id="t-dose" step="0.01" min="0"></div>
+      <div class="form-field"><label>Расход воды (л/га)</label><input type="number" id="t-water" value="400" min="0"></div>
+      <div class="form-field"><label>Срок действия (дней)</label><input type="number" id="t-duration" min="1" value="14"></div>
+      <div class="form-field"><label>Клетка (2-3 или all)</label><input type="text" id="t-cell" placeholder="all"></div>
+      <div class="form-field"><label>Сорт</label><select id="t-variety"><option value="all">Все сорта</option></select></div>
+      <div class="form-field full"><label>Примечание</label><textarea id="t-note" rows="2"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-treatment')">Отмена</button>
+      <button class="btn btn-primary" onclick="saveTreatment()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- ANALYSIS MODAL -->
+<div class="modal-overlay" id="modal-analysis">
+  <div class="modal"><h2>🔬 Анализ листа</h2>
+    <div class="form-grid">
+      <div class="form-field"><label>Дата</label><input type="date" id="a-date"></div>
+      <div class="form-field"><label>Клетка</label><select id="a-cell"><option value="">Весь сад</option></select></div>
+      <div class="form-field"><label>N — Азот (%)</label><input type="number" id="a-N" step="0.01" placeholder="2.0–3.0"></div>
+      <div class="form-field"><label>P — Фосфор (%)</label><input type="number" id="a-P" step="0.01" placeholder="0.15–0.40"></div>
+      <div class="form-field"><label>K — Калий (%)</label><input type="number" id="a-K" step="0.01" placeholder="1.5–2.5"></div>
+      <div class="form-field"><label>Ca — Кальций (%)</label><input type="number" id="a-Ca" step="0.01" placeholder="1.0–2.5"></div>
+      <div class="form-field"><label>Mg — Магний (%)</label><input type="number" id="a-Mg" step="0.01" placeholder="0.25–0.50"></div>
+      <div class="form-field"><label>Fe — Железо (ppm)</label><input type="number" id="a-Fe" step="1" placeholder="50–300"></div>
+      <div class="form-field"><label>Mn — Марганец (ppm)</label><input type="number" id="a-Mn" step="1" placeholder="30–250"></div>
+      <div class="form-field"><label>Zn — Цинк (ppm)</label><input type="number" id="a-Zn" step="1" placeholder="15–60"></div>
+      <div class="form-field"><label>B — Бор (ppm)</label><input type="number" id="a-B" step="0.1" placeholder="25–50"></div>
+      <div class="form-field"><label>Cu — Медь (ppm)</label><input type="number" id="a-Cu" step="0.1" placeholder="5–20"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-analysis')">Отмена</button>
+      <button class="btn btn-primary" onclick="saveAnalysis()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- DISEASE MODAL -->
+<div class="modal-overlay" id="modal-disease">
+  <div class="modal"><h2>🦠 Болезни / вредители</h2>
+    <div class="form-grid">
+      <div class="form-field"><label>Дата</label><input type="date" id="d-date"></div>
+      <div class="form-field"><label>Клетка</label><select id="d-cell"><option value="">Весь сад</option></select></div>
+      <div class="form-field"><label>Название</label><input type="text" id="d-name" placeholder="Монилиоз..."></div>
+      <div class="form-field"><label>Степень поражения</label>
+        <select id="d-severity"><option value="1">1 — Единичные</option><option value="2">2 — Лёгкое</option><option value="3">3 — Умеренное</option><option value="4">4 — Сильное</option><option value="5">5 — Критическое</option></select>
+      </div>
+      <div class="form-field full"><label>Описание</label><textarea id="d-desc" rows="2"></textarea></div>
+      <div class="form-field full"><label>Рекомендуемый препарат</label><input type="text" id="d-rec" placeholder="Хорус 0.2 кг/га..."></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-disease')">Отмена</button>
+      <button class="btn btn-primary" onclick="saveDisease()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// STATE
+let S={rows:6,cols:8,varieties:[{id:'v1',name:'Регина',ripening:'Поздний',pollinators:'Коралл, Наполеон',color:'v0'},{id:'v2',name:'Коралл',ripening:'Средний',pollinators:'Регина, Ревна',color:'v1'},{id:'v3',name:'Наполеон',ripening:'Средний',pollinators:'Коралл, Регина',color:'v2'},{id:'v4',name:'Ревна',ripening:'Поздний',pollinators:'Коралл',color:'v3'}],cells:{},treatments:[],analyses:[],diseases:[],settings:{washPartial:10,washFull:25},selectedCell:null};
+let SCRIPT_URL='';
+let autoSyncTimer=null;
+
+function save(){localStorage.setItem('cherry_v3',JSON.stringify(S));scheduleAutoSync();}
+function load(){
+  const s=localStorage.getItem('cherry_v3');
+  if(s){try{const p=JSON.parse(s);Object.assign(S,p);}catch(e){}}
+  SCRIPT_URL=localStorage.getItem('cherry_script_url')||'';
+  if(SCRIPT_URL){
+    document.getElementById('script-url-banner').value=SCRIPT_URL;
+    document.getElementById('script-url-modal').value=SCRIPT_URL;
+    document.getElementById('setup-banner').classList.add('hidden');
+    setSyncSt('ok','Подключено');
+  }
+}
+function saveScriptUrl(){
+  SCRIPT_URL=document.getElementById('script-url-banner').value.trim();
+  localStorage.setItem('cherry_script_url',SCRIPT_URL);
+  if(document.getElementById('script-url-modal')) document.getElementById('script-url-modal').value=SCRIPT_URL;
+}
+function setSyncSt(st,lbl){document.getElementById('sync-dot').className='sync-dot '+st;document.getElementById('sync-label').textContent=lbl;}
+function syncLog(msg){const e=document.getElementById('sync-log');if(e)e.textContent=new Date().toLocaleTimeString()+' — '+msg;}
+
+async function testConnection(){
+  const url=document.getElementById('script-url-modal').value.trim();
+  if(!url){syncLog('❌ Введите URL');return;}
+  SCRIPT_URL=url;localStorage.setItem('cherry_script_url',url);
+  setSyncSt('syncing','Проверка...');syncLog('Проверка соединения...');
+  try{
+    const r=await fetch(url+'?action=ping');const d=await r.json();
+    if(d.ok){setSyncSt('ok','Подключено');syncLog('✅ Соединение установлено!');document.getElementById('setup-banner').classList.add('hidden');}
+    else throw new Error(d.error||'Ошибка');
+  }catch(e){setSyncSt('error','Ошибка');syncLog('❌ '+e.message);}
+}
+async function syncToSheets(){
+  if(!SCRIPT_URL){syncLog('❌ URL не настроен');return;}
+  setSyncSt('syncing','Сохранение...');syncLog('Отправка в Google Sheets...');
+  try{
+    const r=await fetch(SCRIPT_URL,{method:'POST',body:JSON.stringify({action:'writeAll',state:S})});
+    const d=await r.json();
+    if(d.ok){setSyncSt('ok','Сохранено '+new Date().toLocaleTimeString());syncLog('✅ Данные сохранены: '+d.savedAt);}
+    else throw new Error(d.error);
+  }catch(e){setSyncSt('error','Ошибка записи');syncLog('❌ '+e.message);}
+}
+async function syncFromSheets(){
+  if(!SCRIPT_URL){syncLog('❌ URL не настроен');return;}
+  setSyncSt('syncing','Загрузка...');syncLog('Загрузка из Google Sheets...');
+  try{
+    const r=await fetch(SCRIPT_URL+'?action=read');const d=await r.json();
+    if(d.error) throw new Error(d.error);
+    if(d.varieties?.length) S.varieties=d.varieties;
+    if(d.cells?.length){S.cells={};d.cells.forEach(c=>{const k=c.key;const o={...c};delete o.key;S.cells[k]=o;});}
+    if(d.treatments?.length) S.treatments=d.treatments;
+    if(d.analyses?.length) S.analyses=d.analyses;
+    if(d.diseases?.length) S.diseases=d.diseases;
+    if(d.settings?.length&&d.settings[0]){Object.assign(S.settings,d.settings[0]);S.rows=parseInt(d.settings[0].rows)||S.rows;S.cols=parseInt(d.settings[0].cols)||S.cols;}
+    localStorage.setItem('cherry_v3',JSON.stringify(S));
+    setSyncSt('ok','Загружено '+new Date().toLocaleTimeString());syncLog('✅ Загружено из Sheets ('+d.syncedAt+')');
+    renderMap();renderStats();updateHdr();
+  }catch(e){setSyncSt('error','Ошибка чтения');syncLog('❌ '+e.message);}
+}
+function scheduleAutoSync(){clearTimeout(autoSyncTimer);autoSyncTimer=setTimeout(()=>{if(SCRIPT_URL)syncToSheets();},4000);}
+async function testAndSync(){await testConnection();if(SCRIPT_URL)await syncToSheets();}
+
+// TABS
+function switchTab(tab,el){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');document.getElementById('panel-'+tab).classList.add('active');
+  if(tab==='treatments')renderTreatments();
+  if(tab==='analysis'){popAFilter();renderAnalysis();}
+  if(tab==='diseases'){popDFilter();renderDiseases();}
+  if(tab==='doses')popDoseSelects();
+  if(tab==='settings')loadSettings();
+}
+
+// GRID
+function ck(r,c){return r+'-'+c;}
+function rebuildGrid(){S.rows=parseInt(document.getElementById('set-rows').value)||6;S.cols=parseInt(document.getElementById('set-cols').value)||8;save();renderMap();}
+
+function getActiveTr(key){
+  const today=new Date();const precip=parseFloat(document.getElementById('precip-input')?.value)||0;const ws=S.settings;
+  return S.treatments.filter(t=>{
+    if(t.cellTarget!=='all'&&t.cellTarget!==key)return false;
+    let dur=parseInt(t.duration);
+    if(precip>=ws.washFull)dur=0;else if(precip>=ws.washPartial)dur=Math.round(dur*.7);
+    const end=new Date(t.date);end.setDate(end.getDate()+dur);
+    if(today>end)return false;
+    t._daysLeft=Math.ceil((end-today)/86400000);
+    t._washSt=precip>=ws.washFull?'washed':precip>=ws.washPartial?'partial':'active';
+    return true;
+  });
+}
+
+function renderMap(){
+  const area=document.getElementById('map-area');
+  let ch='<div class="col-header"><div class="col-hdr-empty"></div>';
+  for(let c=1;c<=S.cols;c++)ch+=`<div class="col-hdr">${c}</div>`;
+  ch+='</div>';area.innerHTML=ch;
+  const g=document.createElement('div');g.className='orchard-grid';g.style.gridTemplateColumns=`36px repeat(${S.cols},68px)`;
+  for(let r=1;r<=S.rows;r++){
+    const rh=document.createElement('div');rh.className='row-hdr';rh.textContent='Р'+r;g.appendChild(rh);
+    for(let c=1;c<=S.cols;c++){
+      const key=ck(r,c);const cd=S.cells[key];const div=document.createElement('div');div.className='cell';
+      if(!cd){
+        div.classList.add('empty-cell');div.innerHTML='<span style="font-size:18px;color:var(--border)">+</span>';
+        div.onclick=()=>openCellModal(r,c);
+      }else{
+        const v=S.varieties.find(v=>v.id===cd.varietyId);
+        if(v)div.classList.add(v.color);else div.style.background='var(--surface3)';
+        if(S.selectedCell===key)div.classList.add('selected');
+        div.innerHTML=`<div class="variety-name">${v?v.name:'?'}</div><div class="tree-age">${cd.age?cd.age+' лет':''}</div><div class="row-label">${r}-${c}</div>`;
+        const atr=getActiveTr(key);
+        if(atr.length){const dot=document.createElement('div');dot.className='tdot';dot.style.background=atr[0]._washSt==='active'?'#22c55e':atr[0]._washSt==='partial'?'#eab308':'#ef4444';div.appendChild(dot);}
+        const dis=S.diseases.filter(d=>d.cellKey===key||d.cellKey==='');
+        if(dis.length){const dd=document.createElement('div');dd.className='ddot';const ms=Math.max(...dis.map(d=>parseInt(d.severity)));dd.style.background=ms>=4?'#ef4444':ms>=2?'#eab308':'#22c55e';div.appendChild(dd);}
+        div.onclick=()=>selectCell(key);
+      }
+      g.appendChild(div);
+    }
+  }
+  area.appendChild(g);renderLegend();renderStats();updateHdr();
+}
+
+function selectCell(key){S.selectedCell=key;renderMap();renderCellDetail(key);}
+
+function renderCellDetail(key){
+  const cd=S.cells[key];if(!cd)return;
+  const v=S.varieties.find(v=>v.id===cd.varietyId);const [r,c]=key.split('-');
+  const atr=getActiveTr(key);const dis=S.diseases.filter(d=>d.cellKey===key||d.cellKey==='');const ans=S.analyses.filter(a=>a.cellKey===key||a.cellKey==='');
+  let h=`<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:11px;">
+    <div><div style="font-size:15px;font-weight:800;color:var(--accent2);">Клетка ${r}-${c}</div>
+    <div style="font-size:12px;color:var(--text3);margin-top:2px;">${v?'🌿 <strong>'+v.name+'</strong> · '+v.ripening:'Сорт не задан'}</div>
+    ${v?`<div style="font-size:11px;color:var(--text3);">Опылители: ${v.pollinators}</div>`:''}
+    </div><button class="btn btn-secondary btn-sm" onclick="openCellModal(${r},${c},true)">✏️</button>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:11px;">
+    ${['Возраст|'+cd.age+'|лет','Площадь|'+cd.area+'|га','Деревьев|'+cd.trees+'|шт.'].map(s=>{const[l,val,u]=s.split('|');return`<div style="background:var(--surface2);border-radius:6px;padding:8px;text-align:center;"><div style="font-size:10px;color:var(--text3);">${l}</div><div style="font-size:16px;font-weight:700;color:var(--accent2);">${val||'—'}</div><div style="font-size:10px;color:var(--text3);">${u}</div></div>`;}).join('')}
+  </div>`;
+  if(atr.length){
+    h+='<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;">Активные обработки</div>';
+    atr.forEach(t=>{const pct=Math.max(0,Math.min(100,(t._daysLeft/t.duration)*100));const col=pct>50?'#22c55e':pct>20?'#eab308':'#ef4444';h+=`<div style="background:var(--surface2);border-radius:6px;padding:8px;margin-bottom:5px;"><div style="display:flex;justify-content:space-between;"><span style="font-weight:700;">${t.product}</span><span style="font-size:10px;color:var(--text3);">${t.activeSubstance||''}</span></div><div class="tl-bar"><div class="tl-fill" style="width:${pct}%;background:${col};"></div><div class="tl-lbl">Осталось ${t._daysLeft} дн.</div></div></div>`;});
+  }
+  if(ans.length){
+    const last=ans[ans.length-1];const norms=getNorms();
+    h+=`<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-top:9px;margin-bottom:5px;">Анализ (${last.date})</div>`;
+    ['N','P','K','Ca','Mg'].forEach(el=>{if(!last[el])return;const n=norms[el];const val=parseFloat(last[el]);const ic=val<n.min?'🔴':val>n.max?'🟡':'🟢';h+=`<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text2);">${el}</span><span class="mono">${val}%</span><span>${ic}</span></div>`;});
+  }
+  if(dis.length){const last=dis[0];const sc=['','#22c55e','#22c55e','#eab308','#f97316','#ef4444'];h+=`<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-top:9px;margin-bottom:5px;">Болезнь</div><div style="background:var(--surface2);border-radius:6px;padding:8px;"><div style="display:flex;justify-content:space-between;"><span style="font-weight:700;">${last.name}</span><span style="color:${sc[last.severity]};">● ${last.severity}/5</span></div>${last.recommendation?`<div style="font-size:11px;color:var(--accent2);margin-top:3px;">💊 ${last.recommendation}</div>`:''}</div>`;}
+  if(cd.note)h+=`<div style="margin-top:8px;font-size:12px;color:var(--text3);padding:7px;background:var(--surface2);border-radius:6px;">📝 ${cd.note}</div>`;
+  document.getElementById('cell-detail').innerHTML=h;
+}
+
+function renderLegend(){
+  document.getElementById('legend').innerHTML=S.varieties.map(v=>`<div class="legend-item"><div class="legend-dot ${v.color}"></div><span>${v.name}</span></div>`).join('')+`<div class="legend-item"><div style="width:14px;height:14px;border-radius:50%;background:#22c55e;"></div><span>Обработка</span></div><div class="legend-item"><div style="width:14px;height:14px;border-radius:50%;background:#ef4444;"></div><span>Болезнь</span></div>`;
+}
+function renderStats(){
+  const tc=Object.keys(S.cells).length;const ta=Object.values(S.cells).reduce((s,c)=>s+(parseFloat(c.area)||0),0);
+  const today=new Date();const ac=S.treatments.filter(t=>{const e=new Date(t.date);e.setDate(e.getDate()+parseInt(t.duration));return today<=e;}).length;
+  document.getElementById('stats-row').innerHTML=`<div class="stat-card"><div class="s-label">Клеток</div><div class="s-value">${tc}</div><div class="s-sub">из ${S.rows*S.cols}</div></div><div class="stat-card"><div class="s-label">Площадь</div><div class="s-value">${ta.toFixed(1)}</div><div class="s-sub">га</div></div><div class="stat-card"><div class="s-label">Сортов</div><div class="s-value">${S.varieties.length}</div></div><div class="stat-card"><div class="s-label">Обработок</div><div class="s-value">${S.treatments.length}</div><div class="s-sub">${ac} активных</div></div><div class="stat-card"><div class="s-label">Болезней</div><div class="s-value">${S.diseases.length}</div></div>`;
+}
+function updateHdr(){
+  document.getElementById('h-cells').textContent=Object.keys(S.cells).length;
+  document.getElementById('h-varieties').textContent=S.varieties.length;
+  document.getElementById('h-treatments').textContent=S.treatments.length;
+  const today=new Date();document.getElementById('h-active').textContent=S.treatments.filter(t=>{const e=new Date(t.date);e.setDate(e.getDate()+parseInt(t.duration));return today<=e;}).length;
+}
+
+// CELLS
+function openAddCellModal(){openCellModal(1,1,false);}
+function openCellModal(r,c,editing=false){
+  const key=ck(r,c);const cd=S.cells[key]||{};
+  document.getElementById('modal-cell-title').textContent=editing?`Клетка ${r}-${c}`:'Новая клетка';
+  document.getElementById('f-row').value=r;document.getElementById('f-col').value=c;
+  document.getElementById('f-age').value=cd.age||'';document.getElementById('f-area').value=cd.area||'1.0';
+  document.getElementById('f-trees').value=cd.trees||'';document.getElementById('f-note').value=cd.note||'';
+  const vs=document.getElementById('f-variety');vs.innerHTML='<option value="">— выбрать —</option>';
+  S.varieties.forEach(v=>vs.innerHTML+=`<option value="${v.id}" ${cd.varietyId===v.id?'selected':''}>${v.name}</option>`);
+  openModal('modal-cell');
+}
+function saveCell(){
+  const r=parseInt(document.getElementById('f-row').value);const c=parseInt(document.getElementById('f-col').value);
+  S.cells[ck(r,c)]={varietyId:document.getElementById('f-variety').value,age:parseInt(document.getElementById('f-age').value)||null,area:parseFloat(document.getElementById('f-area').value)||1,trees:parseInt(document.getElementById('f-trees').value)||null,note:document.getElementById('f-note').value};
+  save();closeModal('modal-cell');renderMap();
+}
+
+// VARIETIES
+function openVarietyModal(){renderVList();openModal('modal-variety');}
+function renderVList(){
+  document.getElementById('variety-list').innerHTML=S.varieties.map((v,i)=>`<div style="display:flex;align-items:center;gap:9px;padding:7px;background:var(--surface2);border-radius:6px;margin-bottom:5px;"><div style="width:18px;height:18px;border-radius:4px;" class="${v.color}"></div><div style="flex:1;"><strong>${v.name}</strong> <span style="font-size:11px;color:var(--text3);">(${v.ripening})</span><div style="font-size:11px;color:var(--text3);">Опылители: ${v.pollinators}</div></div><button class="btn btn-danger btn-sm" onclick="removeVariety(${i})">✕</button></div>`).join('');
+}
+function addVariety(){
+  const name=document.getElementById('nv-name').value.trim();if(!name)return;
+  S.varieties.push({id:'v'+Date.now(),name,ripening:document.getElementById('nv-ripening').value,pollinators:document.getElementById('nv-pollinators').value,color:document.getElementById('nv-color').value});
+  document.getElementById('nv-name').value='';document.getElementById('nv-pollinators').value='';
+  save();renderVList();renderMap();
+}
+function removeVariety(i){if(confirm(`Удалить "${S.varieties[i].name}"?`)){S.varieties.splice(i,1);save();renderVList();renderMap();}}
+
+// TREATMENTS
+function openTreatmentModal(){
+  document.getElementById('t-date').value=new Date().toISOString().split('T')[0];document.getElementById('t-cell').value='all';
+  const vs=document.getElementById('t-variety');vs.innerHTML='<option value="all">Все сорта</option>';
+  S.varieties.forEach(v=>vs.innerHTML+=`<option value="${v.id}">${v.name}</option>`);
+  openModal('modal-treatment');
+}
+function saveTreatment(){
+  const date=document.getElementById('t-date').value;const dur=parseInt(document.getElementById('t-duration').value)||14;
+  const end=new Date(date);end.setDate(end.getDate()+dur);
+  S.treatments.unshift({id:Date.now(),date,product:document.getElementById('t-product').value,activeSubstance:document.getElementById('t-active').value,dose:document.getElementById('t-dose').value,water:document.getElementById('t-water').value,duration:dur,endDate:end.toISOString().split('T')[0],cellTarget:document.getElementById('t-cell').value||'all',varietyTarget:document.getElementById('t-variety').value,note:document.getElementById('t-note').value});
+  save();closeModal('modal-treatment');renderTreatments();updateHdr();
+}
+function renderTreatments(){
+  const today=new Date();const precip=parseFloat(document.getElementById('precip-input').value)||0;const ws=S.settings;
+  document.getElementById('treatments-tbody').innerHTML=S.treatments.map((t,i)=>{
+    let dur=parseInt(t.duration);let wn='—';
+    if(precip>=ws.washFull){dur=0;wn=`<span style="color:var(--red)">⛔ Полный смыв</span>`;}
+    else if(precip>=ws.washPartial){dur=Math.round(dur*.7);wn=`<span style="color:var(--yellow)">⚠️ Частичный (-30%)</span>`;}
+    else if(precip>0)wn=`<span style="color:var(--blue)">🌧 Норма</span>`;
+    const end=new Date(t.date);end.setDate(end.getDate()+dur);
+    const dl=Math.ceil((end-today)/86400000);const pct=dur>0?Math.max(0,Math.min(100,(dl/t.duration)*100)):0;
+    const col=pct>50?'green':pct>20?'yellow':'red';
+    const colHex=pct>50?'#22c55e':pct>20?'#eab308':'#ef4444';
+    const isAct=today<=end&&dur>0;
+    const sb=dur===0?`<span class="badge badge-red">Смыт</span>`:isAct?`<span class="badge badge-${col}">${dl} дн.</span>`:`<span class="badge badge-gray">Завершён</span>`;
+    const vn=t.varietyTarget==='all'?'Все':(S.varieties.find(v=>v.id===t.varietyTarget)?.name||t.varietyTarget);
+    return `<tr><td class="mono" style="font-size:12px;">${t.date}</td><td><strong>${t.product}</strong>${t.note?`<br><span style="font-size:10px;color:var(--text3);">${t.note}</span>`:''}</td><td style="font-size:12px;color:var(--text2);">${t.activeSubstance||'—'}</td><td class="mono">${t.dose||'—'}${t.dose?' л/га':''}</td><td style="font-size:12px;">${t.cellTarget}<br><span style="color:var(--text3);">${vn}</span></td><td><span class="mono">${t.duration}д.</span><div class="tl-bar" style="width:90px;"><div class="tl-fill" style="width:${pct}%;background:${colHex};"></div><div class="tl-lbl">${dl>0?dl+'д':0}</div></div></td><td class="mono" style="font-size:12px;">${t.endDate}</td><td>${sb}</td><td>${wn}</td><td><button class="btn btn-danger btn-sm" onclick="delTr(${i})">✕</button></td></tr>`;
+  }).join('');
+}
+function delTr(i){if(confirm('Удалить?')){S.treatments.splice(i,1);save();renderTreatments();updateHdr();}}
+function updateRain(){
+  const p=parseFloat(document.getElementById('precip-input').value)||0;const el=document.getElementById('rain-effect');const ws=S.settings;
+  if(p<=0){el.style.display='none';return;}
+  el.style.display='block';el.innerHTML=p>=ws.washFull?`⛔ ${p}мм — полный смыв`:p>=ws.washPartial?`⚠️ ${p}мм — частичный (-30%)`: `✅ ${p}мм — норма`;
+  renderTreatments();renderMap();
+}
+
+// ANALYSIS
+function getNorms(){return{N:{min:2.0,max:3.0,unit:'%',name:'Азот'},P:{min:.15,max:.40,unit:'%',name:'Фосфор'},K:{min:1.5,max:2.5,unit:'%',name:'Калий'},Ca:{min:1.0,max:2.5,unit:'%',name:'Кальций'},Mg:{min:.25,max:.50,unit:'%',name:'Магний'},Fe:{min:50,max:300,unit:'ppm',name:'Железо'},Mn:{min:30,max:250,unit:'ppm',name:'Марганец'},Zn:{min:15,max:60,unit:'ppm',name:'Цинк'},B:{min:25,max:50,unit:'ppm',name:'Бор'},Cu:{min:5,max:20,unit:'ppm',name:'Медь'}};}
+function openAnalysisModal(){
+  document.getElementById('a-date').value=new Date().toISOString().split('T')[0];
+  const sel=document.getElementById('a-cell');sel.innerHTML='<option value="">Весь сад</option>';
+  Object.keys(S.cells).forEach(k=>{const v=S.varieties.find(v=>v.id===S.cells[k].varietyId);sel.innerHTML+=`<option value="${k}">${k}${v?' — '+v.name:''}</option>`;});
+  openModal('modal-analysis');
+}
+function popAFilter(){
+  const sel=document.getElementById('analysis-cell-filter');const cur=sel.value;sel.innerHTML='<option value="">Все клетки</option>';
+  Object.keys(S.cells).forEach(k=>{const v=S.varieties.find(v=>v.id===S.cells[k].varietyId);sel.innerHTML+=`<option value="${k}" ${cur===k?'selected':''}>${k}${v?' — '+v.name:''}</option>`;});
+}
+function saveAnalysis(){
+  const e={date:document.getElementById('a-date').value,cellKey:document.getElementById('a-cell').value};
+  ['N','P','K','Ca','Mg','Fe','Mn','Zn','B','Cu'].forEach(el=>{const v=document.getElementById('a-'+el).value;if(v)e[el]=parseFloat(v);});
+  S.analyses.push(e);save();closeModal('modal-analysis');renderAnalysis();
+}
+function renderAnalysis(){
+  const grid=document.getElementById('analysis-grid');const f=document.getElementById('analysis-cell-filter').value;const norms=getNorms();
+  const ans=S.analyses.filter(a=>!f||a.cellKey===f||a.cellKey==='');
+  if(!ans.length){grid.innerHTML='<div style="color:var(--text3);grid-column:1/-1;">Нет данных анализов</div>';return;}
+  const last=ans[ans.length-1];
+  grid.innerHTML=Object.entries(norms).map(([el,n])=>{
+    if(last[el]===undefined)return'';const val=last[el];const pct=Math.min(100,(val/n.max)*100);
+    const s=val<n.min?{l:'Дефицит',c:'var(--red)'}:val>n.max?{l:'Избыток',c:'var(--yellow)'}:{l:'Норма',c:'var(--green)'};
+    return`<div class="analysis-card"><div style="font-size:11px;color:var(--text3);text-transform:uppercase;margin-bottom:4px;">${el} — ${n.name}</div><div style="font-size:20px;font-weight:700;font-family:'JetBrains Mono',monospace;color:${s.c};">${val} <span style="font-size:13px;">${n.unit}</span></div><div style="font-size:11px;color:${s.c};margin-top:2px;">● ${s.l}</div><div style="font-size:10px;color:var(--text3);">Норма: ${n.min}–${n.max} ${n.unit}</div><div class="tl-bar" style="margin-top:7px;"><div class="tl-fill" style="width:${pct}%;background:${s.c};"></div></div></div>`;
+  }).join('');
+}
+
+// DISEASES
+function openDiseaseModal(){
+  document.getElementById('d-date').value=new Date().toISOString().split('T')[0];
+  const sel=document.getElementById('d-cell');sel.innerHTML='<option value="">Весь сад</option>';
+  Object.keys(S.cells).forEach(k=>{const v=S.varieties.find(v=>v.id===S.cells[k].varietyId);sel.innerHTML+=`<option value="${k}">${k}${v?' — '+v.name:''}</option>`;});
+  openModal('modal-disease');
+}
+function popDFilter(){
+  const sel=document.getElementById('disease-cell-filter');const cur=sel.value;sel.innerHTML='<option value="">Все клетки</option>';
+  Object.keys(S.cells).forEach(k=>{const v=S.varieties.find(v=>v.id===S.cells[k].varietyId);sel.innerHTML+=`<option value="${k}" ${cur===k?'selected':''}>${k}${v?' — '+v.name:''}</option>`;});
+}
+function saveDisease(){
+  S.diseases.unshift({id:Date.now(),date:document.getElementById('d-date').value,cellKey:document.getElementById('d-cell').value,name:document.getElementById('d-name').value,severity:parseInt(document.getElementById('d-severity').value),description:document.getElementById('d-desc').value,recommendation:document.getElementById('d-rec').value});
+  save();closeModal('modal-disease');renderDiseases();renderMap();
+}
+function renderDiseases(){
+  const grid=document.getElementById('disease-grid');const f=document.getElementById('disease-cell-filter').value;
+  let dis=S.diseases.filter(d=>!f||d.cellKey===f||d.cellKey==='');
+  if(document.getElementById('disease-sort-filter').value==='severity')dis.sort((a,b)=>b.severity-a.severity);
+  const sc=['','#22c55e','#22c55e','#eab308','#f97316','#ef4444'];const cls=['','none','none','mild','',''];
+  grid.innerHTML=dis.map((d,i)=>{const v=d.cellKey?S.varieties.find(v=>v.id===S.cells[d.cellKey]?.varietyId):null;
+    return`<div class="disease-card ${cls[d.severity]||''}"><div style="display:flex;justify-content:space-between;align-items:flex-start;"><div style="font-weight:700;">${d.name}</div><button class="btn btn-danger btn-sm" onclick="delDis(${i})" style="padding:2px 6px;font-size:10px;">✕</button></div><div style="font-size:11px;color:var(--text3);">${d.date} · ${d.cellKey||'Весь сад'}${v?' · '+v.name:''}</div><div style="margin-top:7px;display:flex;gap:3px;">${[1,2,3,4,5].map(n=>`<div style="width:18px;height:7px;border-radius:2px;background:${n<=d.severity?sc[d.severity]:'var(--surface3)'};"></div>`).join('')}<span style="font-size:10px;color:var(--text3);margin-left:4px;">Степень ${d.severity}/5</span></div>${d.description?`<div style="font-size:11px;color:var(--text2);margin-top:5px;">${d.description}</div>`:''} ${d.recommendation?`<div style="font-size:11px;color:var(--accent2);margin-top:3px;">💊 ${d.recommendation}</div>`:''}</div>`;
+  }).join('')||'<div style="color:var(--text3);">Нет данных</div>';
+}
+function delDis(i){S.diseases.splice(i,1);save();renderDiseases();}
+
+// DOSES
+function popDoseSelects(){
+  const vs=document.getElementById('dose-variety');vs.innerHTML='<option value="">— выбрать —</option>';S.varieties.forEach(v=>vs.innerHTML+=`<option value="${v.id}">${v.name}</option>`);
+  const ps=document.getElementById('dose-product');ps.innerHTML='<option value="">— выбрать —</option>';[...new Set(S.treatments.map(t=>t.product).filter(Boolean))].forEach(p=>ps.innerHTML+=`<option>${p}</option>`);
+}
+function calcDose(){
+  const age=parseInt(document.getElementById('dose-age').value)||5;const area=parseFloat(document.getElementById('dose-area').value)||1;
+  const rs=parseFloat(document.getElementById('dose-row-spacing').value)||5;const ts=parseFloat(document.getElementById('dose-tree-spacing').value)||3;const product=document.getElementById('dose-product').value;
+  const tph=Math.round(10000/(rs*ts));const tt=Math.round(tph*area);const af=age<5?.6:age<10?.85:age<20?1.0:1.15;
+  const water=Math.round(400*af*area);const tr=product?S.treatments.find(t=>t.product===product):null;const bd=tr?parseFloat(tr.dose)||1:1;const td=(bd*af*area).toFixed(2);
+  document.getElementById('dose-result').innerHTML=`<div class="dose-row"><span class="dose-label">Деревьев на га</span><span class="dose-val">${tph} шт.</span></div><div class="dose-row"><span class="dose-label">Всего деревьев</span><span class="dose-val">${tt} шт.</span></div><div class="dose-row"><span class="dose-label">Коэфф. возраста</span><span class="dose-val">${af.toFixed(2)}</span></div><div class="dose-row"><span class="dose-label">Расход воды</span><span class="dose-val">${water} л</span></div>${tr?`<div style="height:1px;background:var(--border);margin:7px 0;"></div><div class="dose-row"><span class="dose-label">Препарат</span><span class="dose-val" style="font-size:13px;">${product}</span></div><div class="dose-row"><span class="dose-label">Базовая доза</span><span class="dose-val">${bd} л/га</span></div><div class="dose-row"><span class="dose-label">Итого на площадь</span><span class="dose-val">${td} л</span></div><div class="dose-row"><span class="dose-label">Активное в-во</span><span class="dose-val" style="font-size:11px;">${tr.activeSubstance||'—'}</span></div>`:''}<div style="margin-top:10px;padding:9px;background:var(--surface2);border-radius:6px;font-size:11px;color:var(--text2);">⚠️ Уточняйте дозы по инструкции препарата</div>`;
+}
+
+// SETTINGS
+function loadSettings(){document.getElementById('set-rows').value=S.rows;document.getElementById('set-cols').value=S.cols;document.getElementById('wash-partial').value=S.settings.washPartial;document.getElementById('wash-full').value=S.settings.washFull;}
+function saveSettings(){S.settings.washPartial=parseInt(document.getElementById('wash-partial').value)||10;S.settings.washFull=parseInt(document.getElementById('wash-full').value)||25;save();}
+function exportData(){const b=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='passport_sad_'+new Date().toISOString().split('T')[0]+'.json';a.click();}
+function importData(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{Object.assign(S,JSON.parse(ev.target.result));save();init();alert('Импортировано!');}catch{alert('Ошибка файла');}};r.readAsText(f);}
+function resetData(){localStorage.removeItem('cherry_v3');location.reload();}
+
+// MODALS
+function openModal(id){document.getElementById(id).classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+document.addEventListener('click',e=>{if(e.target.classList.contains('modal-overlay'))e.target.classList.remove('open');});
+
+// INIT
+function init(){load();renderMap();loadSettings();}
+init();
+</script>
+</body>
+</html>

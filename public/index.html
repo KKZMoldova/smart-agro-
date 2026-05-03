@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KKZ Moldova — Smart Agro</title>
+<style>
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background:#0a0f0a; color:#e2e8e2; min-height:100vh;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px; }
+  h1 { font-size:28px; font-weight:700; color:#6bdd6b; margin-bottom:8px; letter-spacing:-0.5px; }
+  .sub { font-size:14px; color:#6b7a6b; margin-bottom:48px; }
+  .cards { display:flex; gap:16px; flex-wrap:wrap; justify-content:center; }
+  .card { background:#111a11; border:1px solid #1e2e1e; border-radius:16px;
+    padding:32px; width:280px; text-decoration:none; color:inherit;
+    transition:border-color 0.2s, transform 0.2s; cursor:pointer; }
+  .card:hover { border-color:#6bdd6b44; transform:translateY(-2px); }
+  .card-icon { font-size:40px; margin-bottom:16px; }
+  .card-title { font-size:18px; font-weight:700; color:#e2e8e2; margin-bottom:8px; }
+  .card-desc { font-size:13px; color:#6b7a6b; line-height:1.6; }
+  .badge { display:inline-block; margin-top:12px; padding:3px 10px;
+    border-radius:20px; background:#6bdd6b18; color:#6bdd6b;
+    font-size:11px; font-weight:600; }
+  footer { margin-top:48px; font-size:12px; color:#3a4a3a; }
+</style>
+</head>
+<body>
+  <h1>KKZ Moldova</h1>
+  <p class="sub">Каменский консервный завод · Цифровой агроном</p>
+
+  <div class="cards">
+    <a href="/vegetable" class="card">
+      <div class="card-icon">🌱</div>
+      <div class="card-title">Smart Vegetable</div>
+      <div class="card-desc">Управление овощными полями. Горох, кукуруза, томат, картофель. GDD, поливы, обработки, анализы.</div>
+      <span class="badge">16 участков · 199 га</span>
+    </a>
+
+    <a href="/orchard" class="card">
+      <div class="card-icon">🍒</div>
+      <div class="card-title">Smart Orchard</div>
+      <div class="card-desc">Управление садом. Черешня, вишня, яблоня. Chill portions, GDD, болезни, фертигация.</div>
+      <span class="badge">2 клетки · 14.1 га</span>
+    </a>
+  </div>
+
+  <footer>Данные метеостанции обновляются каждый час · 00002158 Каменка</footer>
+</body>
+</html>

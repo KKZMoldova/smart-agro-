@@ -1,0 +1,2153 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Vegetable System</title>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;700&family=JetBrains+Mono:wght@400;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #0a0f0a;
+  --surface:  #101810;
+  --surface2: #182018;
+  --surface3: #1e281e;
+  --border:   #2a3a2a;
+  --text:     #e8f5e8;
+  --text2:    #a8c8a8;
+  --text3:    #5a7a5a;
+  --accent:   #6bdd6b;
+  --accent2:  #88ffaa;
+  --red:      #ff5555;
+  --orange:   #ff9944;
+  --yellow:   #ffd84d;
+  --blue:     #55aaff;
+  --purple:   #cc88ff;
+  --brown:    #cc8844;
+  --teal:     #44ddcc;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;overflow-x:hidden;}
+
+/* ── HEADER ── */
+.header{
+  background:linear-gradient(135deg,#0d1a0d 0%,#132013 50%,#0d1a0d 100%);
+  border-bottom:1px solid var(--border);
+  padding:0 24px;
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:100;
+  min-height:64px;
+}
+.logo{display:flex;align-items:center;gap:12px;}
+.logo-icon{font-size:28px;filter:drop-shadow(0 0 8px #6bdd6b66);}
+.logo-text h1{font-family:'Unbounded',sans-serif;font-size:14px;font-weight:700;color:var(--accent2);letter-spacing:2px;}
+.logo-text p{font-size:9px;color:var(--text3);letter-spacing:3px;text-transform:uppercase;}
+.header-stats{display:flex;gap:20px;align-items:center;}
+.hstat{text-align:center;}
+.hstat-val{font-family:'Unbounded',sans-serif;font-size:16px;font-weight:700;color:var(--accent);}
+.hstat-lbl{font-size:8px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;}
+
+/* ── TABS ── */
+.nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;display:flex;gap:2px;overflow-x:auto;}
+.tab{padding:12px 16px;cursor:pointer;font-size:10px;font-weight:600;color:var(--text3);white-space:nowrap;
+  border-bottom:2px solid transparent;transition:all .2s;font-family:'Unbounded',sans-serif;letter-spacing:1px;text-transform:uppercase;}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+.tab:hover{color:var(--text2);}
+
+/* ── PANELS ── */
+.panel{display:none;padding:24px;max-width:1400px;margin:0 auto;}
+.panel.active{display:block;}
+
+/* ── SECTION HEADER ── */
+.section-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;}
+.section-hdr h2{font-family:'Unbounded',sans-serif;font-size:13px;font-weight:700;color:var(--text2);letter-spacing:1px;}
+
+/* ── BUTTONS ── */
+.btn{padding:8px 14px;border:none;border-radius:8px;cursor:pointer;font-size:11px;font-weight:600;transition:all .2s;font-family:'Inter',sans-serif;}
+.btn-primary{background:var(--accent);color:#0a0f0a;}
+.btn-primary:hover{background:var(--accent2);}
+.btn-secondary{background:var(--surface2);color:var(--text2);border:1px solid var(--border);}
+.btn-secondary:hover{background:var(--surface3);color:var(--text);}
+.btn-sm{padding:5px 10px;font-size:10px;}
+.btn-xs{padding:3px 8px;font-size:10px;}
+.btn-danger{background:rgba(255,85,85,.15);color:var(--red);border:1px solid rgba(255,85,85,.3);}
+
+/* ── CARDS ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-bottom:20px;}
+.kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center;}
+.kpi-val{font-family:'Unbounded',sans-serif;font-size:22px;font-weight:700;color:var(--accent);}
+.kpi-lbl{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-top:4px;}
+.kpi-sub{font-size:11px;color:var(--text2);margin-top:2px;}
+
+/* ── TABLES ── */
+table.data-table{width:100%;border-collapse:collapse;font-size:12px;}
+table.data-table th{background:var(--surface2);color:var(--text3);font-size:9px;text-transform:uppercase;letter-spacing:1px;padding:9px 12px;text-align:left;border-bottom:1px solid var(--border);font-family:'Unbounded',sans-serif;}
+table.data-table td{padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:middle;}
+table.data-table tr:hover td{background:var(--surface2);}
+
+/* ── CROP TABS ── */
+.crop-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;}
+.crop-tab{padding:6px 12px;border-radius:20px;cursor:pointer;font-size:11px;font-weight:600;border:1px solid var(--border);background:var(--surface2);color:var(--text2);transition:all .2s;display:flex;align-items:center;gap:5px;}
+.crop-tab.active{background:var(--accent);color:#0a0f0a;border-color:var(--accent);}
+.crop-tab:hover:not(.active){background:var(--surface3);color:var(--text);}
+
+/* ── PHASE BAR ── */
+.phase-bar{position:relative;height:28px;background:var(--surface2);border-radius:8px;overflow:hidden;margin-bottom:8px;border:1px solid var(--border);}
+.phase-seg{position:absolute;top:0;height:100%;display:flex;align-items:center;justify-content:center;font-size:8px;color:rgba(0,0,0,.7);font-weight:700;overflow:hidden;white-space:nowrap;font-family:'Unbounded',sans-serif;}
+.phase-marker{position:absolute;top:-2px;bottom:-2px;width:3px;background:#fff;border-radius:2px;box-shadow:0 0 8px rgba(255,255,255,.8);z-index:10;}
+
+/* ── ALERT CARDS ── */
+.alert-card{border-radius:10px;padding:12px 16px;margin-bottom:8px;border-left:3px solid;}
+.alert-critical{background:rgba(255,85,85,.08);border-color:var(--red);}
+.alert-spray{background:rgba(255,153,68,.08);border-color:var(--orange);}
+.alert-watch{background:rgba(255,216,77,.08);border-color:var(--yellow);}
+.alert-ok{background:rgba(107,221,107,.08);border-color:var(--accent);}
+.alert-title{font-size:11px;font-weight:700;margin-bottom:4px;}
+.alert-body{font-size:11px;color:var(--text2);line-height:1.5;}
+.alert-rec{font-size:11px;color:var(--accent2);margin-top:6px;padding:6px 10px;background:rgba(136,255,170,.06);border-radius:6px;border:1px solid rgba(136,255,170,.15);}
+
+/* ── RISK CARDS (diseases) ── */
+.risk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;}
+.risk-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;border-left:3px solid var(--border);transition:all .2s;}
+.risk-card:hover{background:var(--surface2);}
+.risk-meter{height:4px;background:var(--surface3);border-radius:2px;margin:6px 0;}
+.risk-fill{height:100%;border-radius:2px;transition:width .3s;}
+.risk-badge{font-size:9px;font-weight:700;padding:2px 8px;border-radius:10px;font-family:'Unbounded',sans-serif;letter-spacing:0.5px;}
+.rb-ok{background:rgba(107,221,107,.15);color:var(--accent);}
+.rb-watch{background:rgba(255,216,77,.15);color:var(--yellow);}
+.rb-spray{background:rgba(255,153,68,.15);color:var(--orange);}
+.rb-critical{background:rgba(255,85,85,.15);color:var(--red);}
+
+/* ── MODALS ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;align-items:center;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;width:90%;max-width:560px;max-height:90vh;overflow-y:auto;}
+.modal h2{font-family:'Unbounded',sans-serif;font-size:13px;font-weight:700;color:var(--accent2);margin-bottom:20px;}
+.modal-footer{display:flex;justify-content:flex-end;gap:8px;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;}
+.ff{display:flex;flex-direction:column;gap:5px;}
+.ff.full{grid-column:1/-1;}
+label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:'Unbounded',sans-serif;}
+input,select,textarea{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:'Inter',sans-serif;font-size:12px;width:100%;}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);}
+
+/* ── WEATHER GRID ── */
+.weather-day{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:11px;}
+.weather-day .date{font-family:'Unbounded',sans-serif;font-size:9px;color:var(--text3);margin-bottom:4px;}
+.weather-day .temps{font-size:14px;font-weight:700;}
+
+/* ── SMITH PERIOD ── */
+.smith-indicator{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;font-size:11px;font-weight:600;}
+.smith-active{background:rgba(255,85,85,.15);color:var(--red);border:1px solid rgba(255,85,85,.3);}
+.smith-safe{background:rgba(107,221,107,.1);color:var(--accent);border:1px solid rgba(107,221,107,.2);}
+
+/* ── ETc TABLE ── */
+.etc-row{display:grid;grid-template-columns:1fr 80px 80px 80px;gap:8px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--border);font-size:12px;}
+.etc-row:hover{background:var(--surface2);}
+
+/* ── PARCEL MAP ── */
+.parcel-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:20px;}
+.parcel-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;transition:all .2s;border-left:3px solid var(--border);}
+.parcel-card:hover{background:var(--surface3);transform:translateY(-1px);}
+.parcel-card.has-crop{border-left-color:var(--accent);}
+.parcel-name{font-size:12px;font-weight:700;margin-bottom:4px;}
+.parcel-crop{font-size:11px;color:var(--text2);}
+.parcel-phase{font-size:10px;color:var(--text3);margin-top:4px;}
+.parcel-ha{font-family:'Unbounded',sans-serif;font-size:14px;color:var(--accent);}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:var(--surface);}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+
+/* ── BADGE ── */
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:9px;font-weight:700;font-family:'Unbounded',sans-serif;letter-spacing:0.5px;}
+.badge-green{background:rgba(107,221,107,.15);color:var(--accent);}
+.badge-red{background:rgba(255,85,85,.15);color:var(--red);}
+.badge-orange{background:rgba(255,153,68,.15);color:var(--orange);}
+.badge-yellow{background:rgba(255,216,77,.15);color:var(--yellow);}
+.badge-blue{background:rgba(85,170,255,.15);color:var(--blue);}
+
+/* ── GLOW EFFECT ── */
+.glow-green{box-shadow:0 0 20px rgba(107,221,107,.1);}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo">
+    <div class="logo-icon">🥦</div>
+    <div class="logo-text">
+      <h1>SMART VEGETABLE</h1>
+      <p>System · Digital Agronomist</p>
+    </div>
+  </div>
+  <div class="header-stats">
+    <div class="hstat"><div class="hstat-val" id="hstat-parcels">0</div><div class="hstat-lbl">Участков</div></div>
+    <div class="hstat"><div class="hstat-val" id="hstat-ha">0</div><div class="hstat-lbl">Га</div></div>
+    <div class="hstat"><div class="hstat-val" id="hstat-crops">0</div><div class="hstat-lbl">Культур</div></div>
+    <div class="hstat"><div class="hstat-val" id="hstat-alerts" style="color:var(--red);">0</div><div class="hstat-lbl">Алертов</div></div>
+  </div>
+</div>
+
+<!-- NAV -->
+<div class="nav">
+  <div class="tab active" onclick="showTab('parcels')">🗺 УЧАСТКИ</div>
+  <div class="tab" onclick="showTab('weather')">🌡️ ПОГОДА</div>
+  <div class="tab" onclick="showTab('gdd')">📈 GDD / ФАЗЫ</div>
+  <div class="tab" onclick="showTab('diseases')">🦠 БОЛЕЗНИ</div>
+  <div class="tab" onclick="showTab('irrigation')">💧 ИРРИГАЦИЯ</div>
+  <div class="tab" onclick="showTab('treatments')">💊 ОБРАБОТКИ</div>
+  <div class="tab" onclick="showTab('catalog')">📦 ПРЕПАРАТЫ</div>
+  <div class="tab" onclick="showTab('settings')">⚙️ НАСТРОЙКИ</div>
+</div>
+
+<!-- ═══ PARCELS ═══ -->
+<div class="panel active" id="panel-parcels">
+  <div class="section-hdr">
+    <h2>🗺 Участки и культуры</h2>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn btn-secondary" onclick="exportData()">📤 Экспорт</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('import-file').click()">📥 Импорт</button>
+      <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
+      <button class="btn btn-primary" onclick="openParcelModal()">+ Участок</button>
+    </div>
+  </div>
+
+  <!-- Summary KPIs -->
+  <div class="card-grid" id="parcel-kpis"></div>
+
+  <!-- Alert banner -->
+  <div id="alert-banner" style="margin-bottom:16px;"></div>
+
+  <!-- Parcels grid -->
+  <div style="font-family:'Unbounded',sans-serif;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:2px;margin-bottom:10px;">Ваши участки</div>
+  <div class="parcel-grid" id="parcel-grid"></div>
+</div>
+
+<!-- ═══ WEATHER ═══ -->
+<div class="panel" id="panel-weather">
+  <div class="section-hdr">
+    <h2>🌡️ Погода</h2>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn btn-secondary" onclick="document.getElementById('meteo-input').click()">📂 Импорт метеостанции</button>
+      <input type="file" id="meteo-input" accept=".xls,.xlsx,.csv" style="display:none" onchange="importWeather(event)">
+      <button class="btn btn-primary" onclick="openWeatherModal()">+ День</button>
+    </div>
+  </div>
+  <div id="meteo-status" style="display:none;margin-bottom:14px;"></div>
+
+  <!-- Smith Period indicator -->
+  <div id="smith-period-block" style="margin-bottom:16px;"></div>
+
+  <!-- Latest conditions -->
+  <div id="weather-latest" style="margin-bottom:20px;"></div>
+
+  <!-- Weather table -->
+  <table class="data-table">
+    <thead><tr>
+      <th>Дата</th><th>Tмин °C</th><th>Tмакс °C</th><th>Tср °C</th>
+      <th>Влажн. %</th><th>Осадки мм</th><th>Лист влажн. ч</th>
+      <th>ET₀ мм</th><th>GDD (+10°C)</th><th>GDD (+7°C)</th>
+    </tr></thead>
+    <tbody id="weather-tbody"></tbody>
+  </table>
+</div>
+
+<!-- ═══ GDD / PHASES ═══ -->
+<div class="panel" id="panel-gdd">
+  <div class="section-hdr">
+    <h2>📈 GDD и Фенофазы</h2>
+    <div style="display:flex;gap:8px;">
+      <select id="gdd-parcel-sel" onchange="renderGdd()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:'Inter',sans-serif;font-size:12px;">
+        <option value="">— Выберите участок —</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- KPI cards -->
+  <div class="card-grid" id="gdd-kpis" style="grid-template-columns:repeat(auto-fill,minmax(160px,1fr));"></div>
+
+  <!-- Phase bar -->
+  <div style="font-family:'Unbounded',sans-serif;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:2px;margin-bottom:10px;">Фенологическая шкала</div>
+  <div class="phase-bar" id="gdd-phase-bar" style="margin-bottom:6px;"></div>
+  <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;" id="gdd-phase-legend"></div>
+
+  <!-- Alerts -->
+  <div id="gdd-alerts" style="margin-bottom:20px;"></div>
+
+  <!-- GDD table -->
+  <table class="data-table">
+    <thead><tr>
+      <th>Дата</th><th>Tмин</th><th>Tмакс</th><th>GDD день</th><th>GDD сумма</th>
+      <th>Фаза</th><th>Действие системы</th><th>Болезни</th>
+    </tr></thead>
+    <tbody id="gdd-tbody"></tbody>
+  </table>
+</div>
+
+<!-- ═══ DISEASES ═══ -->
+<div class="panel" id="panel-diseases">
+  <div class="section-hdr">
+    <h2>🦠 Болезни и вредители</h2>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-secondary" onclick="renderDiseases()">🔄 Обновить</button>
+    </div>
+  </div>
+
+  <!-- Crop filter tabs -->
+  <div class="crop-tabs" id="dis-crop-tabs"></div>
+
+  <!-- Risk cards -->
+  <div class="risk-grid" id="disease-grid"></div>
+</div>
+
+<!-- ═══ IRRIGATION ═══ -->
+<div class="panel" id="panel-irrigation">
+  <div class="section-hdr">
+    <h2>💧 Ирригация · ETc</h2>
+    <button class="btn btn-secondary" onclick="toggleIrrigInfo()">📖 Нормы полива</button>
+  </div>
+
+  <!-- ETc table per parcel/crop -->
+  <div id="irrig-info" style="display:none;margin-bottom:16px;"></div>
+  <div id="etc-block" style="margin-bottom:20px;"></div>
+
+  <!-- Weekly irrigation plan -->
+  <div style="font-family:'Unbounded',sans-serif;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:2px;margin-bottom:10px;">Рекомендации по поливу</div>
+  <div id="irrig-recs"></div>
+</div>
+
+<!-- ═══ TREATMENTS ═══ -->
+<div class="panel" id="panel-treatments">
+  <div class="section-hdr">
+    <h2>💊 Журнал обработок</h2>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn btn-secondary" onclick="exportTreatments()">📊 Отчёт Excel</button>
+      <button class="btn btn-primary" onclick="openTreatmentModal()">+ Обработка</button>
+    </div>
+  </div>
+
+  <!-- Filter -->
+  <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+    <select id="tr-parcel-filter" onchange="renderTreatments()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:7px 10px;color:var(--text);font-size:12px;">
+      <option value="">Все участки</option>
+    </select>
+    <select id="tr-crop-filter" onchange="renderTreatments()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:7px 10px;color:var(--text);font-size:12px;">
+      <option value="">Все культуры</option>
+    </select>
+    <select id="tr-type-filter" onchange="renderTreatments()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:7px 10px;color:var(--text);font-size:12px;">
+      <option value="">Все типы</option>
+      <option value="fungicide">Фунгицид</option>
+      <option value="insecticide">Инсектицид</option>
+      <option value="herbicide">Гербицид</option>
+      <option value="fertilizer">Удобрение</option>
+    </select>
+  </div>
+
+  <table class="data-table">
+    <thead><tr>
+      <th>Дата</th><th>Участок</th><th>Культура</th><th>Препарат</th>
+      <th>Тип</th><th>Доза</th><th>Фаза</th><th>Смыв</th><th></th>
+    </tr></thead>
+    <tbody id="treatment-tbody"></tbody>
+  </table>
+</div>
+
+<!-- ═══ CATALOG ═══ -->
+<div class="panel" id="panel-catalog">
+  <div class="section-hdr">
+    <h2>📦 Справочник препаратов</h2>
+    <button class="btn btn-primary" onclick="openCatalogModal()">+ Препарат</button>
+  </div>
+
+  <!-- Filter -->
+  <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+    <select id="cat-type-filter" onchange="renderCatalog()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:7px 10px;color:var(--text);font-size:12px;">
+      <option value="">Все типы</option>
+      <option value="fungicide">Фунгицид</option>
+      <option value="insecticide">Инсектицид</option>
+      <option value="herbicide">Гербицид</option>
+      <option value="fertilizer">Удобрение</option>
+      <option value="acaricide">Акарицид</option>
+    </select>
+  </div>
+
+  <table class="data-table">
+    <thead><tr>
+      <th>Препарат</th><th>Тип</th><th>Действующее вещество</th>
+      <th>Доза</th><th>Срок ожидания</th><th>Культуры</th><th></th>
+    </tr></thead>
+    <tbody id="catalog-tbody"></tbody>
+  </table>
+</div>
+
+<!-- ═══ SETTINGS ═══ -->
+<div class="panel" id="panel-settings">
+  <div class="section-hdr"><h2>⚙️ Настройки</h2></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:600px;">
+    <div class="ff full"><label>Название хозяйства</label><input type="text" id="set-farm-name" placeholder="ООО Агро" oninput="saveSetting('farmName',this.value)"></div>
+    <div class="ff"><label>Регион</label><input type="text" id="set-region" placeholder="Молдова" oninput="saveSetting('region',this.value)"></div>
+    <div class="ff"><label>Площадь всего (га)</label><input type="number" id="set-total-ha" oninput="saveSetting('totalHa',this.value)"></div>
+  </div>
+  <div style="margin-top:24px;display:flex;gap:8px;">
+    <button class="btn btn-secondary" onclick="exportData()">📤 Экспорт данных</button>
+    <button class="btn btn-danger" onclick="if(confirm('Удалить все данные?')){localStorage.removeItem('sveg_v1');location.reload();}">🗑️ Сбросить данные</button>
+  </div>
+</div>
+
+<!-- ═══ MODALS ═══ -->
+
+<!-- Parcel Modal -->
+<div class="modal-overlay" id="modal-parcel">
+  <div class="modal">
+    <h2 id="modal-parcel-title">🗺 Новый участок</h2>
+    <div class="form-grid">
+      <div class="ff"><label>Название</label><input type="text" id="p-name" placeholder="Участок А-1"></div>
+      <div class="ff"><label>Площадь (га)</label><input type="number" id="p-ha" step="0.1" placeholder="5.0"></div>
+      <div class="ff"><label>Культура</label>
+        <select id="p-crop">
+          <option value="">— выбрать —</option>
+        </select>
+      </div>
+      <div class="ff"><label>Сорт</label><input type="text" id="p-variety" placeholder="Название сорта"></div>
+      <div class="ff"><label>Дата посева/посадки</label><input type="date" id="p-sowing"></div>
+      <div class="ff"><label>Плотность (тыс.раст/га)</label><input type="number" id="p-density" step="0.1" placeholder="50"></div>
+      <div class="ff full"><label>Тип почвы</label>
+        <select id="p-soil">
+          <option value="loam">Суглинок</option>
+          <option value="sandy_loam">Супесь</option>
+          <option value="clay_loam">Тяжёлый суглинок</option>
+          <option value="sandy">Песчаная</option>
+          <option value="clay">Глина</option>
+        </select>
+      </div>
+      <div class="ff full"><label>Примечание</label><input type="text" id="p-note" placeholder="Капельное орошение, теплица..."></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-parcel')">Отмена</button>
+      <button class="btn btn-danger btn-sm" id="p-delete-btn" style="display:none;margin-right:auto;" onclick="deleteParcel()">Удалить</button>
+      <button class="btn btn-primary" onclick="saveParcel()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Weather Modal -->
+<div class="modal-overlay" id="modal-weather">
+  <div class="modal">
+    <h2>🌡️ Добавить день</h2>
+    <div class="form-grid">
+      <div class="ff"><label>Дата</label><input type="date" id="w-date"></div>
+      <div class="ff"><label>Влажность %</label><input type="number" id="w-hum" placeholder="65"></div>
+      <div class="ff"><label>Tмин °C</label><input type="number" id="w-tmin" step="0.1"></div>
+      <div class="ff"><label>Tмакс °C</label><input type="number" id="w-tmax" step="0.1"></div>
+      <div class="ff"><label>Осадки мм</label><input type="number" id="w-rain" step="0.1" placeholder="0"></div>
+      <div class="ff"><label>Влажн. листа ч</label><input type="number" id="w-leaf" step="0.5" placeholder="0"></div>
+      <div class="ff"><label>ET₀ мм</label><input type="number" id="w-et0" step="0.1" placeholder="auto"></div>
+      <div class="ff"><label>Ветер м/с</label><input type="number" id="w-wind" step="0.1" placeholder="0"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-weather')">Отмена</button>
+      <button class="btn btn-primary" onclick="saveWeather()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Treatment Modal -->
+<div class="modal-overlay" id="modal-treatment">
+  <div class="modal">
+    <h2>💊 Обработка</h2>
+    <div class="form-grid">
+      <div class="ff"><label>Дата</label><input type="date" id="t-date"></div>
+      <div class="ff"><label>Участок</label><select id="t-parcel"></select></div>
+      <div class="ff"><label>Препарат</label>
+        <select id="t-product" onchange="fillTreatProduct()">
+          <option value="">— выбрать из справочника —</option>
+        </select>
+      </div>
+      <div class="ff"><label>Или ввести вручную</label><input type="text" id="t-product-manual" placeholder="Название препарата"></div>
+      <div class="ff"><label>Тип</label>
+        <select id="t-type">
+          <option value="fungicide">Фунгицид</option>
+          <option value="insecticide">Инсектицид</option>
+          <option value="herbicide">Гербицид</option>
+          <option value="fertilizer">Удобрение</option>
+          <option value="acaricide">Акарицид</option>
+          <option value="other">Другое</option>
+        </select>
+      </div>
+      <div class="ff"><label>Доза (л/га или кг/га)</label><input type="text" id="t-dose" placeholder="0.5 л/га"></div>
+      <div class="ff"><label>Срок ожидания (дней)</label><input type="number" id="t-whi" placeholder="7"></div>
+      <div class="ff"><label>Метод</label>
+        <select id="t-method">
+          <option value="foliar">Листовая</option>
+          <option value="soil">В почву</option>
+          <option value="drip">Капельное</option>
+          <option value="seed">Протравка семян</option>
+        </select>
+      </div>
+      <div class="ff full"><label>Примечание</label><input type="text" id="t-note" placeholder="Против фитофторы..."></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-treatment')">Отмена</button>
+      <button class="btn btn-primary" onclick="saveTreatment()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Catalog Modal -->
+<div class="modal-overlay" id="modal-catalog">
+  <div class="modal">
+    <h2>📦 Препарат</h2>
+    <div class="form-grid">
+      <div class="ff"><label>Название</label><input type="text" id="c-name" placeholder="Ридомил Голд"></div>
+      <div class="ff"><label>Тип</label>
+        <select id="c-type">
+          <option value="fungicide">Фунгицид</option>
+          <option value="insecticide">Инсектицид</option>
+          <option value="herbicide">Гербицид</option>
+          <option value="fertilizer">Удобрение</option>
+          <option value="acaricide">Акарицид</option>
+        </select>
+      </div>
+      <div class="ff full"><label>Действующее вещество</label><input type="text" id="c-ai" placeholder="мефеноксам + манкоцеб"></div>
+      <div class="ff"><label>Доза (л/га или кг/га)</label><input type="text" id="c-dose" placeholder="2.5 кг/га"></div>
+      <div class="ff"><label>Срок ожидания (дней)</label><input type="number" id="c-whi" placeholder="7"></div>
+      <div class="ff full"><label>Культуры применения</label><input type="text" id="c-crops" placeholder="томаты, картофель, огурцы"></div>
+      <div class="ff full"><label>Против болезней/вредителей</label><input type="text" id="c-targets" placeholder="фитофтора, альтернариоз"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-catalog')">Отмена</button>
+      <button class="btn btn-primary" onclick="saveCatalogItem()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// SMART VEGETABLE SYSTEM — Data Engine
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ─── CROP DATABASE ─────────────────────────────────────────────────────────
+const CROPS = [
+  // ── NIGHTSHADES / Паслёновые ──────────────────────────────────────────
+  {
+    id:'tomato', name:'Томат', emoji:'🍅', group:'Паслёновые',
+    baseTemp:10, gddToHarvest:1300,
+    kc:{initial:0.6, development:1.15, mid:1.15, late:0.8},
+    rootDepth:60, // cm
+    nutrientNorms:{N:200, P2O5:120, K2O:300}, // кг/га
+    density:{min:25, max:60, unit:'тыс.раст/га'},
+    phases:[
+      {name:'Прорастание',   color:'#92400e', gddFrom:0,    gddTo:100,  action:'MONITOR',   risks:'Damping-off, Pythium'},
+      {name:'Всходы',        color:'#78716c', gddFrom:100,  gddTo:250,  action:'WATCH',     risks:'Тля, паутинный клещ'},
+      {name:'Розетка',       color:'#166534', gddFrom:250,  gddTo:500,  action:'MONITOR',   risks:'Ранняя альтернариоз'},
+      {name:'Цветение',      color:'#fbbf24', gddFrom:500,  gddTo:700,  action:'CRITICAL',  risks:'Монилиоз, Botrytis, TSWV'},
+      {name:'Завязь',        color:'#86efac', gddFrom:700,  gddTo:900,  action:'SPRAY',     risks:'Фитофтора, белокрылка'},
+      {name:'Рост плода',    color:'#4ade80', gddFrom:900,  gddTo:1100, action:'CRITICAL',  risks:'Фитофтора, антракноз'},
+      {name:'Созревание',    color:'#ef4444', gddFrom:1100, gddTo:1300, action:'HARVEST',   risks:'Botrytis, плодожорка'},
+      {name:'Уборка',        color:'#dc2626', gddFrom:1300, gddTo:9999, action:'HARVEST',   risks:'—'},
+    ],
+    diseases:['late_blight','early_blight','botrytis','fusarium_wilt','tswv','whitefly','aphid','spider_mite','tomato_hornworm'],
+    smithPeriodBase:10, // для Smith Period расчёта
+    note:'Открытый грунт. Обязательно капельное + мульча. Smith Period = главный триггер.',
+  },
+  {
+    id:'potato', name:'Картофель', emoji:'🥔', group:'Паслёновые',
+    baseTemp:7, gddToHarvest:1800,
+    kc:{initial:0.5, development:1.15, mid:1.15, late:0.75},
+    rootDepth:40,
+    nutrientNorms:{N:180, P2O5:100, K2O:250},
+    density:{min:40, max:60, unit:'тыс.раст/га'},
+    phases:[
+      {name:'Посадка',       color:'#78350f', gddFrom:0,    gddTo:200,  action:'MONITOR',   risks:'Ризоктониоз, проволочник'},
+      {name:'Всходы',        color:'#92400e', gddFrom:200,  gddTo:450,  action:'WATCH',     risks:'Колорадский жук, тля'},
+      {name:'Вегетация',     color:'#166534', gddFrom:450,  gddTo:800,  action:'SPRAY',     risks:'Фитофтора, Alternaria'},
+      {name:'Инициация клубней',color:'#65a30d',gddFrom:800,gddTo:1100, action:'CRITICAL',  risks:'Фитофтора — ПИКОВЫЙ РИСК'},
+      {name:'Налив клубней', color:'#84cc16', gddFrom:1100, gddTo:1400, action:'CRITICAL',  risks:'Фитофтора, гнили'},
+      {name:'Созревание',    color:'#a16207', gddFrom:1400, gddTo:1600, action:'HARVEST',   risks:'Парша'},
+      {name:'Уборка',        color:'#854d0e', gddFrom:1600, gddTo:9999, action:'HARVEST',   risks:'—'},
+    ],
+    diseases:['late_blight','alternaria','colorado_beetle','aphid','rhizoctonia','wireworm','virus_y'],
+    smithPeriodBase:7,
+    note:'Фитофтора = угроза #1. Smith Period обязателен. Колорадский жук = каждые 2 нед. мониторинг.',
+  },
+  {
+    id:'pepper', name:'Перец сладкий', emoji:'🫑', group:'Паслёновые',
+    baseTemp:10, gddToHarvest:1800,
+    kc:{initial:0.6, development:1.05, mid:1.05, late:0.80},
+    rootDepth:50,
+    nutrientNorms:{N:150, P2O5:90, K2O:200},
+    density:{min:25, max:45, unit:'тыс.раст/га'},
+    phases:[
+      {name:'Прорастание',   color:'#92400e', gddFrom:0,    gddTo:100,  action:'MONITOR',   risks:'Pythium'},
+      {name:'Всходы',        color:'#78716c', gddFrom:100,  gddTo:350,  action:'WATCH',     risks:'Тля, трипсы'},
+      {name:'Вегетация',     color:'#166534', gddFrom:350,  gddTo:700,  action:'SPRAY',     risks:'Фитофтора корней'},
+      {name:'Цветение',      color:'#fbbf24', gddFrom:700,  gddTo:1000, action:'CRITICAL',  risks:'Botrytis, TSWV, антракноз'},
+      {name:'Рост плода',    color:'#86efac', gddFrom:1000, gddTo:1400, action:'SPRAY',     risks:'Антракноз, фитофтора'},
+      {name:'Созревание',    color:'#ef4444', gddFrom:1400, gddTo:1800, action:'HARVEST',   risks:'Botrytis'},
+      {name:'Уборка',        color:'#dc2626', gddFrom:1800, gddTo:9999, action:'HARVEST',   risks:'—'},
+    ],
+    diseases:['phytophthora_root','anthracnose_fruit','botrytis','tswv','aphid','thrips','spider_mite'],
+    note:'Чувствителен к переувлажнению (Phytophthora). Вирусы переносит тля — контроль тли = приоритет.',
+  },
+  {
+    id:'eggplant', name:'Баклажан', emoji:'🍆', group:'Паслёновые',
+    baseTemp:10, gddToHarvest:1600,
+    kc:{initial:0.6, development:1.05, mid:1.05, late:0.80},
+    rootDepth:50,
+    nutrientNorms:{N:150, P2O5:80, K2O:200},
+    density:{min:20, max:35, unit:'тыс.раст/га'},
+    phases:[
+      {name:'Рассада',       color:'#78350f', gddFrom:0,    gddTo:200,  action:'MONITOR',   risks:'Колорадский жук'},
+      {name:'Посадка',       color:'#92400e', gddFrom:200,  gddTo:450,  action:'SPRAY',     risks:'Колорадский жук — КРИТИЧНО'},
+      {name:'Вегетация',     color:'#166534', gddFrom:450,  gddTo:800,  action:'SPRAY',     risks:'Вертициллёз, клещ'},
+      {name:'Цветение',      color:'#c084fc', gddFrom:800,  gddTo:1100, action:'CRITICAL',  risks:'Botrytis, антракноз'},
+      {name:'Рост плода',    color:'#86efac', gddFrom:1100, gddTo:1400, action:'SPRAY',     risks:'Клещ, белокрылка'},
+      {name:'Уборка',        color:'#7c3aed', gddFrom:1400, gddTo:9999, action:'HARVEST',   risks:'—'},
+    ],
+    diseases:['colorado_beetle','verticillium','spider_mite','whitefly','botrytis','phomopsis'],
+    note:'Колорадский жук атакует как картофель. Вертициллёз — почвенная инфекция (нет лечения).',
+  },
+  // ── ALLIUMS / Луковичные ──────────────────────────────────────────────
+  {
+    id:'onion', name:'Лук репчатый', emoji:'🧅', group:'Луковичные',
+    baseTemp:4.5, gddToHarvest:1600,
+    kc:{initial:0.7, development:1.05, mid:1.0, late:0.75},
+    rootDepth:30,
+    nutrientNorms:{N:120, P2O5:80, K2O:150},
+    density:{min:300, max:600, unit:'тыс.раст/га'},
+    phases:[
+      {name:'Посев',         color:'#78350f', gddFrom:0,    gddTo:150,  action:'MONITOR',   risks:'Damping-off'},
+      {name:'Всходы',        color:'#92400e', gddFrom:150,  gddTo:400,  action:'WATCH',     risks:'Трипсы, пероноспороз'},
+      {name:'3-5 листьев',   color:'#166534', gddFrom:400,  gddTo:700,  action:'SPRAY',     risks:'Пероноспороз, ложная роса'},
+      {name:'Инициация луковицы',color:'#65a30d',gddFrom:700,gddTo:1000,action:'CRITICAL', risks:'Пероноспороз — пиковый риск'},
+      {name:'Налив луковицы',color:'#84cc16', gddFrom:1000, gddTo:1400, action:'SPRAY',     risks:'Шейковая гниль (Botrytis)'},
+      {name:'Полегание',     color:'#a16207', gddFrom:1400, gddTo:1600, action:'HARVEST',   risks:'Фузариоз донца'},
+      {name:'Уборка',        color:'#854d0e', gddFrom:1600, gddTo:9999, action:'HARVEST',   risks:'—'},
+    ],
+    diseases:['downy_mildew_onion','botrytis_neck','fusarium_basal','thrips','onion_fly'],
+    note:'Пероноспороз = главная болезнь. Требует 4-5 обработок за сезон. Трипсы переносят вирус.',
+  },
+  // ── CUCURBITS / Тыквенные ────────────────────────────────────────────
+  {
+    id:'cucumber', name:'Огурец', emoji:'🥒', group:'Тыквенные',
+    baseTemp:10, gddToHarvest:900,
+    kc:{initial:0.6, development:1.0, mid:1.0, late:0.75},
+    rootDepth:40,
+    nutrientNorms:{N:130, P2O5:70, K2O:200},
+    density:{min:15, max:35, unit:'тыс.раст/га'},
+    phases:[
+      {name:'Всходы',        color:'#166534', gddFrom:0,    gddTo:120,  action:'MONITOR',   risks:'Pythium'},
+      {name:'Рост',          color:'#15803d', gddFrom:120,  gddTo:350,  action:'WATCH',     risks:'Мучнистая роса, тля'},
+      {name:'Цветение',      color:'#fbbf24', gddFrom:350,  gddTo:550,  action:'SPRAY',     risks:'Ложная мучнистая роса'},
+      {name:'Плодоношение',  color:'#4ade80', gddFrom:550,  gddTo:800,  action:'CRITICAL',  risks:'Мучн. роса, клещ, тля'},
+      {name:'Уборка',        color:'#16a34a', gddFrom:800,  gddTo:9999, action:'HARVEST',   risks:'—'},
+    ],
+    diseases:['powdery_mildew','downy_mildew_cucurbit','pythium','spider_mite','aphid','whitefly','cucumber_mosaic'],
+    note:'Мучнистая роса = болезнь №1. Очень короткий вегетационный период. Уборка через каждые 2–3 дня.',
+  },
+  {
+    id:'zucchini', name:'Кабачок', emoji:'🥬', group:'Тыквенные',
+    baseTemp:10, gddToHarvest:800,
+    kc:{initial:0.5, development:0.95, mid:0.95, late:0.75},
+    rootDepth:40,
+    nutrientNorms:{N:100, P2O5:60, K2O:150},
+    density:{min:5, max:12, unit:'тыс.раст/га'},
+    phases:[
+      {name:'Всходы',        color:'#166534', gddFrom:0,    gddTo:100,  action:'MONITOR',   risks:'Pythium'},
+      {name:'Рост',          color:'#15803d', gddFrom:100,  gddTo:300,  action:'WATCH',     risks:'Тля, мучнистая роса'},
+      {name:'Цветение',      color:'#fbbf24', gddFrom:300,  gddTo:500,  action:'SPRAY',     risks:'Мучнистая роса, CMV'},
+      {name:'Плодоношение',  color:'#4ade80', gddFrom:500,  gddTo:750,  action:'SPRAY',     risks:'Мучнистая роса'},
+      {name:'Уборка',        color:'#16a34a', gddFrom:750,  gddTo:9999, action:'HARVEST',   risks:'—'},
+    ],
+    diseases:['powdery_mildew','aphid','spider_mite','cucumber_mosaic','squash_vine_borer'],
+    note:'Быстрый цикл. Мучнистая роса при сухой жаркой погоде. CMV через тлю — контроль тли критичен.',
+  },
+  // ── LEGUMES / Бобовые ────────────────────────────────────────────────
+  {
+    id:'pea', name:'Горошек зелёный', emoji:'🫛', group:'Бобовые',
+    baseTemp:4.5, gddToHarvest:750,
+    // TDU — Thermal Development Units (горошек консервный)
+    // TDU = Σ(Tavg - 4.5) от посева до уборки
+    // Технологическая зрелость: TDU 100–130 (Tenderometer 100–120 единиц)
+    tduTarget:115, // средняя точка оптимальной зрелости
+    tduWindow:15,  // ±15 TDU — окно уборки (≈2–4 дня!)
+    kc:{initial:0.5, development:1.15, mid:1.15, late:1.05},
+    rootDepth:45,
+    nutrientNorms:{N:30, P2O5:60, K2O:80}, // горошек фиксирует N из воздуха!
+    density:{min:600, max:1200, unit:'тыс.раст/га'},
+    phases:[
+      {name:'Прорастание',    color:'#78350f', gddFrom:0,   gddTo:80,   action:'MONITOR',  risks:'Pythium, Fusarium всходов'},
+      {name:'Всходы (VE)',    color:'#92400e', gddFrom:80,  gddTo:180,  action:'WATCH',    risks:'Тля, долгоносик'},
+      {name:'3–5 листьев',    color:'#166534', gddFrom:180, gddTo:300,  action:'SPRAY',    risks:'Мучнистая роса, ложная роса'},
+      {name:'Бутонизация',    color:'#86efac', gddFrom:300, gddTo:420,  action:'CRITICAL', risks:'Аскохитоз, тля, трипсы'},
+      {name:'Цветение',       color:'#fbbf24', gddFrom:420, gddTo:540,  action:'BEE SAFE', risks:'Botrytis при влаге'},
+      {name:'Налив зерна',    color:'#4ade80', gddFrom:540, gddTo:650,  action:'TDU WATCH',risks:'Ложная мучнистая роса, долгоносик'},
+      {name:'🎯 Техн. зрелость',color:'#22c55e',gddFrom:650, gddTo:750, action:'🌾 HARVEST NOW', risks:'Перезревание — 1–2 дня!'},
+      {name:'Перезревание',   color:'#a16207', gddFrom:750, gddTo:9999, action:'УРОЖАЙ УПУЩЕН', risks:'Крахмалистость, потеря Brix'},
+    ],
+    diseases:['powdery_mildew','pea_downy_mildew','ascochyta','botrytis','pea_aphid','pea_weevil','thrips'],
+    note:'КРИТИЧНО: окно уборки 2–4 дня. TDU-модель обязательна для консервного завода. Горошек фиксирует N₂ из воздуха — не перекармливать азотом.',
+  },
+  // ── CORN / Зерновые ──────────────────────────────────────────────────
+  {
+    id:'sweet_corn', name:'Кукуруза сладкая', emoji:'🌽', group:'Зерновые',
+    baseTemp:10, gddToHarvest:1450,
+    // Стадия R3 (молочная спелость) = GDD 1350–1450 от посева
+    // Окно уборки при R3: 7–10 дней (Brix падает быстро после R4)
+    kc:{initial:0.3, development:1.2, mid:1.2, late:0.6},
+    rootDepth:100,
+    nutrientNorms:{N:180, P2O5:80, K2O:140},
+    density:{min:55, max:80, unit:'тыс.раст/га'},
+    phases:[
+      {name:'Посев',          color:'#78350f', gddFrom:0,    gddTo:120,  action:'MONITOR',  risks:'Проволочник, птицы'},
+      {name:'Всходы (VE)',    color:'#92400e', gddFrom:120,  gddTo:200,  action:'WATCH',    risks:'Шведская муха, тля'},
+      {name:'V3 (3 листа)',   color:'#166534', gddFrom:200,  gddTo:350,  action:'SPRAY',    risks:'Кукурузный мотылёк, тля'},
+      {name:'V6 (6 листьев)', color:'#15803d', gddFrom:350,  gddTo:550,  action:'CRITICAL', risks:'Мотылёк, Helminthosporium'},
+      {name:'VT (метёлка)',   color:'#65a30d', gddFrom:550,  gddTo:750,  action:'BEE SAFE', risks:'Мотылёк 2-е поколение, Fusarium'},
+      {name:'R1 (шёлк)',      color:'#fbbf24', gddFrom:750,  gddTo:950,  action:'CRITICAL', risks:'Fusarium початка, тля, цикадка'},
+      {name:'R2 (волдырь)',   color:'#86efac', gddFrom:950,  gddTo:1100, action:'WATCH',    risks:'Гельминтоспориоз, серая гниль'},
+      {name:'R3 (молочная)',  color:'#4ade80', gddFrom:1100, gddTo:1350, action:'🌽 APPROACHING', risks:'Ожидать уборку'},
+      {name:'🎯 Уборка! R3–R4',color:'#22c55e',gddFrom:1350,gddTo:1500, action:'🌾 HARVEST NOW', risks:'Brix снижается — 7 дней'},
+      {name:'R4–R5 (тестообразная)',color:'#a16207',gddFrom:1500,gddTo:9999,action:'ПЕРЕЗРЕЛО', risks:'Потеря сладости'},
+    ],
+    diseases:['corn_borer','corn_smut','helminthosporium','fusarium_ear','corn_aphid','wireworm_corn'],
+    note:'R3 = молочная спелость = "golden window" 7–10 дней. Проверка: нажать зерно — белый сок + Brix 18–22. После R4 сахар → крахмал необратимо.',
+  },
+];
+
+// ─── DISEASE DATABASE ──────────────────────────────────────────────────────
+const DISEASES = [
+  // ── ФИТОФТОРА / Late Blight ─────────────────────────────────────────
+  {id:'late_blight', name:'Фитофтора', latin:'Phytophthora infestans',
+   type:'fungal', danger:5, cropIds:['tomato','potato'],
+   tmin:10, tmax:24, topt:17, hmin:80, leafWetHours:4,
+   smithPeriod:true, // использует Smith Period Rule
+   symptoms:'Тёмно-коричневые маслянистые пятна на листьях. Белый налёт спор снизу. Стремительное распространение.',
+   products:'Ридомил Голд, Инфинито, Курзат, Акробат, Превикур',
+   prevention:'Smith Period: T≥10°C + RH≥80% 2+ дня подряд → КРАСНЫЙ АЛЕРТ. Профилактика важнее лечения!',
+   icon:'🟤'},
+  // ── АЛЬТЕРНАРИОЗ / Early Blight ─────────────────────────────────────
+  {id:'early_blight', name:'Альтернариоз (ранний)', latin:'Alternaria solani',
+   type:'fungal', danger:4, cropIds:['tomato','potato'],
+   tmin:15, tmax:35, topt:26, hmin:70, leafWetHours:2,
+   symptoms:'Тёмные концентрические пятна на нижних листьях. "Мишень" — кольца. Начинается снизу куста.',
+   products:'Скор, Хорус, Квадрис, Ревус Топ',
+   prevention:'Обработка при первых симптомах или профилактически в жаркую влажную погоду.',
+   icon:'⚫'},
+  // ── ПЕРОНОСПОРОЗ ОГУРЦА / Cucurbit Downy Mildew ─────────────────────
+  {id:'downy_mildew_cucurbit', name:'Ложная мучнистая роса огурца', latin:'Pseudoperonospora cubensis',
+   type:'fungal', danger:5, cropIds:['cucumber','zucchini'],
+   tmin:5, tmax:25, topt:18, hmin:80, leafWetHours:4,
+   symptoms:'Угловатые желтые пятна на листьях ограниченные жилками. Снизу серо-фиолетовый налёт. Быстрое засыхание.',
+   products:'Ревус, Курзат, Акробат, Ридомил Голд',
+   prevention:'Триггер: T 5–25°C + листья мокрые > 4ч. Обработка ДО дождя.',
+   icon:'🟣'},
+  // ── ПЕРОНОСПОРОЗ ЛУКА / Onion Downy Mildew ──────────────────────────
+  {id:'downy_mildew_onion', name:'Пероноспороз лука', latin:'Peronospora destructor',
+   type:'fungal', danger:5, cropIds:['onion'],
+   tmin:7, tmax:21, topt:13, hmin:80, leafWetHours:4,
+   symptoms:'Бледно-зелёные пятна на перьях, фиолетовый налёт спор. Перья желтеют и полегают. Потеря 50–80% урожая.',
+   products:'Ридомил Голд, Акробат МЦ, Инфинито',
+   prevention:'Инфекция: T 7–21°C + листья мокрые > 4ч (обычно туман/роса). 4–5 обработок за сезон.',
+   icon:'💜'},
+  // ── МУЧНИСТАЯ РОСА / Powdery Mildew ────────────────────────────────
+  {id:'powdery_mildew', name:'Мучнистая роса', latin:'Sphaerotheca / Podosphaera',
+   type:'fungal', danger:4, cropIds:['cucumber','zucchini','tomato','pepper','eggplant'],
+   tmin:10, tmax:32, topt:22, hmin:40, leafWetHours:0,
+   symptoms:'Белый мучнистый налёт на листьях. Не нужна высокая влажность — развивается в сухую жаркую погоду.',
+   products:'Топаз, Хорус, Тиовит Джет, Квадрис',
+   prevention:'Триггер: T>22°C + сухо. Не смешивать серу при T>28°C. Регулярные профилактические обработки.',
+   icon:'⬜'},
+  // ── СЕРАЯ ГНИЛЬ / Botrytis ──────────────────────────────────────────
+  {id:'botrytis', name:'Серая гниль (Botrytis)', latin:'Botrytis cinerea',
+   type:'fungal', danger:4, cropIds:['tomato','pepper','eggplant','cucumber'],
+   tmin:5, tmax:25, topt:18, hmin:80, leafWetHours:6,
+   symptoms:'Серый пушистый налёт на стеблях, цветках, плодах. Мокрая гниль. Чаще при загущении и прохладной влажной погоде.',
+   products:'Свитч, Хорус, Ровраль, Тельдор',
+   prevention:'Прореживание, вентиляция. Триггер: T 5–25°C + RH > 80% + листья мокрые > 6ч.',
+   icon:'🩶'},
+  // ── ФУЗАРИОЗ / Fusarium ─────────────────────────────────────────────
+  {id:'fusarium_wilt', name:'Фузариозное увядание', latin:'Fusarium oxysporum',
+   type:'fungal', danger:5, cropIds:['tomato','pepper','cucumber'],
+   tmin:15, tmax:35, topt:28, hmin:0, leafWetHours:0,
+   symptoms:'Пожелтение и увядание листьев с одной стороны. Бурение сосудистой ткани на срезе. Нет лечения.',
+   products:'Превикур Энерджи (профилактика), Триходермин',
+   prevention:'Устойчивые сорта! Смена культур. Дезинфекция почвы. Поливать под корень, не допускать стресса.',
+   icon:'🟡'},
+  // ── ВЕРТИЦИЛЛЁЗ / Verticillium ──────────────────────────────────────
+  {id:'verticillium', name:'Вертициллёзное увядание', latin:'Verticillium dahliae',
+   type:'fungal', danger:4, cropIds:['tomato','eggplant','pepper'],
+   tmin:10, tmax:28, topt:21, hmin:0, leafWetHours:0,
+   symptoms:'Увядание в жаркие часы дня. Хлороз нижних листьев. V-образные жёлтые пятна. Бурение сосудов.',
+   products:'Нет эффективных фунгицидов — только профилактика',
+   prevention:'Севооборот (не менее 4 лет). Устойчивые сорта. Здоровый посадочный материал.',
+   icon:'🟠'},
+  // ── КОЛОРАДСКИЙ ЖУК / Colorado Potato Beetle ─────────────────────────
+  {id:'colorado_beetle', name:'Колорадский жук', latin:'Leptinotarsa decemlineata',
+   type:'insect', danger:5, cropIds:['potato','eggplant','tomato','pepper'],
+   tmin:10, tmax:35, topt:26, hmin:0, leafWetHours:0,
+   symptoms:'Объедание листьев — скелетирование. Жёлто-оранжевые яйца снизу листа. 2–3 поколения/сезон.',
+   products:'Децис, Конфидор, Актара, Коряген, Волиам Флекси',
+   prevention:'Мониторинг с появления всходов. Обработка при 5–10 жуках/м². Чередование инсектицидов!',
+   icon:'🪲'},
+  // ── ТЛЯ / Aphid ──────────────────────────────────────────────────────
+  {id:'aphid', name:'Тля', latin:'Aphididae sp.',
+   type:'insect', danger:4, cropIds:['tomato','potato','pepper','cucumber','onion','eggplant','zucchini'],
+   tmin:8, tmax:30, topt:22, hmin:0, leafWetHours:0,
+   symptoms:'Колонии на нижней стороне листьев. Скручивание, липкая падь, сажистый грибок. Переносит вирусы (CMV, TSWV).',
+   products:'Актара, Конфидор, Биотлин, Пиримор',
+   prevention:'Мониторинг при T>15°C. Желтые клеевые ловушки. Обработка при >5 тлей/лист.',
+   icon:'🟢'},
+  // ── ПАУТИННЫЙ КЛЕЩ / Spider Mite ────────────────────────────────────
+  {id:'spider_mite', name:'Паутинный клещ', latin:'Tetranychus urticae',
+   type:'insect', danger:4, cropIds:['tomato','cucumber','eggplant','pepper','zucchini'],
+   tmin:20, tmax:40, topt:30, hmin:0, leafWetHours:0,
+   symptoms:'Обесцвечивание листьев, паутина снизу. Вспышка при T>28°C + RH<50%. Быстрое размножение.',
+   products:'Ниссоран, Санмайт, Омайт, Акарициды',
+   prevention:'Мониторинг нижней стороны листьев. При T>28°C+сухо — ежедневный осмотр.',
+   icon:'🕷️'},
+  // ── БЕЛОКРЫЛКА / Whitefly ────────────────────────────────────────────
+  {id:'whitefly', name:'Белокрылка', latin:'Trialeurodes vaporariorum',
+   type:'insect', danger:3, cropIds:['tomato','pepper','cucumber','eggplant'],
+   tmin:10, tmax:35, topt:25, hmin:0, leafWetHours:0,
+   symptoms:'Белые мотыльки взлетают при встряхивании. Липкая падь, сажистый грибок. Переносит вирусы.',
+   products:'Актара, Конфидор, Пегас, Энжио',
+   prevention:'Жёлтые клеевые ловушки. Контроль 2x/нед. Биологический контроль (Энкарзия).',
+   icon:'🦋'},
+  // ── ТРИПСЫ / Thrips ──────────────────────────────────────────────────
+  {id:'thrips', name:'Трипсы', latin:'Thrips tabaci / Frankliniella',
+   type:'insect', danger:4, cropIds:['onion','pepper','tomato','cucumber'],
+   tmin:10, tmax:35, topt:27, hmin:0, leafWetHours:0,
+   symptoms:'Серебристые полосы и пятна на листьях. Деформация. Переносит TSWV вирус на перец и томат.',
+   products:'Актара, Спинтор, Энжио, Калипсо',
+   prevention:'Синие клеевые ловушки. При >5 трипсов/ловушку/неделю — обработка. Контроль сорняков.',
+   icon:'🟤'},
+  // ── ВИРУС МОЗАИКИ ОГУРЦА / CMV ──────────────────────────────────────
+  {id:'cucumber_mosaic', name:'Вирус мозаики огурца (CMV)', latin:'Cucumber Mosaic Virus',
+   type:'viral', danger:3, cropIds:['cucumber','zucchini','pepper','tomato'],
+   tmin:0, tmax:40, topt:25, hmin:0, leafWetHours:0,
+   symptoms:'Мозаичная окраска листьев. Деформация. Нет лечения. Передаётся тлёй за секунды.',
+   products:'Нет — только профилактика',
+   prevention:'Контроль тли — ПРИОРИТЕТ #1. Удаление больных растений. Дезинфекция инструментов.',
+   icon:'🟡'},
+  // ── VIRUS Y КАРТОФЕЛЯ / PVY ─────────────────────────────────────────
+  {id:'virus_y', name:'Вирус Y картофеля (PVY)', latin:'Potato Virus Y',
+   type:'viral', danger:4, cropIds:['potato','pepper','tomato'],
+   tmin:0, tmax:40, topt:25, hmin:0, leafWetHours:0,
+   symptoms:'Некротические полосы на стеблях и листьях. Скручивание. Снижение урожая 50–80%. Передаётся тлёй.',
+   products:'Нет лечения — только профилактика',
+   prevention:'Сертифицированный семенной материал. Контроль тли. Уничтожение больных растений.',
+   icon:'🔴'},
+  // ── РИЗОКТОНИОЗ / Rhizoctonia ────────────────────────────────────────
+  {id:'rhizoctonia', name:'Ризоктониоз', latin:'Rhizoctonia solani',
+   type:'fungal', danger:3, cropIds:['potato','tomato'],
+   tmin:10, tmax:30, topt:20, hmin:60, leafWetHours:0,
+   symptoms:'Чёрные склероции на клубнях. Стеблевая гниль у основания. Корневая гниль.',
+   products:'Максим, Витавакс, Дивиденд Экстрим (протравка)',
+   prevention:'Протравливание семенного материала. Правильная температура посадки. Севооборот.',
+   icon:'⚫'},
+  // ── ФИТОФТОРА КОРНЕЙ / Phytophthora Root Rot ─────────────────────────
+  {id:'phytophthora_root', name:'Фитофтороз корней', latin:'Phytophthora capsici',
+   type:'fungal', danger:5, cropIds:['pepper','cucumber','zucchini'],
+   tmin:15, tmax:35, topt:26, hmin:90, leafWetHours:0,
+   symptoms:'Внезапное увядание и гибель растений. Тёмная гниль основания стебля и корней. Переувлажнение.',
+   products:'Превикур Энерджи, Ридомил Голд, Инфинито',
+   prevention:'НЕ ДОПУСКАТЬ переувлажнения! Дренаж. Избегать повреждений корней. Гребневая посадка.',
+   icon:'🟤'},
+  // ── ШЕЙКОВАЯ ГНИЛЬ / Botrytis Neck Rot ─────────────────────────────
+  {id:'botrytis_neck', name:'Шейковая гниль лука', latin:'Botrytis allii',
+   type:'fungal', danger:4, cropIds:['onion'],
+   tmin:5, tmax:25, topt:18, hmin:80, leafWetHours:8,
+   symptoms:'Гниль шейки луковицы при хранении. Серая плесень. Развивается в поле, проявляется при хранении.',
+   products:'Ровраль, Свитч, Хорус',
+   prevention:'Обработка за 2–3 нед до уборки. Качественная просушка урожая.',
+   icon:'🩶'},
+  // ── ЛУКОВАЯ МУХА / Onion Fly ─────────────────────────────────────────
+  {id:'onion_fly', name:'Луковая муха', latin:'Delia antiqua',
+   type:'insect', danger:3, cropIds:['onion'],
+   tmin:8, tmax:30, topt:18, hmin:0, leafWetHours:0,
+   symptoms:'Личинки в луковице. Пожелтение и гибель молодых растений. Гниль луковиц.',
+   products:'Диазинон, Каратэ, Актара',
+   prevention:'Мониторинг лёта (белые клеевые ловушки). Присыпка рядков. Своевременная уборка.',
+   icon:'🪰'},
+  // ── ФУЗАРИОЗ ДОНЦА / Fusarium Basal Rot ─────────────────────────────
+  {id:'fusarium_basal', name:'Фузариоз донца лука', latin:'Fusarium oxysporum f.sp. cepae',
+   type:'fungal', danger:3, cropIds:['onion'],
+   tmin:20, tmax:35, topt:28, hmin:0, leafWetHours:0,
+   symptoms:'Розово-белая гниль донца. Корни буреют и отмирают. Растение гибнет при жаре.',
+   products:'Превикур Энерджи (полив), Витавакс',
+   prevention:'Севооборот. Протравка семян. Не сажать после лука >4 лет.',
+   icon:'🔴'},
+  // ── ГОРОШЕК — болезни и вредители ───────────────────────────────────
+  {id:'pea_downy_mildew', name:'Ложная мучнистая роса гороха', latin:'Peronospora pisi',
+   type:'fungal', danger:4, cropIds:['pea'],
+   tmin:5, tmax:20, topt:13, hmin:80, leafWetHours:4,
+   symptoms:'Жёлтые пятна на верхней стороне листьев. Серо-фиолетовый налёт снизу. Деформация стеблей.',
+   products:'Ридомил Голд, Акробат МЦ, Инфинито',
+   prevention:'Триггер: T 5–20°C + листья мокрые >4ч. Прохладная влажная весна = пик риска.',
+   icon:'💜'},
+  {id:'ascochyta', name:'Аскохитоз гороха', latin:'Ascochyta pisi / Mycosphaerella',
+   type:'fungal', danger:4, cropIds:['pea'],
+   tmin:10, tmax:25, topt:20, hmin:75, leafWetHours:3,
+   symptoms:'Бурые пятна с тёмным ободком на листьях, стеблях, бобах. Гриб сохраняется в семенах.',
+   products:'Хорус, Свитч, Скор',
+   prevention:'Протравка семян. Обработка при смыкании рядков. Здоровый семенной материал — ключевой фактор.',
+   icon:'🟤'},
+  {id:'pea_aphid', name:'Гороховая тля', latin:'Acyrthosiphon pisum',
+   type:'insect', danger:4, cropIds:['pea'],
+   tmin:8, tmax:30, topt:22, hmin:0, leafWetHours:0,
+   symptoms:'Крупные зелёные тли на побегах. Скручивание верхушек. Потери урожая до 40%. Переносит вирусы.',
+   products:'Пиримор (специально против тли бобовых!), Актара, Биотлин',
+   prevention:'Мониторинг с фазы 3–5 листьев. При >5 тлей/растение — обработка. Пиримор наиболее эффективен.',
+   icon:'🟢'},
+  {id:'pea_weevil', name:'Гороховый долгоносик', latin:'Sitona lineatus',
+   type:'insect', danger:3, cropIds:['pea'],
+   tmin:8, tmax:28, topt:20, hmin:0, leafWetHours:0,
+   symptoms:'Жуки выедают листья по краям — "зазубренный" лист. Личинки повреждают клубеньки азотфиксирующих бактерий!',
+   products:'Каратэ Зеон, Децис, Актара',
+   prevention:'Обработка при всходах при обнаружении жуков. Важно: повреждение клубеньков снижает фиксацию азота.',
+   icon:'🪲'},
+  // ── КУКУРУЗА — болезни и вредители ──────────────────────────────────
+  {id:'corn_borer', name:'Кукурузный мотылёк', latin:'Ostrinia nubilalis',
+   type:'insect', danger:5, cropIds:['sweet_corn'],
+   tmin:10, tmax:35, topt:26, hmin:0, leafWetHours:0,
+   symptoms:'Гусеницы внутри стебля и початков. Обломы стеблей. 1-е поколение — стебли (V6–VT). 2-е — початки (R1–R2).',
+   products:'Коряген (хлорантранилипрол) — лучший! Децис, Актара, Димилин, Bacillus thuringiensis (биологический)',
+   prevention:'Феромонные ловушки с июня. GDD 200–400 = 1-е поколение лёт. GDD 700–900 = 2-е поколение. Обработка в V6 и при шёлке.',
+   icon:'🐛'},
+  {id:'corn_smut', name:'Пузырчатая головня кукурузы', latin:'Ustilago maydis',
+   type:'fungal', danger:3, cropIds:['sweet_corn'],
+   tmin:15, tmax:35, topt:28, hmin:0, leafWetHours:0,
+   symptoms:'Серебристо-серые галлы (вздутия) на початках, листьях, стеблях. Внутри — чёрная споровая масса.',
+   products:'Нет эффективных фунгицидов при появлении галлов',
+   prevention:'Устойчивые гибриды. Протравка семян. Не допускать механических повреждений при обработке. Удалять галлы ДО почернения.',
+   icon:'🖤'},
+  {id:'helminthosporium', name:'Гельминтоспориоз', latin:'Helminthosporium turcicum / Exserohilum',
+   type:'fungal', danger:3, cropIds:['sweet_corn'],
+   tmin:18, tmax:30, topt:25, hmin:80, leafWetHours:6,
+   symptoms:'Длинные (5–15 см) веретеновидные серо-зелёные пятна на листьях. Некроз листьев снижает фотосинтез.',
+   products:'Квадрис, Страйк, Амистар',
+   prevention:'Устойчивые гибриды. Триггер: T 18–30°C + листья мокрые >6ч. Обработка в VT–R1.',
+   icon:'⚫'},
+  {id:'fusarium_ear', name:'Фузариоз початка', latin:'Fusarium graminearum / F. verticillioides',
+   type:'fungal', danger:4, cropIds:['sweet_corn'],
+   tmin:15, tmax:35, topt:28, hmin:75, leafWetHours:0,
+   symptoms:'Розово-белая плесень на зёрнах у основания или верхушки початка. Микотоксины! Опасно для здоровья.',
+   products:'Нет эффективных фунгицидов на початке — только профилактика',
+   prevention:'Устойчивые гибриды. Контроль повреждений от мотылька и засухи. Своевременная уборка. Быстрая сушка.',
+   icon:'🩷'},
+  {id:'corn_aphid', name:'Кукурузная тля', latin:'Rhopalosiphum maidis',
+   type:'insect', danger:3, cropIds:['sweet_corn'],
+   tmin:10, tmax:32, topt:25, hmin:0, leafWetHours:0,
+   symptoms:'Колонии сизо-зелёных тлей на метёлке и верхних листьях. Сажистый грибок. Снижение опыления.',
+   products:'Актара, Конфидор, Пиримор',
+   prevention:'При >100 тлей/лист VT–R1 — обработка. Жаркая сухая погода провоцирует вспышки.',
+   icon:'🟢'},
+  {id:'wireworm_corn', name:'Проволочник', latin:'Agriotes sp.',
+   type:'insect', danger:3, cropIds:['sweet_corn','potato'],
+   tmin:5, tmax:30, topt:18, hmin:0, leafWetHours:0,
+   symptoms:'Личинки повреждают семена и корни. "Мёртвые" проростки. Пустые места в рядках.',
+   products:'Форс (тефлутрин) — внесение в борозду. Гаучо, Круйзер — протравка семян',
+   prevention:'Протравка семян системным инсектицидом — обязательно. Дисковая обработка почвы осенью.',
+   icon:'🟠'},
+];
+
+// ─── Kc COEFFICIENT DATA (FAO) ────────────────────────────────────────────
+const SOIL_FC = {
+  sandy:0.15, sandy_loam:0.18, loam:0.25, clay_loam:0.38, clay:0.40
+};
+const SOIL_WP = {
+  sandy:0.07, sandy_loam:0.07, loam:0.10, clay_loam:0.22, clay:0.27
+};
+
+// ─── STATE ────────────────────────────────────────────────────────────────
+const DEFAULT_STATE = {
+  farmName:'', region:'Молдова', totalHa:0,
+  parcels: [],
+  weather: [],
+  treatments: [],
+  catalog: [
+    {id:'cat1', name:'Ридомил Голд МЦ', type:'fungicide', ai:'мефеноксам + манкоцеб',
+     dose:'2.5 кг/га', whi:7, crops:'томат, картофель, огурец, лук', targets:'Фитофтора, пероноспороз'},
+    {id:'cat2', name:'Инфинито', type:'fungicide', ai:'флуопиколид + пропамокарб',
+     dose:'1.6 л/га', whi:7, crops:'томат, картофель, лук, огурец', targets:'Фитофтора, ложная мучнистая роса'},
+    {id:'cat3', name:'Скор', type:'fungicide', ai:'дифеноконазол',
+     dose:'0.5 л/га', whi:7, crops:'томат, огурец, перец', targets:'Альтернариоз, антракноз, мучнистая роса'},
+    {id:'cat4', name:'Свитч', type:'fungicide', ai:'ципродинил + флудиоксонил',
+     dose:'0.8 кг/га', whi:7, crops:'томат, перец, огурец, лук', targets:'Серая гниль, фузариоз'},
+    {id:'cat5', name:'Квадрис', type:'fungicide', ai:'азоксистробин',
+     dose:'0.8 л/га', whi:7, crops:'томат, картофель, огурец, лук', targets:'Альтернариоз, мучнистая роса, пероноспороз'},
+    {id:'cat6', name:'Превикур Энерджи', type:'fungicide', ai:'фозетил + пропамокарб',
+     dose:'3 л/га', whi:3, crops:'томат, перец, огурец', targets:'Фитофтора, Pythium, Phytophthora корней'},
+    {id:'cat7', name:'Топаз', type:'fungicide', ai:'пенконазол',
+     dose:'0.4 л/га', whi:7, crops:'огурец, кабачок, перец', targets:'Мучнистая роса'},
+    {id:'cat8', name:'Тиовит Джет', type:'fungicide', ai:'сера коллоидная',
+     dose:'3 кг/га', whi:1, crops:'огурец, кабачок', targets:'Мучнистая роса'},
+    {id:'cat9', name:'Актара', type:'insecticide', ai:'тиаметоксам',
+     dose:'0.2 кг/га', whi:14, crops:'все культуры', targets:'Тля, белокрылка, трипсы, колорадский жук'},
+    {id:'cat10', name:'Конфидор', type:'insecticide', ai:'имидаклоприд',
+     dose:'0.25 л/га', whi:14, crops:'томат, перец, картофель', targets:'Тля, белокрылка, колорадский жук'},
+    {id:'cat11', name:'Децис', type:'insecticide', ai:'дельтаметрин',
+     dose:'0.5 л/га', whi:5, crops:'картофель, томат, лук', targets:'Колорадский жук, тля, луковая муха'},
+    {id:'cat12', name:'Коряген', type:'insecticide', ai:'хлорантранилипрол',
+     dose:'0.1 л/га', whi:7, crops:'картофель, томат', targets:'Колорадский жук, совки'},
+    {id:'cat13', name:'Спинтор', type:'insecticide', ai:'спинозад',
+     dose:'0.25 л/га', whi:3, crops:'томат, перец, лук', targets:'Трипсы, тля, минёры'},
+    {id:'cat14', name:'Ниссоран', type:'acaricide', ai:'гекситиазокс',
+     dose:'0.4 кг/га', whi:7, crops:'томат, огурец, баклажан', targets:'Паутинный клещ'},
+    {id:'cat15', name:'Ровраль', type:'fungicide', ai:'ипродион',
+     dose:'1 кг/га', whi:7, crops:'томат, огурец, лук, перец', targets:'Серая гниль, шейковая гниль'},
+  ],
+  settings:{},
+};
+
+let S = JSON.parse(JSON.stringify(DEFAULT_STATE));
+const STORAGE_KEY = 'sveg_v1';
+
+function load() {
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (!saved) return;
+  try {
+    const d = JSON.parse(saved);
+    S.farmName = d.farmName||'';
+    S.region = d.region||'Молдова';
+    S.totalHa = d.totalHa||0;
+    S.parcels = d.parcels||[];
+    S.weather = d.weather||[];
+    S.treatments = d.treatments||[];
+    S.catalog = d.catalog||DEFAULT_STATE.catalog;
+    S.settings = d.settings||{};
+  } catch(e){ console.error('Load error',e); }
+}
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(S));
+}
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────
+function getCropById(id) { return CROPS.find(c=>c.id===id); }
+function getDiseaseById(id) { return DISEASES.find(d=>d.id===id); }
+function uid() { return 'id_'+Date.now()+'_'+Math.random().toString(36).slice(2,6); }
+function today() { return new Date().toISOString().slice(0,10); }
+function fmt(d) { return d?d.slice(0,10):'—'; }
+
+// GDD calculation (single day)
+function calcDailyGdd(tmin, tmax, base) {
+  const tavg = (parseFloat(tmin)+parseFloat(tmax))/2;
+  return Math.max(0, tavg - base);
+}
+
+// Cumulative GDD for a parcel from sowing date
+function calcParcelGdd(parcel) {
+  const crop = getCropById(parcel.cropId);
+  if (!crop || !parcel.sowingDate) return 0;
+  const base = crop.baseTemp;
+  const sorted = [...S.weather]
+    .filter(w => w.date >= parcel.sowingDate)
+    .sort((a,b)=>a.date.localeCompare(b.date));
+  return sorted.reduce((sum,w) => sum + calcDailyGdd(w.tmin, w.tmax, base), 0);
+}
+
+// Get current phase for parcel
+function getParcelPhase(parcel) {
+  const crop = getCropById(parcel.cropId);
+  if (!crop) return null;
+  const gdd = calcParcelGdd(parcel);
+  return crop.phases.find(ph => gdd >= ph.gddFrom && gdd < ph.gddTo) || crop.phases[crop.phases.length-1];
+}
+
+// Smith Period check (Late Blight trigger)
+function checkSmithPeriod() {
+  if (S.weather.length < 2) return false;
+  const recent = [...S.weather].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,2);
+  return recent.every(w => parseFloat(w.tmax)>=10 && parseFloat(w.humidity)>=80);
+}
+
+// ET0 estimate (Hargreaves simplified)
+function estimateET0(tmin, tmax, date) {
+  const tavg = (tmin+tmax)/2;
+  const doy = date ? Math.floor((new Date(date)-new Date(date.slice(0,4)+'-01-01'))/(86400000))+1 : 180;
+  const ra = 37.6 * Math.sin(doy/365*2*Math.PI + 1); // simplified solar radiation
+  return Math.max(0, 0.0023*(tavg+17.8)*Math.sqrt(tmax-tmin)*Math.abs(ra)/58.5);
+}
+
+// ETc for parcel
+function calcParcelEtc(parcel) {
+  const crop = getCropById(parcel.cropId);
+  const lat = S.weather[0];
+  if (!crop || !lat) return null;
+  const et0 = parseFloat(lat.et0)||estimateET0(parseFloat(lat.tmin), parseFloat(lat.tmax), lat.date);
+  const phase = getParcelPhase(parcel);
+  let kc = crop.kc.mid;
+  if (phase) {
+    const gdd = calcParcelGdd(parcel);
+    const maxGdd = crop.gddToHarvest;
+    const pct = gdd/maxGdd;
+    if (pct < 0.2) kc = crop.kc.initial;
+    else if (pct < 0.4) kc = crop.kc.development;
+    else if (pct < 0.8) kc = crop.kc.mid;
+    else kc = crop.kc.late;
+  }
+  return {et0: Math.round(et0*10)/10, kc, etc: Math.round(kc*et0*10)/10};
+}
+
+// ─── DISEASE RISK ─────────────────────────────────────────────────────────
+function calcDiseaseRisk(dis) {
+  const latest = S.weather[0];
+  if (!latest) return {score:0, reason:'Нет погодных данных', level:'ok'};
+  const tmax = parseFloat(latest.tmax)||20;
+  const tmin = parseFloat(latest.tmin)||10;
+  const tavg = (tmax+tmin)/2;
+  const hum  = parseFloat(latest.humidity)||50;
+  const lw   = parseFloat(latest.leafwet)||0;
+  const rain = parseFloat(latest.precip)||0;
+  let score = 0;
+  let reasons = [];
+  // Temperature check
+  if (dis.tmin && dis.tmax) {
+    if (tavg >= dis.tmin && tavg <= dis.tmax) {
+      score += 30;
+      const toptScore = dis.topt ? Math.max(0, 20 - Math.abs(tavg - dis.topt)*2) : 10;
+      score += toptScore;
+    }
+  }
+  // Humidity/leaf wetness
+  if (dis.hmin && hum >= dis.hmin) { score += 20; reasons.push(`RH ${hum}%`); }
+  if (dis.leafWetHours && lw >= dis.leafWetHours) { score += 25; reasons.push(`лист ${lw}ч`); }
+  // Smith Period (for Late Blight)
+  if (dis.smithPeriod && checkSmithPeriod()) { score += 30; reasons.push('Smith Period!'); }
+  score = Math.min(100, score);
+  const level = score >= 70 ? 'critical' : score >= 45 ? 'spray' : score >= 20 ? 'watch' : 'ok';
+  const labels = {critical:'КРИТИЧЕСКИЙ',spray:'SPRAY',watch:'Умеренный',ok:'Низкий'};
+  return { score, level, label:labels[level], reason: reasons.join(' · ')||`T°${tavg.toFixed(0)}°C` };
+}
+
+// ─── SMART ALERTS ENGINE ──────────────────────────────────────────────────
+function runAlertsForParcel(parcel) {
+  const crop = getCropById(parcel.cropId);
+  const latest = S.weather[0];
+  const alerts = [];
+  if (!crop || !latest) return alerts;
+  const gdd = calcParcelGdd(parcel);
+  const phase = getParcelPhase(parcel);
+  const daysFromSowing = S.weather.filter(w=>w.date>=(parcel.sowingDate||'1900-01-01')).length;
+  const avgDailyGdd = daysFromSowing > 0 ? gdd/daysFromSowing : 1;
+  const tmax = parseFloat(latest.tmax)||20;
+  const tmin = parseFloat(latest.tmin)||10;
+  const tavg = (tmax+tmin)/2;
+  const hum  = parseFloat(latest.humidity)||50;
+  const lw   = parseFloat(latest.leafwet)||0;
+  const rain = parseFloat(latest.precip)||0;
+  const rain48 = S.weather.slice(0,2).reduce((s,w)=>s+parseFloat(w.precip||0),0);
+  const rain72 = S.weather.slice(0,3).reduce((s,w)=>s+parseFloat(w.precip||0),0);
+
+  // ── UNIVERSAL: Smith Period (Томат + Картофель) ──────────────────────
+  if ((crop.id==='tomato'||crop.id==='potato') && checkSmithPeriod()) {
+    alerts.push({level:'critical',
+      title:`🟤 Фитофтора — SMITH PERIOD АКТИВЕН`,
+      body:`T≥10°C + RH≥80% 2 дня подряд. Phytophthora infestans: условия заражения выполнены.`,
+      rec:`НЕМЕДЛЕННО: Ридомил Голд, Инфинито или Превикур. Профилактика важнее лечения!`
+    });
+  }
+
+  // ── ТОМАТ ─────────────────────────────────────────────────────────────
+  if (crop.id==='tomato') {
+    // Альтернариоз при жаре
+    if (tavg >= 24 && hum >= 70) {
+      alerts.push({level:'spray',
+        title:'⚫ Альтернариоз — жаркая влажная погода',
+        body:`GDD ${Math.round(gdd)} · T°ср ${tavg.toFixed(1)}°C + RH ${hum}%. Alternaria solani развивается снизу куста.`,
+        rec:'Скор, Квадрис или Ревус Топ. Осмотр нижних листьев.'
+      });
+    }
+    // Botrytis при прохладе + влаге
+    if (tavg < 22 && hum > 80 && lw > 6) {
+      alerts.push({level:'spray',
+        title:'🩶 Botrytis — серая гниль (прохладно + влажно)',
+        body:`GDD ${Math.round(gdd)} · T°ср ${tavg.toFixed(1)}°C + листья мокрые ${lw}ч. Botrytis cinerea активна.`,
+        rec:'Свитч или Ровраль. Прореживание, вентиляция. Удалить поражённые части.'
+      });
+    }
+    // Паутинный клещ при жаре
+    if (tmax >= 30 && hum < 50) {
+      alerts.push({level:'watch',
+        title:'🕷️ Паутинный клещ — жара + сухость',
+        body:`T°макс ${tmax}°C + RH ${hum}% — идеальные условия для Tetranychus urticae.`,
+        rec:'Ниссоран или Санмайт. Осмотр нижней стороны листьев.'
+      });
+    }
+  }
+
+  // ── КАРТОФЕЛЬ ─────────────────────────────────────────────────────────
+  if (crop.id==='potato') {
+    // Колорадский жук
+    if (gdd >= 150 && tmax >= 18) {
+      alerts.push({level:'spray',
+        title:'🪲 Колорадский жук — активный сезон',
+        body:`GDD ${Math.round(gdd)} · T°${tmax}°C — жуки активны. Мониторинг каждые 3–5 дней.`,
+        rec:'При 5–10 жуков/м²: Коряген, Децис, Актара. Чередовать группы!'
+      });
+    }
+    // Фитофтора при тумане
+    if (tavg >= 12 && tavg <= 20 && hum >= 90) {
+      alerts.push({level:'critical',
+        title:'🟤 Фитофтора — туманный период (ОПАСНО)',
+        body:`T°ср ${tavg.toFixed(1)}°C + RH ${hum}% — туман = условия для Phytophthora infestans.`,
+        rec:'Контактный фунгицид (Ридомил Голд, Инфинито) ДО дождя!'
+      });
+    }
+    // Вирус Y через тлю
+    if (gdd >= 300 && tavg >= 15) {
+      alerts.push({level:'watch',
+        title:'🟡 Риск вируса Y (PVY) через тлю',
+        body:`GDD ${Math.round(gdd)} — тля активна, переносит PVY. Потери урожая 50–80%.`,
+        rec:'Контроль тли: Актара или Конфидор. Масляные препараты (Сильвет) снижают перенос вируса.'
+      });
+    }
+  }
+
+  // ── ЛУК ──────────────────────────────────────────────────────────────
+  if (crop.id==='onion') {
+    // Пероноспороз
+    if (tavg >= 7 && tavg <= 21 && lw >= 4) {
+      const lvl = lw >= 6 ? 'critical' : 'spray';
+      alerts.push({level:lvl,
+        title:`${lvl==='critical'?'🔴':'⚠️'} Пероноспороз лука — ${lvl==='critical'?'КРИТИЧЕН':'риск'}`,
+        body:`T°ср ${tavg.toFixed(1)}°C + листья мокрые ${lw}ч. Peronospora destructor — главная болезнь лука.`,
+        rec:'Ридомил Голд или Акробат МЦ. 4–5 обработок за сезон. Наибольший риск при фазе инициации луковицы.'
+      });
+    }
+    // Трипсы при жаре
+    if (tmax >= 25) {
+      alerts.push({level:'watch',
+        title:'🟤 Трипсы лука — жаркий период',
+        body:`T°${tmax}°C — Thrips tabaci активны. Переносят вирусную крапчатость.`,
+        rec:'Синие клеевые ловушки. Спинтор или Актара при >5 трипсов/ловушку/нед.'
+      });
+    }
+    // Шейковая гниль ближе к уборке
+    if (gdd >= 1200 && rain48 > 5) {
+      alerts.push({level:'spray',
+        title:'🩶 Шейковая гниль — перед уборкой + дождь',
+        body:`GDD ${Math.round(gdd)} · Осадки ${rain48.toFixed(1)}мм. Botrytis allii заражает шейку при влаге.`,
+        rec:'Ровраль или Свитч за 2–3 нед до уборки. Обеспечить хорошую сушку урожая.'
+      });
+    }
+  }
+
+  // ── ПЕРЕЦ ─────────────────────────────────────────────────────────────
+  if (crop.id==='pepper') {
+    // Фитофтора корней при переувлажнении
+    if (rain72 > 15) {
+      alerts.push({level:'critical',
+        title:'🟤 Фитофтора корней — переувлажнение',
+        body:`Осадки ${rain72.toFixed(1)}мм/72ч. Phytophthora capsici — риск гибели растений.`,
+        rec:'Превикур Энерджи поливом под корень. НЕМЕДЛЕННО улучшить дренаж!'
+      });
+    }
+    // Трипсы → TSWV
+    if (tmax >= 25) {
+      alerts.push({level:'watch',
+        title:'🟤 Трипсы → вирус TSWV на перце',
+        body:`T°${tmax}°C — трипсы активно переносят Tomato Spotted Wilt Virus.`,
+        rec:'Спинтор или Актара. Синие ловушки. Удалить поражённые растения.'
+      });
+    }
+  }
+
+  // ── ОГУРЕЦ / КАБАЧОК ─────────────────────────────────────────────────
+  if (crop.id==='cucumber'||crop.id==='zucchini') {
+    // Мучнистая роса
+    if (tmax >= 22 && hum < 60) {
+      alerts.push({level:'spray',
+        title:'⬜ Мучнистая роса — сухая жаркая погода',
+        body:`T°${tmax}°C + RH ${hum}% — Sphaerotheca fuliginea развивается при сухой жаре.`,
+        rec:'Топаз или Тиовит Джет. Не применять серу при T>28°C. Обработка снизу листа.'
+      });
+    }
+    // Ложная мучнистая роса (пероноспороз огурца)
+    if (tavg >= 12 && tavg <= 22 && lw >= 4) {
+      alerts.push({level:'critical',
+        title:'🟣 Ложная мучнистая роса огурца — КРИТИЧНО',
+        body:`T°ср ${tavg.toFixed(1)}°C + листья мокрые ${lw}ч. Pseudoperonospora cubensis — угроза №1 огурца.`,
+        rec:'Ревус, Курзат или Ридомил Голд ДО дождя. При симптомах потери 70–100% урожая.'
+      });
+    }
+  }
+
+  // ── ГОРОШЕК ЗЕЛЁНЫЙ — TDU модель ─────────────────────────────────────
+  if (crop.id==='pea') {
+    // TDU = GDD с базой 4.5°C — для гороха это и есть TDU
+    // Технологическая зрелость: TDU ~100–130 единиц от начала налива зерна
+    // Фаза "Налив зерна" начинается при GDD ~540
+    const tdu = Math.max(0, gdd - 540); // TDU от начала налива
+    const tduTarget = crop.tduTarget || 115;
+    const tduWindow = crop.tduWindow || 15;
+    const tduDaysLeft = tdu > 0 && avgDailyGdd > 0 ? Math.round((tduTarget - tdu) / avgDailyGdd) : null;
+    const inWindow = tdu >= tduTarget - tduWindow && tdu <= tduTarget + tduWindow;
+    const overripe = tdu > tduTarget + tduWindow;
+
+    if (gdd >= 540) { // начало налива — запускаем TDU мониторинг
+      if (overripe) {
+        alerts.push({level:'critical',
+          title:'🔴 ГОРОШЕК ПЕРЕЗРЕЛ — TDU превышен!',
+          body:`TDU ${Math.round(tdu)} (цель: ${tduTarget} ± ${tduWindow}). Крахмал накапливается. Консервный завод НЕ примет.`,
+          rec:'Немедленная уборка на любые цели. Для корма или свежего рынка ещё возможно.'
+        });
+      } else if (inWindow) {
+        alerts.push({level:'critical',
+          title:'🌾 ГОРОШЕК В ОКНЕ ЗРЕЛОСТИ — УБИРАТЬ СЕЙЧАС!',
+          body:`TDU ${Math.round(tdu)} = ОПТИМУМ (${tduTarget-tduWindow}–${tduTarget+tduWindow}). Тендерометр ≈ 100–120 единиц. ОКНО: 2–4 дня!`,
+          rec:'Уборка комбайном немедленно. Подтвердить Brix и Tenderometer в лаборатории. Согласовать приёмку с заводом.'
+        });
+      } else if (tduDaysLeft !== null && tduDaysLeft <= 3 && tduDaysLeft > 0) {
+        alerts.push({level:'spray',
+          title:`🟡 Горошек: до уборки ~${tduDaysLeft} дн (TDU ${Math.round(tdu)}/${tduTarget})`,
+          body:`TDU накоплено: ${Math.round(tdu)}. Осталось: ~${tduTarget-Math.round(tdu)} TDU при ${avgDailyGdd.toFixed(1)} TDU/день.`,
+          rec:'Подготовить комбайн. Сообщить на завод. Согласовать приёмку. Начать контрольный отбор проб.'
+        });
+      } else if (tduDaysLeft !== null) {
+        alerts.push({level:'watch',
+          title:`🫛 Горошек: TDU ${Math.round(tdu)}/${tduTarget} · до уборки ~${tduDaysLeft} дн`,
+          body:`Ежедневное накопление: ${avgDailyGdd.toFixed(1)} TDU/день. Прогноз уборки: через ${tduDaysLeft} дней.`,
+          rec:'Мониторинг ежедневно. При прогнозе <5 дней — уведомить завод и подготовить технику.'
+        });
+      }
+    }
+
+    // Аскохитоз при влаге
+    if (hum > 75 && lw >= 3 && tavg >= 12) {
+      alerts.push({level:'spray',
+        title:'🟤 Аскохитоз — влажный период',
+        body:`RH ${hum}% + листья мокрые ${lw}ч + T°ср ${tavg.toFixed(1)}°C. Ascochyta pisi активна.`,
+        rec:'Хорус или Свитч. Протравка семян — ключевая профилактика. Контроль в фазе бутонизации.'
+      });
+    }
+
+    // Гороховая тля
+    if (gdd >= 180 && tavg >= 15) {
+      alerts.push({level:'watch',
+        title:'🟢 Гороховая тля — сезон активности',
+        body:`GDD ${Math.round(gdd)} · T°ср ${tavg.toFixed(1)}°C. Acyrthosiphon pisum — мониторинг побегов.`,
+        rec:'Осмотр верхушек. При >5 тлей/растение: Пиримор (лучший для гороха!) или Актара.'
+      });
+    }
+
+    // Пероноспороз гороха
+    if (tavg >= 5 && tavg <= 20 && lw >= 4) {
+      alerts.push({level:'critical',
+        title:'💜 Пероноспороз гороха — КРИТИЧНО',
+        body:`T°ср ${tavg.toFixed(1)}°C + листья мокрые ${lw}ч. Peronospora pisi — быстрое распространение.`,
+        rec:'Ридомил Голд или Акробат. Обработка ДО дождя. Прохладная влажная весна = пик риска.'
+      });
+    }
+  }
+
+  // ── КУКУРУЗА СЛАДКАЯ — умные алерты ──────────────────────────────────
+  if (crop.id==='sweet_corn') {
+    // Кукурузный мотылёк — 1-е и 2-е поколение
+    if (gdd >= 200 && gdd <= 500) {
+      alerts.push({level:'spray',
+        title:'🐛 Кукурузный мотылёк — 1-е поколение (V6–VT)',
+        body:`GDD ${Math.round(gdd)} · Первое поколение Ostrinia nubilalis. Гусеницы проникают в стебель при V6–VT.`,
+        rec:'Коряген (хлорантранилипрол) — наиболее эффективный! При V6 и повторно в VT. Феромонные ловушки — контроль лёта.'
+      });
+    }
+    if (gdd >= 700 && gdd <= 1000) {
+      alerts.push({level:'critical',
+        title:'🐛 Кукурузный мотылёк — 2-е поколение (VT–R2)',
+        body:`GDD ${Math.round(gdd)} · Второе поколение — повреждает початки! Потери урожая и Fusarium через раны.`,
+        rec:'Коряген при появлении шёлка (R1). Или BT-препараты. Мотылёк в початке = Fusarium = микотоксины!'
+      });
+    }
+
+    // Фузариоз початка при жаре + засухе
+    if (gdd >= 750 && tmax >= 30 && hum < 50) {
+      alerts.push({level:'watch',
+        title:'🩷 Фузариоз початка — стресс от жары',
+        body:`GDD ${Math.round(gdd)} · T°${tmax}°C + RH ${hum}% — стресс ослабляет иммунитет при R1–R2.`,
+        rec:'Контроль повреждений от мотылька. Своевременная уборка. Быстрая сушка зерна до <14%.'
+      });
+    }
+
+    // Приближение молочной спелости — предупреждение
+    const daysToR3 = avgDailyGdd > 0 ? Math.round((1350 - gdd) / avgDailyGdd) : null;
+    if (gdd >= 1000 && gdd < 1350 && daysToR3 !== null) {
+      alerts.push({level:daysToR3<=5?'spray':'watch',
+        title:`🌽 До молочной спелости (R3) ~${daysToR3} дней`,
+        body:`GDD ${Math.round(gdd)}/1350. Ежедневное накопление: ${avgDailyGdd.toFixed(1)} GDD/день.`,
+        rec:'Подготовить уборочную технику. R3 = нажать зерно → белый молочный сок. Окно уборки: 7–10 дней!'
+      });
+    }
+
+    // ОКНО УБОРКИ — R3–R4
+    if (gdd >= 1350 && gdd <= 1500) {
+      const daysInWindow = avgDailyGdd > 0 ? Math.round((gdd - 1350) / avgDailyGdd) : '?';
+      alerts.push({level:'critical',
+        title:'🌾 КУКУРУЗА: МОЛОЧНАЯ СПЕЛОСТЬ — УБИРАТЬ!',
+        body:`GDD ${Math.round(gdd)} = R3–R4. В окне уборки уже ${daysInWindow} дней из 7–10. После R4 сахар → крахмал необратимо!`,
+        rec:'Уборка немедленно. Проверить Brix (цель 18–22). Немедленное охлаждение или переработка. Каждый день промедления = потеря 30% сладости!'
+      });
+    }
+
+    // Перезревание
+    if (gdd > 1500) {
+      alerts.push({level:'critical',
+        title:'🔴 КУКУРУЗА ПЕРЕЗРЕЛА — R4 и выше',
+        body:`GDD ${Math.round(gdd)} > 1500. Зерно в тестообразной фазе. Сахар превратился в крахмал.`,
+        rec:'Для свежего рынка — опоздали. Возможно использование на зерно или силос.'
+      });
+    }
+
+    // Гельминтоспориоз
+    if (gdd >= 500 && tavg >= 20 && lw >= 6) {
+      alerts.push({level:'watch',
+        title:'⚫ Гельминтоспориоз — влажная погода',
+        body:`GDD ${Math.round(gdd)} · T°ср ${tavg.toFixed(1)}°C + листья мокрые ${lw}ч. Helminthosporium turcicum.`,
+        rec:'Устойчивые гибриды — лучшая защита. При сильном поражении: Квадрис в VT–R1.'
+      });
+    }
+  }
+
+  // ── БАКЛАЖАН ─────────────────────────────────────────────────────────
+  if (crop.id==='eggplant') {
+    // Колорадский жук (как картофель!)
+    if (gdd >= 100 && tmax >= 18) {
+      alerts.push({level:'critical',
+        title:'🪲 Колорадский жук — БАКЛАЖАН уязвим!',
+        body:`GDD ${Math.round(gdd)} · T°${tmax}°C. Колорадский жук атакует баклажан так же как картофель.`,
+        rec:'Коряген, Конфидор или Децис. Мониторинг КАЖДЫЙ ДЕНЬ в начале сезона!'
+      });
+    }
+    // Клещ при жаре
+    if (tmax >= 28 && hum < 50) {
+      alerts.push({level:'watch',
+        title:'🕷️ Паутинный клещ — жара',
+        body:`T°${tmax}°C + RH ${hum}%. Tetranychus urticae размножается стремительно.`,
+        rec:'Ниссоран или Санмайт. Орошение листьев снижает риск клеща.'
+      });
+    }
+  }
+
+  // ── УНИВЕРСАЛЬНЫЕ АЛЕРТЫ ──────────────────────────────────────────────
+  // Заморозок
+  if (tmin <= 2 && crop.baseTemp >= 10) {
+    alerts.push({level:'critical',
+      title:`❄️ ЗАМОРОЗОК — ${crop.name} под угрозой!`,
+      body:`T°мин ${tmin}°C. Теплолюбивая культура (база ${crop.baseTemp}°C) повреждается при T<2°C.`,
+      rec:'Укрытие, дымление, полив (замораживание воды выделяет тепло). Отслеживать ночную температуру!'
+    });
+  }
+  // Тепловой стресс
+  if (tmax >= 38 && crop.baseTemp >= 10) {
+    alerts.push({level:'watch',
+      title:`🌡️ Тепловой стресс — T°${tmax}°C`,
+      body:`Критически высокая температура. Нарушение фотосинтеза, опадение цветков, деформация плодов.`,
+      rec:'Дождевание утром. Мульчирование. Перенести опрыскивания на ранние утренние часы.'
+    });
+  }
+
+  return alerts;
+}
+
+// ─── RENDERING ────────────────────────────────────────────────────────────
+function showTab(id) {
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('panel-'+id).classList.add('active');
+  const tabs = ['parcels','weather','gdd','diseases','irrigation','treatments','catalog','settings'];
+  const idx = tabs.indexOf(id);
+  document.querySelectorAll('.tab')[idx].classList.add('active');
+  const renders = {
+    parcels:renderParcels, weather:renderWeather, gdd:renderGdd,
+    diseases:renderDiseases, irrigation:renderIrrigation,
+    treatments:renderTreatments, catalog:renderCatalog
+  };
+  if (renders[id]) renders[id]();
+}
+
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// ── Parcels ───────────────────────────────────────────────────────────────
+let _editParcelId = null;
+function openParcelModal(parcelId) {
+  _editParcelId = parcelId||null;
+  const p = parcelId ? S.parcels.find(x=>x.id===parcelId) : null;
+  document.getElementById('modal-parcel-title').textContent = p ? '✏️ Редактировать участок' : '🗺 Новый участок';
+  document.getElementById('p-name').value = p?.name||'';
+  document.getElementById('p-ha').value = p?.ha||'';
+  document.getElementById('p-variety').value = p?.variety||'';
+  document.getElementById('p-sowing').value = p?.sowingDate||today();
+  document.getElementById('p-density').value = p?.density||'';
+  document.getElementById('p-soil').value = p?.soil||'loam';
+  document.getElementById('p-note').value = p?.note||'';
+  // Populate crop select
+  const sel = document.getElementById('p-crop');
+  const groups = [...new Set(CROPS.map(c=>c.group))];
+  sel.innerHTML = '<option value="">— выбрать —</option>';
+  groups.forEach(g => {
+    const grpCrops = CROPS.filter(c=>c.group===g);
+    const og = document.createElement('optgroup');
+    og.label = g;
+    grpCrops.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id; opt.textContent = `${c.emoji} ${c.name}`;
+      if (p?.cropId===c.id) opt.selected = true;
+      og.appendChild(opt);
+    });
+    sel.appendChild(og);
+  });
+  document.getElementById('p-delete-btn').style.display = p ? 'block' : 'none';
+  openModal('modal-parcel');
+}
+
+function saveParcel() {
+  const name = document.getElementById('p-name').value.trim();
+  const ha = parseFloat(document.getElementById('p-ha').value)||0;
+  const cropId = document.getElementById('p-crop').value;
+  if (!name) { alert('Введите название участка'); return; }
+  const parcel = {
+    id: _editParcelId || uid(),
+    name, ha, cropId,
+    variety: document.getElementById('p-variety').value.trim(),
+    sowingDate: document.getElementById('p-sowing').value,
+    density: parseFloat(document.getElementById('p-density').value)||0,
+    soil: document.getElementById('p-soil').value,
+    note: document.getElementById('p-note').value.trim(),
+  };
+  if (_editParcelId) {
+    const idx = S.parcels.findIndex(p=>p.id===_editParcelId);
+    if (idx>=0) S.parcels[idx] = parcel;
+  } else {
+    S.parcels.push(parcel);
+  }
+  save(); closeModal('modal-parcel'); renderParcels();
+}
+
+function deleteParcel() {
+  if (!_editParcelId || !confirm('Удалить участок?')) return;
+  S.parcels = S.parcels.filter(p=>p.id!==_editParcelId);
+  save(); closeModal('modal-parcel'); renderParcels();
+}
+
+function renderParcels() {
+  updateHeaderStats();
+  const grid = document.getElementById('parcel-grid');
+  if (!S.parcels.length) {
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text3);">
+      <div style="font-size:48px;margin-bottom:12px;">🌱</div>
+      <div style="font-size:14px;margin-bottom:8px;">Нет участков</div>
+      <div style="font-size:12px;">Нажмите + Участок чтобы добавить первый</div>
+    </div>`;
+    document.getElementById('parcel-kpis').innerHTML = '';
+    document.getElementById('alert-banner').innerHTML = '';
+    return;
+  }
+  // Collect all alerts
+  let totalAlerts = 0;
+  const smithActive = checkSmithPeriod();
+  const allParcelAlerts = S.parcels.map(p => ({p, alerts:runAlertsForParcel(p)}));
+  totalAlerts = allParcelAlerts.reduce((s,x)=>s+x.alerts.length,0);
+  // KPIs
+  const totalHa = S.parcels.reduce((s,p)=>s+parseFloat(p.ha||0),0);
+  const crops = new Set(S.parcels.map(p=>p.cropId).filter(Boolean));
+  document.getElementById('parcel-kpis').innerHTML = `
+    <div class="kpi-card"><div class="kpi-val">${S.parcels.length}</div><div class="kpi-lbl">Участков</div></div>
+    <div class="kpi-card"><div class="kpi-val">${totalHa.toFixed(1)}</div><div class="kpi-lbl">Гектар</div></div>
+    <div class="kpi-card"><div class="kpi-val">${crops.size}</div><div class="kpi-lbl">Культур</div></div>
+    <div class="kpi-card" style="${totalAlerts>0?'background:rgba(255,85,85,.08);border-color:rgba(255,85,85,.3)':''}">
+      <div class="kpi-val" style="color:${totalAlerts>0?'var(--red)':'var(--accent)'};">${totalAlerts}</div>
+      <div class="kpi-lbl">Алертов</div>
+    </div>
+    ${smithActive?`<div class="kpi-card" style="background:rgba(255,85,85,.08);border-color:rgba(255,85,85,.3);grid-column:1/-1;">
+      <div style="font-size:12px;font-weight:700;color:var(--red);">🟤 SMITH PERIOD АКТИВЕН — ФИТОФТОРА: немедленная обработка томата и картофеля</div>
+      <div style="font-size:11px;color:var(--text2);margin-top:4px;">T≥10°C + RH≥80% 2+ дня подряд</div>
+    </div>`:''}`;
+  // Alert banner
+  const critAlerts = allParcelAlerts.flatMap(x=>x.alerts.filter(a=>a.level==='critical').map(a=>({...a,parcel:x.p})));
+  if (critAlerts.length) {
+    document.getElementById('alert-banner').innerHTML = critAlerts.map(a=>`
+      <div class="alert-card alert-critical" style="margin-bottom:8px;">
+        <div class="alert-title" style="color:var(--red);">${a.title} · <span style="color:var(--text2);">${a.parcel.name}</span></div>
+        <div class="alert-body">${a.body}</div>
+        <div class="alert-rec">💊 ${a.rec}</div>
+      </div>`).join('');
+  } else {
+    document.getElementById('alert-banner').innerHTML = `<div style="padding:10px 16px;background:rgba(107,221,107,.06);border:1px solid rgba(107,221,107,.2);border-radius:8px;font-size:12px;color:var(--accent);">✅ Критических алертов нет · ${today()}</div>`;
+  }
+  // Parcel cards
+  grid.innerHTML = S.parcels.map(parcel => {
+    const crop = getCropById(parcel.cropId);
+    const phase = getParcelPhase(parcel);
+    const gdd = Math.round(calcParcelGdd(parcel));
+    const alerts = runAlertsForParcel(parcel);
+    const critCount = alerts.filter(a=>a.level==='critical').length;
+    const etc = calcParcelEtc(parcel);
+    return `<div class="parcel-card ${crop?'has-crop':''}" onclick="openParcelModal('${parcel.id}')"
+      style="border-left-color:${phase?phase.color:'var(--border)'};">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+        <div class="parcel-name">${parcel.name}</div>
+        <div class="parcel-ha">${parcel.ha}га</div>
+      </div>
+      ${crop?`<div class="parcel-crop">${crop.emoji} ${crop.name}${parcel.variety?' · '+parcel.variety:''}</div>`:'<div class="parcel-crop" style="color:var(--text3);">Культура не выбрана</div>'}
+      ${phase?`<div class="parcel-phase" style="color:${phase.color};margin-top:6px;font-size:10px;font-weight:600;">${phase.name}</div>`:''}
+      ${gdd>0?`<div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3);margin-top:4px;">GDD ${gdd} · ${parcel.sowingDate?'посев '+parcel.sowingDate:''}</div>`:''}
+      ${etc?`<div style="font-size:10px;color:var(--blue);margin-top:4px;">💧 ETc ${etc.etc}мм/день (Kc ${etc.kc})</div>`:''}
+      <div style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap;">
+        ${critCount>0?`<span class="badge badge-red">⚠️ ${critCount} алерт</span>`:''}
+        ${alerts.filter(a=>a.level==='spray').length?`<span class="badge badge-orange">SPRAY</span>`:''}
+        ${parcel.note?`<span class="badge badge-blue" style="font-size:8px;">${parcel.note.slice(0,20)}</span>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function updateHeaderStats() {
+  document.getElementById('hstat-parcels').textContent = S.parcels.length;
+  document.getElementById('hstat-ha').textContent = S.parcels.reduce((s,p)=>s+parseFloat(p.ha||0),0).toFixed(1);
+  document.getElementById('hstat-crops').textContent = new Set(S.parcels.map(p=>p.cropId).filter(Boolean)).size;
+  const allAlerts = S.parcels.flatMap(p=>runAlertsForParcel(p));
+  document.getElementById('hstat-alerts').textContent = allAlerts.filter(a=>a.level==='critical').length;
+}
+
+// ── Weather ───────────────────────────────────────────────────────────────
+function openWeatherModal() {
+  document.getElementById('w-date').value = today();
+  openModal('modal-weather');
+}
+function saveWeather() {
+  const d = {
+    id: uid(),
+    date: document.getElementById('w-date').value,
+    tmin: document.getElementById('w-tmin').value,
+    tmax: document.getElementById('w-tmax').value,
+    humidity: document.getElementById('w-hum').value,
+    precip: document.getElementById('w-rain').value||'0',
+    leafwet: document.getElementById('w-leaf').value||'0',
+    et0: document.getElementById('w-et0').value||null,
+    wind: document.getElementById('w-wind').value||null,
+  };
+  if (!d.date||!d.tmin||!d.tmax) { alert('Заполните дату, Tмин и Tмакс'); return; }
+  const idx = S.weather.findIndex(w=>w.date===d.date);
+  if (idx>=0) S.weather[idx]=d; else S.weather.push(d);
+  S.weather.sort((a,b)=>b.date.localeCompare(a.date));
+  save(); closeModal('modal-weather'); renderWeather();
+}
+
+function importWeather(event) {
+  // Reuse same logic as SmartOrchard — parse XLS/CSV
+  const file = event.target.files[0];
+  if (!file) return;
+  event.target.value='';
+  const statusEl = document.getElementById('meteo-status');
+  statusEl.style.display='block';
+  statusEl.innerHTML=`<div style="padding:8px 12px;background:rgba(255,216,77,.08);border:1px solid rgba(255,216,77,.3);border-radius:8px;font-size:11px;color:var(--yellow);">⏳ Обработка ${file.name}...</div>`;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const text = e.target.result;
+      const lines = text.split(/\r?\n/).filter(l=>l.trim());
+      if (!lines.length) throw new Error('Файл пустой');
+      const sep = lines[0].includes(';')?';':',';
+      const headers = lines[0].split(sep).map(h=>h.trim().toLowerCase());
+      const findCol = (...kws) => { for(const k of kws){const i=headers.findIndex(h=>h.includes(k));if(i>=0)return i;} return -1; };
+      const dateCol = findCol('date','дата','datetime','time');
+      const tmaxCol = findCol('tmax','t_max','max','максим');
+      const tminCol = findCol('tmin','t_min','min','миним');
+      const humCol  = findCol('humid','rh','влаж');
+      const rainCol = findCol('rain','precip','осадки');
+      const leafCol = findCol('leaf','лист');
+      const et0Col  = findCol('et0','eto');
+      if (dateCol<0||tmaxCol<0||tminCol<0) throw new Error('Не найдены обязательные колонки');
+      let added=0,updated=0;
+      for(let i=1;i<lines.length;i++){
+        const cols=lines[i].split(sep);
+        const rawDate=cols[dateCol]?.trim();if(!rawDate)continue;
+        const dm=rawDate.match(/(\d{4}-\d{2}-\d{2})|(\d{2}[./]\d{2}[./]\d{4})/);if(!dm)continue;
+        let day=dm[0];
+        if(day.match(/^\d{2}[./]/)){const p=day.split(/[./]/);day=`${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`;}
+        const fv=(c)=>c>=0&&cols[c]?parseFloat(cols[c].replace(',','.')):null;
+        const entry={id:uid(),date:day,tmin:fv(tminCol),tmax:fv(tmaxCol),humidity:fv(humCol),precip:fv(rainCol)||0,leafwet:fv(leafCol)||0,et0:fv(et0Col)};
+        const idx=S.weather.findIndex(w=>w.date===day);
+        if(idx>=0){S.weather[idx]=entry;updated++;}else{S.weather.push(entry);added++;}
+      }
+      S.weather.sort((a,b)=>b.date.localeCompare(a.date));
+      save(); renderWeather();
+      statusEl.innerHTML=`<div style="padding:8px 12px;background:rgba(107,221,107,.08);border:1px solid rgba(107,221,107,.3);border-radius:8px;font-size:11px;color:var(--accent);">✅ ${added} дней добавлено · ${updated} обновлено</div>`;
+    } catch(err) {
+      statusEl.innerHTML=`<div style="padding:8px 12px;background:rgba(255,85,85,.08);border:1px solid rgba(255,85,85,.3);border-radius:8px;font-size:11px;color:var(--red);">❌ ${err.message}</div>`;
+    }
+  };
+  reader.readAsText(file,'utf-8');
+}
+
+function renderWeather() {
+  const smith = checkSmithPeriod();
+  const smithEl = document.getElementById('smith-period-block');
+  smithEl.innerHTML = `<div class="smith-indicator ${smith?'smith-active':'smith-safe'}">
+    ${smith?'🟤 SMITH PERIOD АКТИВЕН — риск фитофторы':'✅ Smith Period неактивен'}
+    <span style="font-size:10px;opacity:.7;">(T≥10°C + RH≥80% 2+ дня)</span>
+  </div>`;
+  if (S.weather.length) {
+    const latest = S.weather[0];
+    const tavg = ((parseFloat(latest.tmin)+parseFloat(latest.tmax))/2).toFixed(1);
+    document.getElementById('weather-latest').innerHTML = `
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+        <div class="weather-day" style="flex:1;min-width:140px;"><div class="date">📅 Последний день: ${latest.date}</div>
+          <div class="temps">Tмин <span style="color:var(--blue);">${latest.tmin}°</span> / Tмакс <span style="color:var(--red);">${latest.tmax}°C</span></div>
+          <div style="font-size:10px;color:var(--text3);margin-top:4px;">💧 Осадки: ${latest.precip}мм · 🌿 Лист: ${latest.leafwet}ч · RH: ${latest.humidity}%</div>
+        </div>
+      </div>`;
+  } else {
+    document.getElementById('weather-latest').innerHTML = '';
+  }
+  // Build cumulative GDD for table
+  let cumGdd10=0, cumGdd7=0;
+  const sorted=[...S.weather].sort((a,b)=>a.date.localeCompare(b.date));
+  const gddMap10={}, gddMap7={};
+  sorted.forEach(w=>{
+    cumGdd10+=calcDailyGdd(w.tmin,w.tmax,10);
+    cumGdd7 +=calcDailyGdd(w.tmin,w.tmax,7);
+    gddMap10[w.date]=Math.round(cumGdd10);
+    gddMap7[w.date] =Math.round(cumGdd7);
+  });
+  document.getElementById('weather-tbody').innerHTML = S.weather.slice(0,60).map(w=>{
+    const tmin=parseFloat(w.tmin), tmax=parseFloat(w.tmax);
+    const tavg=((tmin+tmax)/2).toFixed(1);
+    const d10=calcDailyGdd(w.tmin,w.tmax,10).toFixed(1);
+    const d7 =calcDailyGdd(w.tmin,w.tmax,7).toFixed(1);
+    const frostRisk=tmin<=0;
+    return `<tr>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:11px;">${w.date}</td>
+      <td style="color:${frostRisk?'var(--red)':tmin<=4?'var(--blue)':'var(--text)'};">${tmin}°</td>
+      <td style="color:${tmax>=35?'var(--red)':tmax>=30?'var(--orange)':'var(--text)'};">${tmax}°</td>
+      <td>${tavg}</td>
+      <td style="color:${parseFloat(w.humidity)>=80?'var(--orange)':'var(--text)'};">${w.humidity||'—'}%</td>
+      <td style="color:${parseFloat(w.precip)>5?'var(--blue)':'var(--text)'};">${w.precip||0}</td>
+      <td style="color:${parseFloat(w.leafwet)>=6?'var(--orange)':parseFloat(w.leafwet)>=4?'var(--yellow)':'var(--text)'};">${w.leafwet||0}</td>
+      <td style="color:var(--blue);">${w.et0||estimateET0(tmin,tmax,w.date).toFixed(1)}</td>
+      <td style="font-family:'JetBrains Mono',monospace;color:var(--accent);">${d10}</td>
+      <td style="font-family:'JetBrains Mono',monospace;color:var(--teal);">${d7}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── GDD / Phases ──────────────────────────────────────────────────────────
+function renderGdd() {
+  const sel = document.getElementById('gdd-parcel-sel');
+  sel.innerHTML = '<option value="">— Выберите участок —</option>';
+  S.parcels.forEach(p => {
+    const crop = getCropById(p.cropId);
+    sel.innerHTML += `<option value="${p.id}">${p.name}${crop?' ('+crop.emoji+' '+crop.name+')':''}`;
+  });
+  const pid = sel.value;
+  if (!pid) { clearGddDisplay(); return; }
+  const parcel = S.parcels.find(p=>p.id===pid);
+  if (!parcel) return;
+  const crop = getCropById(parcel.cropId);
+  if (!crop) return;
+  const gdd = calcParcelGdd(parcel);
+  const phase = getParcelPhase(parcel);
+  const alerts = runAlertsForParcel(parcel);
+  const etc = calcParcelEtc(parcel);
+  // KPIs
+  const daysFromSowing = S.weather.filter(w=>w.date>=parcel.sowingDate).length;
+  const remainingGdd = Math.max(0, crop.gddToHarvest - gdd);
+  const avgDailyGdd = daysFromSowing > 0 ? gdd/daysFromSowing : 0;
+  const daysToHarvest = avgDailyGdd > 0 ? Math.round(remainingGdd/avgDailyGdd) : '—';
+
+  // TDU for pea — special KPI
+  let tduKpi = '';
+  if (crop.id === 'pea') {
+    const tdu = Math.max(0, gdd - 540);
+    const tduTarget = crop.tduTarget || 115;
+    const tduWindow = crop.tduWindow || 15;
+    const tduDaysLeft = avgDailyGdd > 0 && tdu < tduTarget ? Math.round((tduTarget - tdu) / avgDailyGdd) : 0;
+    const inWindow = tdu >= tduTarget - tduWindow && tdu <= tduTarget + tduWindow;
+    const overripe = tdu > tduTarget + tduWindow;
+    const tduPct = Math.min(100, Math.round((tdu / (tduTarget + tduWindow)) * 100));
+    tduKpi = `<div class="kpi-card" style="${inWindow?'background:rgba(34,197,94,.12);border-color:rgba(34,197,94,.4)':overripe?'background:rgba(255,85,85,.1);border-color:rgba(255,85,85,.3)':''}">
+      <div class="kpi-val" style="color:${inWindow?'var(--accent)':overripe?'var(--red)':'var(--yellow)'};">${Math.round(tdu)}</div>
+      <div class="kpi-lbl">TDU (налив зерна)</div>
+      <div class="kpi-sub">${inWindow?'🌾 УБИРАТЬ!':overripe?'⚠️ Перезревание':tduDaysLeft>0?`До оптимума ~${tduDaysLeft} дн`:'GDD до налива ещё накапл.'}</div>
+      <div style="height:4px;background:var(--surface3);border-radius:2px;margin-top:6px;">
+        <div style="height:100%;width:${tduPct}%;background:${inWindow?'var(--accent)':overripe?'var(--red)':'var(--yellow)'};border-radius:2px;"></div>
+      </div>
+    </div>`;
+  }
+
+  // R3 countdown for sweet corn
+  let r3Kpi = '';
+  if (crop.id === 'sweet_corn') {
+    const r3Gdd = 1350;
+    const inR3 = gdd >= r3Gdd && gdd <= 1500;
+    const daysToR3 = avgDailyGdd > 0 && gdd < r3Gdd ? Math.round((r3Gdd - gdd) / avgDailyGdd) : null;
+    r3Kpi = `<div class="kpi-card" style="${inR3?'background:rgba(34,197,94,.12);border-color:rgba(34,197,94,.4)':gdd>1500?'background:rgba(255,85,85,.1);border-color:rgba(255,85,85,.3)':''}">
+      <div class="kpi-val" style="color:${inR3?'var(--accent)':gdd>1500?'var(--red)':'var(--yellow)'};">${Math.round(gdd)}/1350</div>
+      <div class="kpi-lbl">GDD до молочной зрелости</div>
+      <div class="kpi-sub">${inR3?'🌽 R3 — УБИРАТЬ! 7–10 дней':gdd>1500?'⚠️ Перезрела':daysToR3!==null?`До R3 ~${daysToR3} дн`:'Накапливается'}</div>
+    </div>`;
+  }
+  document.getElementById('gdd-kpis').innerHTML = `
+    <div class="kpi-card"><div class="kpi-val" style="color:var(--accent);">${Math.round(gdd)}</div><div class="kpi-lbl">GDD накоплено</div><div class="kpi-sub">база +${crop.baseTemp}°C</div></div>
+    <div class="kpi-card"><div class="kpi-val" style="font-size:12px;color:${phase?.color||'var(--text2)'};">${phase?.name||'—'}</div><div class="kpi-lbl">Текущая фаза</div></div>
+    <div class="kpi-card"><div class="kpi-val" style="color:${alerts.filter(a=>a.level==='critical').length?'var(--red)':'var(--accent)'};">${alerts.length}</div><div class="kpi-lbl">Алертов</div></div>
+    <div class="kpi-card"><div class="kpi-val">${daysToHarvest}</div><div class="kpi-lbl">Дней до уборки</div><div class="kpi-sub">GDD осталось: ${Math.round(remainingGdd)}</div></div>
+    ${tduKpi}${r3Kpi}
+    ${etc?`<div class="kpi-card"><div class="kpi-val" style="color:var(--blue);">${etc.etc}</div><div class="kpi-lbl">ETc мм/день</div><div class="kpi-sub">Kc=${etc.kc} · ET₀=${etc.et0}мм</div></div>`:''}`;
+  // Phase bar
+  const barEl = document.getElementById('gdd-phase-bar');
+  const legEl = document.getElementById('gdd-phase-legend');
+  const displayMax = crop.gddToHarvest * 1.1;
+  let barHtml = '';
+  crop.phases.forEach(ph => {
+    const from = ph.gddFrom, to = Math.min(ph.gddTo, displayMax);
+    const left = (from/displayMax)*100;
+    const width = Math.max(1,((to-from)/displayMax)*100);
+    barHtml += `<div class="phase-seg" style="left:${left}%;width:${width}%;background:${ph.color};" title="${ph.name}: GDD ${ph.gddFrom}–${ph.gddTo}">${width>8?ph.name:''}</div>`;
+  });
+  const markerLeft = Math.min(98,(gdd/displayMax)*100);
+  barHtml += `<div class="phase-marker" style="left:${markerLeft}%;" title="GDD ${Math.round(gdd)}"></div>`;
+  barEl.innerHTML = barHtml;
+  const ACTION_COLORS = {MONITOR:'#6b7280',WATCH:'#f59e0b','SPRAY':'#f97316',CRITICAL:'#ef4444',HARVEST:'#22c55e','RED ALERT':'#dc2626'};
+  legEl.innerHTML = crop.phases.map(ph=>{
+    const aclr = ACTION_COLORS[ph.action.split(' ')[0]]||'#6b7280';
+    return `<div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text2);">
+      <div style="width:10px;height:10px;border-radius:2px;background:${ph.color};flex-shrink:0;"></div>
+      <span>${ph.name} (${ph.gddFrom}–${ph.gddTo===9999?'∞':ph.gddTo})</span>
+      <span style="padding:1px 5px;border-radius:8px;background:${aclr}22;color:${aclr};font-size:9px;font-weight:700;">${ph.action}</span>
+      <span style="color:var(--text3);font-size:9px;">${ph.risks}</span>
+    </div>`;
+  }).join('');
+  // Alerts
+  document.getElementById('gdd-alerts').innerHTML = alerts.length
+    ? alerts.map(a=>`<div class="alert-card alert-${a.level}">
+        <div class="alert-title" style="color:${a.level==='critical'?'var(--red)':a.level==='spray'?'var(--orange)':a.level==='watch'?'var(--yellow)':'var(--accent)'};">${a.title}</div>
+        <div class="alert-body">${a.body}</div>
+        <div class="alert-rec">💊 ${a.rec}</div>
+      </div>`).join('')
+    : `<div style="padding:10px 16px;background:rgba(107,221,107,.06);border:1px solid rgba(107,221,107,.2);border-radius:8px;font-size:12px;color:var(--accent);">✅ Нет алертов для ${parcel.name} · ${today()}</div>`;
+  // GDD table
+  const sorted=[...S.weather].sort((a,b)=>a.date.localeCompare(b.date));
+  let cumGdd=0;
+  const gddSeries=[];
+  sorted.forEach(w=>{
+    if(w.date<parcel.sowingDate) return;
+    const d=calcDailyGdd(w.tmin,w.tmax,crop.baseTemp);
+    cumGdd+=d;
+    const ph=crop.phases.find(p=>cumGdd>=p.gddFrom&&cumGdd<p.gddTo);
+    gddSeries.push({date:w.date,tmin:w.tmin,tmax:w.tmax,daily:d.toFixed(1),cumulative:Math.round(cumGdd),phase:ph});
+  });
+  const ACTION_ICONS={MONITOR:'🔍',WATCH:'⚠️',SPRAY:'💊',CRITICAL:'🔴',HARVEST:'🌾','RED ALERT':'🚨'};
+  document.getElementById('gdd-tbody').innerHTML = [...gddSeries].reverse().slice(0,50).map(row=>`<tr>
+    <td style="font-family:'JetBrains Mono',monospace;font-size:11px;">${row.date}</td>
+    <td style="color:${parseFloat(row.tmin)<=2?'var(--red)':'var(--text)'};">${row.tmin}°</td>
+    <td style="color:${parseFloat(row.tmax)>=35?'var(--red)':'var(--text)'};">${row.tmax}°</td>
+    <td style="font-family:'JetBrains Mono',monospace;color:var(--accent);">+${row.daily}</td>
+    <td style="font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--accent2);">${row.cumulative}</td>
+    <td><span style="font-size:10px;padding:2px 7px;border-radius:10px;background:${row.phase?row.phase.color+'33':'var(--surface3)'};color:${row.phase?row.phase.color:'var(--text3)'};">${row.phase?.name||'—'}</span></td>
+    <td><span style="font-size:9px;padding:1px 5px;border-radius:8px;">${row.phase?`${ACTION_ICONS[row.phase.action]||''} ${row.phase.action}`:'—'}</span></td>
+    <td style="font-size:10px;color:var(--text3);">${row.phase?.risks||'—'}</td>
+  </tr>`).join('');
+}
+
+function clearGddDisplay() {
+  ['gdd-kpis','gdd-phase-legend','gdd-alerts','gdd-tbody'].forEach(id=>{document.getElementById(id).innerHTML='';});
+  document.getElementById('gdd-phase-bar').innerHTML='';
+}
+
+// ── Diseases ──────────────────────────────────────────────────────────────
+let _disCropFilter = 'all';
+function renderDiseaseCropTabs() {
+  const el = document.getElementById('dis-crop-tabs');
+  const presentCrops = [...new Set(S.parcels.map(p=>p.cropId).filter(Boolean))];
+  const allCrops = presentCrops.length ? presentCrops : CROPS.map(c=>c.id);
+  el.innerHTML = `<div class="crop-tab ${_disCropFilter==='all'?'active':''}" onclick="filterDiseases('all')">🌿 Все культуры</div>`;
+  CROPS.filter(c=>allCrops.includes(c.id)).forEach(c=>{
+    const count = DISEASES.filter(d=>d.cropIds.includes(c.id)).length;
+    el.innerHTML += `<div class="crop-tab ${_disCropFilter===c.id?'active':''}" onclick="filterDiseases('${c.id}')">${c.emoji} ${c.name} <span style="font-size:9px;padding:1px 5px;border-radius:8px;background:rgba(107,221,107,.15);color:var(--accent);">${count}</span></div>`;
+  });
+}
+function filterDiseases(cropId) { _disCropFilter=cropId; renderDiseases(); }
+
+function renderDiseases() {
+  renderDiseaseCropTabs();
+  let diseases = DISEASES;
+  if (_disCropFilter!=='all') diseases = diseases.filter(d=>d.cropIds.includes(_disCropFilter));
+  const sorted = diseases.map(d=>({...d,_risk:calcDiseaseRisk(d)})).sort((a,b)=>b._risk.score-a._risk.score);
+  const LEVEL_COLORS={critical:'var(--red)',spray:'var(--orange)',watch:'var(--yellow)',ok:'var(--accent)'};
+  const LEVEL_CLS={critical:'rb-critical',spray:'rb-spray',watch:'rb-watch',ok:'rb-ok'};
+  const TYPE_ICONS={fungal:'🍄',insect:'🐛',viral:'🦠',bacterial:'🧫'};
+  document.getElementById('disease-grid').innerHTML = sorted.map(d=>{
+    const r=d._risk;
+    const cropBadges=d.cropIds.map(cid=>{const c=getCropById(cid);return c?`<span>${c.emoji}</span>`:''}).join('');
+    return `<div class="risk-card" style="border-left-color:${LEVEL_COLORS[r.level]};">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+        <div>
+          <div style="font-weight:700;font-size:13px;">${TYPE_ICONS[d.type]||'🔬'} ${d.name} <span style="font-size:11px;">${cropBadges}</span></div>
+          <div style="font-size:10px;color:var(--text3);font-style:italic;">${d.latin}</div>
+        </div>
+        <span class="risk-badge ${LEVEL_CLS[r.level]}">${r.label}</span>
+      </div>
+      <div style="font-size:10px;color:var(--text3);margin-bottom:6px;">${d.type==='fungal'?'Грибковое':d.type==='insect'?'Вредитель':d.type==='viral'?'Вирус':'Бактерия'} · ${d.danger}/5</div>
+      <div class="risk-meter"><div class="risk-fill" style="width:${r.score}%;background:${LEVEL_COLORS[r.level]};"></div></div>
+      <div style="font-size:10px;color:var(--text2);margin-top:4px;margin-bottom:8px;">${r.reason}</div>
+      ${r.score>=30?`<div style="padding:8px 10px;background:rgba(239,68,68,.06);border-radius:6px;border:1px solid rgba(239,68,68,.2);margin-bottom:8px;">
+        <div style="font-size:10px;font-weight:700;color:var(--red);margin-bottom:3px;">⚠️ ПРОФИЛАКТИКА / ОБРАБОТКА</div>
+        <div style="font-size:11px;color:var(--text2);">${d.prevention}</div>
+        <div style="font-size:11px;color:var(--accent2);margin-top:4px;">💊 ${d.products}</div>
+      </div>`:''}
+      ${d.symptoms?`<details style="font-size:11px;color:var(--text3);cursor:pointer;">
+        <summary style="color:var(--text2);">Симптомы</summary><div style="margin-top:4px;">${d.symptoms}</div>
+      </details>`:''}
+    </div>`;
+  }).join('');
+}
+
+// ── Irrigation ────────────────────────────────────────────────────────────
+function toggleIrrigInfo() {
+  const el = document.getElementById('irrig-info');
+  el.style.display = el.style.display==='none'?'block':'none';
+  if(el.style.display==='block') {
+    el.innerHTML = `<div class="card">
+      <div style="font-family:'Unbounded',sans-serif;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:2px;margin-bottom:10px;">📐 Нормы полива (FAO / Sela)</div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.8;">
+        <strong>ETc = Kc × ET₀</strong> &nbsp; ETc — потребность культуры, Kc — коэффициент, ET₀ — эталонная испаряемость<br>
+        <strong>RAW = 0.35 × TAW</strong> &nbsp; TAW = (FC − WP) × глубина корней (мм)<br>
+        <strong>Интервал полива</strong> = RAW / ETc (дней)<br>
+        <br>
+        <strong style="color:var(--accent2);">Kc коэффициенты по культурам (FAO-56):</strong><br>
+        🍅 Томат: начало 0.6 → развитие 1.15 → середина 1.15 → конец 0.8<br>
+        🥔 Картофель: 0.5 → 1.15 → 1.15 → 0.75<br>
+        🧅 Лук: 0.7 → 1.05 → 1.0 → 0.75<br>
+        🫑 Перец: 0.6 → 1.05 → 1.05 → 0.8<br>
+        🥒 Огурец: 0.6 → 1.0 → 1.0 → 0.75<br>
+        🥬 Кабачок: 0.5 → 0.95 → 0.95 → 0.75<br>
+        🍆 Баклажан: 0.6 → 1.05 → 1.05 → 0.8<br>
+        <br>
+        <strong style="color:var(--yellow);">⚠️ Критические периоды:</strong>
+        Томат — цветение и завязь (дефицит = опадение цветков)<br>
+        Картофель — клубнеобразование (дефицит = мелкие клубни)<br>
+        Лук — инициация и налив луковицы
+      </div>
+    </div>`;
+  }
+}
+
+function renderIrrigation() {
+  const latest = S.weather[0];
+  if (!S.parcels.length) {
+    document.getElementById('etc-block').innerHTML = `<div style="color:var(--text3);font-size:12px;padding:20px;text-align:center;">Добавьте участки для расчёта ETc</div>`;
+    document.getElementById('irrig-recs').innerHTML = '';
+    return;
+  }
+  // ETc table
+  let html = `<div style="font-family:'Unbounded',sans-serif;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:2px;margin-bottom:10px;">💧 Водопотребность культур · ET₀ ≈ ${latest?((parseFloat(latest.et0)||estimateET0(parseFloat(latest.tmin),parseFloat(latest.tmax),latest.date)).toFixed(1))+'мм/день':'-'} (${latest?.date||'нет данных'})</div>`;
+  html += `<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:16px;">`;
+  html += `<div class="etc-row" style="background:var(--surface2);font-family:'Unbounded',sans-serif;font-size:9px;color:var(--text3);">
+    <div>УЧАСТОК / КУЛЬТУРА</div><div>Kc</div><div>ETc мм/день</div><div>ФАЗА</div></div>`;
+  S.parcels.forEach(parcel => {
+    const crop = getCropById(parcel.cropId);
+    const phase = getParcelPhase(parcel);
+    const etc = calcParcelEtc(parcel);
+    if (!crop||!etc) return;
+    html += `<div class="etc-row">
+      <div><strong>${parcel.name}</strong><br><span style="font-size:10px;color:var(--text3);">${crop.emoji} ${crop.name} · ${parcel.ha}га</span></div>
+      <div style="font-family:'JetBrains Mono',monospace;color:var(--blue);">${etc.kc}</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-weight:700;font-size:14px;color:var(--accent);">${etc.etc} мм</div>
+      <div style="font-size:11px;color:${phase?.color||'var(--text3)'};">${phase?.name||'—'}</div>
+    </div>`;
+  });
+  html += '</div>';
+  document.getElementById('etc-block').innerHTML = html;
+  // Irrigation recommendations
+  const recs = S.parcels.map(parcel => {
+    const crop = getCropById(parcel.cropId);
+    const etc = calcParcelEtc(parcel);
+    const phase = getParcelPhase(parcel);
+    if (!crop||!etc) return '';
+    const rain3 = S.weather.slice(0,3).reduce((s,w)=>s+parseFloat(w.precip||0),0);
+    const netEtc = Math.max(0, etc.etc*3 - rain3);
+    const soil = parcel.soil||'loam';
+    const fc = SOIL_FC[soil]||0.25, wp = SOIL_WP[soil]||0.10;
+    const raw = Math.round((fc-wp)*0.35*crop.rootDepth*10);// mm
+    const interval = etc.etc > 0 ? Math.round(raw/etc.etc) : '—';
+    const urgent = netEtc > raw * 0.8;
+    return `<div class="card" style="margin-bottom:10px;${urgent?'border-color:rgba(255,216,77,.4);':''}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+        <div style="font-size:12px;font-weight:700;">${parcel.name} · ${crop.emoji} ${crop.name}</div>
+        ${urgent?`<span class="badge badge-yellow">💧 ПОЛИВ</span>`:''}
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;font-size:11px;color:var(--text2);">
+        <div>💧 ETc: <strong style="color:var(--accent);">${etc.etc} мм/день</strong></div>
+        <div>🌧 Осадки 3 дня: ${rain3.toFixed(1)} мм</div>
+        <div>💦 Нетто потребность: ${netEtc.toFixed(1)} мм</div>
+        <div>📏 RAW: ${raw} мм (${soil})</div>
+        <div>⏰ Интервал полива: ~${interval} дн</div>
+        <div>🌱 Фаза: ${phase?.name||'—'}</div>
+      </div>
+    </div>`;
+  }).filter(Boolean).join('');
+  document.getElementById('irrig-recs').innerHTML = recs||`<div style="color:var(--text3);font-size:12px;padding:20px;text-align:center;">Нет данных о погоде</div>`;
+}
+
+// ── Treatments ────────────────────────────────────────────────────────────
+function openTreatmentModal() {
+  document.getElementById('t-date').value = today();
+  const parcelSel = document.getElementById('t-parcel');
+  parcelSel.innerHTML = '<option value="">— выбрать —</option>';
+  S.parcels.forEach(p=>parcelSel.innerHTML+=`<option value="${p.id}">${p.name}</option>`);
+  const prodSel = document.getElementById('t-product');
+  prodSel.innerHTML = '<option value="">— выбрать из справочника —</option>';
+  S.catalog.forEach(c=>prodSel.innerHTML+=`<option value="${c.id}">${c.name}</option>`);
+  openModal('modal-treatment');
+}
+function fillTreatProduct() {
+  const id = document.getElementById('t-product').value;
+  const item = S.catalog.find(c=>c.id===id);
+  if (!item) return;
+  document.getElementById('t-product-manual').value = item.name;
+  document.getElementById('t-dose').value = item.dose||'';
+  document.getElementById('t-whi').value = item.whi||'';
+  document.getElementById('t-type').value = item.type||'fungicide';
+}
+function saveTreatment() {
+  const parcelId = document.getElementById('t-parcel').value;
+  const product = document.getElementById('t-product-manual').value.trim()||document.getElementById('t-product').options[document.getElementById('t-product').selectedIndex]?.text||'';
+  if (!product) { alert('Введите название препарата'); return; }
+  const parcel = S.parcels.find(p=>p.id===parcelId);
+  const crop = getCropById(parcel?.cropId);
+  const t = {
+    id:uid(), date:document.getElementById('t-date').value,
+    parcelId, parcelName:parcel?.name||'—',
+    cropId:parcel?.cropId||'', cropName:crop?.name||'—',
+    product, type:document.getElementById('t-type').value,
+    dose:document.getElementById('t-dose').value,
+    whi:parseInt(document.getElementById('t-whi').value)||0,
+    method:document.getElementById('t-method').value,
+    note:document.getElementById('t-note').value,
+  };
+  S.treatments.push(t);
+  S.treatments.sort((a,b)=>b.date.localeCompare(a.date));
+  save(); closeModal('modal-treatment'); renderTreatments();
+}
+function renderTreatments() {
+  const pFilter = document.getElementById('tr-parcel-filter');
+  const cFilter = document.getElementById('tr-crop-filter');
+  const tFilter = document.getElementById('tr-type-filter');
+  // Populate filters
+  const curP=pFilter.value, curC=cFilter.value;
+  pFilter.innerHTML='<option value="">Все участки</option>';
+  S.parcels.forEach(p=>pFilter.innerHTML+=`<option value="${p.id}" ${curP===p.id?'selected':''}>${p.name}</option>`);
+  cFilter.innerHTML='<option value="">Все культуры</option>';
+  CROPS.forEach(c=>cFilter.innerHTML+=`<option value="${c.id}" ${curC===c.id?'selected':''}>${c.emoji} ${c.name}</option>`);
+  let treatments = [...S.treatments];
+  if(pFilter.value) treatments=treatments.filter(t=>t.parcelId===pFilter.value);
+  if(cFilter.value) treatments=treatments.filter(t=>t.cropId===cFilter.value);
+  if(tFilter.value) treatments=treatments.filter(t=>t.type===tFilter.value);
+  const TYPE_LABELS={fungicide:'Фунгицид',insecticide:'Инсектицид',herbicide:'Гербицид',fertilizer:'Удобрение',acaricide:'Акарицид',other:'Другое'};
+  const TYPE_COLORS={fungicide:'var(--teal)',insecticide:'var(--orange)',herbicide:'var(--yellow)',fertilizer:'var(--accent)',acaricide:'var(--purple)',other:'var(--text3)'};
+  document.getElementById('treatment-tbody').innerHTML = treatments.length
+    ? treatments.map(t=>{
+        const wEnd = t.whi>0&&t.date?new Date(new Date(t.date).getTime()+t.whi*86400000).toISOString().slice(0,10):'—';
+        const overdue = t.whi>0&&wEnd>today();
+        return `<tr>
+          <td style="font-family:'JetBrains Mono',monospace;font-size:11px;">${t.date}</td>
+          <td style="font-size:12px;font-weight:600;">${t.parcelName||'—'}</td>
+          <td style="font-size:11px;color:var(--text2);">${t.cropName||'—'}</td>
+          <td style="font-weight:600;">${t.product}</td>
+          <td><span style="font-size:10px;padding:2px 7px;border-radius:8px;background:${TYPE_COLORS[t.type]||'var(--text3)'}22;color:${TYPE_COLORS[t.type]||'var(--text3)'};">${TYPE_LABELS[t.type]||t.type}</span></td>
+          <td style="font-size:11px;">${t.dose||'—'}</td>
+          <td style="font-size:10px;color:var(--text3);">${t.note||'—'}</td>
+          <td style="font-size:10px;${overdue?'color:var(--red);':'color:var(--text3);'}">${overdue?'⚠️ ':''}${wEnd}</td>
+          <td><button class="btn btn-danger btn-xs" onclick="deleteTreatment('${t.id}')">✕</button></td>
+        </tr>`;
+      }).join('')
+    : `<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:20px;">Обработок нет</td></tr>`;
+}
+function deleteTreatment(id) {
+  if(!confirm('Удалить обработку?'))return;
+  S.treatments=S.treatments.filter(t=>t.id!==id);
+  save();renderTreatments();
+}
+function exportTreatments() {
+  const rows=[['Дата','Участок','Культура','Препарат','Тип','Доза','Смыв до','Метод','Примечание']];
+  S.treatments.forEach(t=>rows.push([t.date,t.parcelName,t.cropName,t.product,t.type,t.dose,t.whi,t.method,t.note]));
+  const csv=rows.map(r=>r.join(';')).join('\n');
+  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
+  a.download='smart_vegetable_treatments.csv';a.click();
+}
+
+// ── Catalog ───────────────────────────────────────────────────────────────
+let _editCatId=null;
+function openCatalogModal(id) {
+  _editCatId=id||null;
+  const item=id?S.catalog.find(c=>c.id===id):null;
+  document.getElementById('c-name').value=item?.name||'';
+  document.getElementById('c-type').value=item?.type||'fungicide';
+  document.getElementById('c-ai').value=item?.ai||'';
+  document.getElementById('c-dose').value=item?.dose||'';
+  document.getElementById('c-whi').value=item?.whi||'';
+  document.getElementById('c-crops').value=item?.crops||'';
+  document.getElementById('c-targets').value=item?.targets||'';
+  openModal('modal-catalog');
+}
+function saveCatalogItem() {
+  const name=document.getElementById('c-name').value.trim();
+  if(!name){alert('Введите название');return;}
+  const item={
+    id:_editCatId||uid(),name,
+    type:document.getElementById('c-type').value,
+    ai:document.getElementById('c-ai').value,
+    dose:document.getElementById('c-dose').value,
+    whi:parseInt(document.getElementById('c-whi').value)||0,
+    crops:document.getElementById('c-crops').value,
+    targets:document.getElementById('c-targets').value,
+  };
+  if(_editCatId){const idx=S.catalog.findIndex(c=>c.id===_editCatId);if(idx>=0)S.catalog[idx]=item;}
+  else S.catalog.push(item);
+  save();closeModal('modal-catalog');renderCatalog();
+}
+function renderCatalog() {
+  const typeFilter=document.getElementById('cat-type-filter').value;
+  let items=S.catalog;
+  if(typeFilter) items=items.filter(c=>c.type===typeFilter);
+  const TYPE_LABELS={fungicide:'Фунгицид',insecticide:'Инсектицид',herbicide:'Гербицид',fertilizer:'Удобрение',acaricide:'Акарицид'};
+  const TYPE_COLORS={fungicide:'var(--teal)',insecticide:'var(--orange)',herbicide:'var(--yellow)',fertilizer:'var(--accent)',acaricide:'var(--purple)'};
+  document.getElementById('catalog-tbody').innerHTML=items.map(c=>`<tr>
+    <td style="font-weight:600;">${c.name}</td>
+    <td><span style="font-size:10px;padding:2px 7px;border-radius:8px;background:${TYPE_COLORS[c.type]||'var(--text3)'}22;color:${TYPE_COLORS[c.type]||'var(--text3)'};">${TYPE_LABELS[c.type]||c.type}</span></td>
+    <td style="font-size:11px;color:var(--text2);font-style:italic;">${c.ai||'—'}</td>
+    <td style="font-size:11px;">${c.dose||'—'}</td>
+    <td style="font-size:11px;color:${c.whi>14?'var(--orange)':'var(--text)'};">${c.whi?c.whi+' дн':'—'}</td>
+    <td style="font-size:10px;color:var(--text3);">${c.crops||'—'}</td>
+    <td><button class="btn btn-secondary btn-xs" onclick="openCatalogModal('${c.id}')">✏️</button></td>
+  </tr>`).join('');
+}
+
+// ── Import/Export ─────────────────────────────────────────────────────────
+function exportData() {
+  const data=JSON.stringify(S,null,2);
+  const a=document.createElement('a');a.href='data:application/json,'+encodeURIComponent(data);
+  a.download='smart_vegetable_'+today()+'.json';a.click();
+}
+function importData(event) {
+  const file=event.target.files[0];if(!file)return;event.target.value='';
+  const reader=new FileReader();
+  reader.onload=e=>{try{Object.assign(S,JSON.parse(e.target.result));save();renderParcels();}catch(err){alert('Ошибка импорта: '+err.message);}};
+  reader.readAsText(file);
+}
+function saveSetting(key,val) { S.settings[key]=val; S[key]=val; save(); }
+
+// ─── INIT ─────────────────────────────────────────────────────────────────
+load();
+renderParcels();
+// Populate GDD parcel select
+document.addEventListener('DOMContentLoaded',()=>{});
+</script>
+</body>
+</html>
