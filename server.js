@@ -42,7 +42,13 @@ cron.schedule('0 * * * *', async () => {
   try { await syncFieldClimate(); console.log('[CRON] Weather sync OK'); }
   catch(err) { console.error('[CRON] Weather sync FAILED:', err.message); }
 });
-setTimeout(syncFieldClimate, 5000);
+setTimeout(() => {
+  if (!process.env.FIELDCLIMATE_PUBLIC_KEY) {
+    console.log('[CRON] FieldClimate keys not set — skipping');
+    return;
+  }
+  syncFieldClimate().catch(e => console.error('[CRON] Failed:', e.message));
+}, 5000);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Smart-Agro server running on port ${PORT}`));
