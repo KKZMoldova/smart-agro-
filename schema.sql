@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS users (
   pin_hash   VARCHAR(64) NOT NULL,
   label      VARCHAR(50),
   created_at TIMESTAMPTZ DEFAULT NOW()
-);
+
 
 -- Default PINs (hashed with SHA-256)
 -- 1111=owner, 2222=agronomist, 3333=factory, 4444=operator
