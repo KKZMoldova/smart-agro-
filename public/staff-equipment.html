@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Справочники — Smart Agro</title>
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f5f4f0;
+  --surface: #ffffff;
+  --border: #e2e0d8;
+  --border2: #ccc9be;
+  --text: #1a1a18;
+  --muted: #6b6a64;
+  --green: #1d6a4a;
+  --green-light: #e8f4ee;
+  --green-mid: #2d9566;
+  --amber: #b85c00;
+  --amber-light: #fef3e2;
+  --red: #c0392b;
+  --red-light: #fdecea;
+  --blue: #1a4f7a;
+  --blue-light: #e8f1f8;
+  --radius: 10px;
+  --font: 'Golos Text', sans-serif;
+  --mono: 'JetBrains Mono', monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; }
+
+/* Header */
+.header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; align-items: center; gap: 0; height: 56px; }
+.logo { font-size: 15px; font-weight: 600; color: var(--green); letter-spacing: -0.3px; margin-right: 32px; }
+.logo span { color: var(--muted); font-weight: 400; }
+.nav-tabs { display: flex; gap: 2px; height: 100%; }
+.nav-tab { padding: 0 16px; font-size: 13px; font-weight: 500; color: var(--muted); cursor: pointer; border: none; background: none; height: 100%; border-bottom: 2px solid transparent; transition: all 0.15s; }
+.nav-tab:hover { color: var(--text); }
+.nav-tab.active { color: var(--green); border-bottom-color: var(--green); }
+.back-btn { margin-left: auto; font-size: 13px; color: var(--muted); text-decoration: none; display: flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--border); border-radius: 8px; transition: all 0.15s; }
+.back-btn:hover { border-color: var(--border2); color: var(--text); }
+
+/* Layout */
+.page { display: none; padding: 24px; max-width: 900px; margin: 0 auto; }
+.page.active { display: block; }
+
+/* Toolbar */
+.toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+.toolbar h1 { font-size: 18px; font-weight: 600; flex: 1; }
+.btn { padding: 8px 16px; font-size: 13px; font-weight: 500; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; transition: all 0.15s; font-family: var(--font); }
+.btn:hover { border-color: var(--border2); background: var(--bg); }
+.btn-primary { background: var(--green); color: #fff; border-color: var(--green); }
+.btn-primary:hover { background: #155237; border-color: #155237; }
+.btn-danger { background: var(--red-light); color: var(--red); border-color: #f5c6c2; }
+.btn-danger:hover { background: #fad5d2; }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+
+/* Cards */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; margin-bottom: 10px; transition: box-shadow 0.15s; }
+.card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+.card-header { display: flex; align-items: center; gap: 12px; }
+.avatar { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; flex-shrink: 0; }
+.av-green { background: var(--green-light); color: var(--green); }
+.av-blue  { background: var(--blue-light);  color: var(--blue); }
+.av-amber { background: var(--amber-light); color: var(--amber); }
+.card-name { font-size: 15px; font-weight: 600; }
+.card-sub  { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.card-actions { margin-left: auto; display: flex; gap: 6px; }
+.divider { border-top: 1px solid var(--border); margin: 12px 0; }
+.meta-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.meta-item .label { font-size: 11px; color: var(--muted); margin-bottom: 2px; }
+.meta-item .val   { font-size: 13px; font-weight: 500; }
+
+/* Badge */
+.badge { display: inline-flex; align-items: center; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.badge-green  { background: var(--green-light); color: var(--green); }
+.badge-blue   { background: var(--blue-light);  color: var(--blue); }
+.badge-amber  { background: var(--amber-light); color: var(--amber); }
+.badge-red    { background: var(--red-light);   color: var(--red); }
+.badge-gray   { background: #f0efe9; color: var(--muted); }
+
+/* Empty state */
+.empty { text-align: center; padding: 60px 20px; color: var(--muted); }
+.empty-icon { font-size: 40px; margin-bottom: 12px; }
+.empty p { font-size: 14px; }
+
+/* Modal */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100; align-items: center; justify-content: center; }
+.modal-overlay.open { display: flex; }
+.modal { background: var(--surface); border-radius: 12px; padding: 24px; width: 100%; max-width: 480px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); }
+.modal h2 { font-size: 16px; font-weight: 600; margin-bottom: 20px; }
+.form-group { margin-bottom: 14px; }
+.form-group label { display: block; font-size: 12px; font-weight: 500; color: var(--muted); margin-bottom: 5px; }
+.form-group input, .form-group select, .form-group textarea {
+  width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px;
+  font-size: 13px; font-family: var(--font); background: var(--bg); color: var(--text);
+  transition: border-color 0.15s; outline: none;
+}
+.form-group input:focus, .form-group select:focus { border-color: var(--green-mid); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.modal-footer { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+
+/* Toast */
+.toast { position: fixed; bottom: 24px; right: 24px; background: var(--text); color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 13px; z-index: 200; opacity: 0; transform: translateY(8px); transition: all 0.2s; pointer-events: none; }
+.toast.show { opacity: 1; transform: translateY(0); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">Smart<span>Agro</span></div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="switchPage('staff', this)">Персонал</button>
+    <button class="nav-tab" onclick="switchPage('equipment', this)">Техника</button>
+  </div>
+  <a class="back-btn" href="/vegetable">← Вернуться</a>
+</div>
+
+<!-- ПЕРСОНАЛ -->
+<div id="page-staff" class="page active">
+  <div class="toolbar">
+    <h1>Персонал</h1>
+    <button class="btn btn-primary" onclick="openStaffModal()">+ Добавить</button>
+  </div>
+  <div id="staff-list"></div>
+</div>
+
+<!-- ТЕХНИКА -->
+<div id="page-equipment" class="page">
+  <div class="toolbar">
+    <h1>Техника и оборудование</h1>
+    <button class="btn btn-primary" onclick="openEquipModal()">+ Добавить</button>
+  </div>
+  <div id="equip-list"></div>
+</div>
+
+<!-- МОДАЛ: Персонал -->
+<div class="modal-overlay" id="staff-modal">
+  <div class="modal">
+    <h2 id="staff-modal-title">Новый сотрудник</h2>
+    <input type="hidden" id="staff-id">
+    <div class="form-row">
+      <div class="form-group">
+        <label>Имя и фамилия *</label>
+        <input type="text" id="staff-name" placeholder="Попов Андрей">
+      </div>
+      <div class="form-group">
+        <label>Роль *</label>
+        <select id="staff-role">
+          <option value="agronomist">Агроном</option>
+          <option value="engineer">Инженер</option>
+          <option value="director">Директор</option>
+          <option value="operator">Оператор</option>
+          <option value="mechanic">Механизатор</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Телефон</label>
+        <input type="text" id="staff-phone" placeholder="+373 69 xxx xxx">
+      </div>
+      <div class="form-group">
+        <label>Telegram ID (для уведомлений)</label>
+        <input type="text" id="staff-telegram" placeholder="123456789">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Специализация</label>
+      <input type="text" id="staff-specialty" placeholder="Опрыскивание, ирригация...">
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeStaffModal()">Отмена</button>
+      <button class="btn btn-primary" onclick="saveStaff()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- МОДАЛ: Техника -->
+<div class="modal-overlay" id="equip-modal">
+  <div class="modal">
+    <h2 id="equip-modal-title">Новая техника</h2>
+    <input type="hidden" id="equip-id">
+    <div class="form-row">
+      <div class="form-group">
+        <label>Название *</label>
+        <input type="text" id="equip-name" placeholder="МТЗ-82 борт 03">
+      </div>
+      <div class="form-group">
+        <label>Тип *</label>
+        <select id="equip-type">
+          <option value="tractor">Трактор</option>
+          <option value="sprayer">Опрыскиватель</option>
+          <option value="pump">Насосная станция</option>
+          <option value="trailer">Прицеп</option>
+          <option value="other">Другое</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Бортовой номер</label>
+        <input type="text" id="equip-board" placeholder="03">
+      </div>
+      <div class="form-group">
+        <label>Гос. номер</label>
+        <input type="text" id="equip-plate" placeholder="MD 123 ABC">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Объём бака (литры)</label>
+        <input type="number" id="equip-tank" placeholder="2000">
+      </div>
+      <div class="form-group">
+        <label>Статус</label>
+        <select id="equip-status">
+          <option value="free">Свободен</option>
+          <option value="busy">В работе</option>
+          <option value="repair">На ремонте</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Навесные агрегаты (через запятую)</label>
+      <input type="text" id="equip-attach" placeholder="ОП-2000, Туман-2">
+    </div>
+    <div class="form-group">
+      <label>Примечание</label>
+      <input type="text" id="equip-note" placeholder="">
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeEquipModal()">Отмена</button>
+      <button class="btn btn-primary" onclick="saveEquip()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = '';
+
+const ROLE_LABELS = {
+  agronomist: 'Агроном', engineer: 'Инженер', director: 'Директор',
+  operator: 'Оператор', mechanic: 'Механизатор'
+};
+const ROLE_COLORS = {
+  agronomist: 'badge-green', engineer: 'badge-blue', director: 'badge-amber',
+  operator: 'badge-gray', mechanic: 'badge-gray'
+};
+const EQUIP_LABELS = {
+  tractor: 'Трактор', sprayer: 'Опрыскиватель', pump: 'Насосная станция',
+  trailer: 'Прицеп', other: 'Другое'
+};
+const STATUS_LABELS = { free: 'Свободен', busy: 'В работе', repair: 'На ремонте' };
+const STATUS_COLORS = { free: 'badge-green', busy: 'badge-amber', repair: 'badge-red' };
+
+function initials(name) {
+  return name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+}
+
+function avatarColor(role) {
+  if (role === 'agronomist') return 'av-green';
+  if (role === 'director' || role === 'engineer') return 'av-amber';
+  return 'av-blue';
+}
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function switchPage(id, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  el.classList.add('active');
+}
+
+// ─── STAFF ───────────────────────────────────────────────
+async function loadStaff() {
+  const res = await fetch('/api/staff');
+  const data = await res.json();
+  const el = document.getElementById('staff-list');
+  if (!data.length) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">👥</div><p>Персонал не добавлен</p></div>`;
+    return;
+  }
+  el.innerHTML = data.map(s => `
+    <div class="card">
+      <div class="card-header">
+        <div class="avatar ${avatarColor(s.role)}">${initials(s.name)}</div>
+        <div>
+          <div class="card-name">${s.name}</div>
+          <div class="card-sub">${s.specialty || ''}</div>
+        </div>
+        <span class="badge ${ROLE_COLORS[s.role] || 'badge-gray'}">${ROLE_LABELS[s.role] || s.role}</span>
+        <div class="card-actions">
+          <button class="btn btn-sm" onclick="editStaff(${JSON.stringify(s).replace(/"/g,'&quot;')})">Изменить</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteStaff('${s.id}')">Удалить</button>
+        </div>
+      </div>
+      ${s.phone || s.telegram_id ? `
+      <div class="divider"></div>
+      <div class="meta-grid">
+        ${s.phone ? `<div class="meta-item"><div class="label">Телефон</div><div class="val">${s.phone}</div></div>` : ''}
+        ${s.telegram_id ? `<div class="meta-item"><div class="label">Telegram ID</div><div class="val" style="font-family:var(--mono);font-size:12px">${s.telegram_id}</div></div>` : ''}
+      </div>` : ''}
+    </div>
+  `).join('');
+}
+
+function openStaffModal(clear=true) {
+  if (clear) {
+    document.getElementById('staff-id').value = '';
+    document.getElementById('staff-modal-title').textContent = 'Новый сотрудник';
+    ['staff-name','staff-phone','staff-telegram','staff-specialty'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('staff-role').value = 'operator';
+  }
+  document.getElementById('staff-modal').classList.add('open');
+}
+
+function closeStaffModal() { document.getElementById('staff-modal').classList.remove('open'); }
+
+function editStaff(s) {
+  document.getElementById('staff-id').value = s.id;
+  document.getElementById('staff-modal-title').textContent = 'Изменить сотрудника';
+  document.getElementById('staff-name').value = s.name;
+  document.getElementById('staff-role').value = s.role;
+  document.getElementById('staff-phone').value = s.phone || '';
+  document.getElementById('staff-telegram').value = s.telegram_id || '';
+  document.getElementById('staff-specialty').value = s.specialty || '';
+  openStaffModal(false);
+}
+
+async function saveStaff() {
+  const id = document.getElementById('staff-id').value;
+  const body = {
+    name: document.getElementById('staff-name').value.trim(),
+    role: document.getElementById('staff-role').value,
+    phone: document.getElementById('staff-phone').value.trim(),
+    telegram_id: document.getElementById('staff-telegram').value.trim(),
+    specialty: document.getElementById('staff-specialty').value.trim()
+  };
+  if (!body.name) { alert('Введите имя'); return; }
+  const url = id ? `/api/staff/${id}` : '/api/staff';
+  const method = id ? 'PUT' : 'POST';
+  await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  closeStaffModal();
+  toast(id ? 'Сотрудник обновлён' : 'Сотрудник добавлен');
+  loadStaff();
+}
+
+async function deleteStaff(id) {
+  if (!confirm('Деактивировать сотрудника?')) return;
+  await fetch(`/api/staff/${id}`, { method: 'DELETE' });
+  toast('Сотрудник деактивирован');
+  loadStaff();
+}
+
+// ─── EQUIPMENT ───────────────────────────────────────────
+async function loadEquip() {
+  const res = await fetch('/api/equipment');
+  const data = await res.json();
+  const el = document.getElementById('equip-list');
+  if (!data.length) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">🚜</div><p>Техника не добавлена</p></div>`;
+    return;
+  }
+  el.innerHTML = data.map(e => `
+    <div class="card">
+      <div class="card-header">
+        <div class="avatar av-green" style="border-radius:8px;font-size:18px">🚜</div>
+        <div>
+          <div class="card-name">${e.name}</div>
+          <div class="card-sub">${EQUIP_LABELS[e.type] || e.type}${e.board_number ? ' · борт ' + e.board_number : ''}</div>
+        </div>
+        <span class="badge ${STATUS_COLORS[e.status] || 'badge-gray'}">${STATUS_LABELS[e.status] || e.status}</span>
+        <div class="card-actions">
+          <button class="btn btn-sm" onclick="editEquip(${JSON.stringify(e).replace(/"/g,'&quot;')})">Изменить</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteEquip('${e.id}')">Удалить</button>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="meta-grid">
+        ${e.tank_volume ? `<div class="meta-item"><div class="label">Объём бака</div><div class="val">${e.tank_volume} л</div></div>` : ''}
+        ${e.license_plate ? `<div class="meta-item"><div class="label">Гос. номер</div><div class="val" style="font-family:var(--mono);font-size:12px">${e.license_plate}</div></div>` : ''}
+        ${e.attachments?.length ? `<div class="meta-item"><div class="label">Навесные</div><div class="val">${e.attachments.join(', ')}</div></div>` : ''}
+        ${e.operator_name ? `<div class="meta-item"><div class="label">Оператор</div><div class="val">${e.operator_name}</div></div>` : ''}
+        ${e.note ? `<div class="meta-item" style="grid-column:1/-1"><div class="label">Примечание</div><div class="val">${e.note}</div></div>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+function openEquipModal(clear=true) {
+  if (clear) {
+    document.getElementById('equip-id').value = '';
+    document.getElementById('equip-modal-title').textContent = 'Новая техника';
+    ['equip-name','equip-board','equip-plate','equip-attach','equip-note'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('equip-tank').value = '';
+    document.getElementById('equip-type').value = 'tractor';
+    document.getElementById('equip-status').value = 'free';
+  }
+  document.getElementById('equip-modal').classList.add('open');
+}
+
+function closeEquipModal() { document.getElementById('equip-modal').classList.remove('open'); }
+
+function editEquip(e) {
+  document.getElementById('equip-id').value = e.id;
+  document.getElementById('equip-modal-title').textContent = 'Изменить технику';
+  document.getElementById('equip-name').value = e.name;
+  document.getElementById('equip-type').value = e.type;
+  document.getElementById('equip-board').value = e.board_number || '';
+  document.getElementById('equip-plate').value = e.license_plate || '';
+  document.getElementById('equip-tank').value = e.tank_volume || '';
+  document.getElementById('equip-status').value = e.status || 'free';
+  document.getElementById('equip-attach').value = (e.attachments||[]).join(', ');
+  document.getElementById('equip-note').value = e.note || '';
+  openEquipModal(false);
+}
+
+async function saveEquip() {
+  const id = document.getElementById('equip-id').value;
+  const attachStr = document.getElementById('equip-attach').value.trim();
+  const body = {
+    name: document.getElementById('equip-name').value.trim(),
+    type: document.getElementById('equip-type').value,
+    board_number: document.getElementById('equip-board').value.trim(),
+    license_plate: document.getElementById('equip-plate').value.trim(),
+    tank_volume: parseFloat(document.getElementById('equip-tank').value) || null,
+    status: document.getElementById('equip-status').value,
+    attachments: attachStr ? attachStr.split(',').map(s=>s.trim()).filter(Boolean) : [],
+    note: document.getElementById('equip-note').value.trim()
+  };
+  if (!body.name) { alert('Введите название'); return; }
+  const url = id ? `/api/equipment/${id}` : '/api/equipment';
+  const method = id ? 'PUT' : 'POST';
+  await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  closeEquipModal();
+  toast(id ? 'Техника обновлена' : 'Техника добавлена');
+  loadEquip();
+}
+
+async function deleteEquip(id) {
+  if (!confirm('Удалить технику?')) return;
+  await fetch(`/api/equipment/${id}`, { method: 'DELETE' });
+  toast('Удалено');
+  loadEquip();
+}
+
+// Init
+loadStaff();
+loadEquip();
+</script>
+</body>
+</html>
