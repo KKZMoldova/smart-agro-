@@ -354,11 +354,12 @@ async function loadSelects(){
 
   // Staff — creator (agronomist)
   const crSel=document.getElementById('t-creator');
-  crSel.innerHTML=staff.filter(s=>s.active).map(s=>`<option value="${s.id}" data-name="${s.name}">${s.name} — ${s.role}</option>`).join('');
+  crSel.innerHTML=staff.map(s=>`<option value="${s.id}" data-name="${s.name}">${s.name} — ${s.role}</option>`).join('');
+
 
   // Staff — assigned
   const asSel=document.getElementById('t-assigned');
-  asSel.innerHTML=staff.filter(s=>s.active).map(s=>`<option value="${s.id}" data-name="${s.name}">${s.name} — ${s.role}</option>`).join('');
+  asSel.innerHTML=staff.map(s=>`<option value="${s.id}" data-name="${s.name}">${s.name} — ${s.role}</option>`).join('')
 
   // Staff — mechanic
   const mSel=document.getElementById('t-mechanic');
