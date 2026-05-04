@@ -156,6 +156,17 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);
 .parcel-ha{font-family:'Unbounded',sans-serif;font-size:14px;color:var(--accent);}
 
 /* ── SCROLLBAR ── */
+/* Sort buttons */
+.sort-btn{padding:4px 10px;border-radius:14px;border:1px solid var(--border);background:var(--surface2);
+  color:var(--text3);font-size:10px;cursor:pointer;transition:all .15s;white-space:nowrap;font-family:'Inter',sans-serif;}
+.sort-btn:hover{background:var(--surface3);color:var(--text2);}
+.sort-btn.active{background:var(--accent);color:#0a0f0a;border-color:var(--accent);font-weight:700;}
+
+/* Read-only mode — factory role sees data but cannot edit */
+body[data-readonly="true"] .btn-primary,
+body[data-readonly="true"] .btn-danger { display: none !important; }
+body[data-readonly="true"] .parcel-card { cursor: default; pointer-events: none; }
+
 ::-webkit-scrollbar{width:4px;height:4px;}
 ::-webkit-scrollbar-track{background:var(--surface);}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
@@ -188,6 +199,10 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);
     <div class="hstat"><div class="hstat-val" id="hstat-ha">0</div><div class="hstat-lbl">Га</div></div>
     <div class="hstat"><div class="hstat-val" id="hstat-crops">0</div><div class="hstat-lbl">Культур</div></div>
     <div class="hstat"><div class="hstat-val" id="hstat-alerts" style="color:var(--red);">0</div><div class="hstat-lbl">Алертов</div></div>
+    <div class="hstat" style="cursor:pointer;" onclick="checkVServer().then(renderParcels)" title="Статус сервера">
+      <div class="hstat-val" id="server-status-veg" style="font-size:11px;">🟡</div>
+      <div class="hstat-lbl">Сервер</div>
+    </div>
   </div>
 </div>
 
@@ -199,6 +214,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);
   <div class="tab" onclick="showTab('diseases')">🦠 БОЛЕЗНИ</div>
   <div class="tab" onclick="showTab('irrigation')">💧 ИРРИГАЦИЯ</div>
   <div class="tab" onclick="showTab('treatments')">💊 ОБРАБОТКИ</div>
+  <div class="tab" onclick="showTab('analyses')">🔬 АНАЛИЗЫ</div>
   <div class="tab" onclick="showTab('catalog')">📦 ПРЕПАРАТЫ</div>
   <div class="tab" onclick="showTab('settings')">⚙️ НАСТРОЙКИ</div>
 </div>
@@ -211,7 +227,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);
       <button class="btn btn-secondary" onclick="exportData()">📤 Экспорт</button>
       <button class="btn btn-secondary" onclick="document.getElementById('import-file').click()">📥 Импорт</button>
       <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
-      <button class="btn btn-primary" onclick="openParcelModal()">+ Участок</button>
+      <button class="btn btn-primary" id="btn-add-parcel" onclick="openParcelModal()">+ Участок</button>
     </div>
   </div>
 
@@ -221,8 +237,18 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);
   <!-- Alert banner -->
   <div id="alert-banner" style="margin-bottom:16px;"></div>
 
-  <!-- Parcels grid -->
-  <div style="font-family:'Unbounded',sans-serif;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:2px;margin-bottom:10px;">Ваши участки</div>
+  <!-- Parcels grid header with sort -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+    <div style="font-family:'Unbounded',sans-serif;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:2px;">Ваши участки</div>
+    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+      <span style="font-size:10px;color:var(--text3);">Сортировка:</span>
+      <button class="sort-btn active" id="sort-sowing"   onclick="setSort('sowing')"  >📅 По дате посева</button>
+      <button class="sort-btn"        id="sort-variety"  onclick="setSort('variety')" >🌱 По сорту</button>
+      <button class="sort-btn"        id="sort-harvest"  onclick="setSort('harvest')" >🌾 По уборке</button>
+      <button class="sort-btn"        id="sort-ha"       onclick="setSort('ha')"      >📏 По га</button>
+      <button class="sort-btn"        id="sort-alerts"   onclick="setSort('alerts')"  >⚠️ По алертам</button>
+    </div>
+  </div>
   <div class="parcel-grid" id="parcel-grid"></div>
 </div>
 
@@ -260,6 +286,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);
   <div class="section-hdr">
     <h2>📈 GDD и Фенофазы</h2>
     <div style="display:flex;gap:8px;">
+      <button class="btn btn-secondary btn-sm" onclick="toggleCalibration()">📅 Калибровка фаз</button>
       <select id="gdd-parcel-sel" onchange="renderGdd()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:'Inter',sans-serif;font-size:12px;">
         <option value="">— Выберите участок —</option>
       </select>
@@ -273,6 +300,18 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);
   <div style="font-family:'Unbounded',sans-serif;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:2px;margin-bottom:10px;">Фенологическая шкала</div>
   <div class="phase-bar" id="gdd-phase-bar" style="margin-bottom:6px;"></div>
   <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;" id="gdd-phase-legend"></div>
+
+  <!-- GDD calibration per phase -->
+  <div id="gdd-calibration" style="margin-bottom:20px;display:none;background:var(--surface);border:1px solid rgba(107,221,107,.3);border-radius:10px;padding:16px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+      <div>
+        <div style="font-family:'Unbounded',sans-serif;font-size:11px;color:var(--accent);font-weight:700;margin-bottom:3px;">📅 Локальная калибровка GDD</div>
+        <div style="font-size:11px;color:var(--text3);">Дата фазы → GDD из погоды → пересчёт порогов и алертов</div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="saveCalibration()">💾 Применить</button>
+    </div>
+    <div id="calibration-rows"></div>
+  </div>
 
   <!-- Alerts -->
   <div id="gdd-alerts" style="margin-bottom:20px;"></div>
@@ -307,16 +346,80 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);
 <div class="panel" id="panel-irrigation">
   <div class="section-hdr">
     <h2>💧 Ирригация · ETc</h2>
-    <button class="btn btn-secondary" onclick="toggleIrrigInfo()">📖 Нормы полива</button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn btn-secondary" onclick="toggleIrrigInfo()">📖 Нормы полива</button>
+      <button class="btn btn-secondary" onclick="exportIrrigation()">📊 Экспорт</button>
+      <button class="btn btn-primary" onclick="openIrrigModal()">+ Внести полив</button>
+    </div>
   </div>
 
   <!-- ETc table per parcel/crop -->
   <div id="irrig-info" style="display:none;margin-bottom:16px;"></div>
   <div id="etc-block" style="margin-bottom:20px;"></div>
 
-  <!-- Weekly irrigation plan -->
+  <!-- Recommendations -->
   <div style="font-family:'Unbounded',sans-serif;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:2px;margin-bottom:10px;">Рекомендации по поливу</div>
-  <div id="irrig-recs"></div>
+  <div id="irrig-recs" style="margin-bottom:24px;"></div>
+
+  <!-- Irrigation Journal -->
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+    <div style="font-family:'Unbounded',sans-serif;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:2px;">📋 Журнал поливов</div>
+    <div style="display:flex;gap:8px;">
+      <select id="irrig-parcel-filter" onchange="renderIrrigation()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 10px;color:var(--text);font-size:11px;">
+        <option value="">Все участки</option>
+      </select>
+    </div>
+  </div>
+  <table class="data-table" id="irrig-journal-table">
+    <thead><tr>
+      <th>Дата</th><th>Участок</th><th>Культура / Сорт</th><th>Фаза</th>
+      <th>Норма мм</th><th>м³/га</th><th>Итого м³</th><th>Метод</th><th>Примечание</th><th></th>
+    </tr></thead>
+    <tbody id="irrig-tbody"></tbody>
+  </table>
+</div>
+
+<!-- Irrigation Modal -->
+<div class="modal-overlay" id="modal-irrigation">
+  <div class="modal" style="max-width:600px;">
+    <h2>💧 Внести полив</h2>
+    <div class="form-grid">
+      <div class="ff"><label>Дата</label><input type="date" id="irr-date"></div>
+      <div class="ff"><label>Участок</label>
+        <select id="irr-parcel" onchange="fillIrrigParcel()">
+          <option value="">— выбрать —</option>
+        </select>
+      </div>
+      <div class="ff"><label>Норма полива (мм)</label>
+        <input type="number" id="irr-mm" step="0.1" placeholder="напр. 25">
+      </div>
+      <div class="ff"><label>или м³/га</label>
+        <input type="number" id="irr-m3ha" step="1" placeholder="напр. 250" oninput="syncIrrigM3()">
+      </div>
+      <div class="ff"><label>Метод полива</label>
+        <select id="irr-method">
+          <option value="drip">Капельное</option>
+          <option value="sprinkler">Дождевание</option>
+          <option value="furrow">Бороздковое</option>
+          <option value="flood">Поверхностное</option>
+          <option value="manual">Вручную</option>
+        </select>
+      </div>
+      <div class="ff"><label>Продолжительность (ч)</label>
+        <input type="number" id="irr-hours" step="0.5" placeholder="напр. 4">
+      </div>
+    </div>
+    <!-- Auto-fill from ETc -->
+    <div id="irrig-modal-hint" style="padding:10px 12px;background:rgba(96,165,250,.06);border:1px solid rgba(96,165,250,.15);border-radius:8px;font-size:11px;color:var(--text2);margin-bottom:14px;display:none;"></div>
+    <div class="ff" style="margin-bottom:14px;"><label>Примечание</label>
+      <input type="text" id="irr-note" placeholder="Условия, наблюдения...">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-irrigation')">Отмена</button>
+      <button class="btn btn-secondary" onclick="fillIrrigFromEtc()">💡 Авто из ETc</button>
+      <button class="btn btn-primary" onclick="saveIrrigation()">Сохранить</button>
+    </div>
+  </div>
 </div>
 
 <!-- ═══ TREATMENTS ═══ -->
@@ -324,18 +427,18 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);
   <div class="section-hdr">
     <h2>💊 Журнал обработок</h2>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
-      <button class="btn btn-secondary" onclick="exportTreatments()">📊 Отчёт Excel</button>
+      <button class="btn btn-secondary" onclick="exportTreatments()">📊 Экспорт CSV</button>
       <button class="btn btn-primary" onclick="openTreatmentModal()">+ Обработка</button>
     </div>
   </div>
 
+  <!-- Summary stats -->
+  <div id="treatment-stats" style="margin-bottom:16px;"></div>
+
   <!-- Filter -->
-  <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+  <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
     <select id="tr-parcel-filter" onchange="renderTreatments()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:7px 10px;color:var(--text);font-size:12px;">
       <option value="">Все участки</option>
-    </select>
-    <select id="tr-crop-filter" onchange="renderTreatments()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:7px 10px;color:var(--text);font-size:12px;">
-      <option value="">Все культуры</option>
     </select>
     <select id="tr-type-filter" onchange="renderTreatments()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:7px 10px;color:var(--text);font-size:12px;">
       <option value="">Все типы</option>
@@ -343,16 +446,127 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);
       <option value="insecticide">Инсектицид</option>
       <option value="herbicide">Гербицид</option>
       <option value="fertilizer">Удобрение</option>
+      <option value="acaricide">Акарицид</option>
     </select>
+    <div style="display:flex;gap:6px;margin-left:auto;">
+      <button class="sort-btn active" id="tv-grouped" onclick="setTreatView('grouped')">📅 По дням</button>
+      <button class="sort-btn" id="tv-table" onclick="setTreatView('table')">📋 Таблица</button>
+    </div>
   </div>
 
-  <table class="data-table">
-    <thead><tr>
-      <th>Дата</th><th>Участок</th><th>Культура</th><th>Препарат</th>
-      <th>Тип</th><th>Доза</th><th>Фаза</th><th>Смыв</th><th></th>
-    </tr></thead>
-    <tbody id="treatment-tbody"></tbody>
-  </table>
+  <!-- Grouped view (default) -->
+  <div id="treatment-grouped"></div>
+
+  <!-- Table view -->
+  <div id="treatment-table" style="display:none;">
+    <table class="data-table">
+      <thead><tr>
+        <th>Дата</th><th>Участок</th><th>Препараты</th><th>Метод</th>
+        <th>Фаза</th><th>WHI</th><th>Смыв до</th><th></th>
+      </tr></thead>
+      <tbody id="treatment-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══ ANALYSES ═══ -->
+<div class="panel" id="panel-analyses">
+  <div class="section-hdr">
+    <h2>🔬 Анализы</h2>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn btn-secondary" onclick="openVegAnalysisModal('soil')">🌱 + Почва</button>
+      <button class="btn btn-secondary" onclick="openVegAnalysisModal('water')">💧 + Вода</button>
+      <button class="btn btn-primary" onclick="openVegAnalysisModal('leaf')">🍃 + Лист</button>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
+    <select id="vaf-parcel" onchange="renderVegAnalyses()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:7px 10px;color:var(--text);font-size:12px;">
+      <option value="">Все участки</option>
+    </select>
+    <div style="display:flex;gap:4px;">
+      <button class="an-tab-btn active" id="vantab-all"   onclick="setVegAnTab('all')" >Все</button>
+      <button class="an-tab-btn"        id="vantab-leaf"  onclick="setVegAnTab('leaf')">🍃 Лист</button>
+      <button class="an-tab-btn"        id="vantab-soil"  onclick="setVegAnTab('soil')">🌱 Почва</button>
+      <button class="an-tab-btn"        id="vantab-water" onclick="setVegAnTab('water')">💧 Вода</button>
+    </div>
+  </div>
+  <div id="veg-analysis-recs" style="margin-bottom:16px;"></div>
+  <div class="card-grid" id="veg-analysis-grid" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));"></div>
+</div>
+
+<!-- Analysis Modal (Vegetable) -->
+<div class="modal-overlay" id="modal-veg-analysis">
+  <div class="modal" style="max-width:720px;width:96%;max-height:92vh;overflow-y:auto;">
+    <h2 id="van-title">🔬 Анализ</h2>
+    <div class="form-grid" style="margin-bottom:10px;">
+      <div class="ff"><label>Дата</label><input type="date" id="van-date"></div>
+      <div class="ff"><label>Участок</label><select id="van-parcel"><option value="">Все участки</option></select></div>
+      <div class="ff"><label>Лаборатория</label><input type="text" id="van-lab" placeholder="Название лаб."></div>
+      <div class="ff full"><label>Примечание</label><input type="text" id="van-note" placeholder="доп. информация"></div>
+    </div>
+    <div style="display:flex;gap:4px;margin-bottom:14px;">
+      <button class="an-tab-btn active" id="vanmodal-leaf"  onclick="switchVanTab('leaf')" >🍃 Лист</button>
+      <button class="an-tab-btn"        id="vanmodal-soil"  onclick="switchVanTab('soil')" >🌱 Почва</button>
+      <button class="an-tab-btn"        id="vanmodal-water" onclick="switchVanTab('water')">💧 Вода</button>
+    </div>
+    <input type="hidden" id="van-type" value="leaf">
+
+    <!-- LEAF -->
+    <div id="van-fields-leaf">
+      <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:'Unbounded',sans-serif;margin-bottom:8px;">Макроэлементы (%)</div>
+      <div class="form-grid" style="margin-bottom:10px;">
+        <div class="ff"><label>N — Азот (%)</label><input type="number" id="van-N" step="0.01" placeholder="2.0–4.0"></div>
+        <div class="ff"><label>P — Фосфор (%)</label><input type="number" id="van-P" step="0.01" placeholder="0.20–0.50"></div>
+        <div class="ff"><label>K — Калий (%)</label><input type="number" id="van-K" step="0.01" placeholder="2.0–4.0"></div>
+        <div class="ff"><label>Ca (%)</label><input type="number" id="van-Ca" step="0.01" placeholder="1.0–3.0"></div>
+        <div class="ff"><label>Mg (%)</label><input type="number" id="van-Mg" step="0.01" placeholder="0.25–0.75"></div>
+        <div class="ff"><label>S (%)</label><input type="number" id="van-S" step="0.01" placeholder="0.1–0.5"></div>
+      </div>
+      <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:'Unbounded',sans-serif;margin-bottom:8px;">Микроэлементы (ppm)</div>
+      <div class="form-grid">
+        <div class="ff"><label>Fe (ppm)</label><input type="number" id="van-Fe" step="1" placeholder="50–200"></div>
+        <div class="ff"><label>Mn (ppm)</label><input type="number" id="van-Mn" step="1" placeholder="50–250"></div>
+        <div class="ff"><label>Zn (ppm)</label><input type="number" id="van-Zn" step="1" placeholder="20–100"></div>
+        <div class="ff"><label>B (ppm)</label><input type="number" id="van-B" step="0.1" placeholder="25–75"></div>
+        <div class="ff"><label>Cu (ppm)</label><input type="number" id="van-Cu" step="0.1" placeholder="5–30"></div>
+        <div class="ff"><label>Mo (ppm)</label><input type="number" id="van-Mo" step="0.01" placeholder="0.1–1.5"></div>
+      </div>
+    </div>
+
+    <!-- SOIL -->
+    <div id="van-fields-soil" style="display:none;">
+      <div class="form-grid" style="margin-bottom:10px;">
+        <div class="ff"><label>pH</label><input type="number" id="vso-pH" step="0.1" placeholder="6.0–7.0"></div>
+        <div class="ff"><label>Орг. вещество (%)</label><input type="number" id="vso-OM" step="0.1" placeholder="2–4"></div>
+        <div class="ff"><label>N-NO₃ (мг/кг)</label><input type="number" id="vso-NO3" step="1" placeholder="10–50"></div>
+        <div class="ff"><label>P₂O₅ (мг/кг)</label><input type="number" id="vso-P" step="1" placeholder="50–200"></div>
+        <div class="ff"><label>K₂O (мг/кг)</label><input type="number" id="vso-K" step="1" placeholder="100–300"></div>
+        <div class="ff"><label>Ca (мг/кг)</label><input type="number" id="vso-Ca" step="10" placeholder="800–3000"></div>
+        <div class="ff"><label>Mg (мг/кг)</label><input type="number" id="vso-Mg" step="10" placeholder="80–400"></div>
+        <div class="ff"><label>B (мг/кг)</label><input type="number" id="vso-B" step="0.1" placeholder="0.5–2"></div>
+      </div>
+    </div>
+
+    <!-- WATER -->
+    <div id="van-fields-water" style="display:none;">
+      <div class="form-grid">
+        <div class="ff"><label>pH</label><input type="number" id="vwa-pH" step="0.1" placeholder="6.5–7.5"></div>
+        <div class="ff"><label>EC (мСм/см)</label><input type="number" id="vwa-EC" step="0.01" placeholder="<1.5"></div>
+        <div class="ff"><label>TDS (мг/л)</label><input type="number" id="vwa-TDS" step="10" placeholder="<1000"></div>
+        <div class="ff"><label>Fe (мг/л)</label><input type="number" id="vwa-Fe" step="0.1" placeholder="<0.3"></div>
+        <div class="ff"><label>Mn (мг/л)</label><input type="number" id="vwa-Mn" step="0.01" placeholder="<0.1"></div>
+        <div class="ff"><label>B (мг/л)</label><input type="number" id="vwa-B" step="0.1" placeholder="<0.5"></div>
+        <div class="ff"><label>Cl (мг/л)</label><input type="number" id="vwa-Cl" step="1" placeholder="<150"></div>
+        <div class="ff"><label>Na (мг/л)</label><input type="number" id="vwa-Na" step="1" placeholder="<50"></div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-veg-analysis')">Отмена</button>
+      <button class="btn btn-danger btn-sm" id="van-delete-btn" style="display:none;margin-right:auto;" onclick="deleteVegAnalysis()">Удалить</button>
+      <button class="btn btn-primary" onclick="saveVegAnalysis()">Сохранить</button>
+    </div>
+  </div>
 </div>
 
 <!-- ═══ CATALOG ═══ -->
@@ -414,6 +628,16 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);
       <div class="ff"><label>Сорт</label><input type="text" id="p-variety" placeholder="Название сорта"></div>
       <div class="ff"><label>Дата посева/посадки</label><input type="date" id="p-sowing"></div>
       <div class="ff"><label>Плотность (тыс.раст/га)</label><input type="number" id="p-density" step="0.1" placeholder="50"></div>
+      <div class="ff" id="p-harvest-gdd-wrap" style="display:none;">
+        <label>GDD уборки (от производителя)</label>
+        <input type="number" id="p-harvest-gdd" placeholder="напр. 700 для горошка" min="1">
+        <div style="font-size:10px;color:var(--text3);margin-top:3px;">Переопределяет стандартное значение культуры</div>
+      </div>
+      <div class="ff" id="p-tdu-window-wrap" style="display:none;">
+        <label>Окно уборки ±TDU</label>
+        <input type="number" id="p-tdu-window" placeholder="15" min="1" max="30">
+        <div style="font-size:10px;color:var(--text3);margin-top:3px;">±TDU от цели (±15 = 2–3 дня, ±10 = 1–2 дня)</div>
+      </div>
       <div class="ff full"><label>Тип почвы</label>
         <select id="p-soil">
           <option value="loam">Суглинок</option>
@@ -456,42 +680,66 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);
 
 <!-- Treatment Modal -->
 <div class="modal-overlay" id="modal-treatment">
-  <div class="modal">
-    <h2>💊 Обработка</h2>
-    <div class="form-grid">
-      <div class="ff"><label>Дата</label><input type="date" id="t-date"></div>
-      <div class="ff"><label>Участок</label><select id="t-parcel"></select></div>
-      <div class="ff"><label>Препарат</label>
-        <select id="t-product" onchange="fillTreatProduct()">
-          <option value="">— выбрать из справочника —</option>
-        </select>
-      </div>
-      <div class="ff"><label>Или ввести вручную</label><input type="text" id="t-product-manual" placeholder="Название препарата"></div>
-      <div class="ff"><label>Тип</label>
-        <select id="t-type">
-          <option value="fungicide">Фунгицид</option>
-          <option value="insecticide">Инсектицид</option>
-          <option value="herbicide">Гербицид</option>
-          <option value="fertilizer">Удобрение</option>
-          <option value="acaricide">Акарицид</option>
-          <option value="other">Другое</option>
-        </select>
-      </div>
-      <div class="ff"><label>Доза (л/га или кг/га)</label><input type="text" id="t-dose" placeholder="0.5 л/га"></div>
-      <div class="ff"><label>Срок ожидания (дней)</label><input type="number" id="t-whi" placeholder="7"></div>
-      <div class="ff"><label>Метод</label>
+  <div class="modal" style="max-width:780px;width:96%;">
+    <h2 id="t-modal-title">💊 Новая обработка</h2>
+
+    <!-- Header: date, parcel, method, note -->
+    <div class="form-grid" style="margin-bottom:12px;">
+      <div class="ff"><label>Дата обработки</label><input type="date" id="t-date"></div>
+      <div class="ff"><label>Участок</label><select id="t-parcel" onchange="onTreatParcelChange()"></select></div>
+      <div class="ff"><label>Метод внесения</label>
         <select id="t-method">
-          <option value="foliar">Листовая</option>
-          <option value="soil">В почву</option>
-          <option value="drip">Капельное</option>
-          <option value="seed">Протравка семян</option>
+          <option value="foliar">🌿 Листовое опрыскивание</option>
+          <option value="soil">🌱 В почву</option>
+          <option value="drip">💧 Капельное (фертигация)</option>
+          <option value="seed">🌾 Протравка семян</option>
+          <option value="trunk">🌳 Стволовая инъекция</option>
         </select>
       </div>
-      <div class="ff full"><label>Примечание</label><input type="text" id="t-note" placeholder="Против фитофторы..."></div>
+      <div class="ff"><label>Объём рабочего р-ра (л/га)</label><input type="number" id="t-volume" placeholder="300" value="300"></div>
+      <div class="ff full"><label>Примечание / цель обработки</label>
+        <input type="text" id="t-note" placeholder="Против фитофторы, профилактика...">
+      </div>
     </div>
+
+    <!-- Copy from previous -->
+    <div style="margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <span style="font-size:11px;color:var(--text3);">Быстрый старт:</span>
+      <select id="t-copy-from" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 10px;color:var(--text);font-size:11px;flex:1;min-width:160px;">
+        <option value="">— скопировать из предыдущей —</option>
+      </select>
+      <button class="btn btn-secondary btn-sm" onclick="copyFromTreatment()">📋 Скопировать</button>
+    </div>
+
+    <!-- Tank mix / Products list -->
+    <div style="font-family:'Unbounded',sans-serif;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">
+      🧪 Баковая смесь · Препараты
+    </div>
+
+    <!-- Compatibility warning -->
+    <div id="t-compat-warning" style="display:none;margin-bottom:8px;padding:8px 12px;background:rgba(255,85,85,.1);border:1px solid rgba(255,85,85,.3);border-radius:8px;font-size:11px;color:var(--red);"></div>
+
+    <!-- Rotation warning -->
+    <div id="t-rotation-warning" style="display:none;margin-bottom:8px;padding:8px 12px;background:rgba(255,216,77,.08);border:1px solid rgba(255,216,77,.3);border-radius:8px;font-size:11px;color:var(--yellow);"></div>
+
+    <!-- Product rows -->
+    <div id="t-products-list" style="margin-bottom:10px;"></div>
+
+    <!-- Add product button -->
+    <button class="btn btn-secondary btn-sm" onclick="addTreatProductRow()" style="margin-bottom:16px;width:100%;border-style:dashed;">
+      + Добавить препарат в баковую смесь
+    </button>
+
+    <!-- Tank mix order hint -->
+    <div id="t-tank-order" style="display:none;padding:10px 14px;background:rgba(107,221,107,.06);border:1px solid rgba(107,221,107,.15);border-radius:8px;margin-bottom:14px;font-size:11px;color:var(--text2);line-height:1.7;">
+      <div style="font-weight:700;color:var(--accent);margin-bottom:4px;">💧 Порядок заправки бака:</div>
+      <div id="t-tank-order-text"></div>
+    </div>
+
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-treatment')">Отмена</button>
-      <button class="btn btn-primary" onclick="saveTreatment()">Сохранить</button>
+      <button class="btn btn-danger btn-sm" id="t-delete-btn" style="display:none;margin-right:auto;" onclick="deleteTreatmentFromModal()">Удалить</button>
+      <button class="btn btn-primary" onclick="saveTreatment()">Сохранить обработку</button>
     </div>
   </div>
 </div>
@@ -969,6 +1217,8 @@ const DEFAULT_STATE = {
   parcels: [],
   weather: [],
   treatments: [],
+  irrigations: [],
+  vegAnalyses: [],
   catalog: [
     {id:'cat1', name:'Ридомил Голд МЦ', type:'fungicide', ai:'мефеноксам + манкоцеб',
      dose:'2.5 кг/га', whi:7, crops:'томат, картофель, огурец, лук', targets:'Фитофтора, пероноспороз'},
@@ -1005,26 +1255,177 @@ const DEFAULT_STATE = {
 };
 
 let S = JSON.parse(JSON.stringify(DEFAULT_STATE));
-const STORAGE_KEY = 'sveg_v1';
+// ═══════════════════════════════════════════════════════════════════════════
+// SERVER API LAYER — Railway + PostgreSQL
+// Falls back to localStorage when server unavailable
+// ═══════════════════════════════════════════════════════════════════════════
+const VAPI = (() => {
+  const BASE = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
+  const headers = () => ({ 'Content-Type': 'application/json' });
+  const get = async (path) => {
+    try {
+      const r = await fetch(BASE + path, { headers: headers() });
+      if (!r.ok) throw new Error(r.status);
+      return await r.json();
+    } catch(e) { console.warn('[VAPI] GET failed:', path, e.message); return null; }
+  };
+  const post = async (path, body) => {
+    try {
+      const r = await fetch(BASE + path, {
+        method: 'POST', headers: headers(), body: JSON.stringify(body)
+      });
+      if (!r.ok) throw new Error(r.status);
+      return await r.json();
+    } catch(e) { console.warn('[VAPI] POST failed:', path, e.message); return null; }
+  };
+  const del = async (path) => {
+    try {
+      const r = await fetch(BASE + path, { method: 'DELETE', headers: headers() });
+      return r.ok;
+    } catch(e) { return false; }
+  };
+  return {
+    weather: (days=60) => get(`/api/weather?days=${days}`),
+    getTreatments: () => get('/api/treatments'),
+    saveTreatment: (t) => post('/api/treatments', t),
+    deleteTreatment: (id) => del(`/api/treatments/${id}`),
+    getAnalyses: () => get('/api/analyses'),
+    saveAnalysis: (a) => post('/api/analyses', a),
+    deleteAnalysis: (id) => del(`/api/analyses/${id}`),
+    getSetting: (key) => get(`/api/settings/${key}`),
+    setSetting: (key, value) => post(`/api/settings/${key}`, { value }),
+    getCatalog: () => get('/api/catalog'),
+    saveCatalogItem: (c) => post('/api/catalog', c),
+    deleteCatalogItem: (id) => del(`/api/catalog/${id}`),
+  };
+})();
+
+let _vServerAvailable = false;
+
+async function checkVServer() {
+  try {
+    const r = await fetch('/api/weather?days=1', { signal: AbortSignal.timeout(4000) });
+    _vServerAvailable = r.ok || r.status === 401;
+  } catch { _vServerAvailable = false; }
+  // Update server indicator
+  const el = document.getElementById('server-status-veg');
+  if (el) {
+    el.textContent = _vServerAvailable ? '🟢 Сервер' : '🟡 Офлайн';
+    el.title = _vServerAvailable ? 'Данные синхронизируются с сервером' : 'Работа офлайн — данные в браузере';
+  }
+  return _vServerAvailable;
+}
 
 function load() {
+  // Always load localStorage first (instant)
   const saved = localStorage.getItem(STORAGE_KEY);
-  if (!saved) return;
+  if (saved) {
+    try {
+      const d = JSON.parse(saved);
+      S.farmName = d.farmName||'';
+      S.region = d.region||'Молдова';
+      S.totalHa = d.totalHa||0;
+      S.parcels = (d.parcels||[]).map(p => {
+        if (p.sowingDate) p.sowingDate = normalizeDate(p.sowingDate) || p.sowingDate;
+        return p;
+      });
+      S.weather = d.weather||[];
+      S.treatments = d.treatments||[];
+      S.irrigations = d.irrigations||[];
+      S.vegAnalyses = d.vegAnalyses||[];
+      S.catalog = d.catalog||DEFAULT_STATE.catalog;
+      S.settings = d.settings||{};
+    } catch(e){ console.error('Load error',e); }
+  }
+}
+
+async function syncFromServer() {
+  if (!_vServerAvailable) return;
   try {
-    const d = JSON.parse(saved);
-    S.farmName = d.farmName||'';
-    S.region = d.region||'Молдова';
-    S.totalHa = d.totalHa||0;
-    S.parcels = d.parcels||[];
-    S.weather = d.weather||[];
-    S.treatments = d.treatments||[];
-    S.catalog = d.catalog||DEFAULT_STATE.catalog;
-    S.settings = d.settings||{};
-  } catch(e){ console.error('Load error',e); }
+    // Weather
+    const wRes = await VAPI.weather(90);
+    if (wRes?.data?.length) {
+      S.weather = wRes.data.map(d => ({
+        date: typeof d.date === 'string' ? d.date : new Date(d.date).toISOString().slice(0,10),
+        tmax: d.tmax, tmin: d.tmin, humidity: d.humidity,
+        precip: d.precip, et0: d.et0,
+      }));
+    }
+    // Treatments
+    const tRes = await VAPI.getTreatments();
+    if (tRes?.data?.length) {
+      S.treatments = tRes.data.map(t => ({
+        id: t.id, date: t.date,
+        parcelId: t.parcel_id, parcelName: t.parcel_name,
+        cropId: t.crop_id, cropName: t.crop_name,
+        variety: t.variety, phaseName: t.phase_name, gdd: t.gdd,
+        products: t.products || [],
+        method: t.method, volume: t.volume,
+        maxWhi: t.max_whi, whiDate: t.whi_date, note: t.note,
+      }));
+    }
+    // Analyses
+    const aRes = await VAPI.getAnalyses();
+    if (aRes?.data?.length) {
+      S.vegAnalyses = aRes.data.map(a => ({
+        id: a.id, type: a.type, date: a.date,
+        parcelId: a.parcel_id, lab: a.lab, note: a.note,
+        ...(a.values || {}),
+      }));
+    }
+    // Catalog
+    const cRes = await VAPI.getCatalog();
+    if (cRes?.data?.length) {
+      const builtinIds = DEFAULT_STATE.catalog.map(c=>c.id);
+      const serverOnly = cRes.data
+        .filter(c => !builtinIds.includes(c.id))
+        .map(c => ({ id: c.id, name: c.name, type: c.type,
+          activeSubstance: c.active_substance, dose: c.dose, whi: c.whi, note: c.note }));
+      S.catalog = [...DEFAULT_STATE.catalog, ...serverOnly];
+    }
+    // Update localStorage
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(S));
+    console.log('[Veg] Synced from server');
+  } catch(e) { console.warn('[Veg] Server sync error:', e.message); }
 }
 
 function save() {
+  // Always save localStorage
   localStorage.setItem(STORAGE_KEY, JSON.stringify(S));
+  // Also save to server if available (async, non-blocking)
+  if (_vServerAvailable) _saveToServer();
+}
+
+async function _saveToServer() {
+  try {
+    // Save treatments
+    for (const t of S.treatments) {
+      await VAPI.saveTreatment({
+        id: String(t.id), date: t.date,
+        parcel_id: t.parcelId || null, parcel_name: t.parcelName || '',
+        crop_id: t.cropId || null, crop_name: t.cropName || '',
+        variety: t.variety || '', phase_name: t.phaseName || '',
+        gdd: t.gdd || 0,
+        products: t.products || [],
+        method: t.method || 'foliar', volume: t.volume || 300,
+        max_whi: t.maxWhi || 0, whi_date: t.whiDate || null,
+        note: t.note || '',
+      });
+    }
+    // Save analyses
+    for (const a of (S.vegAnalyses || [])) {
+      const values = {};
+      ['N','P','K','Ca','Mg','S','Fe','Mn','Zn','B','Cu','Mo',
+       'pH','OM','NO3','EC','TDS','Cl','Na','TDS'].forEach(f => {
+        if (a[f] !== undefined) values[f] = a[f];
+      });
+      await VAPI.saveAnalysis({
+        id: String(a.id), type: a.type || 'leaf', date: a.date,
+        parcel_id: a.parcelId || null, parcel_name: '',
+        lab: a.lab || '', values, note: a.note || '',
+      });
+    }
+  } catch(e) { console.warn('[Veg] Save to server error:', e.message); }
 }
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────
@@ -1040,13 +1441,35 @@ function calcDailyGdd(tmin, tmax, base) {
   return Math.max(0, tavg - base);
 }
 
+// Normalize any date format to YYYY-MM-DD
+function normalizeDate(d) {
+  if (!d) return null;
+  d = String(d).trim();
+  // Already YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}/.test(d)) return d.slice(0,10);
+  // DD.MM.YYYY (European dot format — day first since day≤31, month≤12)
+  const dotMatch = d.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+  if (dotMatch) return `${dotMatch[3]}-${dotMatch[2].padStart(2,'0')}-${dotMatch[1].padStart(2,'0')}`;
+  // DD/MM/YYYY or MM/DD/YYYY — ambiguous, but browser date input gives MM/DD/YYYY
+  const slashMatch = d.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (slashMatch) {
+    const a = parseInt(slashMatch[1]), b = parseInt(slashMatch[2]);
+    // If first part > 12 it must be DD/MM/YYYY
+    if (a > 12) return `${slashMatch[3]}-${slashMatch[2].padStart(2,'0')}-${slashMatch[1].padStart(2,'0')}`;
+    // Otherwise assume MM/DD/YYYY (browser default)
+    return `${slashMatch[3]}-${slashMatch[1].padStart(2,'0')}-${slashMatch[2].padStart(2,'0')}`;
+  }
+  return d;
+}
+
 // Cumulative GDD for a parcel from sowing date
 function calcParcelGdd(parcel) {
   const crop = getCropById(parcel.cropId);
-  if (!crop || !parcel.sowingDate) return 0;
+  if (!crop) return 0;
   const base = crop.baseTemp;
+  const startDate = normalizeDate(parcel.sowingDate) || '1900-01-01';
   const sorted = [...S.weather]
-    .filter(w => w.date >= parcel.sowingDate)
+    .filter(w => w.date >= startDate)
     .sort((a,b)=>a.date.localeCompare(b.date));
   return sorted.reduce((sum,w) => sum + calcDailyGdd(w.tmin, w.tmax, base), 0);
 }
@@ -1066,36 +1489,205 @@ function checkSmithPeriod() {
   return recent.every(w => parseFloat(w.tmax)>=10 && parseFloat(w.humidity)>=80);
 }
 
-// ET0 estimate (Hargreaves simplified)
+// ET0 — Hargreaves-Samani калиброванный для Молдовы (47°N)
 function estimateET0(tmin, tmax, date) {
-  const tavg = (tmin+tmax)/2;
-  const doy = date ? Math.floor((new Date(date)-new Date(date.slice(0,4)+'-01-01'))/(86400000))+1 : 180;
-  const ra = 37.6 * Math.sin(doy/365*2*Math.PI + 1); // simplified solar radiation
-  return Math.max(0, 0.0023*(tavg+17.8)*Math.sqrt(tmax-tmin)*Math.abs(ra)/58.5);
+  tmin = parseFloat(tmin); tmax = parseFloat(tmax);
+  if (isNaN(tmin) || isNaN(tmax) || tmax <= tmin) return 2.0;
+  const tavg = (tmin + tmax) / 2;
+  const doy = date ? Math.floor((new Date(date) - new Date(date.slice(0,4)+'-01-01')) / 86400000) + 1 : 150;
+  // Экстратерrestrial радиация Ra (МДж/м²/день)
+  const dr = 1 + 0.033 * Math.cos(2 * Math.PI / 365 * doy);
+  const dec = 0.409 * Math.sin(2 * Math.PI / 365 * doy - 1.39);
+  const lat = 47 * Math.PI / 180; // ~47°N Молдова
+  const ws = Math.acos(Math.max(-1, Math.min(1, -Math.tan(lat) * Math.tan(dec))));
+  const Ra = (24/Math.PI) * 4.92 * dr * (ws*Math.sin(lat)*Math.sin(dec) + Math.cos(lat)*Math.cos(dec)*Math.sin(ws));
+  // Hargreaves-Samani с калибровочным коэффициентом 0.85 для умеренного климата
+  const dT = Math.max(0, tmax - tmin);
+  const et0 = 0.85 * 0.0023 * Ra * (tavg + 17.8) * Math.pow(dT, 0.5);
+  // Ограничиваем по сезону: ранняя весна холодная — ET₀ не может быть высоким
+  const maxEt0 = tavg < 5 ? 1.2 : tavg < 10 ? 2.5 : tavg < 15 ? 3.5 : tavg < 20 ? 5.0 : 6.5;
+  return Math.max(0.3, Math.min(maxEt0, Math.round(et0 * 10) / 10));
 }
 
-// ETc for parcel
+// Get Kc for parcel based on exact GDD phase
+function getParcelKc(parcel) {
+  const crop = getCropById(parcel.cropId);
+  if (!crop) return 1.0;
+  const phase = getParcelPhase(parcel);
+  if (!phase) return crop.kc.initial || 0.6;
+
+  // FAO-56 Kc по фазам для каждой культуры
+  const KC_TABLE = {
+    // 🫛 ГОРОШЕК ЗЕЛЁНЫЙ (FAO-56: pea)
+    pea: {
+      'Прорастание':0.50, 'Всходы (VE)':0.70, '3–5 листьев':1.00,
+      'Бутонизация':1.15, 'Цветение':1.15, 'Налив зерна':1.15,
+      '🎯 Техн. зрелость':1.05, 'Перезревание':0.85,
+    },
+    // 🌽 КУКУРУЗА СЛАДКАЯ (FAO-56: sweet corn)
+    sweet_corn: {
+      'Посев':0.30, 'Всходы (VE)':0.40, 'V3 (3 листа)':0.65,
+      'V6 (6 листьев)':1.00, 'VT (метёлка)':1.15, 'R1 (шёлк)':1.20,
+      'R2 (волдырь)':1.20, 'R3 (молочная)':1.05,
+      '🎯 Уборка! R3–R4':1.00, 'R4–R5 (тестообразная)':0.90,
+    },
+    // 🍅 ТОМАТ
+    tomato: {
+      'Прорастание':0.60, 'Всходы (VE)':0.70, 'Розетка':0.85,
+      'Цветение':1.15, 'Завязь':1.15, 'Рост плода':1.15,
+      'Созревание':0.90, 'Уборка':0.75,
+    },
+    // 🥔 КАРТОФЕЛЬ
+    potato: {
+      'Посадка':0.50, 'Всходы':0.70, 'Вегетация':1.15,
+      'Инициация клубней':1.15, 'Налив клубней':1.15,
+      'Созревание':0.85, 'Уборка':0.75,
+    },
+    // 🫑 ПЕРЕЦ
+    pepper: {
+      'Прорастание':0.60, 'Всходы (VE)':0.70, 'Вегетация':0.90,
+      'Цветение':1.05, 'Рост плода':1.05, 'Созревание':0.85, 'Уборка':0.75,
+    },
+    // 🍆 БАКЛАЖАН
+    eggplant: {
+      'Рассада':0.60, 'Посадка':0.70, 'Вегетация':0.90,
+      'Цветение':1.05, 'Рост плода':1.05, 'Уборка':0.80,
+    },
+    // 🧅 ЛУК
+    onion: {
+      'Посев':0.70, 'Всходы (VE)':0.75, '3-5 листьев':0.90,
+      'Инициация луковицы':1.05, 'Налив луковицы':1.00,
+      'Полегание':0.75, 'Уборка':0.70,
+    },
+    // 🥒 ОГУРЕЦ
+    cucumber: {
+      'Всходы':0.60, 'Рост':0.85, 'Цветение':1.00,
+      'Плодоношение':1.00, 'Уборка':0.80,
+    },
+    // 🥬 КАБАЧОК
+    zucchini: {
+      'Всходы':0.50, 'Рост':0.80, 'Цветение':0.95,
+      'Плодоношение':0.95, 'Уборка':0.75,
+    },
+  };
+
+  const cropTable = KC_TABLE[crop.id];
+  if (cropTable && cropTable[phase.name] !== undefined) {
+    return cropTable[phase.name];
+  }
+
+  // Fallback по % от цикла
+  const gdd = calcParcelGdd(parcel);
+  const maxGdd = parcel.harvestGdd || crop.gddToHarvest;
+  const pct = gdd / maxGdd;
+  if (pct < 0.15) return crop.kc.initial || 0.5;
+  if (pct < 0.35) return crop.kc.development || 0.85;
+  if (pct < 0.75) return crop.kc.mid || 1.1;
+  return crop.kc.late || 0.8;
+}
+
+// ETc for parcel — uses best available ET0 source
 function calcParcelEtc(parcel) {
   const crop = getCropById(parcel.cropId);
-  const lat = S.weather[0];
-  if (!crop || !lat) return null;
-  const et0 = parseFloat(lat.et0)||estimateET0(parseFloat(lat.tmin), parseFloat(lat.tmax), lat.date);
-  const phase = getParcelPhase(parcel);
-  let kc = crop.kc.mid;
-  if (phase) {
-    const gdd = calcParcelGdd(parcel);
-    const maxGdd = crop.gddToHarvest;
-    const pct = gdd/maxGdd;
-    if (pct < 0.2) kc = crop.kc.initial;
-    else if (pct < 0.4) kc = crop.kc.development;
-    else if (pct < 0.8) kc = crop.kc.mid;
-    else kc = crop.kc.late;
+  if (!crop) return null;
+  // Use last 3 days average ET0 for more stable estimate
+  const recentWeather = S.weather.slice(0, 3);
+  if (!recentWeather.length) return null;
+  const lat = recentWeather[0];
+
+  // ET0: file value → solar calc → Hargreaves
+  let et0 = parseFloat(lat.et0) || 0;
+  if (!et0 || et0 <= 0) {
+    // Average of last 3 days Hargreaves
+    const et0vals = recentWeather.map(w =>
+      estimateET0(parseFloat(w.tmin), parseFloat(w.tmax), w.date)
+    ).filter(v => v > 0);
+    et0 = et0vals.length ? et0vals.reduce((a,b)=>a+b)/et0vals.length : 2.0;
   }
-  return {et0: Math.round(et0*10)/10, kc, etc: Math.round(kc*et0*10)/10};
+  et0 = Math.round(et0 * 10) / 10;
+
+  const kc = getParcelKc(parcel);
+  const phase = getParcelPhase(parcel);
+  const etc = Math.round(kc * et0 * 10) / 10;
+
+  // Daily water need per hectare in m³ (1mm = 10m³/ha)
+  const m3perHa = Math.round(etc * 10);
+  const totalM3 = Math.round(m3perHa * (parcel.ha || 1));
+
+  return { et0, kc, etc, phase: phase?.name, m3perHa, totalM3 };
 }
 
 // ─── DISEASE RISK ─────────────────────────────────────────────────────────
-function calcDiseaseRisk(dis) {
+// Phase-risk multipliers per disease
+// phaseRisk: {phaseName: multiplier} — 2.0 = double risk, 0.1 = very low
+const DISEASE_PHASE_RISK = {
+  // Tomato/Potato — Late Blight
+  'late_blight': {
+    'Прорастание':0.1,'Всходы (VE)':0.3,'Розетка':0.5,
+    'Цветение':1.5,'Завязь':2.0,'Рост плода':2.0,'Созревание':1.5,'Уборка':0.5,
+    // Potato
+    'Посадка':0.1,'Всходы':0.3,'Вегетация':1.0,'Инициация клубней':2.0,
+    'Налив клубней':2.0,'Созревание':1.0,
+  },
+  'early_blight': {
+    'Розетка':0.5,'Цветение':1.5,'Завязь':2.0,'Рост плода':2.0,'Созревание':1.5,
+    'Вегетация':1.0,'Инициация клубней':2.0,'Налив клубней':1.5,
+  },
+  'botrytis': {
+    'Прорастание':0.5,'Цветение':2.0,'Завязь':1.5,'Рост плода':1.0,'Созревание':2.0,
+    'Бутонизация':1.5,'Налив зерна':1.5,'Техн. зрелость':2.0,
+  },
+  'fusarium_wilt': {
+    'Прорастание':1.5,'Всходы (VE)':2.0,'Розетка':1.5,'Цветение':0.5,'Завязь':0.3,
+  },
+  // Onion — Downy Mildew peaks at bulb initiation
+  'downy_mildew_onion': {
+    'Посев':0.2,'Всходы':0.5,'3–5 листьев':1.5,
+    'Инициация луковицы':2.0,'Налив луковицы':1.5,'Полегание':0.5,
+  },
+  'botrytis_neck': {
+    'Посев':0.1,'Всходы':0.1,'3–5 листьев':0.3,
+    'Инициация луковицы':0.5,'Налив луковицы':2.0,'Полегание':2.0,
+  },
+  // Cucurbit diseases
+  'downy_mildew_cucurbit': {
+    'Всходы':0.3,'Рост':0.8,'Цветение':1.5,'Плодоношение':2.0,'Уборка':1.0,
+  },
+  'powdery_mildew': {
+    'Всходы':0.3,'Рост':0.8,'Цветение':1.5,'Плодоношение':2.0,
+    '3-5 листьев':0.8,'Бутонизация':1.2,'Налив зерна':1.5,
+  },
+  // Pea diseases — peak at flowering and pod fill
+  'pea_downy_mildew': {
+    'Прорастание':0.3,'Всходы (VE)':0.8,'3–5 листьев':1.5,
+    'Бутонизация':2.0,'Цветение':2.0,'Налив зерна':1.5,'Техн. зрелость':0.5,
+  },
+  'ascochyta': {
+    'Прорастание':1.5,'Всходы (VE)':1.5,'3–5 листьев':2.0,
+    'Бутонизация':2.0,'Цветение':1.5,'Налив зерна':1.0,
+  },
+  'pea_aphid': {
+    'Прорастание':0.2,'Всходы (VE)':1.0,'3–5 листьев':2.0,
+    'Бутонизация':2.0,'Цветение':1.5,'Налив зерна':1.0,'Техн. зрелость':0.3,
+  },
+  // Corn — Borer peaks at VT-R1
+  'corn_borer': {
+    'Посев':0.1,'Всходы (VE)':0.3,'V3 (3 листа)':1.0,'V6 (6 листьев)':2.0,
+    'VT (метёлка)':2.0,'R1 (шёлк)':2.0,'R2 (волдырь)':1.5,
+    'R3 (молочная)':0.8,'Уборка! R3–R4':0.3,
+  },
+  'fusarium_ear': {
+    'VT (метёлка)':1.5,'R1 (шёлк)':2.0,'R2 (волдырь)':2.0,
+    'R3 (молочная)':1.5,'Уборка! R3–R4':1.0,
+  },
+  // Colorado beetle — most dangerous at early veg stages
+  'colorado_beetle': {
+    'Рассада':2.0,'Посадка':2.0,'Вегетация':2.0,
+    'Цветение':1.5,'Рост плода':1.0,'Уборка':0.2,
+  },
+};
+
+function calcDiseaseRisk(dis, cropId, currentPhaseName) {
   const latest = S.weather[0];
   if (!latest) return {score:0, reason:'Нет погодных данных', level:'ok'};
   const tmax = parseFloat(latest.tmax)||20;
@@ -1106,6 +1698,7 @@ function calcDiseaseRisk(dis) {
   const rain = parseFloat(latest.precip)||0;
   let score = 0;
   let reasons = [];
+
   // Temperature check
   if (dis.tmin && dis.tmax) {
     if (tavg >= dis.tmin && tavg <= dis.tmax) {
@@ -1119,10 +1712,27 @@ function calcDiseaseRisk(dis) {
   if (dis.leafWetHours && lw >= dis.leafWetHours) { score += 25; reasons.push(`лист ${lw}ч`); }
   // Smith Period (for Late Blight)
   if (dis.smithPeriod && checkSmithPeriod()) { score += 30; reasons.push('Smith Period!'); }
-  score = Math.min(100, score);
+
+  // Phase multiplier
+  let phaseMultiplier = 1.0;
+  let phaseLabel = '';
+  if (currentPhaseName && DISEASE_PHASE_RISK[dis.id]) {
+    const pm = DISEASE_PHASE_RISK[dis.id][currentPhaseName];
+    if (pm !== undefined) {
+      phaseMultiplier = pm;
+      if (pm >= 1.5) { reasons.push(`⚡ фаза ${currentPhaseName}`); phaseLabel = 'пик риска'; }
+      else if (pm <= 0.3) { phaseLabel = 'вне зоны риска'; }
+    }
+  }
+  score = Math.min(100, Math.round(score * phaseMultiplier));
+
   const level = score >= 70 ? 'critical' : score >= 45 ? 'spray' : score >= 20 ? 'watch' : 'ok';
   const labels = {critical:'КРИТИЧЕСКИЙ',spray:'SPRAY',watch:'Умеренный',ok:'Низкий'};
-  return { score, level, label:labels[level], reason: reasons.join(' · ')||`T°${tavg.toFixed(0)}°C` };
+  return {
+    score, level, label:labels[level],
+    reason: reasons.join(' · ')||`T°${tavg.toFixed(0)}°C`,
+    phaseMultiplier, phaseLabel,
+  };
 }
 
 // ─── SMART ALERTS ENGINE ──────────────────────────────────────────────────
@@ -1133,7 +1743,7 @@ function runAlertsForParcel(parcel) {
   if (!crop || !latest) return alerts;
   const gdd = calcParcelGdd(parcel);
   const phase = getParcelPhase(parcel);
-  const daysFromSowing = S.weather.filter(w=>w.date>=(parcel.sowingDate||'1900-01-01')).length;
+  const daysFromSowing = S.weather.filter(w=>w.date>=(normalizeDate(parcel.sowingDate)||'1900-01-01')).length;
   const avgDailyGdd = daysFromSowing > 0 ? gdd/daysFromSowing : 1;
   const tmax = parseFloat(latest.tmax)||20;
   const tmin = parseFloat(latest.tmin)||10;
@@ -1280,12 +1890,9 @@ function runAlertsForParcel(parcel) {
 
   // ── ГОРОШЕК ЗЕЛЁНЫЙ — TDU модель ─────────────────────────────────────
   if (crop.id==='pea') {
-    // TDU = GDD с базой 4.5°C — для гороха это и есть TDU
-    // Технологическая зрелость: TDU ~100–130 единиц от начала налива зерна
-    // Фаза "Налив зерна" начинается при GDD ~540
-    const tdu = Math.max(0, gdd - 540); // TDU от начала налива
-    const tduTarget = crop.tduTarget || 115;
-    const tduWindow = crop.tduWindow || 15;
+    const tduTarget = parcel.harvestGdd || crop.tduTarget || 115;
+    const tduWindow = parcel.tduWindow || crop.tduWindow || 15;
+    const tdu = Math.max(0, gdd - 540);
     const tduDaysLeft = tdu > 0 && avgDailyGdd > 0 ? Math.round((tduTarget - tdu) / avgDailyGdd) : null;
     const inWindow = tdu >= tduTarget - tduWindow && tdu <= tduTarget + tduWindow;
     const overripe = tdu > tduTarget + tduWindow;
@@ -1433,21 +2040,143 @@ function runAlertsForParcel(parcel) {
   }
 
   // ── УНИВЕРСАЛЬНЫЕ АЛЕРТЫ ──────────────────────────────────────────────
-  // Заморозок
-  if (tmin <= 2 && crop.baseTemp >= 10) {
-    alerts.push({level:'critical',
-      title:`❄️ ЗАМОРОЗОК — ${crop.name} под угрозой!`,
-      body:`T°мин ${tmin}°C. Теплолюбивая культура (база ${crop.baseTemp}°C) повреждается при T<2°C.`,
-      rec:'Укрытие, дымление, полив (замораживание воды выделяет тепло). Отслеживать ночную температуру!'
-    });
+  // ═══════════════════════════════════════════════════════
+  // СТРЕСС: ЗАМОРОЗОК + ТЕПЛОВОЙ — детально по культурам
+  // ═══════════════════════════════════════════════════════
+
+  // Пороги повреждения заморозком (°C) по культурам
+  const FROST_THRESHOLDS = {
+    tomato:     { warn: 4,  damage: 2,  kill: 0,
+      warnMsg:  'Риск переохлаждения. Рост останавливается.',
+      damageMsg:'Повреждение листьев и цветков. Опадение завязи.',
+      killMsg:  'ГИБЕЛЬ растений! Чернеют стебли и листья.',
+      actions:  ['Укрыть агроволокном (СУФ-17 или СУФ-30)', 'Дождевание в момент заморозка (лёд выделяет тепло)', 'Дымление с наветренной стороны', 'Поднять температуру почвы — предварительный полив']
+    },
+    potato:     { warn: 2,  damage: -1, kill: -3,
+      warnMsg:  'Надземная масса под угрозой.',
+      damageMsg:'Почернение ботвы. Клубни в земле — в безопасности до −3°C.',
+      killMsg:  'Ботва погибла. Клубни могут выжить.',
+      actions:  ['Окучивание защищает клубни', 'Ботва восстановится если клубни живы', 'Обработать фунгицидом после заморозка (стресс→болезни)', 'Проверить клубни через 5–7 дней']
+    },
+    pepper:     { warn: 4,  damage: 1,  kill: -1,
+      warnMsg:  'Перец очень чувствителен. Стресс при T<4°C.',
+      damageMsg:'Повреждение клеток плодов. Водянистость тканей.',
+      killMsg:  'Гибель растений. Самая чувствительная культура.',
+      actions:  ['Укрыть агроволокном НЕМЕДЛЕННО', 'Дождевание — создаёт ледяной защитный слой', 'Опрыскать антистрессантом (Мегафол, Аминокат)', 'После заморозка: Эпин + фунгицид для поддержки']
+    },
+    eggplant:   { warn: 5,  damage: 2,  kill: 0,
+      warnMsg:  'Баклажан теплолюбив. Стресс при T<5°C.',
+      damageMsg:'Отмирание верхушек, цветки опадают.',
+      killMsg:  'Гибель надземной части.',
+      actions:  ['Укрытие агроволокном', 'Мульчирование почвы для тепла', 'Антистрессант после заморозка', 'Обрезать повреждённые части через 48ч']
+    },
+    cucumber:   { warn: 4,  damage: 1,  kill: -1,
+      warnMsg:  'Огурец останавливает рост при T<4°C.',
+      damageMsg:'Листья белеют/желтеют. Плоды деформируются.',
+      killMsg:  'Гибель растений.',
+      actions:  ['Укрытие туннелями или плёнкой', 'Дождевание при заморозке', 'Полив тёплой водой утром после ночи', 'После заморозка: Эпин + Корневин']
+    },
+    zucchini:   { warn: 3,  damage: 0,  kill: -2,
+      warnMsg:  'Риск повреждения молодых листьев.',
+      damageMsg:'Некроз краёв листьев. Потеря цветков.',
+      killMsg:  'Гибель надземной части.',
+      actions:  ['Укрытие агроволокном', 'Окучивание основания стебля', 'Мульча из соломы — держит тепло почвы']
+    },
+    onion:      { warn: -2, damage: -5, kill: -8,
+      warnMsg:  'Лук морозостоек. Т до −2°C переносит без вреда.',
+      damageMsg:'Перья повреждаются. Луковица в земле защищена.',
+      killMsg:  'Серьёзное повреждение луковиц.',
+      actions:  ['Лук обычно не требует защиты до −5°C', 'Мульчирование соломой при прогнозе сильного мороза', 'Проверить состояние пера утром']
+    },
+    pea:        { warn: -1, damage: -4, kill: -7,
+      warnMsg:  'Горошек морозостоек. В фазе всходов до −4°C.',
+      damageMsg:'Повреждение цветков и бобов (чувствительные фазы!)',
+      killMsg:  'Гибель в фазе цветения и налива.',
+      actions:  ['В фазе Прорастание/Всходы — горошек переносит мороз', 'КРИТИЧНО в фазе Цветение и Налив зерна — срочное укрытие', 'После заморозка: оценить повреждения через 24–48 часов', 'Проверить состояние бобов — мягкие/водянистые = повреждены']
+    },
+    sweet_corn: { warn: 2,  damage: 0,  kill: -2,
+      warnMsg:  'Кукуруза чувствительна к заморозку.',
+      damageMsg:'Листья белеют. Точка роста может выжить.',
+      killMsg:  'Гибель молодых растений. Старые (V6+) более стойкие.',
+      actions:  ['Молодые растения (до V4) — самые уязвимые', 'После лёгкого заморозка: подождать 5–7 дней — кукуруза часто восстанавливается', 'Срочная пересадка если гибель >50%', 'Оценить точку роста через 3–4 дня (должна быть белой/кремовой)']
+    },
+  };
+
+  const cropFrost = FROST_THRESHOLDS[crop.id];
+  if (cropFrost) {
+    // Определяем уровень стресса
+    let frostLevel = null;
+    let frostMsg = '';
+    if (tmin <= cropFrost.kill) {
+      frostLevel = 'critical';
+      frostMsg = `💀 ГИБЕЛЬ: T°мин ${tmin}°C ≤ ${cropFrost.kill}°C — ${cropFrost.killMsg}`;
+    } else if (tmin <= cropFrost.damage) {
+      frostLevel = 'critical';
+      frostMsg = `🧊 ПОВРЕЖДЕНИЕ: T°мин ${tmin}°C ≤ ${cropFrost.damage}°C — ${cropFrost.damageMsg}`;
+    } else if (tmin <= cropFrost.warn) {
+      frostLevel = tmin <= 0 ? 'spray' : 'watch';
+      frostMsg = `❄️ РИСК: T°мин ${tmin}°C ≤ ${cropFrost.warn}°C — ${cropFrost.warnMsg}`;
+    }
+
+    if (frostLevel) {
+      const phase = getParcelPhase(parcel);
+      // Горошек в цветении/наливе — повышаем уровень
+      if (crop.id === 'pea' && phase && ['Цветение','Налив зерна','🎯 Техн. зрелость'].includes(phase.name)) {
+        frostLevel = 'critical';
+        frostMsg += ' ⚠️ КРИТИЧЕСКАЯ ФАЗА — цветение/налив!';
+      }
+      alerts.push({
+        level: frostLevel,
+        title: `❄️ ЗАМОРОЗОК · ${crop.name} · T°мин ${tmin}°C`,
+        body: frostMsg + (phase ? ` · Фаза: ${phase.name}` : ''),
+        rec: cropFrost.actions.join(' · ')
+      });
+    }
   }
-  // Тепловой стресс
-  if (tmax >= 38 && crop.baseTemp >= 10) {
-    alerts.push({level:'watch',
-      title:`🌡️ Тепловой стресс — T°${tmax}°C`,
-      body:`Критически высокая температура. Нарушение фотосинтеза, опадение цветков, деформация плодов.`,
-      rec:'Дождевание утром. Мульчирование. Перенести опрыскивания на ранние утренние часы.'
-    });
+
+  // Тепловой стресс по культурам
+  const HEAT_THRESHOLDS = {
+    tomato:   { warn: 32, stress: 36, critical: 40,
+      rec: 'Дождевание листьев утром (9–11ч). Мульча. Тень-сетка 20–30%. Полив вечером.' },
+    potato:   { warn: 28, stress: 32, critical: 36,
+      rec: 'Окучивание. Полив в вечернее время. Жара → ускоряет старение ботвы → ранняя уборка.' },
+    pepper:   { warn: 32, stress: 36, critical: 40,
+      rec: 'Дождевание. Тень-сетка. Опрыскать бором при T>35°C (улучшает завязь).' },
+    eggplant: { warn: 35, stress: 38, critical: 42,
+      rec: 'Мульча. Капельный полив. Удалить лишние завязи при стрессе.' },
+    cucumber: { warn: 30, stress: 34, critical: 38,
+      rec: 'Дождевание. Проветривание. При T>34°C — пыльца стерильна, завязи нет.' },
+    zucchini: { warn: 32, stress: 36, critical: 40,
+      rec: 'Мульча. Вечерний полив. Кабачок стойче огурца к жаре.' },
+    onion:    { warn: 30, stress: 35, critical: 38,
+      rec: 'Полив. Жара ускоряет полегание — подготовить уборку.' },
+    pea:      { warn: 22, stress: 26, critical: 30,
+      rec: 'КРИТИЧНО: горошек перестаёт завязывать бобы при T>26°C. Срочный полив. TDU ускоряется!' },
+    sweet_corn:{ warn: 34, stress: 38, critical: 42,
+      rec: 'Жара при R1 (шёлк) = стерильность пыльцы. Дождевание при шёлке в жару обязательно!' },
+  };
+
+  const cropHeat = HEAT_THRESHOLDS[crop.id];
+  if (cropHeat) {
+    let heatLevel = null, heatMsg = '';
+    if (tmax >= cropHeat.critical) {
+      heatLevel = 'critical';
+      heatMsg = `🔥 КРИТИЧЕСКИЙ СТРЕСС T°${tmax}°C ≥ ${cropHeat.critical}°C`;
+    } else if (tmax >= cropHeat.stress) {
+      heatLevel = 'spray';
+      heatMsg = `🌡️ ТЕПЛОВОЙ СТРЕСС T°${tmax}°C ≥ ${cropHeat.stress}°C`;
+    } else if (tmax >= cropHeat.warn) {
+      heatLevel = 'watch';
+      heatMsg = `⚠️ Жара T°${tmax}°C ≥ ${cropHeat.warn}°C — следить`;
+    }
+    if (heatLevel) {
+      alerts.push({
+        level: heatLevel,
+        title: `${heatMsg} · ${crop.name}`,
+        body: `Нарушение фотосинтеза, опадение цветков, снижение урожая. Фаза: ${getParcelPhase(parcel)?.name||'—'}`,
+        rec: cropHeat.rec
+      });
+    }
   }
 
   return alerts;
@@ -1458,13 +2187,14 @@ function showTab(id) {
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('panel-'+id).classList.add('active');
-  const tabs = ['parcels','weather','gdd','diseases','irrigation','treatments','catalog','settings'];
+  const tabs = ['parcels','weather','gdd','diseases','irrigation','treatments','analyses','catalog','settings'];
   const idx = tabs.indexOf(id);
   document.querySelectorAll('.tab')[idx].classList.add('active');
   const renders = {
     parcels:renderParcels, weather:renderWeather, gdd:renderGdd,
     diseases:renderDiseases, irrigation:renderIrrigation,
-    treatments:renderTreatments, catalog:renderCatalog
+    treatments:renderTreatments, catalog:renderCatalog,
+    analyses:renderVegAnalyses
   };
   if (renders[id]) renders[id]();
 }
@@ -1478,29 +2208,57 @@ function openParcelModal(parcelId) {
   _editParcelId = parcelId||null;
   const p = parcelId ? S.parcels.find(x=>x.id===parcelId) : null;
   document.getElementById('modal-parcel-title').textContent = p ? '✏️ Редактировать участок' : '🗺 Новый участок';
-  document.getElementById('p-name').value = p?.name||'';
-  document.getElementById('p-ha').value = p?.ha||'';
+  document.getElementById('p-name').value    = p?.name||'';
+  document.getElementById('p-ha').value      = p?.ha||'';
   document.getElementById('p-variety').value = p?.variety||'';
-  document.getElementById('p-sowing').value = p?.sowingDate||today();
+  document.getElementById('p-sowing').value  = p?.sowingDate ? normalizeDate(p.sowingDate)||p.sowingDate : today();
   document.getElementById('p-density').value = p?.density||'';
-  document.getElementById('p-soil').value = p?.soil||'loam';
-  document.getElementById('p-note').value = p?.note||'';
+  document.getElementById('p-soil').value    = p?.soil||'loam';
+  document.getElementById('p-note').value    = p?.note||'';
+  document.getElementById('p-harvest-gdd').value = p?.harvestGdd||'';
+  document.getElementById('p-tdu-window').value  = p?.tduWindow||'';
+
   // Populate crop select
   const sel = document.getElementById('p-crop');
-  const groups = [...new Set(CROPS.map(c=>c.group))];
   sel.innerHTML = '<option value="">— выбрать —</option>';
+  const groups = [...new Set(CROPS.map(c=>c.group))];
   groups.forEach(g => {
     const grpCrops = CROPS.filter(c=>c.group===g);
     const og = document.createElement('optgroup');
     og.label = g;
     grpCrops.forEach(c => {
       const opt = document.createElement('option');
-      opt.value = c.id; opt.textContent = `${c.emoji} ${c.name}`;
+      opt.value = c.id;
+      opt.textContent = `${c.emoji} ${c.name}`;
       if (p?.cropId===c.id) opt.selected = true;
       og.appendChild(opt);
     });
     sel.appendChild(og);
   });
+
+  // Show/hide harvest GDD fields
+  const updateHarvestFields = () => {
+    const cid = sel.value;
+    const crop = getCropById(cid);
+    const isPea = cid === 'pea';
+    const wrapGdd = document.getElementById('p-harvest-gdd-wrap');
+    const wrapTdu = document.getElementById('p-tdu-window-wrap');
+    if (wrapGdd) wrapGdd.style.display = crop ? 'flex' : 'none';
+    if (wrapTdu) wrapTdu.style.display = isPea ? 'flex' : 'none';
+    const inp = document.getElementById('p-harvest-gdd');
+    if (inp && crop) {
+      inp.placeholder = isPea
+        ? `TDU от производителя (напр. ${crop.tduTarget||115})`
+        : `GDD от производителя (напр. ${crop.gddToHarvest})`;
+      const lbl = document.querySelector('#p-harvest-gdd-wrap label');
+      if (lbl) lbl.textContent = isPea ? 'TDU уборки (от производителя)' : 'GDD уборки (от производителя)';
+    }
+  };
+
+  // Remove old listener by replacing onchange
+  sel.onchange = updateHarvestFields;
+  updateHarvestFields();
+
   document.getElementById('p-delete-btn').style.display = p ? 'block' : 'none';
   openModal('modal-parcel');
 }
@@ -1510,14 +2268,23 @@ function saveParcel() {
   const ha = parseFloat(document.getElementById('p-ha').value)||0;
   const cropId = document.getElementById('p-crop').value;
   if (!name) { alert('Введите название участка'); return; }
+  // Normalize sowing date — accept DD/MM/YYYY, DD.MM.YYYY or YYYY-MM-DD
+  let sowingRaw = document.getElementById('p-sowing').value.trim();
+  let sowingDate = sowingRaw;
+  const dmyMatch = sowingRaw.match(/^(\d{1,2})[./](\d{1,2})[./](\d{4})$/);
+  if (dmyMatch) {
+    sowingDate = `${dmyMatch[3]}-${dmyMatch[2].padStart(2,'0')}-${dmyMatch[1].padStart(2,'0')}`;
+  }
   const parcel = {
     id: _editParcelId || uid(),
     name, ha, cropId,
     variety: document.getElementById('p-variety').value.trim(),
-    sowingDate: document.getElementById('p-sowing').value,
+    sowingDate,
     density: parseFloat(document.getElementById('p-density').value)||0,
     soil: document.getElementById('p-soil').value,
     note: document.getElementById('p-note').value.trim(),
+    harvestGdd: parseFloat(document.getElementById('p-harvest-gdd').value)||null,
+    tduWindow: parseFloat(document.getElementById('p-tdu-window').value)||null,
   };
   if (_editParcelId) {
     const idx = S.parcels.findIndex(p=>p.id===_editParcelId);
@@ -1534,7 +2301,55 @@ function deleteParcel() {
   save(); closeModal('modal-parcel'); renderParcels();
 }
 
+// ── SORT STATE ────────────────────────────────────────────────────────────
+let _sortMode = 'sowing'; // default: by sowing date
+
+function setSort(mode) {
+  _sortMode = mode;
+  document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('sort-' + mode);
+  if (btn) btn.classList.add('active');
+  renderParcels();
+}
+
+function getSortedParcels() {
+  const parcels = [...S.parcels];
+  switch (_sortMode) {
+    case 'sowing':
+      // Sort by sowing date ascending (earliest first = first to harvest)
+      return parcels.sort((a,b) => {
+        const da = normalizeDate(a.sowingDate)||'9999';
+        const db = normalizeDate(b.sowingDate)||'9999';
+        return da.localeCompare(db);
+      });
+    case 'variety':
+      return parcels.sort((a,b) => (a.variety||a.name||'').localeCompare(b.variety||b.name||''));
+    case 'harvest':
+      // Sort by estimated harvest date (sowing + days to harvest)
+      return parcels.sort((a,b) => {
+        const gddA = calcParcelGdd(a), gddB = calcParcelGdd(b);
+        const cropA = getCropById(a.cropId), cropB = getCropById(b.cropId);
+        const remA = Math.max(0, (a.harvestGdd||cropA?.gddToHarvest||999) - gddA);
+        const remB = Math.max(0, (b.harvestGdd||cropB?.gddToHarvest||999) - gddB);
+        return remA - remB; // soonest harvest first
+      });
+    case 'ha':
+      return parcels.sort((a,b) => parseFloat(b.ha||0) - parseFloat(a.ha||0));
+    case 'alerts':
+      return parcels.sort((a,b) => {
+        const alertsA = runAlertsForParcel(a).filter(x=>x.level==='critical').length;
+        const alertsB = runAlertsForParcel(b).filter(x=>x.level==='critical').length;
+        return alertsB - alertsA;
+      });
+    default:
+      return parcels;
+  }
+}
+
 function renderParcels() {
+  // Hide + Участок button for factory role
+  const addBtn = document.getElementById('btn-add-parcel');
+  if (addBtn) addBtn.style.display = _currentRole === 'factory' ? 'none' : '';
   updateHeaderStats();
   const grid = document.getElementById('parcel-grid');
   if (!S.parcels.length) {
@@ -1567,40 +2382,201 @@ function renderParcels() {
       <div style="font-size:12px;font-weight:700;color:var(--red);">🟤 SMITH PERIOD АКТИВЕН — ФИТОФТОРА: немедленная обработка томата и картофеля</div>
       <div style="font-size:11px;color:var(--text2);margin-top:4px;">T≥10°C + RH≥80% 2+ дня подряд</div>
     </div>`:''}`;
-  // Alert banner
-  const critAlerts = allParcelAlerts.flatMap(x=>x.alerts.filter(a=>a.level==='critical').map(a=>({...a,parcel:x.p})));
-  if (critAlerts.length) {
-    document.getElementById('alert-banner').innerHTML = critAlerts.map(a=>`
-      <div class="alert-card alert-critical" style="margin-bottom:8px;">
-        <div class="alert-title" style="color:var(--red);">${a.title} · <span style="color:var(--text2);">${a.parcel.name}</span></div>
-        <div class="alert-body">${a.body}</div>
-        <div class="alert-rec">💊 ${a.rec}</div>
-      </div>`).join('');
-  } else {
-    document.getElementById('alert-banner').innerHTML = `<div style="padding:10px 16px;background:rgba(107,221,107,.06);border:1px solid rgba(107,221,107,.2);border-radius:8px;font-size:12px;color:var(--accent);">✅ Критических алертов нет · ${today()}</div>`;
+  // ── STRESS DASHBOARD ────────────────────────────────────────────────
+  const allAlertsFull = allParcelAlerts.flatMap(x =>
+    x.alerts.map(a => ({...a, parcel: x.p, crop: getCropById(x.p.cropId)}))
+  );
+
+  // Group alerts
+  const frostAlerts  = allAlertsFull.filter(a => a.title.includes('ЗАМОРОЗ') || a.title.includes('❄️'));
+  const heatAlerts   = allAlertsFull.filter(a => a.title.includes('СТРЕСС') || a.title.includes('🔥') || a.title.includes('🌡️'));
+  const blightAlerts = allAlertsFull.filter(a => a.title.includes('SMITH') || a.title.includes('Фитофтора'));
+  const diseaseAlerts= allAlertsFull.filter(a =>
+    !a.title.includes('❄️') && !a.title.includes('ЗАМОРОЗ') &&
+    !a.title.includes('СТРЕСС') && !a.title.includes('🔥') &&
+    !a.title.includes('🌡️') && !a.title.includes('SMITH') &&
+    (a.level === 'critical' || a.level === 'spray')
+  );
+
+  const latest = S.weather[0];
+  const tminToday = latest ? parseFloat(latest.tmin) : null;
+  const tmaxToday = latest ? parseFloat(latest.tmax) : null;
+
+  let bannerHtml = '';
+
+  // ── Температурный статус дня ──────────────────────────────────────
+  if (latest) {
+    const tempColor = tminToday <= 0 ? 'var(--red)' : tminToday <= 3 ? 'var(--orange)' : tminToday <= 6 ? 'var(--yellow)' : 'var(--accent)';
+    const tempIcon  = tminToday <= 0 ? '🧊' : tminToday <= 3 ? '❄️' : tminToday <= 6 ? '🌡️' : '🌤️';
+    bannerHtml += `
+    <div style="display:flex;align-items:center;gap:16px;padding:12px 16px;
+      background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-bottom:12px;flex-wrap:wrap;">
+      <div style="font-size:28px;">${tempIcon}</div>
+      <div>
+        <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px;">Температура · ${latest.date}</div>
+        <div style="display:flex;gap:16px;align-items:baseline;flex-wrap:wrap;">
+          <span style="font-family:'Unbounded',sans-serif;font-size:22px;font-weight:700;color:${tempColor};">
+            T°мин ${tminToday}°C
+          </span>
+          <span style="font-size:14px;color:var(--text2);">/ T°макс ${tmaxToday}°C</span>
+          <span style="font-size:11px;color:var(--text3);">RH ${latest.humidity||'—'}% · Осадки ${latest.precip||0}мм</span>
+        </div>
+      </div>
+      ${tminToday <= 0 ? `<div style="margin-left:auto;padding:6px 14px;background:rgba(255,85,85,.15);border:1px solid rgba(255,85,85,.4);border-radius:20px;font-size:11px;font-weight:700;color:var(--red);">
+        🧊 БЫЛ МОРОЗ — проверить все участки
+      </div>` : tminToday <= 4 ? `<div style="margin-left:auto;padding:6px 14px;background:rgba(255,153,68,.15);border:1px solid rgba(255,153,68,.4);border-radius:20px;font-size:11px;font-weight:700;color:var(--orange);">
+        ❄️ Риск заморозка — мониторинг
+      </div>` : ''}
+    </div>`;
   }
-  // Parcel cards
-  grid.innerHTML = S.parcels.map(parcel => {
+
+  // ── Блок заморозка ────────────────────────────────────────────────
+  if (frostAlerts.length) {
+    bannerHtml += `
+    <div style="border:2px solid rgba(100,180,255,.4);border-radius:10px;overflow:hidden;margin-bottom:12px;">
+      <div style="padding:10px 16px;background:rgba(100,180,255,.12);display:flex;align-items:center;gap:10px;">
+        <span style="font-size:18px;">❄️</span>
+        <div>
+          <div style="font-size:12px;font-weight:700;color:#60a5fa;">СТРЕСС ОТ ЗАМОРОЗКА / ХОЛОДА</div>
+          <div style="font-size:10px;color:var(--text3);">Проверьте каждый участок утром на следующий день после заморозка</div>
+        </div>
+        <span style="margin-left:auto;font-size:11px;padding:3px 10px;border-radius:10px;background:rgba(100,180,255,.2);color:#60a5fa;">${frostAlerts.length} участков</span>
+      </div>
+      ${frostAlerts.map(a => `
+      <div style="padding:12px 16px;border-top:1px solid rgba(100,180,255,.15);">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
+          <div>
+            <span style="font-size:12px;font-weight:700;color:${a.level==='critical'?'var(--red)':'var(--orange)'};">${a.title}</span>
+            <span style="font-size:11px;color:var(--text3);margin-left:8px;">· ${a.parcel.name} · ${a.parcel.ha}га</span>
+          </div>
+          <span style="font-size:9px;padding:2px 8px;border-radius:8px;background:${a.level==='critical'?'rgba(255,85,85,.15)':'rgba(255,153,68,.15)'};color:${a.level==='critical'?'var(--red)':'var(--orange)'};">${a.level==='critical'?'КРИТИЧНО':'ВНИМАНИЕ'}</span>
+        </div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:8px;">${a.body}</div>
+        <div style="background:rgba(107,221,107,.06);border:1px solid rgba(107,221,107,.15);border-radius:8px;padding:8px 12px;">
+          <div style="font-size:10px;font-weight:700;color:var(--accent);margin-bottom:4px;">💊 ЧТО ДЕЛАТЬ:</div>
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            ${a.rec.split(' · ').map((step,i) => `
+            <div style="display:flex;gap:8px;font-size:11px;color:var(--text2);">
+              <span style="color:var(--accent);font-weight:700;flex-shrink:0;">${i+1}.</span>
+              <span>${step}</span>
+            </div>`).join('')}
+          </div>
+        </div>
+      </div>`).join('')}
+    </div>`;
+  }
+
+  // ── Тепловой стресс ───────────────────────────────────────────────
+  if (heatAlerts.length) {
+    bannerHtml += `
+    <div style="border:2px solid rgba(255,153,68,.4);border-radius:10px;overflow:hidden;margin-bottom:12px;">
+      <div style="padding:10px 16px;background:rgba(255,153,68,.1);display:flex;align-items:center;gap:10px;">
+        <span style="font-size:18px;">🔥</span>
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--orange);">ТЕПЛОВОЙ СТРЕСС</div>
+          <div style="font-size:10px;color:var(--text3);">Высокая температура снижает завязываемость и урожай</div>
+        </div>
+        <span style="margin-left:auto;font-size:11px;padding:3px 10px;border-radius:10px;background:rgba(255,153,68,.2);color:var(--orange);">${heatAlerts.length} участков</span>
+      </div>
+      ${heatAlerts.map(a => `
+      <div style="padding:12px 16px;border-top:1px solid rgba(255,153,68,.15);">
+        <div style="font-size:12px;font-weight:700;color:var(--orange);margin-bottom:6px;">${a.title} · <span style="color:var(--text3);">${a.parcel.name}</span></div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:6px;">${a.body}</div>
+        <div style="background:rgba(255,153,68,.06);border:1px solid rgba(255,153,68,.2);border-radius:8px;padding:8px 12px;">
+          <div style="font-size:10px;font-weight:700;color:var(--orange);margin-bottom:4px;">💊 ЧТО ДЕЛАТЬ:</div>
+          <div style="font-size:11px;color:var(--text2);">${a.rec}</div>
+        </div>
+      </div>`).join('')}
+    </div>`;
+  }
+
+  // ── Болезни и вредители ───────────────────────────────────────────
+  if (diseaseAlerts.length) {
+    bannerHtml += `
+    <div style="border:2px solid rgba(255,85,85,.3);border-radius:10px;overflow:hidden;margin-bottom:12px;">
+      <div style="padding:10px 16px;background:rgba(255,85,85,.08);display:flex;align-items:center;gap:10px;">
+        <span style="font-size:18px;">🦠</span>
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--red);">БОЛЕЗНИ / ВРЕДИТЕЛИ — ТРЕБУЮТ ОБРАБОТКИ</div>
+          <div style="font-size:10px;color:var(--text3);">Условия погоды благоприятны для заражения</div>
+        </div>
+        <span style="margin-left:auto;font-size:11px;padding:3px 10px;border-radius:10px;background:rgba(255,85,85,.15);color:var(--red);">${diseaseAlerts.length} алертов</span>
+      </div>
+      ${diseaseAlerts.slice(0,5).map(a => `
+      <div style="padding:10px 16px;border-top:1px solid rgba(255,85,85,.1);">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap;">
+          <div>
+            <span style="font-size:12px;font-weight:700;color:${a.level==='critical'?'var(--red)':'var(--orange)'};">${a.title}</span>
+            <span style="font-size:11px;color:var(--text3);"> · ${a.parcel.name}</span>
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--text2);margin-top:4px;">${a.body}</div>
+        <div style="font-size:11px;color:var(--accent2);margin-top:6px;padding:6px 10px;background:rgba(136,255,170,.05);border-radius:6px;">💊 ${a.rec}</div>
+      </div>`).join('')}
+      ${diseaseAlerts.length > 5 ? `<div style="padding:8px 16px;font-size:11px;color:var(--text3);border-top:1px solid rgba(255,85,85,.1);">+ ещё ${diseaseAlerts.length-5} алертов — перейдите в 📈 GDD/Фазы для подробностей</div>` : ''}
+    </div>`;
+  }
+
+  // ── Всё хорошо ────────────────────────────────────────────────────
+  if (!frostAlerts.length && !heatAlerts.length && !diseaseAlerts.length) {
+    bannerHtml += `<div style="padding:10px 16px;background:rgba(107,221,107,.06);border:1px solid rgba(107,221,107,.2);border-radius:8px;font-size:12px;color:var(--accent);">
+      ✅ Критических алертов нет · ${today()} · Все участки в норме
+    </div>`;
+  }
+
+  document.getElementById('alert-banner').innerHTML = bannerHtml;
+  // Parcel cards — sorted
+  const sortedParcels = getSortedParcels();
+  grid.innerHTML = sortedParcels.map((parcel, idx) => {
     const crop = getCropById(parcel.cropId);
     const phase = getParcelPhase(parcel);
     const gdd = Math.round(calcParcelGdd(parcel));
     const alerts = runAlertsForParcel(parcel);
     const critCount = alerts.filter(a=>a.level==='critical').length;
     const etc = calcParcelEtc(parcel);
-    return `<div class="parcel-card ${crop?'has-crop':''}" onclick="openParcelModal('${parcel.id}')"
-      style="border-left-color:${phase?phase.color:'var(--border)'};">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
-        <div class="parcel-name">${parcel.name}</div>
+
+    // Harvest countdown
+    const cropObj = crop;
+    const harvestGdd = parcel.harvestGdd || cropObj?.gddToHarvest || 0;
+    const remainGdd = Math.max(0, harvestGdd - gdd);
+    const avgDailyGdd = (() => {
+      const sow = normalizeDate(parcel.sowingDate)||'1900-01-01';
+      const days = S.weather.filter(w=>w.date>=sow).length;
+      return days > 0 ? gdd/days : 0;
+    })();
+    const daysToHarvest = avgDailyGdd > 0 ? Math.round(remainGdd/avgDailyGdd) : null;
+    const harvestSoon = daysToHarvest !== null && daysToHarvest <= 7;
+
+    // Sequence number by sowing date (position in sorted list)
+    const seqNum = _sortMode === 'sowing' ? idx + 1 : null;
+    return `<div class="parcel-card ${crop?'has-crop':''}"
+      onclick="if(_currentRole!=='factory')openParcelModal('${parcel.id}')"
+      style="border-left-color:${phase?phase.color:'var(--border)'};
+        ${harvestSoon?'box-shadow:0 0 14px rgba(107,221,107,.2);border-color:rgba(107,221,107,.4);':''}
+        ${_currentRole==='factory'?'cursor:default;':''}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
+        <div style="display:flex;align-items:center;gap:5px;">
+          ${seqNum?`<span style="font-size:9px;min-width:18px;text-align:center;padding:1px 5px;border-radius:8px;background:var(--surface3);color:var(--text3);font-family:'Unbounded',sans-serif;font-weight:700;">${seqNum}</span>`:''}
+          <div class="parcel-name">${parcel.name}</div>
+        </div>
         <div class="parcel-ha">${parcel.ha}га</div>
       </div>
-      ${crop?`<div class="parcel-crop">${crop.emoji} ${crop.name}${parcel.variety?' · '+parcel.variety:''}</div>`:'<div class="parcel-crop" style="color:var(--text3);">Культура не выбрана</div>'}
-      ${phase?`<div class="parcel-phase" style="color:${phase.color};margin-top:6px;font-size:10px;font-weight:600;">${phase.name}</div>`:''}
-      ${gdd>0?`<div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3);margin-top:4px;">GDD ${gdd} · ${parcel.sowingDate?'посев '+parcel.sowingDate:''}</div>`:''}
-      ${etc?`<div style="font-size:10px;color:var(--blue);margin-top:4px;">💧 ETc ${etc.etc}мм/день (Kc ${etc.kc})</div>`:''}
-      <div style="margin-top:8px;display:flex;gap:4px;flex-wrap:wrap;">
-        ${critCount>0?`<span class="badge badge-red">⚠️ ${critCount} алерт</span>`:''}
+      ${crop?`<div class="parcel-crop">${crop.emoji} ${crop.name}${parcel.variety?' · '+parcel.variety:''}</div>`
+            :'<div class="parcel-crop" style="color:var(--text3);">Культура не выбрана</div>'}
+      <div style="display:flex;gap:10px;margin-top:5px;flex-wrap:wrap;align-items:center;">
+        ${parcel.sowingDate?`<span style="font-size:10px;color:var(--text3);">📅 ${normalizeDate(parcel.sowingDate)||parcel.sowingDate}</span>`:''}
+        ${daysToHarvest!==null?`<span style="font-size:10px;font-weight:600;color:${harvestSoon?'var(--accent)':daysToHarvest<=14?'var(--yellow)':'var(--text3)'};">
+          ${harvestSoon?'🌾':'⏳'} ~${daysToHarvest} дн до уборки</span>`:''}
+      </div>
+      ${phase?`<div class="parcel-phase" style="color:${phase.color};margin-top:5px;font-size:10px;font-weight:600;">${phase.name}</div>`:''}
+      ${gdd>0?`<div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3);margin-top:2px;">GDD ${gdd}${harvestGdd?' / '+harvestGdd:''}</div>`:''}
+      ${etc?`<div style="font-size:10px;color:var(--blue);margin-top:3px;">💧 ETc ${etc.etc}мм/д (Kc ${etc.kc})</div>`:''}
+      <div style="margin-top:7px;display:flex;gap:4px;flex-wrap:wrap;">
+        ${critCount>0?`<span class="badge badge-red">⚠️ ${critCount}</span>`:''}
         ${alerts.filter(a=>a.level==='spray').length?`<span class="badge badge-orange">SPRAY</span>`:''}
-        ${parcel.note?`<span class="badge badge-blue" style="font-size:8px;">${parcel.note.slice(0,20)}</span>`:''}
+        ${harvestSoon?`<span class="badge badge-green">🌾 УБОРКА!</span>`:''}
+        ${daysToHarvest!==null&&daysToHarvest<=14&&!harvestSoon?`<span class="badge badge-yellow">⏳ ${daysToHarvest}дн</span>`:''}
+        ${parcel.note?`<span class="badge badge-blue" style="font-size:8px;">${parcel.note.slice(0,18)}</span>`:''}
       </div>
     </div>`;
   }).join('');
@@ -1639,53 +2615,200 @@ function saveWeather() {
 }
 
 function importWeather(event) {
-  // Reuse same logic as SmartOrchard — parse XLS/CSV
   const file = event.target.files[0];
   if (!file) return;
-  event.target.value='';
+  event.target.value = '';
   const statusEl = document.getElementById('meteo-status');
-  statusEl.style.display='block';
-  statusEl.innerHTML=`<div style="padding:8px 12px;background:rgba(255,216,77,.08);border:1px solid rgba(255,216,77,.3);border-radius:8px;font-size:11px;color:var(--yellow);">⏳ Обработка ${file.name}...</div>`;
+  statusEl.style.display = 'block';
+  statusEl.innerHTML = `<div style="padding:8px 12px;background:rgba(255,216,77,.08);border:1px solid rgba(255,216,77,.3);border-radius:8px;font-size:11px;color:var(--yellow);">Загрузка ${file.name}...</div>`;
   const reader = new FileReader();
   reader.onload = e => {
     try {
       const text = e.target.result;
-      const lines = text.split(/\r?\n/).filter(l=>l.trim());
-      if (!lines.length) throw new Error('Файл пустой');
-      const sep = lines[0].includes(';')?';':',';
-      const headers = lines[0].split(sep).map(h=>h.trim().toLowerCase());
-      const findCol = (...kws) => { for(const k of kws){const i=headers.findIndex(h=>h.includes(k));if(i>=0)return i;} return -1; };
-      const dateCol = findCol('date','дата','datetime','time');
-      const tmaxCol = findCol('tmax','t_max','max','максим');
-      const tminCol = findCol('tmin','t_min','min','миним');
-      const humCol  = findCol('humid','rh','влаж');
-      const rainCol = findCol('rain','precip','осадки');
-      const leafCol = findCol('leaf','лист');
-      const et0Col  = findCol('et0','eto');
-      if (dateCol<0||tmaxCol<0||tminCol<0) throw new Error('Не найдены обязательные колонки');
-      let added=0,updated=0;
-      for(let i=1;i<lines.length;i++){
-        const cols=lines[i].split(sep);
-        const rawDate=cols[dateCol]?.trim();if(!rawDate)continue;
-        const dm=rawDate.match(/(\d{4}-\d{2}-\d{2})|(\d{2}[./]\d{2}[./]\d{4})/);if(!dm)continue;
-        let day=dm[0];
-        if(day.match(/^\d{2}[./]/)){const p=day.split(/[./]/);day=`${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`;}
-        const fv=(c)=>c>=0&&cols[c]?parseFloat(cols[c].replace(',','.')):null;
-        const entry={id:uid(),date:day,tmin:fv(tminCol),tmax:fv(tmaxCol),humidity:fv(humCol),precip:fv(rainCol)||0,leafwet:fv(leafCol)||0,et0:fv(et0Col)};
-        const idx=S.weather.findIndex(w=>w.date===day);
-        if(idx>=0){S.weather[idx]=entry;updated++;}else{S.weather.push(entry);added++;}
+      if (text.includes('<?xml') || text.includes('<Workbook')) {
+        parseXmlStation(text, statusEl);
+      } else {
+        parseCsvStation(text, statusEl, file.name);
       }
-      S.weather.sort((a,b)=>b.date.localeCompare(a.date));
-      save(); renderWeather();
-      statusEl.innerHTML=`<div style="padding:8px 12px;background:rgba(107,221,107,.08);border:1px solid rgba(107,221,107,.3);border-radius:8px;font-size:11px;color:var(--accent);">✅ ${added} дней добавлено · ${updated} обновлено</div>`;
     } catch(err) {
-      statusEl.innerHTML=`<div style="padding:8px 12px;background:rgba(255,85,85,.08);border:1px solid rgba(255,85,85,.3);border-radius:8px;font-size:11px;color:var(--red);">❌ ${err.message}</div>`;
+      statusEl.innerHTML = `<div style="padding:8px 12px;background:rgba(255,85,85,.08);border:1px solid rgba(255,85,85,.3);border-radius:8px;font-size:11px;color:var(--red);">ERR: ${err.message}</div>`;
     }
   };
-  reader.readAsText(file,'utf-8');
+  reader.readAsText(file, 'utf-8');
+}
+
+function parseXmlStation(xmlText, statusEl) {
+  const ns = 'urn:schemas-microsoft-com:office:spreadsheet';
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(xmlText, 'text/xml');
+  const rows = doc.getElementsByTagNameNS(ns, 'Row');
+  if (rows.length < 3) throw new Error('Файл пустой');
+
+  // Parse row — respects ss:Index + ss:MergeAcross
+  function getRowVals(rowEl) {
+    const cells = rowEl.getElementsByTagNameNS(ns, 'Cell');
+    const vals = new Array(32).fill('');
+    let ci = 0;
+    for (let c = 0; c < cells.length; c++) {
+      const cell = cells[c];
+      const ia = cell.getAttribute('ss:Index');
+      if (ia) ci = parseInt(ia) - 1;
+      const merge = parseInt(cell.getAttribute('ss:MergeAcross') || '0');
+      const data = cell.getElementsByTagNameNS(ns, 'Data')[0];
+      const val = data ? data.textContent.trim() : '';
+      if (ci < 32) vals[ci] = val;
+      for (let m = 1; m <= merge && ci+m < 32; m++) vals[ci+m] = val;
+      ci += merge + 1;
+    }
+    return vals;
+  }
+
+  const h1 = getRowVals(rows[0]); // group headers (with MergeAcross filled)
+  const h2 = getRowVals(rows[1]); // sub-headers
+
+  // Build colMap with forward-fill of group
+  const colMap = [];
+  let lastGroup = '';
+  for (let i = 0; i < 32; i++) {
+    if (h1[i]) lastGroup = h1[i].toLowerCase();
+    colMap[i] = { g: lastGroup, s: (h2[i]||'').toLowerCase() };
+  }
+
+  const fc = (gkw, skw) => {
+    const gi = colMap.findIndex(c => c.g.includes(gkw) && (!skw || c.s.includes(skw)));
+    return gi >= 0 ? gi : -1;
+  };
+
+  // Column indices — auto-detect then fallback to known positions for this station
+  const C = {
+    tmax: fc('температура воздуха','максимум') >= 0 ? fc('температура воздуха','максимум') : 2,
+    tmin: fc('температура воздуха','минимум')  >= 0 ? fc('температура воздуха','минимум')  : 3,
+    tavg: fc('температура воздуха','ср.знач')  >= 0 ? fc('температура воздуха','ср.знач')  : 1,
+    hum:  fc('относительная влажность','ср.знач') >= 0 ? fc('относительная влажность','ср.знач') : 12,
+    rain: fc('осадки','сумм')  >= 0 ? fc('осадки','сумм')  : 15,
+    leaf: fc('влажность листа','') >= 0 ? fc('влажность листа','') : 16, // минуты
+    et0:  colMap.findIndex(c => c.s.includes('et0')) >= 0 ? colMap.findIndex(c => c.s.includes('et0')) : 26,
+    wind: fc('анемометр скорость','ср.знач') >= 0 ? fc('анемометр скорость','ср.знач') : 17,
+    solar: fc('солнечная радиация','') >= 0 ? fc('солнечная радиация','') : 9,
+  };
+
+  const fv = v => (v !== '' && v != null) ? parseFloat(v) : null;
+  const avg = arr => arr.length ? arr.reduce((a,b)=>a+b)/arr.length : null;
+  const rnd = (v,n) => { n=n||1; return (v!=null&&!isNaN(v)) ? Math.round(v*Math.pow(10,n))/Math.pow(10,n) : null; };
+
+  const dm = {};
+  for (let i = 2; i < rows.length; i++) {
+    const v = getRowVals(rows[i]);
+    const dtm = v[0].match(/^(\d{4}-\d{2}-\d{2})/);
+    if (!dtm) continue;
+    const day = dtm[1];
+    if (!dm[day]) dm[day] = {tmx:[],tmn:[],tav:[],hum:[],rain:0,leaf:0,et0:0,wind:[],solar:[]};
+    const d = dm[day];
+    const add = (arr,x) => { if(x!=null&&!isNaN(x)) arr.push(x); };
+    add(d.tmx, fv(v[C.tmax])); add(d.tmn, fv(v[C.tmin])); add(d.tav, fv(v[C.tavg]));
+    add(d.hum, fv(v[C.hum])); add(d.wind, fv(v[C.wind]));
+    add(d.solar, fv(v[C.solar]));
+    const r=fv(v[C.rain]); if(r!=null&&r>=0) d.rain+=r;
+    const l=fv(v[C.leaf]); if(l!=null&&l>=0) d.leaf+=l;
+    const e=fv(v[C.et0]);  if(e!=null&&e>0)  d.et0+=e;
+  }
+
+  // ET₀ from solar radiation (Makkink simplified): ET₀ ≈ 0.0135 × Rs(MJ/m²) × (tavg+5)/25
+  // Rs: convert W/m² avg × 86400s / 1,000,000 = MJ/m²/day
+  const calcET0fromSolar = (tavg, solarAvgW) => {
+    if (tavg==null || solarAvgW==null || solarAvgW<=0) return null;
+    const Rs = solarAvgW * 0.0864; // W/m² avg → MJ/m²/day
+    const et0 = 0.0135 * Rs * (tavg + 5) / 25;
+    return Math.max(0, Math.round(et0 * 10) / 10);
+  };
+
+  let added=0, updated=0;
+  Object.keys(dm).sort().forEach(day => {
+    const d = dm[day];
+    if (!d.tmx.length && !d.tmn.length) return;
+    const tmax = d.tmx.length ? rnd(Math.max(...d.tmx)) : null;
+    const tmin = d.tmn.length ? rnd(Math.min(...d.tmn)) : null;
+    const tavgVal = avg(d.tav) || ((tmax||0)+(tmin||0))/2;
+    const solarAvg = avg(d.solar);
+    // ET₀: use file value if available, else calculate from solar radiation, else Hargreaves
+    let et0val = d.et0>0 ? rnd(d.et0) : null;
+    if (!et0val && solarAvg) et0val = calcET0fromSolar(tavgVal, solarAvg);
+    if (!et0val && tmax!=null && tmin!=null) et0val = rnd(estimateET0(tmin, tmax, day));
+    const entry = {
+      id: 'w'+day.replace(/-/g,''), date: day,
+      tmax,
+      tmin,
+      tavg: rnd(tavgVal),
+      humidity: rnd(avg(d.hum)),
+      precip: rnd(d.rain),
+      leafwet: rnd(d.leaf/60, 2),
+      et0: et0val,
+      wind: rnd(avg(d.wind)),
+      station: 'Каменка',
+    };
+    const idx = S.weather.findIndex(w=>w.date===day);
+    if (idx>=0) { S.weather[idx]=entry; updated++; } else { S.weather.push(entry); added++; }
+  });
+  S.weather.sort((a,b)=>b.date.localeCompare(a.date));
+  save(); renderWeather(); renderParcels();
+  const lat = S.weather[0];
+  statusEl.innerHTML = `<div style="padding:10px 14px;background:rgba(107,221,107,.08);border:1px solid rgba(107,221,107,.3);border-radius:8px;font-size:12px;color:var(--accent);">
+    OK ${added} дней · ${updated} обновл.
+    <div style="font-size:11px;color:var(--text2);margin-top:3px;">
+      Период: ${S.weather[S.weather.length-1]?.date||''} — ${S.weather[0]?.date||''}
+      · Станция Каменка
+      ${lat?` · T ${lat.tmin}/${lat.tmax}°C · RH ${lat.humidity}% · Лист ${lat.leafwet}ч`:''}
+      ${lat?.et0?` · ET0 ${lat.et0}мм`:''}
+    </div>
+  </div>`;
+}
+
+function parseCsvStation(text, statusEl, filename) {
+  const lines = text.split(/\r?\n/).filter(l=>l.trim());
+  if (lines.length < 2) throw new Error('CSV пустой');
+  const sep = lines[0].includes(';')?';':',';
+  const headers = lines[0].split(sep).map(h=>h.trim().toLowerCase());
+  const fc2 = (...kws) => { for(const k of kws){const i=headers.findIndex(h=>h.includes(k));if(i>=0)return i;} return -1; };
+  const dc=fc2('date','дата'), tmx=fc2('tmax','максим'), tmn=fc2('tmin','миним');
+  const hm=fc2('humid','влаж'), rn=fc2('rain','осадки'), lf=fc2('leaf','лист'), e0=fc2('et0');
+  if (dc<0||tmx<0||tmn<0) throw new Error('Нет колонок даты/температуры');
+  let added=0, updated=0;
+  for(let i=1;i<lines.length;i++){
+    const c=lines[i].split(sep);
+    const raw=c[dc]?.trim(); if(!raw) continue;
+    const dm=raw.match(/(\d{4}-\d{2}-\d{2})|(\d{2}[./]\d{2}[./]\d{4})/); if(!dm) continue;
+    let day=dm[0];
+    if(day.match(/^\d{2}[./]/)){const p=day.split(/[./]/);day=`${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`;}
+    const fv2=(x)=>x>=0&&c[x]?parseFloat(c[x].replace(',','.')):null;
+    const entry={id:'w'+day.replace(/-/g,''),date:day,tmin:fv2(tmn),tmax:fv2(tmx),
+      humidity:fv2(hm),precip:fv2(rn)||0,leafwet:fv2(lf)||0,et0:fv2(e0)};
+    const idx=S.weather.findIndex(w=>w.date===day);
+    if(idx>=0){S.weather[idx]=entry;updated++;}else{S.weather.push(entry);added++;}
+  }
+  S.weather.sort((a,b)=>b.date.localeCompare(a.date));
+  save();renderWeather();renderParcels();
+  statusEl.innerHTML=`<div style="padding:8px 12px;background:rgba(107,221,107,.08);border:1px solid rgba(107,221,107,.3);border-radius:8px;font-size:11px;color:var(--accent);">OK ${added} дней · ${filename}</div>`;
 }
 
 function renderWeather() {
+  // Operator: show prominent import card
+  const opImport = document.getElementById('operator-import-card');
+  if (_currentRole === 'operator' && !opImport) {
+    const card = document.createElement('div');
+    card.id = 'operator-import-card';
+    card.style.cssText = 'padding:16px 20px;background:rgba(96,165,250,.08);border:2px dashed rgba(96,165,250,.3);border-radius:12px;margin-bottom:16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;';
+    card.innerHTML = `
+      <div style="font-size:28px;">📂</div>
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:700;color:var(--blue);margin-bottom:3px;">Импорт данных метеостанции (.xls)</div>
+        <div style="font-size:11px;color:var(--text2);">Загрузи файл отчёта с метеостанции — данные добавятся автоматически</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:2px;">Поддерживается: Davis, Agrometeo, NESA, любой XLS/CSV с колонками даты и температуры</div>
+      </div>
+      <button class="btn btn-primary" style="background:var(--blue);color:#fff;" onclick="document.getElementById('meteo-input').click()">
+        📂 Выбрать файл XLS
+      </button>`;
+    document.getElementById('panel-weather').insertBefore(card, document.getElementById('meteo-status'));
+  }
   const smith = checkSmithPeriod();
   const smithEl = document.getElementById('smith-period-block');
   smithEl.innerHTML = `<div class="smith-indicator ${smith?'smith-active':'smith-safe'}">
@@ -1737,59 +2860,113 @@ function renderWeather() {
 }
 
 // ── GDD / Phases ──────────────────────────────────────────────────────────
+function quickFixDate(parcelId, newDate) {
+  const p = S.parcels.find(x=>x.id===parcelId);
+  if (!p) return;
+  p.sowingDate = newDate;
+  save();
+  renderGdd();
+  renderParcels();
+}
+
 function renderGdd() {
   const sel = document.getElementById('gdd-parcel-sel');
+  const prevPid = sel.value; // save current selection before rebuilding
   sel.innerHTML = '<option value="">— Выберите участок —</option>';
   S.parcels.forEach(p => {
     const crop = getCropById(p.cropId);
-    sel.innerHTML += `<option value="${p.id}">${p.name}${crop?' ('+crop.emoji+' '+crop.name+')':''}`;
+    sel.innerHTML += `<option value="${p.id}" ${prevPid===p.id?'selected':''}>${p.name}${crop?' ('+crop.emoji+' '+crop.name+')':''}`;
   });
+  // Auto-select first parcel if nothing selected
+  if (!sel.value && S.parcels.length) {
+    sel.value = S.parcels[0].id;
+  }
   const pid = sel.value;
   if (!pid) { clearGddDisplay(); return; }
   const parcel = S.parcels.find(p=>p.id===pid);
   if (!parcel) return;
+
+  // Force normalize sowing date in memory and save
+  if (parcel.sowingDate) {
+    const norm = normalizeDate(parcel.sowingDate);
+    if (norm && norm !== parcel.sowingDate) {
+      parcel.sowingDate = norm;
+      save();
+    }
+  }
   const crop = getCropById(parcel.cropId);
   if (!crop) return;
   const gdd = calcParcelGdd(parcel);
   const phase = getParcelPhase(parcel);
   const alerts = runAlertsForParcel(parcel);
   const etc = calcParcelEtc(parcel);
+  const sowNorm = normalizeDate(parcel.sowingDate) || '1900-01-01';
+  const weatherAfterSowing = S.weather.filter(w => w.date >= sowNorm);
   // KPIs
-  const daysFromSowing = S.weather.filter(w=>w.date>=parcel.sowingDate).length;
-  const remainingGdd = Math.max(0, crop.gddToHarvest - gdd);
+  const daysFromSowing = weatherAfterSowing.length;
+  const remainingGdd = Math.max(0, (parcel.harvestGdd||crop.gddToHarvest) - gdd);
   const avgDailyGdd = daysFromSowing > 0 ? gdd/daysFromSowing : 0;
   const daysToHarvest = avgDailyGdd > 0 ? Math.round(remainingGdd/avgDailyGdd) : '—';
+
+  // Show diagnostic if GDD=0 but weather exists
+  if (gdd === 0 && S.weather.length > 0 && weatherAfterSowing.length === 0) {
+    document.getElementById('gdd-kpis').innerHTML = `
+      <div style="grid-column:1/-1;padding:16px;background:rgba(255,216,77,.08);border:1px solid rgba(255,216,77,.3);border-radius:10px;">
+        <div style="font-size:12px;font-weight:700;color:var(--yellow);margin-bottom:8px;">⚠️ GDD = 0 — дата посева не совпадает с погодными данными</div>
+        <div style="font-size:11px;color:var(--text2);line-height:1.8;">
+          📅 Дата посева: <strong style="color:var(--red);">${parcel.sowingDate}</strong> (нормализована: <strong>${sowNorm}</strong>)<br>
+          🌡️ Погода: ${S.weather[S.weather.length-1]?.date} — ${S.weather[0]?.date} (${S.weather.length} дней)<br>
+          ❌ Дней погоды после даты посева: <strong style="color:var(--red);">0</strong>
+        </div>
+        <div style="margin-top:10px;font-size:11px;color:var(--text2);">
+          Откройте <strong>🗺 Участки → Редактировать</strong> и проверьте дату посева.<br>
+          Или нажмите кнопку для быстрого исправления:
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+          <button class="btn btn-primary btn-sm" onclick="quickFixDate('${parcel.id}','2026-03-10')">🔧 Посев 10.03.2026</button>
+          <button class="btn btn-secondary btn-sm" onclick="quickFixDate('${parcel.id}','2026-04-01')">🔧 Посев 01.04.2026</button>
+          <button class="btn btn-secondary btn-sm" onclick="openParcelModal('${parcel.id}')">✏️ Редактировать участок</button>
+        </div>
+      </div>`;
+    document.getElementById('gdd-phase-bar').innerHTML = '';
+    document.getElementById('gdd-phase-legend').innerHTML = '';
+    document.getElementById('gdd-alerts').innerHTML = '';
+    document.getElementById('gdd-tbody').innerHTML = '';
+    return;
+  }
 
   // TDU for pea — special KPI
   let tduKpi = '';
   if (crop.id === 'pea') {
+    const tduTarget = parcel.harvestGdd || crop.tduTarget || 115;
+    const tduWindow = parcel.tduWindow || crop.tduWindow || 15;
     const tdu = Math.max(0, gdd - 540);
-    const tduTarget = crop.tduTarget || 115;
-    const tduWindow = crop.tduWindow || 15;
     const tduDaysLeft = avgDailyGdd > 0 && tdu < tduTarget ? Math.round((tduTarget - tdu) / avgDailyGdd) : 0;
     const inWindow = tdu >= tduTarget - tduWindow && tdu <= tduTarget + tduWindow;
     const overripe = tdu > tduTarget + tduWindow;
     const tduPct = Math.min(100, Math.round((tdu / (tduTarget + tduWindow)) * 100));
-    tduKpi = `<div class="kpi-card" style="${inWindow?'background:rgba(34,197,94,.12);border-color:rgba(34,197,94,.4)':overripe?'background:rgba(255,85,85,.1);border-color:rgba(255,85,85,.3)':''}">
+    tduKpi = `<div class="kpi-card" style="${inWindow?'background:rgba(34,197,94,.12);border-color:rgba(34,197,94,.4);':overripe?'background:rgba(255,85,85,.1);border-color:rgba(255,85,85,.3);':''}">
       <div class="kpi-val" style="color:${inWindow?'var(--accent)':overripe?'var(--red)':'var(--yellow)'};">${Math.round(tdu)}</div>
-      <div class="kpi-lbl">TDU (налив зерна)</div>
-      <div class="kpi-sub">${inWindow?'🌾 УБИРАТЬ!':overripe?'⚠️ Перезревание':tduDaysLeft>0?`До оптимума ~${tduDaysLeft} дн`:'GDD до налива ещё накапл.'}</div>
+      <div class="kpi-lbl">TDU · цель: ${tduTarget}</div>
+      <div class="kpi-sub">${inWindow?'🌾 УБИРАТЬ!':overripe?'⚠️ Перезревание':tduDaysLeft>0?`~${tduDaysLeft} дн до уборки`:'Накапливается'}</div>
       <div style="height:4px;background:var(--surface3);border-radius:2px;margin-top:6px;">
-        <div style="height:100%;width:${tduPct}%;background:${inWindow?'var(--accent)':overripe?'var(--red)':'var(--yellow)'};border-radius:2px;"></div>
+        <div style="height:100%;width:${tduPct}%;background:${inWindow?'var(--accent)':overripe?'var(--red)':'var(--yellow)'};border-radius:2px;transition:width .3s;"></div>
       </div>
+      <div style="font-size:9px;color:var(--text3);margin-top:4px;">±${tduWindow} TDU · ${parcel.harvestGdd?'от производителя':'стандарт'}</div>
     </div>`;
   }
 
   // R3 countdown for sweet corn
   let r3Kpi = '';
   if (crop.id === 'sweet_corn') {
-    const r3Gdd = 1350;
-    const inR3 = gdd >= r3Gdd && gdd <= 1500;
+    const r3Gdd = parcel.harvestGdd || 1350;
+    const inR3 = gdd >= r3Gdd && gdd <= r3Gdd + 150;
     const daysToR3 = avgDailyGdd > 0 && gdd < r3Gdd ? Math.round((r3Gdd - gdd) / avgDailyGdd) : null;
-    r3Kpi = `<div class="kpi-card" style="${inR3?'background:rgba(34,197,94,.12);border-color:rgba(34,197,94,.4)':gdd>1500?'background:rgba(255,85,85,.1);border-color:rgba(255,85,85,.3)':''}">
-      <div class="kpi-val" style="color:${inR3?'var(--accent)':gdd>1500?'var(--red)':'var(--yellow)'};">${Math.round(gdd)}/1350</div>
-      <div class="kpi-lbl">GDD до молочной зрелости</div>
-      <div class="kpi-sub">${inR3?'🌽 R3 — УБИРАТЬ! 7–10 дней':gdd>1500?'⚠️ Перезрела':daysToR3!==null?`До R3 ~${daysToR3} дн`:'Накапливается'}</div>
+    r3Kpi = `<div class="kpi-card" style="${inR3?'background:rgba(34,197,94,.12);border-color:rgba(34,197,94,.4);':gdd>r3Gdd+150?'background:rgba(255,85,85,.1);border-color:rgba(255,85,85,.3);':''}">
+      <div class="kpi-val" style="color:${inR3?'var(--accent)':gdd>r3Gdd+150?'var(--red)':'var(--yellow)'};">${Math.round(gdd)}/${r3Gdd}</div>
+      <div class="kpi-lbl">GDD молочная зрелость</div>
+      <div class="kpi-sub">${inR3?'🌽 УБИРАТЬ! 7–10 дней':gdd>r3Gdd+150?'⚠️ Перезрела':daysToR3!==null?`До R3 ~${daysToR3} дн`:'Накапливается'}</div>
+      <div style="font-size:9px;color:var(--text3);margin-top:4px;">${parcel.harvestGdd?'GDD от производителя':'стандарт R3'}</div>
     </div>`;
   }
   document.getElementById('gdd-kpis').innerHTML = `
@@ -1836,7 +3013,7 @@ function renderGdd() {
   let cumGdd=0;
   const gddSeries=[];
   sorted.forEach(w=>{
-    if(w.date<parcel.sowingDate) return;
+    if(w.date < sowNorm) return;
     const d=calcDailyGdd(w.tmin,w.tmax,crop.baseTemp);
     cumGdd+=d;
     const ph=crop.phases.find(p=>cumGdd>=p.gddFrom&&cumGdd<p.gddTo);
@@ -1856,56 +3033,200 @@ function renderGdd() {
 }
 
 function clearGddDisplay() {
-  ['gdd-kpis','gdd-phase-legend','gdd-alerts','gdd-tbody'].forEach(id=>{document.getElementById(id).innerHTML='';});
-  document.getElementById('gdd-phase-bar').innerHTML='';
+  document.getElementById('gdd-kpis').innerHTML = S.parcels.length === 0
+    ? `<div style="grid-column:1/-1;padding:24px;text-align:center;background:var(--surface2);border-radius:10px;border:1px solid var(--border);">
+        <div style="font-size:32px;margin-bottom:10px;">🌱</div>
+        <div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:8px;">Нет участков</div>
+        <div style="font-size:12px;color:var(--text3);margin-bottom:14px;">Перейдите в 🗺 Участки и добавьте участок с культурой и датой посева</div>
+        <button class="btn btn-primary" onclick="showTab('parcels');openParcelModal()">+ Добавить участок</button>
+      </div>`
+    : `<div style="grid-column:1/-1;padding:16px;text-align:center;color:var(--text3);font-size:12px;">
+        Выберите участок из списка выше чтобы увидеть GDD и фазы
+      </div>`;
+  document.getElementById('gdd-phase-bar').innerHTML = '';
+  document.getElementById('gdd-phase-legend').innerHTML = '';
+  document.getElementById('gdd-alerts').innerHTML = '';
+  document.getElementById('gdd-tbody').innerHTML = '';
 }
 
 // ── Diseases ──────────────────────────────────────────────────────────────
 let _disCropFilter = 'all';
+let _disParcelFilter = 'all'; // filter by parcel
+
 function renderDiseaseCropTabs() {
   const el = document.getElementById('dis-crop-tabs');
   const presentCrops = [...new Set(S.parcels.map(p=>p.cropId).filter(Boolean))];
   const allCrops = presentCrops.length ? presentCrops : CROPS.map(c=>c.id);
-  el.innerHTML = `<div class="crop-tab ${_disCropFilter==='all'?'active':''}" onclick="filterDiseases('all')">🌿 Все культуры</div>`;
-  CROPS.filter(c=>allCrops.includes(c.id)).forEach(c=>{
-    const count = DISEASES.filter(d=>d.cropIds.includes(c.id)).length;
-    el.innerHTML += `<div class="crop-tab ${_disCropFilter===c.id?'active':''}" onclick="filterDiseases('${c.id}')">${c.emoji} ${c.name} <span style="font-size:9px;padding:1px 5px;border-radius:8px;background:rgba(107,221,107,.15);color:var(--accent);">${count}</span></div>`;
+
+  // Build tabs: ALL + each parcel (not just crop)
+  let html = `<div class="crop-tab ${_disParcelFilter==='all'?'active':''}" onclick="filterDiseaseParcel('all')">🌿 Все участки</div>`;
+
+  S.parcels.forEach(p => {
+    const crop = getCropById(p.cropId);
+    if (!crop) return;
+    const phase = getParcelPhase(p);
+    const gdd = Math.round(calcParcelGdd(p));
+    const isActive = _disParcelFilter === p.id;
+    html += `<div class="crop-tab ${isActive?'active':''}" onclick="filterDiseaseParcel('${p.id}')"
+      style="flex-direction:column;align-items:flex-start;padding:8px 12px;height:auto;">
+      <div style="display:flex;align-items:center;gap:5px;">
+        <span>${crop.emoji}</span>
+        <span style="font-weight:700;">${p.name}</span>
+      </div>
+      <div style="font-size:9px;color:${isActive?'rgba(0,0,0,.6)':'var(--text3)'};margin-top:2px;">
+        ${phase?`${phase.name} · GDD ${gdd}`:'нет данных'}
+      </div>
+    </div>`;
   });
+
+  el.innerHTML = html;
 }
+
+function filterDiseaseParcel(parcelId) {
+  _disParcelFilter = parcelId;
+  _disCropFilter = parcelId === 'all' ? 'all'
+    : (S.parcels.find(p=>p.id===parcelId)?.cropId || 'all');
+  renderDiseases();
+}
+
 function filterDiseases(cropId) { _disCropFilter=cropId; renderDiseases(); }
 
 function renderDiseases() {
   renderDiseaseCropTabs();
-  let diseases = DISEASES;
-  if (_disCropFilter!=='all') diseases = diseases.filter(d=>d.cropIds.includes(_disCropFilter));
-  const sorted = diseases.map(d=>({...d,_risk:calcDiseaseRisk(d)})).sort((a,b)=>b._risk.score-a._risk.score);
+
   const LEVEL_COLORS={critical:'var(--red)',spray:'var(--orange)',watch:'var(--yellow)',ok:'var(--accent)'};
   const LEVEL_CLS={critical:'rb-critical',spray:'rb-spray',watch:'rb-watch',ok:'rb-ok'};
-  const TYPE_ICONS={fungal:'🍄',insect:'🐛',viral:'🦠',bacterial:'🧫'};
-  document.getElementById('disease-grid').innerHTML = sorted.map(d=>{
-    const r=d._risk;
-    const cropBadges=d.cropIds.map(cid=>{const c=getCropById(cid);return c?`<span>${c.emoji}</span>`:''}).join('');
-    return `<div class="risk-card" style="border-left-color:${LEVEL_COLORS[r.level]};">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+  const TYPE_LABELS={fungal:'Грибковое',insect:'Вредитель',viral:'Вирус',bacterial:'Бактерия'};
+  const TYPE_EMOJI={fungal:'🍄',insect:'🐛',viral:'🦠',bacterial:'🧫'};
+  const MULT_COLOR = m => m>=2.0?'var(--red)':m>=1.5?'var(--orange)':m>=1.0?'var(--yellow)':'var(--text3)';
+  const MULT_ICON  = m => m>=2.0?'🔴 ПИК':m>=1.5?'⚡ Высокий':m>=1.0?'➡️ Умеренный':m<=0.3?'✅ Вне зоны':'↘️ Низкий';
+
+  const grid = document.getElementById('disease-grid');
+
+  if (_disParcelFilter === 'all') {
+    // Show all parcels grouped
+    if (!S.parcels.length) {
+      grid.innerHTML = `<div style="grid-column:1/-1;color:var(--text3);text-align:center;padding:30px;">Добавьте участки чтобы увидеть риски болезней</div>`;
+      return;
+    }
+
+    let html = '';
+    S.parcels.forEach(parcel => {
+      const crop = getCropById(parcel.cropId);
+      if (!crop) return;
+      const phase = getParcelPhase(parcel);
+      const phaseName = phase?.name || null;
+      const gdd = Math.round(calcParcelGdd(parcel));
+
+      // Get diseases for this crop
+      const diseases = DISEASES.filter(d => d.cropIds.includes(parcel.cropId));
+      const scored = diseases.map(d => {
+        const risk = calcDiseaseRisk(d, parcel.cropId, phaseName);
+        return {...d, _risk:risk, _phase:phaseName};
+      }).sort((a,b) => b._risk.score - a._risk.score);
+
+      const critCount = scored.filter(d=>d._risk.level==='critical').length;
+      const sprayCount = scored.filter(d=>d._risk.level==='spray').length;
+      const watchCount = scored.filter(d=>d._risk.level==='watch').length;
+
+      html += `<div style="grid-column:1/-1;display:flex;align-items:center;gap:12px;padding:12px 16px;
+        background:var(--surface2);border-radius:10px;border:1px solid var(--border);margin-bottom:4px;cursor:pointer;"
+        onclick="filterDiseaseParcel('${parcel.id}')">
+        <span style="font-size:22px;">${crop.emoji}</span>
         <div>
-          <div style="font-weight:700;font-size:13px;">${TYPE_ICONS[d.type]||'🔬'} ${d.name} <span style="font-size:11px;">${cropBadges}</span></div>
-          <div style="font-size:10px;color:var(--text3);font-style:italic;">${d.latin}</div>
+          <div style="font-size:13px;font-weight:700;">${parcel.name} · ${crop.name} · ${parcel.variety||''}</div>
+          <div style="font-size:11px;color:${phase?.color||'var(--text3)'};">${phaseName||'нет данных'} · GDD ${gdd}</div>
         </div>
-        <span class="risk-badge ${LEVEL_CLS[r.level]}">${r.label}</span>
+        <div style="margin-left:auto;display:flex;gap:6px;align-items:center;">
+          ${critCount?`<span class="badge badge-red">🔴 ${critCount} крит</span>`:''}
+          ${sprayCount?`<span class="badge badge-orange">⚠️ ${sprayCount} spray</span>`:''}
+          ${watchCount?`<span class="badge badge-yellow">👁 ${watchCount}</span>`:''}
+          ${!critCount&&!sprayCount&&!watchCount?`<span class="badge badge-green">✅ норма</span>`:''}
+          <span style="font-size:11px;color:var(--text3);">→ подробнее</span>
+        </div>
+      </div>`;
+
+      // Show top 3 highest risk diseases inline
+      scored.filter(d=>d._risk.level!=='ok').slice(0,3).forEach(d => {
+        const r = d._risk;
+        html += buildDiseaseCard(d, r, parcel, LEVEL_COLORS, LEVEL_CLS, TYPE_EMOJI, TYPE_LABELS, MULT_COLOR, MULT_ICON);
+      });
+    });
+    grid.innerHTML = html;
+
+  } else {
+    // Single parcel view — show all diseases for this crop with phase info
+    const parcel = S.parcels.find(p=>p.id===_disParcelFilter);
+    if (!parcel) return;
+    const crop = getCropById(parcel.cropId);
+    if (!crop) return;
+    const phase = getParcelPhase(parcel);
+    const phaseName = phase?.name || null;
+    const gdd = Math.round(calcParcelGdd(parcel));
+
+    // Header with parcel info
+    const diseases = DISEASES.filter(d => d.cropIds.includes(parcel.cropId));
+    const scored = diseases.map(d => {
+      const risk = calcDiseaseRisk(d, parcel.cropId, phaseName);
+      return {...d, _risk:risk, _phase:phaseName};
+    }).sort((a,b) => b._risk.score - a._risk.score);
+
+    let html = `<div style="grid-column:1/-1;padding:12px 16px;background:var(--surface2);border-radius:10px;border:1px solid ${phase?.color||'var(--border)'};margin-bottom:8px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:24px;">${crop.emoji}</span>
+        <div>
+          <div style="font-size:14px;font-weight:700;">${parcel.name} · ${crop.name}${parcel.variety?' · '+parcel.variety:''}</div>
+          <div style="font-size:12px;color:${phase?.color||'var(--text3)'};">
+            📍 Фаза: <strong>${phaseName||'нет данных'}</strong> · GDD ${gdd} · ${parcel.ha}га · посев ${parcel.sowingDate}
+          </div>
+        </div>
+        <div style="margin-left:auto;font-size:11px;color:var(--text3);">
+          ${diseases.length} болезней/вредителей
+        </div>
       </div>
-      <div style="font-size:10px;color:var(--text3);margin-bottom:6px;">${d.type==='fungal'?'Грибковое':d.type==='insect'?'Вредитель':d.type==='viral'?'Вирус':'Бактерия'} · ${d.danger}/5</div>
-      <div class="risk-meter"><div class="risk-fill" style="width:${r.score}%;background:${LEVEL_COLORS[r.level]};"></div></div>
-      <div style="font-size:10px;color:var(--text2);margin-top:4px;margin-bottom:8px;">${r.reason}</div>
-      ${r.score>=30?`<div style="padding:8px 10px;background:rgba(239,68,68,.06);border-radius:6px;border:1px solid rgba(239,68,68,.2);margin-bottom:8px;">
-        <div style="font-size:10px;font-weight:700;color:var(--red);margin-bottom:3px;">⚠️ ПРОФИЛАКТИКА / ОБРАБОТКА</div>
-        <div style="font-size:11px;color:var(--text2);">${d.prevention}</div>
-        <div style="font-size:11px;color:var(--accent2);margin-top:4px;">💊 ${d.products}</div>
-      </div>`:''}
-      ${d.symptoms?`<details style="font-size:11px;color:var(--text3);cursor:pointer;">
-        <summary style="color:var(--text2);">Симптомы</summary><div style="margin-top:4px;">${d.symptoms}</div>
-      </details>`:''}
     </div>`;
-  }).join('');
+
+    html += scored.map(d => {
+      const r = d._risk;
+      return buildDiseaseCard(d, r, parcel, LEVEL_COLORS, LEVEL_CLS, TYPE_EMOJI, TYPE_LABELS, MULT_COLOR, MULT_ICON);
+    }).join('');
+
+    grid.innerHTML = html;
+  }
+}
+
+function buildDiseaseCard(d, r, parcel, LEVEL_COLORS, LEVEL_CLS, TYPE_EMOJI, TYPE_LABELS, MULT_COLOR, MULT_ICON) {
+  const pm = r.phaseMultiplier || 1;
+  const phaseName = d._phase;
+  const phaseRow = (phaseName && DISEASE_PHASE_RISK[d.id]) ? `
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:4px 8px;background:rgba(255,255,255,.04);border-radius:6px;flex-wrap:wrap;">
+      <span style="font-size:9px;color:var(--text3);">Фаза:</span>
+      <span style="font-size:10px;font-weight:600;color:var(--text2);">${phaseName}</span>
+      <span style="font-size:9px;padding:1px 6px;border-radius:8px;background:${MULT_COLOR(pm)}22;color:${MULT_COLOR(pm)};font-weight:700;">
+        ${MULT_ICON(pm)} ×${pm.toFixed(1)}
+      </span>
+    </div>` : phaseName ? `
+    <div style="font-size:9px;color:var(--text3);margin-bottom:6px;">Фаза: ${phaseName}</div>` : '';
+
+  return `<div class="risk-card" style="border-left-color:${LEVEL_COLORS[r.level]};">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
+      <div>
+        <div style="font-weight:700;font-size:13px;">${TYPE_EMOJI[d.type]||'🔬'} ${d.name}</div>
+        <div style="font-size:10px;color:var(--text3);font-style:italic;">${d.latin}</div>
+      </div>
+      <span class="risk-badge ${LEVEL_CLS[r.level]}">${r.label}</span>
+    </div>
+    ${phaseRow}
+    <div style="font-size:10px;color:var(--text3);margin-bottom:5px;">${TYPE_LABELS[d.type]||d.type} · ${d.danger}/5</div>
+    <div class="risk-meter"><div class="risk-fill" style="width:${r.score}%;background:${LEVEL_COLORS[r.level]};transition:width .4s;"></div></div>
+    <div style="font-size:10px;color:var(--text2);margin-top:4px;margin-bottom:8px;">${r.reason||'—'}</div>
+    ${r.score>=30?`<div style="padding:8px 10px;background:rgba(239,68,68,.06);border-radius:6px;border:1px solid rgba(239,68,68,.2);margin-bottom:8px;">
+      <div style="font-size:10px;font-weight:700;color:var(--red);margin-bottom:3px;">⚠️ ДЕЙСТВИЕ</div>
+      <div style="font-size:11px;color:var(--text2);">${d.prevention}</div>
+      <div style="font-size:11px;color:var(--accent2);margin-top:4px;">💊 ${d.products}</div>
+    </div>`:''}
+    ${d.symptoms?`<details style="font-size:11px;color:var(--text3);cursor:pointer;"><summary style="color:var(--text2);">Симптомы</summary><div style="margin-top:4px;">${d.symptoms}</div></details>`:''}
+  </div>`;
 }
 
 // ── Irrigation ────────────────────────────────────────────────────────────
@@ -1928,6 +3249,8 @@ function toggleIrrigInfo() {
         🥒 Огурец: 0.6 → 1.0 → 1.0 → 0.75<br>
         🥬 Кабачок: 0.5 → 0.95 → 0.95 → 0.75<br>
         🍆 Баклажан: 0.6 → 1.05 → 1.05 → 0.8<br>
+        🫛 Горошек: 0.5 → 0.7 → <strong>1.15</strong> (бутон–налив) → 0.85<br>
+        🌽 Кукуруза сладкая: 0.3 → 0.65 → <strong>1.2</strong> (VT–R2) → 0.9<br>
         <br>
         <strong style="color:var(--yellow);">⚠️ Критические периоды:</strong>
         Томат — цветение и завязь (дефицит = опадение цветков)<br>
@@ -1938,6 +3261,120 @@ function toggleIrrigInfo() {
   }
 }
 
+// ── Irrigation Journal ────────────────────────────────────────────────────
+function openIrrigModal(parcelId) {
+  document.getElementById('irr-date').value = today();
+  document.getElementById('irr-mm').value = '';
+  document.getElementById('irr-m3ha').value = '';
+  document.getElementById('irr-hours').value = '';
+  document.getElementById('irr-note').value = '';
+  document.getElementById('irrig-modal-hint').style.display = 'none';
+  // Populate parcel select
+  const sel = document.getElementById('irr-parcel');
+  sel.innerHTML = '<option value="">— выбрать —</option>';
+  S.parcels.forEach(p => {
+    const crop = getCropById(p.cropId);
+    sel.innerHTML += `<option value="${p.id}" ${parcelId===p.id?'selected':''}>${p.name}${crop?' · '+crop.emoji+' '+crop.name:''}</option>`;
+  });
+  if (parcelId) { sel.value = parcelId; fillIrrigParcel(); }
+  openModal('modal-irrigation');
+}
+
+function fillIrrigParcel() {
+  const pid = document.getElementById('irr-parcel').value;
+  const parcel = S.parcels.find(p=>p.id===pid);
+  const hint = document.getElementById('irrig-modal-hint');
+  if (!parcel) { hint.style.display='none'; return; }
+  const crop = getCropById(parcel.cropId);
+  const etc = calcParcelEtc(parcel);
+  const phase = getParcelPhase(parcel);
+  const gdd = Math.round(calcParcelGdd(parcel));
+  if (etc && crop) {
+    // Last irrigation for this parcel
+    const lastIrr = S.irrigations.filter(i=>i.parcelId===pid).sort((a,b)=>b.date.localeCompare(a.date))[0];
+    const daysSinceIrr = lastIrr ? Math.round((new Date(today())-new Date(lastIrr.date))/86400000) : null;
+    const soil = parcel.soil||'loam';
+    const raw = Math.round((SOIL_FC[soil]-SOIL_WP[soil])*0.35*crop.rootDepth*10);
+    const deficit = daysSinceIrr ? Math.round(etc.etc * daysSinceIrr) : null;
+    hint.style.display = 'block';
+    hint.innerHTML = `
+      <div style="font-weight:600;color:var(--blue);margin-bottom:6px;">💡 ${parcel.name} · ${crop.emoji} ${crop.name}${parcel.variety?' · '+parcel.variety:''}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;line-height:1.7;">
+        <div>📍 Фаза: <strong style="color:${phase?.color||'var(--text2)'};">${phase?.name||'—'}</strong></div>
+        <div>📈 GDD: ${gdd}</div>
+        <div>💧 ETc: <strong>${etc.etc} мм/день</strong> (Kc=${etc.kc})</div>
+        <div>📏 RAW: ${raw} мм (${soil})</div>
+        ${daysSinceIrr!==null?`<div>⏱ Последний полив: ${daysSinceIrr} дн назад (${lastIrr.date})</div>`:'<div>⏱ Поливов нет в базе</div>'}
+        ${deficit?`<div>🚨 Дефицит ≈ <strong style="color:var(--orange);">${deficit} мм</strong></div>`:''}
+        <div>🌾 Рек. норма: <strong>${Math.min(raw, etc.etc*4).toFixed(0)} мм</strong></div>
+        <div>📦 = ${Math.round(Math.min(raw,etc.etc*4)*10)} м³/га</div>
+      </div>`;
+  }
+}
+
+function syncIrrigM3() {
+  const m3 = parseFloat(document.getElementById('irr-m3ha').value)||0;
+  if (m3>0) document.getElementById('irr-mm').value = (m3/10).toFixed(1);
+}
+
+function fillIrrigFromEtc() {
+  const pid = document.getElementById('irr-parcel').value;
+  const parcel = S.parcels.find(p=>p.id===pid);
+  if (!parcel) { alert('Выберите участок'); return; }
+  const crop = getCropById(parcel.cropId);
+  const etc = calcParcelEtc(parcel);
+  if (!etc||!crop) return;
+  const soil = parcel.soil||'loam';
+  const raw = Math.round((SOIL_FC[soil]-SOIL_WP[soil])*0.35*crop.rootDepth*10);
+  const norm = Math.min(raw, Math.round(etc.etc*4));
+  document.getElementById('irr-mm').value = norm;
+  document.getElementById('irr-m3ha').value = norm * 10;
+}
+
+function saveIrrigation() {
+  const pid = document.getElementById('irr-parcel').value;
+  const date = document.getElementById('irr-date').value;
+  const mm = parseFloat(document.getElementById('irr-mm').value)||0;
+  if (!pid || !date) { alert('Выберите участок и дату'); return; }
+  if (!mm) { alert('Введите норму полива (мм)'); return; }
+  const parcel = S.parcels.find(p=>p.id===pid);
+  const crop = getCropById(parcel?.cropId);
+  const phase = getParcelPhase(parcel);
+  const ha = parseFloat(parcel?.ha)||1;
+  const entry = {
+    id: uid(), date, parcelId: pid,
+    parcelName: parcel?.name||'—',
+    cropId: parcel?.cropId||'',
+    cropName: crop?.name||'—',
+    variety: parcel?.variety||'',
+    phaseName: phase?.name||'—',
+    gdd: Math.round(calcParcelGdd(parcel||{})),
+    mm,
+    m3ha: Math.round(mm*10),
+    totalM3: Math.round(mm*10*ha),
+    method: document.getElementById('irr-method').value,
+    hours: parseFloat(document.getElementById('irr-hours').value)||null,
+    note: document.getElementById('irr-note').value.trim(),
+  };
+  S.irrigations.push(entry);
+  S.irrigations.sort((a,b)=>b.date.localeCompare(a.date));
+  save(); closeModal('modal-irrigation'); renderIrrigation();
+}
+
+function deleteIrrigation(id) {
+  if(!confirm('Удалить запись?'))return;
+  S.irrigations = S.irrigations.filter(i=>i.id!==id);
+  save(); renderIrrigation();
+}
+
+function exportIrrigation() {
+  const rows=[['Дата','Участок','Культура','Сорт','Фаза','GDD','мм','м³/га','Итого м³','Метод','Часов','Примечание']];
+  S.irrigations.forEach(i=>rows.push([i.date,i.parcelName,i.cropName,i.variety,i.phaseName,i.gdd,i.mm,i.m3ha,i.totalM3,i.method,i.hours||'',i.note]));
+  const csv=rows.map(r=>r.join(';')).join('\n');
+  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
+  a.download='polivy_'+today()+'.csv';a.click();
+}
+
 function renderIrrigation() {
   const latest = S.weather[0];
   if (!S.parcels.length) {
@@ -1946,20 +3383,58 @@ function renderIrrigation() {
     return;
   }
   // ETc table
-  let html = `<div style="font-family:'Unbounded',sans-serif;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:2px;margin-bottom:10px;">💧 Водопотребность культур · ET₀ ≈ ${latest?((parseFloat(latest.et0)||estimateET0(parseFloat(latest.tmin),parseFloat(latest.tmax),latest.date)).toFixed(1))+'мм/день':'-'} (${latest?.date||'нет данных'})</div>`;
-  html += `<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:16px;">`;
-  html += `<div class="etc-row" style="background:var(--surface2);font-family:'Unbounded',sans-serif;font-size:9px;color:var(--text3);">
-    <div>УЧАСТОК / КУЛЬТУРА</div><div>Kc</div><div>ETc мм/день</div><div>ФАЗА</div></div>`;
+  const recentWeather = S.weather.slice(0, 3);
+  const lat = recentWeather[0];
+  let et0display = 0;
+  if (lat) {
+    et0display = parseFloat(lat.et0) || 0;
+    if (!et0display) {
+      const vals = recentWeather.map(w=>estimateET0(parseFloat(w.tmin),parseFloat(w.tmax),w.date)).filter(v=>v>0);
+      et0display = vals.length ? vals.reduce((a,b)=>a+b)/vals.length : 0;
+    }
+    et0display = Math.round(et0display*10)/10;
+  }
+
+  let html = `<div style="font-family:'Unbounded',sans-serif;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:2px;margin-bottom:10px;">
+    💧 Водопотребность культур · ET₀ = <strong style="color:var(--blue);">${et0display} мм/день</strong>
+    ${lat?`(${lat.date} · Hargreaves-Samani)`:''}
+  </div>`;
+
+  html += `<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:16px;">
+    <div style="display:grid;grid-template-columns:2fr 60px 80px 80px 90px 90px 80px;gap:8px;padding:8px 14px;background:var(--surface2);font-family:'Unbounded',sans-serif;font-size:9px;color:var(--text3);text-transform:uppercase;">
+      <div>УЧАСТОК / КУЛЬТУРА</div><div>Kc</div><div>ETc мм/д</div>
+      <div>м³/га/д</div><div>Итого м³/д</div><div>ФАЗА</div><div>ПОЛИВ через</div>
+    </div>`;
+
   S.parcels.forEach(parcel => {
     const crop = getCropById(parcel.cropId);
     const phase = getParcelPhase(parcel);
     const etc = calcParcelEtc(parcel);
-    if (!crop||!etc) return;
-    html += `<div class="etc-row">
-      <div><strong>${parcel.name}</strong><br><span style="font-size:10px;color:var(--text3);">${crop.emoji} ${crop.name} · ${parcel.ha}га</span></div>
-      <div style="font-family:'JetBrains Mono',monospace;color:var(--blue);">${etc.kc}</div>
-      <div style="font-family:'JetBrains Mono',monospace;font-weight:700;font-size:14px;color:var(--accent);">${etc.etc} мм</div>
-      <div style="font-size:11px;color:${phase?.color||'var(--text3)'};">${phase?.name||'—'}</div>
+    if (!crop || !etc) return;
+
+    // RAW calculation for irrigation interval
+    const soil = parcel.soil || 'loam';
+    const fc = SOIL_FC[soil] || 0.25;
+    const wp = SOIL_WP[soil] || 0.10;
+    const raw = Math.round((fc - wp) * 0.35 * crop.rootDepth * 10); // mm
+    const interval = etc.etc > 0 ? Math.round(raw / etc.etc) : '—';
+
+    // Color by urgency
+    const urgency = etc.etc >= 5 ? 'var(--red)' : etc.etc >= 3 ? 'var(--orange)' : etc.etc >= 1.5 ? 'var(--accent)' : 'var(--text2)';
+
+    html += `<div style="display:grid;grid-template-columns:2fr 60px 80px 80px 90px 90px 80px;gap:8px;padding:10px 14px;border-top:1px solid var(--border);align-items:center;">
+      <div>
+        <div style="font-size:12px;font-weight:600;">${parcel.name}</div>
+        <div style="font-size:10px;color:var(--text3);">${crop.emoji} ${crop.name}${parcel.variety?' · '+parcel.variety:''} · ${parcel.ha}га</div>
+      </div>
+      <div style="font-family:'JetBrains Mono',monospace;color:var(--blue);font-size:12px;">${etc.kc}</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-weight:700;font-size:14px;color:${urgency};">${etc.etc}</div>
+      <div style="font-family:'JetBrains Mono',monospace;color:var(--text2);font-size:12px;">${etc.m3perHa}</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-weight:700;color:${urgency};font-size:13px;">${etc.totalM3} м³</div>
+      <div style="font-size:10px;color:${phase?.color||'var(--text3)'};">${phase?.name||'—'}</div>
+      <div style="font-size:11px;color:${interval<=2?'var(--red)':interval<=4?'var(--yellow)':'var(--text3)'};">
+        ${interval !== '—' ? `~${interval} дн` : '—'}
+      </div>
     </div>`;
   });
   html += '</div>';
@@ -1993,93 +3468,510 @@ function renderIrrigation() {
     </div>`;
   }).filter(Boolean).join('');
   document.getElementById('irrig-recs').innerHTML = recs||`<div style="color:var(--text3);font-size:12px;padding:20px;text-align:center;">Нет данных о погоде</div>`;
+
+  // Populate parcel filter
+  const pf = document.getElementById('irrig-parcel-filter');
+  const curPf = pf.value;
+  pf.innerHTML = '<option value="">Все участки</option>';
+  S.parcels.forEach(p => pf.innerHTML += `<option value="${p.id}" ${curPf===p.id?'selected':''}>${p.name}</option>`);
+
+  // Render irrigation journal
+  const filterPid = pf.value;
+  let irrigs = S.irrigations;
+  if (filterPid) irrigs = irrigs.filter(i=>i.parcelId===filterPid);
+
+  const METHOD_LABELS = {drip:'💧 Капельное',sprinkler:'🌧 Дождевание',furrow:'〰️ Бороздковое',flood:'🌊 Поверхностное',manual:'🪣 Вручную'};
+
+  // Summary stats
+  const totalM3ThisMonth = irrigs.filter(i=>i.date>=today().slice(0,7)).reduce((s,i)=>s+i.totalM3,0);
+  const lastIrrDate = irrigs[0]?.date;
+
+  document.getElementById('irrig-tbody').innerHTML = irrigs.length
+    ? irrigs.map(irr => {
+        const parcel = S.parcels.find(p=>p.id===irr.parcelId);
+        const crop = getCropById(irr.cropId);
+        return `<tr>
+          <td style="font-family:'JetBrains Mono',monospace;font-size:11px;">${irr.date}</td>
+          <td style="font-weight:600;">${irr.parcelName}</td>
+          <td style="font-size:11px;color:var(--text2);">${crop?.emoji||''} ${irr.cropName}${irr.variety?' · '+irr.variety:''}</td>
+          <td><span style="font-size:10px;padding:2px 7px;border-radius:8px;background:rgba(107,221,107,.1);color:var(--accent);">${irr.phaseName}</span></td>
+          <td style="font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--blue);">${irr.mm} мм</td>
+          <td style="font-family:'JetBrains Mono',monospace;color:var(--text2);">${irr.m3ha}</td>
+          <td style="font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--accent);">${irr.totalM3} м³</td>
+          <td style="font-size:11px;">${METHOD_LABELS[irr.method]||irr.method}</td>
+          <td style="font-size:11px;color:var(--text3);">${irr.note||'—'}</td>
+          <td>
+            <button class="btn btn-secondary btn-xs" onclick="openIrrigModal('${irr.parcelId}')">📋</button>
+            <button class="btn btn-danger btn-xs" onclick="deleteIrrigation('${irr.id}')">✕</button>
+          </td>
+        </tr>`;
+      }).join('')
+    : `<tr><td colspan="10" style="text-align:center;color:var(--text3);padding:20px;">
+        Поливов не записано. Нажмите <strong>+ Внести полив</strong> чтобы добавить.
+      </td></tr>`;
 }
 
 // ── Treatments ────────────────────────────────────────────────────────────
-function openTreatmentModal() {
-  document.getElementById('t-date').value = today();
-  const parcelSel = document.getElementById('t-parcel');
-  parcelSel.innerHTML = '<option value="">— выбрать —</option>';
-  S.parcels.forEach(p=>parcelSel.innerHTML+=`<option value="${p.id}">${p.name}</option>`);
-  const prodSel = document.getElementById('t-product');
-  prodSel.innerHTML = '<option value="">— выбрать из справочника —</option>';
-  S.catalog.forEach(c=>prodSel.innerHTML+=`<option value="${c.id}">${c.name}</option>`);
+// ═══ COMPATIBILITY DATABASE ═══════════════════════════════════════════════
+const INCOMPAT = [
+  ['Бордоская','Ридомил'],['Медь','Фосфат'],['Са-нитрат','Фосфат'],
+  ['Са-нитрат','Сульфат'],['MAP','Са-нитрат'],['Карбамид','Кальций'],
+  ['Сера','Масло'],['Сера','Каптан'],['Сера','Карбамат'],
+];
+const RESISTANCE_GROUPS = {
+  'Ридомил Голд':{frac:'4',group:'Фениламиды'},'Инфинито':{frac:'43+28',group:'Флуопиколид'},
+  'Квадрис':{frac:'11',group:'QoI Стробилурины'},'Свитч':{frac:'9+12',group:'Аниламиды+Фенилпирролы'},
+  'Скор':{frac:'3',group:'ДМИ Триазолы'},'Топаз':{frac:'3',group:'ДМИ Триазолы'},
+  'Хорус':{frac:'9',group:'Аниламиды'},'Курзат':{frac:'4+M1',group:'Фениламид+Медь'},
+  'Актара':{irac:'4a',group:'Неоникотиноиды'},'Конфидор':{irac:'4a',group:'Неоникотиноиды'},
+  'Биотлин':{irac:'4a',group:'Неоникотиноиды'},'Децис':{irac:'3',group:'Пиретроиды'},
+  'Каратэ':{irac:'3',group:'Пиретроиды'},'Коряген':{irac:'28',group:'Диамиды'},
+  'Спинтор':{irac:'5',group:'Спинозины'},'Ниссоран':{irac:'10a',group:'Клофентезин'},
+  'Санмайт':{irac:'21a',group:'METI-акарициды'},'Пиримор':{irac:'1b',group:'Карбаматы'},
+};
+
+function checkTankCompat(names) {
+  const warns = [];
+  for(let i=0;i<names.length;i++) for(let j=i+1;j<names.length;j++) {
+    for(const [x,y] of INCOMPAT) {
+      if((names[i].includes(x)&&names[j].includes(y))||(names[i].includes(y)&&names[j].includes(x)))
+        warns.push(`❌ ${names[i]} + ${names[j]} несовместимы`);
+    }
+  }
+  return warns;
+}
+
+function checkRotation(productName, parcelId) {
+  const group = RESISTANCE_GROUPS[productName];
+  if(!group) return null;
+  const key = group.frac||group.irac;
+  const recent = S.treatments.filter(t=>t.parcelId===parcelId)
+    .sort((a,b)=>b.date.localeCompare(a.date)).slice(0,6);
+  const sameGroup = recent.filter(t=>(t.products||[]).some(p=>{
+    const g=RESISTANCE_GROUPS[p.name]; return g&&(g.frac||g.irac)===key;
+  }));
+  return sameGroup.length>=2?{warning:`⚠️ РОТАЦИЯ: ${productName} (гр.${key}/${group.group}) применён ${sameGroup.length}× подряд — смените FRAC/IRAC группу!`}:null;
+}
+
+let _treatProductRows = [];
+let _editTreatId = null;
+let _treatView = 'grouped';
+
+function setTreatView(v) {
+  _treatView = v;
+  ['grouped','table'].forEach(x=>{
+    document.getElementById('tv-'+x)?.classList.toggle('active',x===v);
+    const el=document.getElementById('treatment-'+x); if(el) el.style.display=x===v?'':'none';
+  });
+  renderTreatments();
+}
+
+function openTreatmentModal(treatId) {
+  _editTreatId = treatId||null;
+  _treatProductRows = [];
+  const t = treatId ? S.treatments.find(x=>x.id===treatId) : null;
+  document.getElementById('t-modal-title').textContent = t?'✏️ Редактировать обработку':'💊 Новая обработка';
+  document.getElementById('t-date').value = t?.date||today();
+  document.getElementById('t-method').value = t?.method||'foliar';
+  document.getElementById('t-volume').value = t?.volume||300;
+  document.getElementById('t-note').value = t?.note||'';
+  document.getElementById('t-delete-btn').style.display = t?'block':'none';
+  document.getElementById('t-compat-warning').style.display='none';
+  document.getElementById('t-rotation-warning').style.display='none';
+  document.getElementById('t-tank-order').style.display='none';
+  const psel=document.getElementById('t-parcel');
+  psel.innerHTML='<option value="">— выбрать —</option>';
+  S.parcels.forEach(p=>{const c=getCropById(p.cropId);psel.innerHTML+=`<option value="${p.id}" ${t?.parcelId===p.id?'selected':''}>${p.name}${c?' · '+c.emoji:''}</option>`;});
+  const csel=document.getElementById('t-copy-from');
+  csel.innerHTML='<option value="">— скопировать из предыдущей —</option>';
+  [...S.treatments].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,15).forEach(tr=>{
+    const names=(tr.products||[]).map(p=>p.name).join(', ');
+    csel.innerHTML+=`<option value="${tr.id}">${tr.date} · ${tr.parcelName||'—'} · ${names}</option>`;
+  });
+  if(t?.products?.length) t.products.forEach(p=>_treatProductRows.push({...p}));
+  else _treatProductRows.push({name:'',type:'fungicide',dose:'',whi:'',catId:''});
+  renderTreatProductRows();
   openModal('modal-treatment');
 }
-function fillTreatProduct() {
-  const id = document.getElementById('t-product').value;
-  const item = S.catalog.find(c=>c.id===id);
-  if (!item) return;
-  document.getElementById('t-product-manual').value = item.name;
-  document.getElementById('t-dose').value = item.dose||'';
-  document.getElementById('t-whi').value = item.whi||'';
-  document.getElementById('t-type').value = item.type||'fungicide';
+
+function onTreatParcelChange(){updateTreatChecks();}
+
+function addTreatProductRow(prefill){
+  _treatProductRows.push(prefill||{name:'',type:'fungicide',dose:'',whi:'',catId:''});
+  renderTreatProductRows();
 }
-function saveTreatment() {
-  const parcelId = document.getElementById('t-parcel').value;
-  const product = document.getElementById('t-product-manual').value.trim()||document.getElementById('t-product').options[document.getElementById('t-product').selectedIndex]?.text||'';
-  if (!product) { alert('Введите название препарата'); return; }
-  const parcel = S.parcels.find(p=>p.id===parcelId);
-  const crop = getCropById(parcel?.cropId);
-  const t = {
-    id:uid(), date:document.getElementById('t-date').value,
-    parcelId, parcelName:parcel?.name||'—',
-    cropId:parcel?.cropId||'', cropName:crop?.name||'—',
-    product, type:document.getElementById('t-type').value,
-    dose:document.getElementById('t-dose').value,
-    whi:parseInt(document.getElementById('t-whi').value)||0,
-    method:document.getElementById('t-method').value,
-    note:document.getElementById('t-note').value,
+
+function removeTreatProductRow(idx){
+  _treatProductRows.splice(idx,1);
+  if(!_treatProductRows.length) _treatProductRows.push({name:'',type:'fungicide',dose:'',whi:''});
+  renderTreatProductRows();
+}
+
+function renderTreatProductRows(){
+  const TC={fungicide:'var(--teal)',insecticide:'var(--orange)',herbicide:'var(--yellow)',
+    fertilizer:'var(--accent)',acaricide:'var(--purple)',adjuvant:'var(--blue)',other:'var(--text3)'};
+  const TL={fungicide:'Фунгицид',insecticide:'Инсектицид',herbicide:'Гербицид',
+    fertilizer:'Удобрение',acaricide:'Акарицид',adjuvant:'Адъювант',other:'Другое'};
+  document.getElementById('t-products-list').innerHTML=_treatProductRows.map((row,idx)=>`
+    <div style="display:grid;grid-template-columns:1fr 120px 90px 60px 70px 30px;gap:5px;align-items:center;
+      padding:8px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);margin-bottom:4px;">
+      <div>
+        <select onchange="onTreatProductSelect(${idx},this.value)"
+          style="width:100%;background:var(--surface3);border:1px solid var(--border);border-radius:6px;padding:5px 7px;color:var(--text);font-size:11px;margin-bottom:4px;">
+          <option value="">— из справочника —</option>
+          ${S.catalog.map(c=>`<option value="${c.id}" ${row.catId===c.id?'selected':''}>${c.name}</option>`).join('')}
+        </select>
+        <input type="text" value="${row.name||''}" placeholder="или ввести вручную"
+          oninput="_treatProductRows[${idx}].name=this.value;updateTreatChecks()"
+          style="width:100%;background:var(--surface3);border:1px solid var(--border);border-radius:6px;padding:5px 7px;color:var(--text);font-size:11px;">
+      </div>
+      <select onchange="_treatProductRows[${idx}].type=this.value;renderTreatProductRows()"
+        style="background:${TC[row.type]||'var(--surface2)'}22;border:1px solid ${TC[row.type]||'var(--border)'};border-radius:6px;padding:5px 7px;color:${TC[row.type]||'var(--text)'};font-size:11px;">
+        ${Object.entries(TL).map(([v,l])=>`<option value="${v}" ${row.type===v?'selected':''}>${l}</option>`).join('')}
+      </select>
+      <input type="text" value="${row.dose||''}" placeholder="доза/га"
+        oninput="_treatProductRows[${idx}].dose=this.value"
+        style="background:var(--surface3);border:1px solid var(--border);border-radius:6px;padding:5px 7px;color:var(--text);font-size:11px;">
+      <input type="number" value="${row.whi||''}" placeholder="WHI"
+        oninput="_treatProductRows[${idx}].whi=parseInt(this.value)||0"
+        style="background:var(--surface3);border:1px solid var(--border);border-radius:6px;padding:5px 7px;color:var(--text);font-size:11px;">
+      <div style="font-size:9px;color:var(--yellow);text-align:center;">${(()=>{const g=RESISTANCE_GROUPS[row.name];return g?`${g.frac?'F'+g.frac:'I'+g.irac}`:'—';})()}</div>
+      <button onclick="removeTreatProductRow(${idx})"
+        style="width:26px;height:26px;border:none;background:rgba(255,85,85,.15);color:var(--red);border-radius:6px;cursor:pointer;">✕</button>
+    </div>`).join('');
+  updateTreatChecks();
+}
+
+function onTreatProductSelect(idx,catId){
+  const item=S.catalog.find(c=>c.id===catId);
+  if(!item) return;
+  _treatProductRows[idx]={..._treatProductRows[idx],catId,name:item.name,type:item.type,dose:item.dose||'',whi:item.whi||0};
+  renderTreatProductRows();
+}
+
+function updateTreatChecks(){
+  const names=_treatProductRows.map(r=>r.name).filter(Boolean);
+  const parcelId=document.getElementById('t-parcel')?.value;
+  const cw=checkTankCompat(names);
+  const cwEl=document.getElementById('t-compat-warning');
+  if(cw.length){cwEl.style.display='block';cwEl.innerHTML='<strong>⚗️ Несовместимость в баке:</strong><br>'+cw.join('<br>');}
+  else cwEl.style.display='none';
+  const rw=[];
+  if(parcelId) names.forEach(n=>{const r=checkRotation(n,parcelId);if(r)rw.push(r.warning);});
+  const rwEl=document.getElementById('t-rotation-warning');
+  if(rw.length){rwEl.style.display='block';rwEl.innerHTML='<strong>🔄 Риск резистентности:</strong><br>'+rw.join('<br>');}
+  else rwEl.style.display='none';
+  if(names.length>=2){
+    const ord={fungicide:2,herbicide:2,insecticide:3,fertilizer:1,acaricide:3,adjuvant:9,other:5};
+    const sorted=[..._treatProductRows].filter(r=>r.name).sort((a,b)=>(ord[a.type]||5)-(ord[b.type]||5));
+    document.getElementById('t-tank-order-text').innerHTML=
+      '<span style="color:var(--text3);">½ воды →</span> '+
+      sorted.map((r,i)=>`<strong>${i+1}. ${r.name}</strong> (${r.dose||'—'})`).join(' → ')+
+      ' <span style="color:var(--text3);">→ долить воду → опрыскивать</span>';
+    document.getElementById('t-tank-order').style.display='block';
+  } else document.getElementById('t-tank-order').style.display='none';
+}
+
+function copyFromTreatment(){
+  const id=document.getElementById('t-copy-from').value; if(!id) return;
+  const t=S.treatments.find(x=>x.id===id); if(!t) return;
+  _treatProductRows=(t.products||[]).map(p=>({...p}));
+  if(!_treatProductRows.length) _treatProductRows.push({name:'',type:'fungicide',dose:'',whi:''});
+  document.getElementById('t-method').value=t.method||'foliar';
+  document.getElementById('t-volume').value=t.volume||300;
+  document.getElementById('t-note').value=t.note||'';
+  if(t.parcelId) document.getElementById('t-parcel').value=t.parcelId;
+  renderTreatProductRows();
+}
+
+function saveTreatment(){
+  const date=document.getElementById('t-date').value;
+  const parcelId=document.getElementById('t-parcel').value;
+  if(!date){alert('Введите дату');return;}
+  if(!parcelId){alert('Выберите участок');return;}
+  const products=_treatProductRows.filter(r=>r.name?.trim());
+  if(!products.length){alert('Добавьте хотя бы один препарат');return;}
+  const parcel=S.parcels.find(p=>p.id===parcelId);
+  const crop=getCropById(parcel?.cropId);
+  const phase=getParcelPhase(parcel);
+  const maxWhi=Math.max(0,...products.map(p=>parseInt(p.whi)||0));
+  const whiDate=maxWhi>0?new Date(new Date(date).getTime()+maxWhi*86400000).toISOString().slice(0,10):null;
+  const entry={
+    id:_editTreatId||uid(),date,parcelId,
+    parcelName:parcel?.name||'—',cropId:parcel?.cropId||'',
+    cropName:crop?.name||'—',variety:parcel?.variety||'',
+    phaseName:phase?.name||'—',gdd:Math.round(calcParcelGdd(parcel||{})),
+    products,method:document.getElementById('t-method').value,
+    volume:parseInt(document.getElementById('t-volume').value)||300,
+    note:document.getElementById('t-note').value.trim(),
+    maxWhi,whiDate,
   };
-  S.treatments.push(t);
+  if(_editTreatId){const idx=S.treatments.findIndex(t=>t.id===_editTreatId);if(idx>=0)S.treatments[idx]=entry;}
+  else S.treatments.push(entry);
   S.treatments.sort((a,b)=>b.date.localeCompare(a.date));
-  save(); closeModal('modal-treatment'); renderTreatments();
+  save();closeModal('modal-treatment');renderTreatments();
 }
-function renderTreatments() {
-  const pFilter = document.getElementById('tr-parcel-filter');
-  const cFilter = document.getElementById('tr-crop-filter');
-  const tFilter = document.getElementById('tr-type-filter');
-  // Populate filters
-  const curP=pFilter.value, curC=cFilter.value;
-  pFilter.innerHTML='<option value="">Все участки</option>';
-  S.parcels.forEach(p=>pFilter.innerHTML+=`<option value="${p.id}" ${curP===p.id?'selected':''}>${p.name}</option>`);
-  cFilter.innerHTML='<option value="">Все культуры</option>';
-  CROPS.forEach(c=>cFilter.innerHTML+=`<option value="${c.id}" ${curC===c.id?'selected':''}>${c.emoji} ${c.name}</option>`);
-  let treatments = [...S.treatments];
-  if(pFilter.value) treatments=treatments.filter(t=>t.parcelId===pFilter.value);
-  if(cFilter.value) treatments=treatments.filter(t=>t.cropId===cFilter.value);
-  if(tFilter.value) treatments=treatments.filter(t=>t.type===tFilter.value);
-  const TYPE_LABELS={fungicide:'Фунгицид',insecticide:'Инсектицид',herbicide:'Гербицид',fertilizer:'Удобрение',acaricide:'Акарицид',other:'Другое'};
-  const TYPE_COLORS={fungicide:'var(--teal)',insecticide:'var(--orange)',herbicide:'var(--yellow)',fertilizer:'var(--accent)',acaricide:'var(--purple)',other:'var(--text3)'};
-  document.getElementById('treatment-tbody').innerHTML = treatments.length
-    ? treatments.map(t=>{
-        const wEnd = t.whi>0&&t.date?new Date(new Date(t.date).getTime()+t.whi*86400000).toISOString().slice(0,10):'—';
-        const overdue = t.whi>0&&wEnd>today();
-        return `<tr>
-          <td style="font-family:'JetBrains Mono',monospace;font-size:11px;">${t.date}</td>
-          <td style="font-size:12px;font-weight:600;">${t.parcelName||'—'}</td>
-          <td style="font-size:11px;color:var(--text2);">${t.cropName||'—'}</td>
-          <td style="font-weight:600;">${t.product}</td>
-          <td><span style="font-size:10px;padding:2px 7px;border-radius:8px;background:${TYPE_COLORS[t.type]||'var(--text3)'}22;color:${TYPE_COLORS[t.type]||'var(--text3)'};">${TYPE_LABELS[t.type]||t.type}</span></td>
-          <td style="font-size:11px;">${t.dose||'—'}</td>
-          <td style="font-size:10px;color:var(--text3);">${t.note||'—'}</td>
-          <td style="font-size:10px;${overdue?'color:var(--red);':'color:var(--text3);'}">${overdue?'⚠️ ':''}${wEnd}</td>
-          <td><button class="btn btn-danger btn-xs" onclick="deleteTreatment('${t.id}')">✕</button></td>
-        </tr>`;
-      }).join('')
-    : `<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:20px;">Обработок нет</td></tr>`;
+
+function deleteTreatmentFromModal(){
+  if(!_editTreatId||!confirm('Удалить обработку?'))return;
+  S.treatments=S.treatments.filter(t=>t.id!==_editTreatId);
+  save();closeModal('modal-treatment');renderTreatments();
 }
-function deleteTreatment(id) {
-  if(!confirm('Удалить обработку?'))return;
+
+function deleteTreatment(id){
+  if(!confirm('Удалить?'))return;
   S.treatments=S.treatments.filter(t=>t.id!==id);
   save();renderTreatments();
 }
+
+function renderTreatments(){
+  const pf=document.getElementById('tr-parcel-filter');
+  const tf=document.getElementById('tr-type-filter');
+  const curP=pf?.value||'';
+  if(pf){pf.innerHTML='<option value="">Все участки</option>';S.parcels.forEach(p=>pf.innerHTML+=`<option value="${p.id}" ${curP===p.id?'selected':''}>${p.name}</option>`);}
+  const typeFilter=tf?.value||'';
+  const parcelFilter=pf?.value||'';
+  let treatments=[...S.treatments];
+  if(parcelFilter) treatments=treatments.filter(t=>t.parcelId===parcelFilter);
+  if(typeFilter) treatments=treatments.filter(t=>(t.products||[]).some(p=>p.type===typeFilter)||t.type===typeFilter);
+  const TC={fungicide:'var(--teal)',insecticide:'var(--orange)',herbicide:'var(--yellow)',
+    fertilizer:'var(--accent)',acaricide:'var(--purple)',adjuvant:'var(--blue)',other:'var(--text3)'};
+  const TL={fungicide:'Фунг',insecticide:'Инсект',herbicide:'Герб',fertilizer:'Удобр',acaricide:'Акар',adjuvant:'Адъюв',other:'Др'};
+  const MI={foliar:'🌿',soil:'🌱',drip:'💧',seed:'🌾',trunk:'🌳'};
+  // Stats
+  const se=document.getElementById('treatment-stats');
+  if(se){
+    const bt={};treatments.forEach(t=>(t.products||[]).forEach(p=>{bt[p.type]=(bt[p.type]||0)+1;}));
+    const aw=treatments.filter(t=>t.whiDate&&t.whiDate>today()).length;
+    se.innerHTML=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
+      <span class="badge badge-blue">${treatments.length} обработок</span>
+      ${aw?`<span class="badge badge-red">⏳ ${aw} в WHI</span>`:''}
+      ${Object.entries(bt).map(([t,c])=>`<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:${TC[t]||'var(--surface2)'}22;color:${TC[t]||'var(--text3)'};">${TL[t]||t}:${c}</span>`).join('')}
+    </div>`;
+  }
+  if(_treatView==='grouped'){
+    const byDate={};
+    treatments.forEach(t=>{if(!byDate[t.date])byDate[t.date]=[];byDate[t.date].push(t);});
+    const ge=document.getElementById('treatment-grouped');
+    if(!treatments.length){ge.innerHTML=`<div style="text-align:center;color:var(--text3);padding:30px;">Обработок нет. Нажмите + Обработка.</div>`;return;}
+    ge.innerHTML=Object.keys(byDate).sort().reverse().map(date=>{
+      const day=byDate[date];
+      const total=day.flatMap(t=>t.products||[]).length;
+      const hasWhi=day.some(t=>t.whiDate&&t.whiDate>today());
+      return `<div style="margin-bottom:16px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+          <div style="font-family:'Unbounded',sans-serif;font-size:11px;font-weight:700;color:var(--text2);">📅 ${date}</div>
+          <span style="font-size:10px;padding:2px 8px;border-radius:10px;background:var(--surface2);color:var(--text3);">${day.length} обработок · ${total} препаратов</span>
+          ${hasWhi?`<span class="badge badge-red">⏳ WHI</span>`:''}
+        </div>
+        ${day.map(t=>{
+          const ow=t.whiDate&&t.whiDate>today();
+          return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;${ow?'border-left:3px solid var(--red);':''}">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px;margin-bottom:8px;">
+              <div>
+                <span style="font-size:12px;font-weight:700;">${t.parcelName}</span>
+                <span style="font-size:11px;color:var(--text3);"> · ${t.cropName||''}${t.variety?' · '+t.variety:''}</span>
+                <span style="font-size:10px;margin-left:6px;">${MI[t.method]||''} ${t.volume||300}л/га</span>
+              </div>
+              <div style="display:flex;gap:5px;align-items:center;">
+                <span style="font-size:10px;color:var(--accent);">${t.phaseName||'—'} · GDD ${t.gdd||0}</span>
+                <button class="btn btn-secondary btn-xs" onclick="openTreatmentModal('${t.id}')">✏️ Изм</button>
+                <button class="btn btn-danger btn-xs" onclick="deleteTreatment('${t.id}')">✕</button>
+              </div>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;">
+              ${(t.products||[{name:t.product,type:t.type,dose:t.dose}]).map(p=>{
+                const rg=RESISTANCE_GROUPS[p.name];
+                return `<div style="padding:4px 9px;border-radius:7px;background:${TC[p.type]||'var(--surface2)'}18;border:1px solid ${TC[p.type]||'var(--border)'}44;">
+                  <div style="font-size:11px;font-weight:600;color:${TC[p.type]||'var(--text)'};">${p.name}</div>
+                  <div style="font-size:10px;color:var(--text3);">${p.dose||'—'}${rg?` · ${rg.frac?'FRAC '+rg.frac:'IRAC '+rg.irac}`:''}${p.whi?` · WHI ${p.whi}д`:''}</div>
+                </div>`;
+              }).join('')}
+            </div>
+            ${t.note?`<div style="font-size:11px;color:var(--text3);">📝 ${t.note}</div>`:''}
+            ${ow?`<div style="font-size:10px;color:var(--red);margin-top:4px;">⏳ Смыв до: ${t.whiDate}</div>`:''}
+          </div>`;
+        }).join('')}
+      </div>`;
+    }).join('');
+  } else {
+    const tb=document.getElementById('treatment-tbody');
+    if(!tb) return;
+    tb.innerHTML=treatments.map(t=>{
+      const ow=t.whiDate&&t.whiDate>today();
+      const pr=(t.products||[{name:t.product,type:t.type,dose:t.dose}]).map(p=>p.name).join(', ');
+      return `<tr ${ow?'style="background:rgba(255,85,85,.05);"':''}>
+        <td style="font-family:'JetBrains Mono',monospace;font-size:11px;">${t.date}</td>
+        <td style="font-weight:600;">${t.parcelName}</td>
+        <td style="font-size:11px;">${pr}</td>
+        <td>${MI[t.method]||''} ${t.volume||''}л</td>
+        <td style="color:var(--accent);font-size:10px;">${t.phaseName||'—'}</td>
+        <td>${t.maxWhi||0}д</td>
+        <td style="font-size:10px;color:${ow?'var(--red)':'var(--text3)'};">${t.whiDate||'—'}</td>
+        <td style="display:flex;gap:4px;">
+          <button class="btn btn-secondary btn-xs" onclick="openTreatmentModal('${t.id}')">✏️</button>
+          <button class="btn btn-danger btn-xs" onclick="deleteTreatment('${t.id}')">✕</button>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+}
+
 function exportTreatments() {
-  const rows=[['Дата','Участок','Культура','Препарат','Тип','Доза','Смыв до','Метод','Примечание']];
-  S.treatments.forEach(t=>rows.push([t.date,t.parcelName,t.cropName,t.product,t.type,t.dose,t.whi,t.method,t.note]));
+  const rows=[['Дата','Участок','Культура','Препараты','Метод','Объём л/га','Фаза','GDD','WHI макс','Смыв до','Примечание']];
+  S.treatments.forEach(t=>{
+    const prods=(t.products||[{name:t.product,dose:t.dose}]).map(p=>`${p.name}(${p.dose||''})`).join(' + ');
+    rows.push([t.date,t.parcelName,t.cropName,prods,t.method,t.volume||300,t.phaseName,t.gdd,t.maxWhi||0,t.whiDate||'',t.note]);
+  });
   const csv=rows.map(r=>r.join(';')).join('\n');
   const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
-  a.download='smart_vegetable_treatments.csv';a.click();
+  a.download='obrabotki_'+today()+'.csv';a.click();
+}
+
+// ── GDD CALIBRATION ────────────────────────────────────────────────────────
+function toggleCalibration() {
+  const el = document.getElementById('gdd-calibration');
+  if (!el) return;
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+  if (el.style.display === 'block') renderCalibrationRows();
+}
+
+function renderCalibrationRows() {
+  const pid = document.getElementById('gdd-parcel-sel')?.value;
+  const parcel = S.parcels.find(p=>p.id===pid);
+  const crop = getCropById(parcel?.cropId);
+  const container = document.getElementById('calibration-rows');
+  if (!container || !crop || !parcel) return;
+
+  const calib = parcel.calibration || {};
+  container.innerHTML = `
+    <div style="font-size:11px;color:var(--text3);margin-bottom:10px;padding:8px 12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);">
+      💡 Введи дату когда наблюдал начало фазы в поле — система посчитает реальный GDD из данных погоды
+      и обновит пороги для участка <strong>${parcel.name}</strong>.
+    </div>
+    <div style="display:grid;grid-template-columns:170px 150px 80px 1fr 110px;gap:5px;padding:5px 10px;
+      background:var(--surface2);border-radius:6px;font-size:9px;color:var(--text3);text-transform:uppercase;
+      letter-spacing:1px;font-family:'Unbounded',sans-serif;margin-bottom:4px;">
+      <div>Фаза</div><div>Факт. дата</div><div>GDD факт.</div><div>Наблюдение</div><div>Статус</div>
+    </div>
+    ${crop.phases.map((ph, idx) => {
+      const saved = calib[idx] || {};
+      const stdGdd = ph.gddFrom;
+      const calibrated = saved.calibratedGdd !== undefined;
+      const factGdd = saved.calibratedGdd !== undefined ? saved.calibratedGdd : '—';
+      const statusColor = calibrated ? 'var(--accent)' : 'var(--text3)';
+      return `<div style="display:grid;grid-template-columns:170px 150px 80px 1fr 110px;gap:5px;align-items:center;
+        padding:7px 10px;background:var(--surface);border-radius:7px;
+        border:1px solid ${calibrated?'rgba(107,221,107,.3)':'var(--border)'};margin-bottom:3px;">
+        <div>
+          <div style="font-size:11px;font-weight:700;color:${ph.color};">${ph.name}</div>
+          <div style="font-size:10px;color:var(--text3);">Станд. GDD: ${stdGdd}</div>
+        </div>
+        <input type="date" id="calib-date-${idx}" value="${saved.actualDate||''}"
+          onchange="onVegCalibDateChange(${idx},'${pid}')"
+          style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;
+            padding:4px 8px;color:var(--text);font-size:11px;width:100%;">
+        <div id="calib-gdd-${idx}" style="font-family:'JetBrains Mono',monospace;font-size:12px;
+          font-weight:700;color:${statusColor};text-align:center;">${factGdd}</div>
+        <input type="text" id="calib-note-${idx}" value="${saved.note||''}"
+          placeholder="что видели в поле..."
+          style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;
+            padding:4px 8px;color:var(--text);font-size:11px;width:100%;">
+        <div style="font-size:10px;color:${statusColor};text-align:center;">
+          ${calibrated ? `✅ ${factGdd} GDD` : `стандарт ${stdGdd}`}
+        </div>
+      </div>`;
+    }).join('')}`;
+}
+
+function onVegCalibDateChange(phaseIdx, parcelId) {
+  const dateVal = document.getElementById(`calib-date-${phaseIdx}`)?.value;
+  if (!dateVal) return;
+  const parcel = S.parcels.find(p=>p.id===parcelId);
+  const crop = getCropById(parcel?.cropId);
+  if (!crop) return;
+  const base = crop.baseTemp || 10;
+  const sowNorm = normalizeDate(parcel.sowingDate) || '1900-01-01';
+  const sorted = [...S.weather].sort((a,b)=>a.date.localeCompare(b.date));
+  let cumGdd = 0;
+  for (const w of sorted) {
+    if (w.date < sowNorm) continue;
+    if (w.date > dateVal) break;
+    cumGdd += Math.max(0, ((parseFloat(w.tmax)||0)+(parseFloat(w.tmin)||0))/2 - base);
+  }
+  cumGdd = Math.round(cumGdd * 10) / 10;
+  const el = document.getElementById(`calib-gdd-${phaseIdx}`);
+  if (el) { el.textContent = cumGdd; el.style.color = 'var(--yellow)'; }
+}
+
+function saveCalibration() {
+  const pid = document.getElementById('gdd-parcel-sel')?.value;
+  const parcel = S.parcels.find(p=>p.id===pid);
+  const crop = getCropById(parcel?.cropId);
+  if (!parcel || !crop) return;
+
+  const base = crop.baseTemp || 10;
+  const sowNorm = normalizeDate(parcel.sowingDate) || '1900-01-01';
+  const phases = crop.phases;
+  const stdGdds = phases.map(ph => ph.gddFrom);
+  const calibratedGdds = [...stdGdds];
+  const calib = {};
+  const entered = [];
+
+  phases.forEach((ph, idx) => {
+    const dateVal = document.getElementById(`calib-date-${idx}`)?.value;
+    const note    = document.getElementById(`calib-note-${idx}`)?.value || '';
+    if (dateVal) {
+      const sorted = [...S.weather].sort((a,b)=>a.date.localeCompare(b.date));
+      let cumGdd = 0;
+      for (const w of sorted) {
+        if (w.date < sowNorm) continue;
+        if (w.date > dateVal) break;
+        cumGdd += Math.max(0, ((parseFloat(w.tmax)||0)+(parseFloat(w.tmin)||0))/2 - base);
+      }
+      cumGdd = Math.round(cumGdd * 10) / 10;
+      calibratedGdds[idx] = cumGdd;
+      calib[idx] = { actualDate: dateVal, note, calibratedGdd: cumGdd };
+      entered.push({ idx, gdd: cumGdd });
+    } else if (note) {
+      calib[idx] = { note };
+    }
+  });
+
+  // Interpolate between anchor points
+  if (entered.length >= 2) {
+    for (let i = 0; i < entered.length - 1; i++) {
+      const a = entered[i], b = entered[i+1];
+      for (let idx = a.idx + 1; idx < b.idx; idx++) {
+        if (!document.getElementById(`calib-date-${idx}`)?.value) {
+          const stdA = stdGdds[a.idx]||0, stdB = stdGdds[b.idx]||1, stdI = stdGdds[idx]||0;
+          if (stdB > stdA) calibratedGdds[idx] = Math.round(a.gdd + (stdI-stdA)/(stdB-stdA) * (b.gdd-a.gdd));
+        }
+      }
+    }
+  }
+  // Ensure ascending
+  for (let i = 1; i < calibratedGdds.length; i++) {
+    if (calibratedGdds[i] <= calibratedGdds[i-1]) calibratedGdds[i] = calibratedGdds[i-1] + 1;
+  }
+
+  // Apply calibrated GDD to phases
+  calibratedGdds.forEach((gdd, idx) => {
+    if (crop.phases[idx]) crop.phases[idx].gddFrom = gdd;
+    if (idx > 0 && crop.phases[idx-1]) crop.phases[idx-1].gddTo = gdd;
+  });
+
+  parcel.calibration = calib;
+  save();
+  renderCalibrationRows();
+  renderGdd();
+
+  const msg = entered.length > 0
+    ? `✅ Калибровка применена для ${parcel.name}:\n` +
+      entered.map(e => `  ${phases[e.idx].name}: стандарт ${stdGdds[e.idx]} → ${e.gdd} GDD`).join('\n') +
+      '\n\nФазы и алерты пересчитаны.'
+    : '⚠️ Введите хотя бы одну дату';
+  alert(msg);
 }
 
 // ── Catalog ───────────────────────────────────────────────────────────────
@@ -2143,11 +4035,659 @@ function importData(event) {
 }
 function saveSetting(key,val) { S.settings[key]=val; S[key]=val; save(); }
 
+
+// ─── ROLE SYSTEM ──────────────────────────────────────────────────────────
+const ROLES = {
+  owner: {
+    label:'👑 Владелец',
+    pinKey:'pin_owner',
+    defaultPin:'1111',
+    color:'#fbbf24',
+    tabs:['parcels','weather','gdd','diseases','irrigation','treatments','catalog','settings'],
+    canEdit: true,
+    canDelete: true,
+    canSettings: true,
+    description:'Полный доступ ко всем разделам и настройкам'
+  },
+  agronomist: {
+    label:'👨‍🌾 Агроном',
+    pinKey:'pin_agronomist',
+    defaultPin:'2222',
+    color:'#4ade80',
+    tabs:['parcels','weather','gdd','diseases','irrigation','treatments','catalog'],
+    canEdit: true,
+    canDelete: false,
+    canSettings: false,
+    description:'Полный рабочий доступ, без настроек и удаления'
+  },
+  operator: {
+    label:'📋 Оператор',
+    pinKey:'pin_operator',
+    defaultPin:'4444',
+    color:'#a78bfa',
+    tabs:['weather','irrigation','treatments'],
+    canEdit: true,
+    canDelete: false,
+    canSettings: false,
+    description:'Ввод данных: погода, поливы, обработки'
+  },
+  factory: {
+    label:'🏭 Директор завода',
+    pinKey:'pin_factory',
+    defaultPin:'3333',
+    color:'#60a5fa',
+    tabs:['parcels','gdd','irrigation'],
+    canEdit: false,
+    canDelete: false,
+    canSettings: false,
+    description:'Только участки, GDD/фазы и ирригация — мониторинг уборки'
+  },
+};
+
+let _currentRole = null;
+
+function initRoleSystem() {
+  // Check if already logged in this session
+  const sessionRole = sessionStorage.getItem('sveg_role');
+  if (sessionRole && ROLES[sessionRole]) {
+    applyRole(sessionRole);
+    return;
+  }
+  showLoginScreen();
+}
+
+function showLoginScreen() {
+  const overlay = document.createElement('div');
+  overlay.id = 'login-overlay';
+  overlay.style.cssText = `
+    position:fixed;inset:0;background:#0a0f0a;z-index:9999;
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Inter',sans-serif;
+  `;
+  overlay.innerHTML = `
+    <div style="width:100%;max-width:480px;padding:24px;">
+      <!-- Logo -->
+      <div style="text-align:center;margin-bottom:32px;">
+        <div style="font-size:48px;margin-bottom:8px;">🥦</div>
+        <div style="font-family:'Unbounded',sans-serif;font-size:18px;font-weight:700;color:#6bdd6b;letter-spacing:3px;">SMART VEGETABLE</div>
+        <div style="font-size:11px;color:#5a7a5a;letter-spacing:4px;text-transform:uppercase;margin-top:4px;">System · Digital Agronomist</div>
+      </div>
+
+      <!-- Role selection -->
+      <div style="font-size:11px;color:#5a7a5a;text-transform:uppercase;letter-spacing:2px;margin-bottom:12px;font-family:'Unbounded',sans-serif;">Выберите роль</div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:24px;" id="role-btns">
+        ${Object.entries(ROLES).map(([key, r]) => `
+          <button onclick="selectLoginRole('${key}')" id="rolebtn-${key}"
+            style="padding:14px 16px;border:1px solid #2a3a2a;border-radius:10px;background:#101810;
+              color:#a8c8a8;cursor:pointer;text-align:left;transition:all .2s;display:flex;align-items:center;gap:12px;">
+            <span style="font-size:22px;">${r.label.split(' ')[0]}</span>
+            <div>
+              <div style="font-size:13px;font-weight:600;color:#e8f5e8;">${r.label.split(' ').slice(1).join(' ')}</div>
+              <div style="font-size:10px;color:#5a7a5a;margin-top:2px;">${r.description}</div>
+            </div>
+          </button>`).join('')}
+      </div>
+
+      <!-- PIN input -->
+      <div id="pin-block" style="display:none;">
+        <div style="font-size:11px;color:#5a7a5a;text-transform:uppercase;letter-spacing:2px;margin-bottom:8px;font-family:'Unbounded',sans-serif;" id="pin-role-label"></div>
+        <div style="display:flex;gap:8px;">
+          <input type="password" id="pin-input" maxlength="4" placeholder="••••"
+            style="flex:1;background:#182018;border:1px solid #2a3a2a;border-radius:8px;padding:12px 16px;
+              color:#e8f5e8;font-size:20px;letter-spacing:8px;text-align:center;outline:none;"
+            onkeydown="if(event.key==='Enter')doLogin()"
+            oninput="document.getElementById('pin-error').textContent=''">
+          <button onclick="doLogin()"
+            style="padding:12px 20px;background:#6bdd6b;color:#0a0f0a;border:none;border-radius:8px;
+              font-weight:700;cursor:pointer;font-size:13px;">Войти</button>
+        </div>
+        <div id="pin-error" style="color:#ff5555;font-size:11px;margin-top:8px;min-height:16px;"></div>
+        <button onclick="backToRoles()"
+          style="margin-top:12px;background:none;border:none;color:#5a7a5a;cursor:pointer;font-size:11px;">← Назад</button>
+      </div>
+
+      <!-- First time hint -->
+      <div id="first-time-hint" style="margin-top:20px;padding:10px 14px;background:rgba(96,165,250,.06);border:1px solid rgba(96,165,250,.15);border-radius:8px;font-size:11px;color:#a8c8a8;line-height:1.7;">
+        💡 <strong>PIN по умолчанию:</strong><br>
+        👑 Владелец: <strong>1111</strong> &nbsp;·&nbsp; 👨‍🌾 Агроном: <strong>2222</strong><br>
+        🏭 Завод: <strong>3333</strong> &nbsp;·&nbsp; 📋 Оператор: <strong>4444</strong><br>
+        Изменить PIN можно в ⚙️ Настройки после входа как Владелец.
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+let _selectedLoginRole = null;
+function selectLoginRole(roleKey) {
+  _selectedLoginRole = roleKey;
+  const role = ROLES[roleKey];
+  // Highlight selected
+  Object.keys(ROLES).forEach(k => {
+    const btn = document.getElementById('rolebtn-'+k);
+    if (btn) btn.style.borderColor = k===roleKey ? role.color : '#2a3a2a';
+  });
+  document.getElementById('pin-block').style.display = 'block';
+  document.getElementById('pin-role-label').textContent = role.label + ' — введите PIN';
+  document.getElementById('pin-role-label').style.color = role.color;
+  document.getElementById('pin-input').value = '';
+  document.getElementById('pin-input').focus();
+  document.getElementById('first-time-hint').style.display = 'none';
+}
+
+function backToRoles() {
+  _selectedLoginRole = null;
+  document.getElementById('pin-block').style.display = 'none';
+  document.getElementById('first-time-hint').style.display = 'block';
+  Object.keys(ROLES).forEach(k => {
+    const btn = document.getElementById('rolebtn-'+k);
+    if (btn) btn.style.borderColor = '#2a3a2a';
+  });
+}
+
+function doLogin() {
+  if (!_selectedLoginRole) return;
+  const role = ROLES[_selectedLoginRole];
+  const enteredPin = document.getElementById('pin-input').value;
+  const savedPin = localStorage.getItem(role.pinKey) || role.defaultPin;
+  if (enteredPin === savedPin) {
+    sessionStorage.setItem('sveg_role', _selectedLoginRole);
+    document.getElementById('login-overlay').remove();
+    applyRole(_selectedLoginRole);
+  } else {
+    document.getElementById('pin-error').textContent = '❌ Неверный PIN';
+    document.getElementById('pin-input').value = '';
+    document.getElementById('pin-input').focus();
+  }
+}
+
+function applyRole(roleKey) {
+  _currentRole = roleKey;
+  const role = ROLES[roleKey];
+
+  // Show role badge in header
+  const badge = document.createElement('div');
+  badge.id = 'role-badge';
+  badge.style.cssText = `display:flex;align-items:center;gap:8px;`;
+  badge.innerHTML = `
+    <div style="font-size:11px;padding:5px 12px;border-radius:20px;
+      background:${role.color}22;border:1px solid ${role.color}44;color:${role.color};
+      font-weight:600;cursor:pointer;" onclick="logout()" title="Нажмите чтобы сменить роль">
+      ${role.label} &nbsp;·&nbsp; Выйти
+    </div>`;
+  document.querySelector('.header-stats').prepend(badge);
+
+  // Show/hide tabs based on role
+  const allTabs = ['parcels','weather','gdd','diseases','irrigation','treatments','catalog','settings'];
+  const tabEls = document.querySelectorAll('.tab');
+  allTabs.forEach((tabId, i) => {
+    if (tabEls[i]) {
+      tabEls[i].style.display = role.tabs.includes(tabId) ? '' : 'none';
+    }
+  });
+
+  // Show/hide edit controls based on role
+  if (!role.canEdit) {
+    // Factory role: mark read-only mode (checked dynamically in modals)
+    document.body.setAttribute('data-readonly', 'true');
+  } else {
+    document.body.removeAttribute('data-readonly');
+  }
+
+  // Show first allowed tab
+  const firstTab = role.tabs[0];
+  showTab(firstTab);
+
+  // Operator: show quick-entry banner
+  if (roleKey === 'operator') {
+    const banner = document.createElement('div');
+    banner.id = 'operator-banner';
+    banner.style.cssText = 'background:rgba(167,139,250,.08);border-bottom:1px solid rgba(167,139,250,.2);padding:8px 24px;font-size:11px;color:#a78bfa;display:flex;align-items:center;gap:16px;flex-wrap:wrap;';
+    banner.innerHTML = `
+      <span>📋 <strong>Режим оператора</strong> — ввод данных</span>
+      <button class="btn btn-sm" style="background:rgba(167,139,250,.15);color:#a78bfa;border:1px solid rgba(167,139,250,.3);" onclick="showTab('weather');openWeatherModal()">+ День вручную</button>
+      <button class="btn btn-sm" style="background:rgba(96,165,250,.2);color:#60a5fa;border:1px solid rgba(96,165,250,.4);font-weight:700;" onclick="showTab('weather');document.getElementById('meteo-input').click()">📂 Импорт XLS метеостанции</button>
+      <button class="btn btn-sm" style="background:rgba(167,139,250,.15);color:#a78bfa;border:1px solid rgba(167,139,250,.3);" onclick="showTab('irrigation');openIrrigModal()">+ Полив</button>
+      <button class="btn btn-sm" style="background:rgba(167,139,250,.15);color:#a78bfa;border:1px solid rgba(167,139,250,.3);" onclick="showTab('treatments');openTreatmentModal()">+ Обработка</button>`;
+    document.querySelector('.nav').after(banner);
+  }
+
+  // Add PIN change to settings if owner
+  if (roleKey === 'owner') {
+    renderPinSettings();
+  }
+
+  // Render main view
+  renderParcels();
+}
+
+function logout() {
+  if (!confirm('Сменить роль?')) return;
+  sessionStorage.removeItem('sveg_role');
+  _currentRole = null;
+  const badge = document.getElementById('role-badge');
+  if (badge) badge.remove();
+  const banner = document.getElementById('operator-banner');
+  if (banner) banner.remove();
+  // Restore all tabs
+  document.querySelectorAll('.tab').forEach(t => t.style.display = '');
+  showLoginScreen();
+}
+
+function renderPinSettings() {
+  const settingsPanel = document.getElementById('panel-settings');
+  if (!settingsPanel) return;
+  const pinBlock = document.createElement('div');
+  pinBlock.style.cssText = 'margin-top:24px;';
+  pinBlock.innerHTML = `
+    <div style="font-family:'Unbounded',sans-serif;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:2px;margin-bottom:12px;">🔐 Управление PIN-кодами</div>
+    <div style="display:flex;flex-direction:column;gap:10px;max-width:400px;">
+      ${Object.entries(ROLES).map(([key, r]) => `
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);">
+          <div style="flex:1;">
+            <div style="font-size:12px;font-weight:600;color:${r.color};">${r.label}</div>
+            <div style="font-size:10px;color:var(--text3);">Текущий PIN: ${localStorage.getItem(r.pinKey)||r.defaultPin}</div>
+          </div>
+          <input type="password" id="newpin-${key}" maxlength="4" placeholder="новый PIN"
+            style="width:100px;background:var(--surface3);border:1px solid var(--border);border-radius:6px;
+              padding:6px 10px;color:var(--text);font-size:14px;letter-spacing:4px;text-align:center;">
+          <button onclick="changePin('${key}')" class="btn btn-secondary btn-sm">Изменить</button>
+        </div>`).join('')}
+    </div>
+    <div id="pin-change-msg" style="margin-top:8px;font-size:11px;"></div>`;
+  settingsPanel.appendChild(pinBlock);
+}
+
+function changePin(roleKey) {
+  const role = ROLES[roleKey];
+  const newPin = document.getElementById('newpin-'+roleKey).value;
+  if (!newPin || newPin.length < 3) {
+    document.getElementById('pin-change-msg').innerHTML = '<span style="color:var(--red);">PIN должен быть минимум 3 цифры</span>';
+    return;
+  }
+  if (!/^\d+$/.test(newPin)) {
+    document.getElementById('pin-change-msg').innerHTML = '<span style="color:var(--red);">Только цифры</span>';
+    return;
+  }
+  localStorage.setItem(role.pinKey, newPin);
+  document.getElementById('newpin-'+roleKey).value = '';
+  document.getElementById('pin-change-msg').innerHTML = `<span style="color:var(--accent);">✅ PIN для ${role.label} изменён</span>`;
+  renderPinSettings(); // refresh to show new PIN
+}
+
+// ═══ VEGETABLE ANALYSES ═══════════════════════════════════════════════════
+let _vegAnTab = 'all';
+let _vegAnEditId = null;
+
+const VEG_LEAF_NORMS = {
+  N:  {min:2.0, max:4.0, unit:'%',   name:'Азот',
+    deficiency:'Пожелтение старых листьев, угнетённый рост',
+    excess:'Тёмно-зелёные листья, затяжная вегетация, мало плодов',
+    foliar:'Мочевина 0.5–1% (5–10 кг/га). 2–3 обработки с интервалом 10 дней.',
+    drip:'Ca(NO₃)₂ или KNO₃ 3–5 кг/1000 л. ЕС +0.5–1.0 мСм/см.',
+    soil:'Аммиачная селитра 34% — 100–200 кг/га. Нитрат аммония.'},
+  P:  {min:0.20,max:0.50,unit:'%',   name:'Фосфор',
+    deficiency:'Фиолетовый оттенок листьев снизу, слабая корневая',
+    excess:'Блокировка Zn и Fe',
+    foliar:'Монокалийфосфат МКФ 0.3–0.5%. Фолифос.',
+    drip:'MAP 12:52:0 — 1–2 кг/1000 л.',
+    soil:'Суперфосфат 200–400 кг/га. MAP или DAP под вспашку.'},
+  K:  {min:2.0, max:4.0, unit:'%',   name:'Калий',
+    deficiency:'Некроз краёв листьев начиная со старых',
+    excess:'Блокировка Ca и Mg',
+    foliar:'KNO₃ 0.5–1% или MKP 0.5%. 2–3 обработки.',
+    drip:'K₂SO₄ или KNO₃ — 2–4 кг/1000 л.',
+    soil:'Сульфат калия 150–300 кг/га.'},
+  Ca: {min:1.0, max:3.0, unit:'%',   name:'Кальций',
+    deficiency:'Некроз точки роста, вершинная гниль томата/перца',
+    excess:'Редко проблема',
+    foliar:'Ca(NO₃)₂ 0.5–1%. Кальбор. До и после цветения.',
+    drip:'Ca(NO₃)₂ — 2–4 кг/1000 л. Отдельно от фосфата.',
+    soil:'Гипс CaSO₄ 1–2 т/га. Нитрат кальция.'},
+  Mg: {min:0.25,max:0.75,unit:'%',   name:'Магний',
+    deficiency:'Межжилковый хлороз старых листьев',
+    excess:'Норма',
+    foliar:'MgSO₄ 1–2% (10–20 кг/га). 2–3 обработки.',
+    drip:'Нитрат магния Mg(NO₃)₂ — 2–3 кг/1000 л.',
+    soil:'MgSO₄ 50–100 кг/га.'},
+  Fe: {min:50,  max:200, unit:'ppm', name:'Железо',
+    deficiency:'Хлороз молодых листьев, жилки зелёные',
+    excess:'Редко',
+    foliar:'Хелат Fe-DTPA 0.1–0.2%. 3–5 обработок. pH<6.5: EDTA.',
+    drip:'Fe-DTPA — 0.5–1 кг/1000 л. Отдельно от фосфора.',
+    soil:'Хелат железа в почву 5–10 кг/га.'},
+  Mn: {min:50,  max:250, unit:'ppm', name:'Марганец',
+    deficiency:'Хлороз молодых листьев с чёткими жилками',
+    excess:'Тёмные пятна на листьях (при кислой почве)',
+    foliar:'Хелат Mn 0.1–0.2%. Сульфат Mn 0.3–0.5%.',
+    drip:'Хелат Mn — 0.3–0.5 кг/1000 л.',
+    soil:'Сульфат марганца 15–30 кг/га.'},
+  Zn: {min:20,  max:100, unit:'ppm', name:'Цинк',
+    deficiency:'Мелкие листья, розеточность, укороченные междоузлия',
+    excess:'Токсичность (редко)',
+    foliar:'Хелат Zn 0.1–0.15%. ZnSO₄ 0.2–0.3%.',
+    drip:'Хелат Zn — 0.2–0.4 кг/1000 л.',
+    soil:'ZnSO₄ 10–20 кг/га.'},
+  B:  {min:25,  max:75,  unit:'ppm', name:'Бор',
+    deficiency:'Деформация плодов, пустоцвет, растрескивание',
+    excess:'Некроз краёв листьев',
+    foliar:'Борная кислота 0.15–0.2%. ДО и ПОСЛЕ цветения!',
+    drip:'Solubor 0.5–1 кг/1000 л.',
+    soil:'Борная кислота 1–2 кг/га.'},
+};
+
+const VEG_SOIL_NORMS = {
+  pH:  {min:6.0,max:7.0,unit:'',     name:'pH',
+    low:'Кислая почва. Вносить известь. Блокирует P, Ca, Mg.',
+    high:'Щелочная. Вносить серу или гипс. Блокирует Fe, Mn, Zn.',
+    fix_low:'Известкование CaCO₃ 2–5 т/га. Доломитовая мука.',
+    fix_high:'Сера молотая 200–500 кг/га. Гипс 1–2 т/га.'},
+  OM:  {min:2.0,max:5.0,unit:'%',    name:'Орг. вещество',
+    low:'Низкая биоактивность. Плохая структура. Дополнительное удобрение.',
+    fix_low:'Компост 20–30 т/га. Сидераты. Мульча.'},
+  NO3: {min:15, max:60, unit:'мг/кг',name:'N-NO₃',
+    low:'Дефицит азота. Пожелтение.',
+    high:'Риск загрязнения. Снизить N-удобрения.',
+    fix_low:'Нитрат аммония — 150–200 кг/га. Ca(NO₃)₂ через капельное.',
+    fix_high:'Промывные поливы. Снизить дозы N.'},
+  P:   {min:60, max:200,unit:'мг/кг',name:'P₂O₅',
+    low:'Дефицит фосфора.',
+    fix_low:'Суперфосфат 200–400 кг/га. MAP в почву осенью.'},
+  K:   {min:120,max:350,unit:'мг/кг',name:'K₂O',
+    low:'Дефицит калия.',
+    fix_low:'К₂SO₄ 200–300 кг/га. KNO₃ через капельное.'},
+};
+
+const VEG_WATER_NORMS = {
+  pH:  {min:6.5,max:7.5,unit:'',    name:'pH воды',
+    high:'Щелочная. Осадок в капельницах. Кислотование HNO₃ или H₃PO₄.',
+    low:'Кислая. Коррозия. Добавить Ca(OH)₂.'},
+  EC:  {min:0.1,max:1.5,unit:'мСм/см',name:'EC',
+    high:'Высокая солёность. Промывные поливы. Стресс у растений.',
+    fix_high:'Промывной полив +30% нормы. Гипс в систему.'},
+  Fe:  {min:0,  max:0.3,unit:'мг/л',name:'Железо',
+    high:'Засорение капельниц. Хлорирование + кислотная промывка.',
+    fix_high:'Фильтрация. Хлорирование 2–5 ppm.'},
+  B:   {min:0,  max:0.5,unit:'мг/л',name:'Бор',
+    high:'Токсичность бора! Смешать с другой водой.',
+    fix_high:'Смешивание. Нет агрохимического исправления.'},
+  Cl:  {min:0,  max:150,unit:'мг/л',name:'Хлориды',
+    high:'Ожоги краёв листьев при дождевании.',
+    fix_high:'Только капельное. Избегать листового орошения.'},
+};
+
+function setVegAnTab(tab) {
+  _vegAnTab = tab;
+  ['all','leaf','soil','water'].forEach(t => {
+    document.getElementById('vantab-'+t)?.classList.toggle('active', t===tab);
+  });
+  renderVegAnalyses();
+}
+
+function switchVanTab(tab) {
+  document.getElementById('van-type').value = tab;
+  ['leaf','soil','water'].forEach(t => {
+    document.getElementById('van-fields-'+t).style.display = t===tab?'block':'none';
+    document.getElementById('vanmodal-'+t)?.classList.toggle('active', t===tab);
+  });
+}
+
+function openVegAnalysisModal(type, editId) {
+  _vegAnEditId = editId||null;
+  type = type||'leaf';
+  const ex = editId ? (S.vegAnalyses||[]).find(a=>a.id===editId) : null;
+  const t = ex?.type||type;
+  document.getElementById('van-title').textContent =
+    (ex?'✏️ Редактировать':'🔬 Новый') + ' анализ ' +
+    (t==='leaf'?'листа':t==='soil'?'почвы':'воды');
+  document.getElementById('van-delete-btn').style.display = ex?'block':'none';
+  document.getElementById('van-date').value = ex?.date||today();
+  document.getElementById('van-lab').value  = ex?.lab||'';
+  document.getElementById('van-note').value = ex?.note||'';
+  // Populate parcel select
+  const ps = document.getElementById('van-parcel');
+  ps.innerHTML = '<option value="">Все участки</option>';
+  S.parcels.forEach(p => {
+    const c = getCropById(p.cropId);
+    ps.innerHTML += `<option value="${p.id}" ${ex?.parcelId===p.id?'selected':''}>${p.name}${c?' · '+c.emoji:''}</option>`;
+  });
+  // Clear all fields
+  Object.keys(VEG_LEAF_NORMS).forEach(f=>{const el=document.getElementById('van-'+f);if(el)el.value=ex?.type==='leaf'?ex[f]??'':'';});
+  ['pH','OM','NO3','P','K','Ca','Mg','B'].forEach(f=>{const el=document.getElementById('vso-'+f);if(el)el.value=ex?.type==='soil'?ex[f]??'':'';});
+  ['pH','EC','TDS','Fe','Mn','B','Cl','Na'].forEach(f=>{const el=document.getElementById('vwa-'+f);if(el)el.value=ex?.type==='water'?ex[f]??'':'';});
+  switchVanTab(t);
+  openModal('modal-veg-analysis');
+}
+
+function deleteVegAnalysis() {
+  if(!_vegAnEditId||!confirm('Удалить анализ?'))return;
+  S.vegAnalyses = (S.vegAnalyses||[]).filter(a=>a.id!==_vegAnEditId);
+  save(); closeModal('modal-veg-analysis'); renderVegAnalyses();
+}
+
+function saveVegAnalysis() {
+  const type = document.getElementById('van-type').value||'leaf';
+  const date = document.getElementById('van-date').value;
+  if(!date){alert('Введите дату');return;}
+  const e = {
+    id: _vegAnEditId||uid(), type, date,
+    parcelId: document.getElementById('van-parcel').value,
+    lab: document.getElementById('van-lab').value,
+    note: document.getElementById('van-note').value,
+  };
+  if(type==='leaf'){
+    Object.keys(VEG_LEAF_NORMS).forEach(f=>{const v=document.getElementById('van-'+f)?.value;if(v!=='')e[f]=parseFloat(v);});
+  } else if(type==='soil'){
+    ['pH','OM','NO3','P','K','Ca','Mg','B'].forEach(f=>{const v=document.getElementById('vso-'+f)?.value;if(v!=='')e[f]=parseFloat(v);});
+  } else {
+    ['pH','EC','TDS','Fe','Mn','B','Cl','Na'].forEach(f=>{const v=document.getElementById('vwa-'+f)?.value;if(v!=='')e[f]=parseFloat(v);});
+  }
+  if(!S.vegAnalyses) S.vegAnalyses=[];
+  if(_vegAnEditId){const i=S.vegAnalyses.findIndex(a=>a.id===_vegAnEditId);if(i>=0)S.vegAnalyses[i]=e;else S.vegAnalyses.push(e);}
+  else S.vegAnalyses.push(e);
+  save(); closeModal('modal-veg-analysis'); renderVegAnalyses();
+}
+
+function generateVegRecs(analyses) {
+  const recs = [];
+  const lastLeaf  = [...analyses].filter(a=>a.type==='leaf').sort((a,b)=>b.date.localeCompare(a.date))[0];
+  const lastSoil  = [...analyses].filter(a=>a.type==='soil').sort((a,b)=>b.date.localeCompare(a.date))[0];
+  const lastWater = [...analyses].filter(a=>a.type==='water').sort((a,b)=>b.date.localeCompare(a.date))[0];
+  if(lastLeaf){
+    Object.entries(VEG_LEAF_NORMS).forEach(([el,n])=>{
+      if(lastLeaf[el]===undefined)return;
+      const val=lastLeaf[el];
+      if(val<n.min){
+        const methods=[];
+        if(n.foliar) methods.push({method:'foliar',text:n.foliar});
+        if(n.drip)   methods.push({method:'drip',  text:n.drip});
+        if(n.soil)   methods.push({method:'soil',  text:n.soil});
+        recs.push({level:val<n.min*0.7?'critical':'warn',source:'🍃 Лист',element:el,name:n.name,
+          found:val,unit:n.unit,norm:`${n.min}–${n.max}`,symptom:n.deficiency,methods});
+      } else if(val>n.max){
+        recs.push({level:'excess',source:'🍃 Лист',element:el,name:n.name,
+          found:val,unit:n.unit,norm:`${n.min}–${n.max}`,symptom:n.excess,
+          methods:[{method:'note',text:'Снизить дозы. Проверить pH почвы.'}]});
+      }
+    });
+  }
+  if(lastSoil){
+    Object.entries(VEG_SOIL_NORMS).forEach(([key,n])=>{
+      if(lastSoil[key]===undefined)return;
+      const val=lastSoil[key];
+      const isLow=val<n.min, isHigh=val>n.max;
+      if(!isLow&&!isHigh)return;
+      recs.push({level:isLow?'critical':'excess',source:'🌱 Почва',element:key,name:n.name,
+        found:val,unit:n.unit,norm:`${n.min}–${n.max}`,
+        symptom:isLow?n.low:n.high,
+        methods:isLow&&n.fix_low?[{method:'soil',text:n.fix_low}]:n.fix_high?[{method:'note',text:n.fix_high}]:[]});
+    });
+  }
+  if(lastWater){
+    Object.entries(VEG_WATER_NORMS).forEach(([key,n])=>{
+      if(lastWater[key]===undefined)return;
+      const val=lastWater[key];
+      const isHigh=n.max!==undefined&&val>n.max, isLow=n.min!==undefined&&val<n.min;
+      if(!isHigh&&!isLow)return;
+      recs.push({level:'critical',source:'💧 Вода',element:key,name:n.name,
+        found:val,unit:n.unit,norm:`${n.min??0}–${n.max??'∞'}`,
+        symptom:isHigh?n.high:n.low,
+        methods:n.fix_high&&isHigh?[{method:'water',text:n.fix_high}]:[]});
+    });
+  }
+  return recs;
+}
+
+function renderVegAnalyses() {
+  // Populate parcel filter
+  const pf = document.getElementById('vaf-parcel');
+  const curPf = pf?.value||'';
+  if(pf){
+    pf.innerHTML='<option value="">Все участки</option>';
+    S.parcels.forEach(p=>{
+      const c=getCropById(p.cropId);
+      pf.innerHTML+=`<option value="${p.id}" ${curPf===p.id?'selected':''}>${p.name}${c?' · '+c.emoji:''}</option>`;
+    });
+  }
+  const parcelFilter=pf?.value||'';
+  let analyses=[...(S.vegAnalyses||[])].sort((a,b)=>b.date.localeCompare(a.date));
+  if(parcelFilter) analyses=analyses.filter(a=>!a.parcelId||a.parcelId===parcelFilter);
+  if(_vegAnTab!=='all') analyses=analyses.filter(a=>a.type===_vegAnTab);
+
+  // Recommendations
+  const allFiltered=parcelFilter?(S.vegAnalyses||[]).filter(a=>!a.parcelId||a.parcelId===parcelFilter):S.vegAnalyses||[];
+  const recs=generateVegRecs(allFiltered);
+  const MC={soil:'🌱 В почву',foliar:'🍃 Листовое',drip:'💧 Капельное',water:'💧 Вода',note:'📝 Примечание'};
+  const MC2={soil:'var(--accent)',foliar:'var(--blue)',drip:'var(--teal)',water:'var(--blue)',note:'var(--text3)'};
+  const recEl=document.getElementById('veg-analysis-recs');
+  if(recEl){
+    if(recs.length){
+      recEl.innerHTML=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;">
+        <div style="padding:10px 16px;background:var(--surface2);display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <div style="font-family:'Unbounded',sans-serif;font-size:11px;font-weight:700;color:var(--text2);">💊 Рекомендации</div>
+          ${recs.filter(r=>r.level==='critical').length?`<span style="padding:2px 10px;border-radius:10px;background:rgba(255,85,85,.15);color:var(--red);font-size:10px;font-weight:700;">${recs.filter(r=>r.level==='critical').length} дефицитов</span>`:''}
+          ${recs.filter(r=>r.level!=='critical').length?`<span style="padding:2px 10px;border-radius:10px;background:rgba(255,216,77,.1);color:var(--yellow);font-size:10px;">${recs.filter(r=>r.level!=='critical').length} отклонений</span>`:''}
+        </div>
+        ${recs.map(r=>{
+          const lc=r.level==='critical'?'var(--red)':r.level==='excess'?'var(--yellow)':'var(--orange)';
+          const lt=r.level==='critical'?'❌ Дефицит':r.level==='excess'?'⚠️ Избыток':'⚠️ Отклонение';
+          return `<div style="padding:12px 16px;border-top:1px solid var(--border);">
+            <div style="display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+              <span style="font-size:10px;padding:2px 8px;border-radius:8px;background:rgba(96,165,250,.1);color:var(--blue);">${r.source}</span>
+              <strong style="font-size:13px;color:${lc};">${r.element} — ${r.name}</strong>
+              <span style="font-size:11px;color:var(--text3);">Найдено: <strong style="color:${lc};">${r.found} ${r.unit}</strong> · Норма: ${r.norm} ${r.unit}</span>
+              <span style="font-size:10px;padding:2px 8px;border-radius:8px;background:${lc}22;color:${lc};">${lt}</span>
+            </div>
+            ${r.symptom?`<div style="font-size:11px;color:var(--text2);margin-bottom:8px;padding:5px 10px;background:var(--surface2);border-radius:6px;">🔍 ${r.symptom}</div>`:''}
+            <div style="display:flex;flex-wrap:wrap;gap:8px;">
+              ${r.methods.map(m=>`<div style="padding:8px 12px;border-radius:8px;border:1px solid ${MC2[m.method]||'var(--border)'}44;background:${MC2[m.method]||'var(--surface2)'}11;flex:1;min-width:180px;">
+                <div style="font-size:10px;font-weight:700;color:${MC2[m.method]||'var(--text3)'};margin-bottom:3px;">${MC[m.method]||m.method}</div>
+                <div style="font-size:11px;color:var(--text2);">${m.text}</div>
+              </div>`).join('')}
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`;
+    } else if(analyses.length) {
+      recEl.innerHTML=`<div style="padding:10px 16px;background:rgba(107,221,107,.06);border:1px solid rgba(107,221,107,.2);border-radius:8px;font-size:12px;color:var(--accent);">✅ Все показатели в норме</div>`;
+    } else recEl.innerHTML='';
+  }
+
+  // Cards
+  const grid=document.getElementById('veg-analysis-grid');
+  if(!analyses.length){
+    grid.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text3);">
+      <div style="font-size:32px;margin-bottom:12px;">🔬</div>
+      <div style="font-size:13px;margin-bottom:6px;">Нет анализов</div>
+      <div style="font-size:11px;">Добавьте анализ листа, почвы или воды</div>
+    </div>`;return;
+  }
+  const ICONS={leaf:'🍃',soil:'🌱',water:'💧'};
+  const LABELS={leaf:'Анализ листа',soil:'Анализ почвы',water:'Анализ воды'};
+  grid.innerHTML=analyses.map(an=>{
+    const parcel=S.parcels.find(p=>p.id===an.parcelId);
+    const crop=getCropById(parcel?.cropId);
+    let rows='';
+    if(an.type==='leaf'){
+      rows=Object.entries(VEG_LEAF_NORMS).filter(([el])=>an[el]!==undefined).map(([el,n])=>{
+        const val=an[el];const st=val<n.min?'var(--red)':val>n.max?'var(--yellow)':'var(--accent)';
+        return `<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid var(--border);">
+          <span style="color:var(--text3);">${el} · ${n.name}</span>
+          <span style="font-weight:700;color:${st};">${val} ${n.unit}</span>
+        </div>`;
+      }).join('');
+    } else if(an.type==='soil'){
+      rows=Object.entries(VEG_SOIL_NORMS).filter(([k])=>an[k]!==undefined).map(([k,n])=>{
+        const val=an[k];const st=val<n.min?'var(--red)':val>(n.max||1e9)?'var(--yellow)':'var(--accent)';
+        return `<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid var(--border);">
+          <span style="color:var(--text3);">${k} · ${n.name}</span>
+          <span style="font-weight:700;color:${st};">${val} ${n.unit}</span>
+        </div>`;
+      }).join('');
+    } else {
+      rows=Object.entries(VEG_WATER_NORMS).filter(([k])=>an[k]!==undefined).map(([k,n])=>{
+        const val=an[k];const st=val>(n.max||1e9)?'var(--red)':'var(--accent)';
+        return `<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid var(--border);">
+          <span style="color:var(--text3);">${k} · ${n.name}</span>
+          <span style="font-weight:700;color:${st};">${val} ${n.unit}</span>
+        </div>`;
+      }).join('');
+    }
+    return `<div class="parcel-card" onclick="openVegAnalysisModal('${an.type}','${an.id}')" style="cursor:pointer;border-left-color:${an.type==='leaf'?'var(--accent)':an.type==='soil'?'#8B6914':'var(--blue)'};">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+        <div style="font-size:18px;">${ICONS[an.type]||'🔬'}</div>
+        <div style="text-align:right;">
+          <div style="font-size:11px;font-family:'Unbounded',sans-serif;color:var(--text2);">${an.date}</div>
+          ${parcel?`<div style="font-size:10px;color:${crop?'var(--accent)':'var(--text3)'};">${parcel.name}${crop?' · '+crop.emoji:''}</div>`:'<div style="font-size:10px;color:var(--text3);">Все участки</div>'}
+          ${an.lab?`<div style="font-size:10px;color:var(--text3);">${an.lab}</div>`:''}
+        </div>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:6px;">${LABELS[an.type]||'Анализ'}</div>
+      ${rows}
+      ${an.note?`<div style="font-size:10px;color:var(--text3);margin-top:6px;">${an.note}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
 // ─── INIT ─────────────────────────────────────────────────────────────────
-load();
-renderParcels();
-// Populate GDD parcel select
-document.addEventListener('DOMContentLoaded',()=>{});
+async function startApp() {
+  load();           // instant from localStorage
+  initRoleSystem(); // show login screen
+  await checkVServer();
+
+  // Try to load full state from server
+  if (_vServerAvailable) {
+    try {
+      const r = await fetch('/api/state/vegetable');
+      const json = await r.json();
+      if (json.ok && json.data) {
+        const d = typeof json.data === 'string' ? JSON.parse(json.data) : json.data;
+        // Apply server state
+        if (d.parcels?.length) {
+          S.parcels = d.parcels.map(p => {
+            if (p.sowingDate) p.sowingDate = normalizeDate(p.sowingDate) || p.sowingDate;
+            return p;
+          });
+        }
+        if (d.weather?.length)     S.weather     = d.weather;
+        if (d.treatments?.length)  S.treatments  = d.treatments;
+        if (d.irrigations?.length) S.irrigations = d.irrigations;
+        if (d.vegAnalyses?.length) S.vegAnalyses = d.vegAnalyses;
+        if (d.catalog?.length)     S.catalog     = d.catalog;
+        if (d.settings)            S.settings    = d.settings;
+        if (d.farmName)            S.farmName    = d.farmName;
+        if (d.region)              S.region      = d.region;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(S));
+        console.log('[Veg] Loaded full state from server');
+      }
+    } catch(e) {
+      console.warn('[Veg] Server state load failed:', e.message);
+    }
+  }
+
+  await syncFromServer(); // pull weather + treatments from server
+  renderParcels();
+}
+startApp();
 </script>
 </body>
 </html>
