@@ -31,26 +31,24 @@ app.use('/api/catalog',     require('./routes/catalog'));
 app.use('/api/settings',    require('./routes/settings'));
 app.use('/api/staff',       require('./routes/staff'));
 app.use('/api/equipment',   require('./routes/equipment'));
-app.use('/api/tasks',       require('./routes/tasks'));
-app.get('/api/work-types', async (req, res) => {
+app.use('/api/attachments', require('./routes/attachments'));
+app.get('/api/work-types',  async (req, res) => {
   try {
-    const db = require('./db');
     const result = await db.query('SELECT * FROM work_types ORDER BY name ASC');
     res.json(result.rows);
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
-app.use('/api/attachments', require('./routes/attachments'));
+app.use('/api/tasks',       require('./routes/tasks'));
+
 // Full state import for Orchard
 app.post('/api/import/orchard', async (req, res) => {
   try {
     const d = req.body;
-    // Save full state
     await db.query(
       `INSERT INTO settings (key,value) VALUES ('orchard_full_state',$1)
        ON CONFLICT (key) DO UPDATE SET value=$1, updated_at=NOW()`,
       [JSON.stringify(d)]
     );
-    // Save treatments
     if (d.treatments?.length) {
       for (const t of d.treatments) {
         await db.query(
@@ -104,9 +102,7 @@ app.post('/api/import/vegetable', async (req, res) => {
 // Full state GET for Orchard
 app.get('/api/state/orchard', async (req, res) => {
   try {
-    const r = await db.query(
-      `SELECT value FROM settings WHERE key='orchard_full_state'`
-    );
+    const r = await db.query(`SELECT value FROM settings WHERE key='orchard_full_state'`);
     if (!r.rows.length) return res.json({ ok: false });
     res.json({ ok: true, data: r.rows[0].value });
   } catch(e) { res.status(500).json({ error: e.message }); }
@@ -115,9 +111,7 @@ app.get('/api/state/orchard', async (req, res) => {
 // Full state GET for Vegetable
 app.get('/api/state/vegetable', async (req, res) => {
   try {
-    const r = await db.query(
-      `SELECT value FROM settings WHERE key='vegetable_full_state'`
-    );
+    const r = await db.query(`SELECT value FROM settings WHERE key='vegetable_full_state'`);
     if (!r.rows.length) return res.json({ ok: false });
     res.json({ ok: true, data: r.rows[0].value });
   } catch(e) { res.status(500).json({ error: e.message }); }
