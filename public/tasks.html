@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Журнал работ — Smart Agro</title>
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#f5f4f0;--surface:#fff;--border:#e2e0d8;--border2:#ccc9be;
+  --text:#1a1a18;--muted:#6b6a64;
+  --green:#1d6a4a;--green-light:#e8f4ee;--green-mid:#2d9566;
+  --amber:#b85c00;--amber-light:#fef3e2;
+  --red:#c0392b;--red-light:#fdecea;
+  --blue:#1a4f7a;--blue-light:#e8f1f8;
+  --gray-light:#f0efe9;--radius:10px;
+  --font:'Golos Text',sans-serif;--mono:'JetBrains Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;}
+.header{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;height:56px;gap:12px;}
+.logo{font-size:15px;font-weight:600;color:var(--green);margin-right:12px;}
+.logo span{color:var(--muted);font-weight:400;}
+.header-title{font-size:15px;font-weight:600;flex:1;}
+.btn{padding:8px 16px;font-size:13px;font-weight:500;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;transition:all 0.15s;font-family:var(--font);text-decoration:none;display:inline-flex;align-items:center;gap:6px;}
+.btn:hover{border-color:var(--border2);background:var(--bg);}
+.btn-primary{background:var(--green);color:#fff;border-color:var(--green);}
+.btn-primary:hover{background:#155237;border-color:#155237;}
+.btn-sm{padding:5px 12px;font-size:12px;}
+.btn-ghost{border-color:transparent;background:none;color:var(--muted);}
+.btn-ghost:hover{background:var(--bg);color:var(--text);border-color:var(--border);}
+.btn-danger{background:var(--red-light);color:var(--red);border-color:#f5c6c2;}
+.btn-confirm{background:var(--green-light);color:var(--green);border-color:#a8dbc0;}
+.btn-warn{background:var(--amber-light);color:var(--amber);border-color:#f5c6a0;}
+
+.filters{padding:12px 24px;display:flex;gap:6px;align-items:center;border-bottom:1px solid var(--border);background:var(--surface);flex-wrap:wrap;}
+.filter-btn{padding:5px 14px;font-size:12px;font-weight:500;border-radius:20px;border:1px solid var(--border);background:none;color:var(--muted);cursor:pointer;font-family:var(--font);transition:all 0.15s;}
+.filter-btn:hover{border-color:var(--border2);color:var(--text);}
+.filter-btn.active{background:var(--green);color:#fff;border-color:var(--green);}
+.filter-count{font-size:10px;background:rgba(255,255,255,0.3);padding:1px 6px;border-radius:10px;margin-left:3px;}
+.filter-btn:not(.active) .filter-count{background:var(--gray-light);color:var(--muted);}
+
+.main{padding:20px 24px;max-width:880px;margin:0 auto;}
+
+.task-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;margin-bottom:10px;transition:box-shadow 0.15s;}
+.task-card:hover{box-shadow:0 2px 8px rgba(0,0,0,0.06);}
+.task-card.status-new{border-left:3px solid #378add;}
+.task-card.status-accepted{border-left:3px solid var(--amber);}
+.task-card.status-in_progress{border-left:3px solid var(--green-mid);}
+.task-card.status-done{border-left:3px solid #639922;}
+.task-card.status-closed{border-left:3px solid #b4b2a9;}
+.task-card.status-problem{border-left:3px solid var(--red);}
+
+.task-top{display:flex;align-items:flex-start;gap:12px;}
+.task-info{flex:1;}
+.task-title{font-size:15px;font-weight:600;margin-bottom:3px;}
+.task-sub{font-size:12px;color:var(--muted);}
+.task-badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
+.badge{display:inline-flex;align-items:center;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:600;}
+.badge-blue{background:var(--blue-light);color:var(--blue);}
+.badge-amber{background:var(--amber-light);color:var(--amber);}
+.badge-green{background:var(--green-light);color:var(--green);}
+.badge-lime{background:#eaf3de;color:#27500a;}
+.badge-gray{background:var(--gray-light);color:var(--muted);}
+.badge-red{background:var(--red-light);color:var(--red);}
+
+.divider{border-top:1px solid var(--border);margin:12px 0;}
+.meta-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;}
+.meta-item .label{font-size:11px;color:var(--muted);margin-bottom:2px;}
+.meta-item .val{font-size:13px;font-weight:500;}
+.task-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px;}
+.problem-box{background:var(--red-light);border:1px solid #f5c6c2;border-radius:8px;padding:10px 14px;margin-top:10px;font-size:13px;color:var(--red);}
+
+.empty{text-align:center;padding:80px 20px;color:var(--muted);}
+.empty-icon{font-size:48px;margin-bottom:16px;}
+.empty h2{font-size:16px;font-weight:600;color:var(--text);margin-bottom:8px;}
+
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:100;align-items:center;justify-content:center;padding:20px;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border-radius:14px;padding:24px;width:100%;max-width:580px;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.18);}
+.modal h2{font-size:17px;font-weight:600;margin-bottom:20px;}
+.form-group{margin-bottom:14px;}
+.form-group label{display:block;font-size:12px;font-weight:500;color:var(--muted);margin-bottom:5px;}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:var(--font);background:var(--bg);color:var(--text);transition:border-color 0.15s;outline:none;}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--green-mid);}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);}
+.section-title{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin:16px 0 10px;}
+
+.toast{position:fixed;bottom:24px;right:24px;background:var(--text);color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;z-index:200;opacity:0;transform:translateY(8px);transition:all 0.2s;pointer-events:none;}
+.toast.show{opacity:1;transform:translateY(0);}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">Smart<span>Agro</span></div>
+  <div class="header-title">Журнал работ</div>
+  <a class="btn btn-ghost btn-sm" href="/staff-equipment.html">👥 Справочники</a>
+  <a class="btn btn-ghost btn-sm" href="/vegetable">🌿 Vegetable</a>
+  <button class="btn btn-primary" onclick="openNewTask()">+ Новое задание</button>
+</div>
+
+<div class="filters">
+  <button class="filter-btn active" onclick="setFilter('all',this)">Все <span class="filter-count" id="cnt-all">0</span></button>
+  <button class="filter-btn" onclick="setFilter('new',this)">Новые <span class="filter-count" id="cnt-new">0</span></button>
+  <button class="filter-btn" onclick="setFilter('accepted',this)">Принято <span class="filter-count" id="cnt-accepted">0</span></button>
+  <button class="filter-btn" onclick="setFilter('in_progress',this)">В работе <span class="filter-count" id="cnt-in_progress">0</span></button>
+  <button class="filter-btn" onclick="setFilter('done',this)">Выполнено <span class="filter-count" id="cnt-done">0</span></button>
+  <button class="filter-btn" onclick="setFilter('problem',this)">⚠️ Проблемы <span class="filter-count" id="cnt-problem">0</span></button>
+  <button class="filter-btn" onclick="setFilter('closed',this)">Закрыто <span class="filter-count" id="cnt-closed">0</span></button>
+</div>
+
+<div class="main"><div id="task-list"></div></div>
+
+<!-- МОДАЛ: Новое задание -->
+<div class="modal-overlay" id="task-modal">
+<div class="modal">
+  <h2>Новое задание</h2>
+
+  <div class="section-title">Что делать</div>
+  <div class="form-row">
+    <div class="form-group">
+      <label>Тип работы *</label>
+      <select id="t-worktype"></select>
+    </div>
+    <div class="form-group">
+      <label>Участок</label>
+      <select id="t-parcel"><option value="">— не выбран —</option></select>
+    </div>
+  </div>
+  <div class="form-group">
+    <label>Описание / инструкция</label>
+    <textarea id="t-desc" rows="2" placeholder="Препарат, норма, особые указания..."></textarea>
+  </div>
+  <div class="form-group">
+    <label>Срок выполнения</label>
+    <input type="date" id="t-due">
+  </div>
+
+  <div class="section-title">Кто выполняет</div>
+  <div class="form-row">
+    <div class="form-group">
+      <label>Создаёт задание (агроном) *</label>
+      <select id="t-creator"></select>
+    </div>
+    <div class="form-group">
+      <label>Исполнитель (инженер/оператор) *</label>
+      <select id="t-assigned"></select>
+    </div>
+  </div>
+  <div class="form-group">
+    <label>Механизатор (получит личное уведомление)</label>
+    <select id="t-mechanic"><option value="">— не назначен —</option></select>
+  </div>
+
+  <div class="section-title">Техника</div>
+  <div class="form-row">
+    <div class="form-group">
+      <label>Техника</label>
+      <select id="t-equip"><option value="">— не выбрана —</option></select>
+    </div>
+    <div class="form-group">
+      <label>Навесное / прицепное оборудование</label>
+      <select id="t-attach"><option value="">— не выбрано —</option></select>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label>Примечание</label>
+    <input type="text" id="t-note" placeholder="">
+  </div>
+
+  <div class="modal-footer">
+    <button class="btn" onclick="closeTaskModal()">Отмена</button>
+    <button class="btn btn-primary" onclick="saveTask()">Создать задание + отправить в Telegram</button>
+  </div>
+</div>
+</div>
+
+<!-- МОДАЛ: Проблема -->
+<div class="modal-overlay" id="problem-modal">
+<div class="modal" style="max-width:420px;">
+  <h2>⚠️ Сообщить о проблеме</h2>
+  <input type="hidden" id="problem-task-id">
+  <div class="form-group">
+    <label>Опишите проблему — она появится в Telegram группе</label>
+    <textarea id="problem-text" rows="4" placeholder="Нет препарата, поломка техники, плохая погода..."></textarea>
+  </div>
+  <div class="modal-footer">
+    <button class="btn" onclick="closeProblemModal()">Отмена</button>
+    <button class="btn btn-danger" onclick="saveProblem()">Отправить проблему</button>
+  </div>
+</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const STATUS_LABELS = {new:'Новое',accepted:'Принято',in_progress:'В работе',done:'Выполнено',closed:'Закрыто',problem:'Проблема'};
+const STATUS_BADGE  = {new:'badge-blue',accepted:'badge-amber',in_progress:'badge-green',done:'badge-lime',closed:'badge-gray',problem:'badge-red'};
+const WORK_CATS     = {spraying:'Обработка',fertilizing:'Удобрения',irrigation:'Полив',tillage:'Обработка почвы',harvest:'Уборка',other:'Другое'};
+
+let allTasks=[], currentFilter='all', staffList=[], equipList=[], attachList=[], parcelList=[];
+
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2800);
+}
+
+function setFilter(f,el){
+  currentFilter=f;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  renderTasks();
+}
+
+function updateCounts(){
+  const counts={all:allTasks.length};
+  ['new','accepted','in_progress','done','closed','problem'].forEach(s=>{
+    counts[s]=allTasks.filter(t=>t.status===s).length;
+  });
+  Object.keys(counts).forEach(k=>{
+    const el=document.getElementById('cnt-'+k);
+    if(el) el.textContent=counts[k];
+  });
+}
+
+function formatDate(d){
+  if(!d) return '—';
+  return new Date(d).toLocaleDateString('ru-RU');
+}
+
+function renderTasks(){
+  const filtered = currentFilter==='all' ? allTasks : allTasks.filter(t=>t.status===currentFilter);
+  const el = document.getElementById('task-list');
+  if(!filtered.length){
+    el.innerHTML=`<div class="empty"><div class="empty-icon">📋</div><h2>Заданий нет</h2><p>Нажмите «+ Новое задание» чтобы создать</p></div>`;
+    return;
+  }
+  el.innerHTML = filtered.map(t=>{
+    const actions = buildActions(t);
+    return `
+    <div class="task-card status-${t.status}">
+      <div class="task-top">
+        <div class="task-info">
+          <div class="task-title">${t.work_type_name||'Работа'}</div>
+          <div class="task-sub">${t.parcel_name||''} ${t.description ? '· '+t.description.slice(0,60) : ''}</div>
+          <div class="task-badges">
+            <span class="badge ${STATUS_BADGE[t.status]||'badge-gray'}">${STATUS_LABELS[t.status]||t.status}</span>
+            ${t.due_date ? `<span class="badge badge-amber">📅 ${formatDate(t.due_date)}</span>` : ''}
+            ${t.telegram_sent ? `<span class="badge badge-gray">✈️ Telegram</span>` : ''}
+          </div>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="meta-grid">
+        <div class="meta-item"><div class="label">Создал</div><div class="val">${t.created_by_name||'—'}</div></div>
+        <div class="meta-item"><div class="label">Исполнитель</div><div class="val">${t.assigned_to_name||'—'}</div></div>
+        <div class="meta-item"><div class="label">Техника</div><div class="val">${t.equipment_name||'—'}</div></div>
+        <div class="meta-item"><div class="label">Навесное</div><div class="val">${t.attachment||'—'}</div></div>
+        ${t.mechanic_name ? `<div class="meta-item"><div class="label">Механизатор</div><div class="val">${t.mechanic_name}</div></div>` : ''}
+        ${t.started_at ? `<div class="meta-item"><div class="label">Начато</div><div class="val">${formatDate(t.started_at)}</div></div>` : ''}
+        ${t.finished_at ? `<div class="meta-item"><div class="label">Выполнено</div><div class="val">${formatDate(t.finished_at)}</div></div>` : ''}
+        ${t.closed_by_name ? `<div class="meta-item"><div class="label">Закрыл</div><div class="val">${t.closed_by_name}</div></div>` : ''}
+      </div>
+      ${t.problem_note ? `<div class="problem-box">⚠️ ${t.problem_note}</div>` : ''}
+      ${actions ? `<div class="task-actions">${actions}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function buildActions(t){
+  let html='';
+  if(t.status==='new'){
+    html+=`<button class="btn btn-sm btn-confirm" onclick="changeStatus('${t.id}','accepted',{})">✓ Принять</button>`;
+    html+=`<button class="btn btn-sm btn-warn" onclick="openProblem('${t.id}')">⚠️ Проблема</button>`;
+  }
+  if(t.status==='accepted'){
+    html+=`<button class="btn btn-sm btn-confirm" onclick="changeStatus('${t.id}','in_progress',{})">▶ Начать работу</button>`;
+    html+=`<button class="btn btn-sm btn-warn" onclick="openProblem('${t.id}')">⚠️ Проблема</button>`;
+  }
+  if(t.status==='in_progress'){
+    html+=`<button class="btn btn-sm btn-primary" onclick="confirmDone('${t.id}')">✅ Подтвердить выполнение</button>`;
+    html+=`<button class="btn btn-sm btn-warn" onclick="openProblem('${t.id}')">⚠️ Проблема</button>`;
+  }
+  if(t.status==='done'){
+    html+=`<button class="btn btn-sm btn-ghost" onclick="changeStatus('${t.id}','closed',{closed_by_name:'Агроном'})">Закрыть (агроном)</button>`;
+  }
+  if(t.status==='problem'){
+    html+=`<button class="btn btn-sm btn-ghost" onclick="changeStatus('${t.id}','closed',{closed_by_name:'Агроном'})">Закрыть задание</button>`;
+  }
+  return html;
+}
+
+async function loadTasks(){
+  const res = await fetch('/api/tasks');
+  allTasks = await res.json();
+  updateCounts();
+  renderTasks();
+}
+
+async function changeStatus(id, status, extra){
+  await fetch(`/api/tasks/${id}/status`,{
+    method:'PATCH',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({status,...extra})
+  });
+  toast('Статус обновлён');
+  loadTasks();
+}
+
+async function confirmDone(id){
+  const name = prompt('Ваше имя (кто подтверждает)?');
+  if(!name) return;
+  await changeStatus(id,'done',{closed_by_id:null,closed_by_name:name});
+}
+
+function openProblem(id){
+  document.getElementById('problem-task-id').value=id;
+  document.getElementById('problem-text').value='';
+  document.getElementById('problem-modal').classList.add('open');
+}
+function closeProblemModal(){ document.getElementById('problem-modal').classList.remove('open'); }
+
+async function saveProblem(){
+  const id=document.getElementById('problem-task-id').value;
+  const note=document.getElementById('problem-text').value.trim();
+  if(!note){alert('Опишите проблему');return;}
+  await changeStatus(id,'problem',{problem_note:note});
+  closeProblemModal();
+  toast('Проблема отправлена в Telegram');
+}
+
+// ── Новое задание ──────────────────────────────────────────
+async function loadSelects(){
+  const [staff,equip,attach,parcels,wt] = await Promise.all([
+    fetch('/api/staff').then(r=>r.json()),
+    fetch('/api/equipment').then(r=>r.json()),
+    fetch('/api/attachments').then(r=>r.json()),
+    fetch('/api/parcels').then(r=>r.json()),
+    fetch('/api/tasks/meta/work-types').then(r=>r.json())
+  ]);
+  staffList=staff; equipList=equip; attachList=attach; parcelList=parcels;
+
+  // Work types
+  const wtSel=document.getElementById('t-worktype');
+  wtSel.innerHTML=wt.map(w=>`<option value="${w.id}" data-name="${w.name}">${w.name}</option>`).join('');
+
+  // Parcels
+  const pSel=document.getElementById('t-parcel');
+  pSel.innerHTML='<option value="">— не выбран —</option>'+parcels.map(p=>`<option value="${p.id}" data-name="${p.name}">${p.name} (${p.ha} га)</option>`).join('');
+
+  // Staff — creator (agronomist)
+  const crSel=document.getElementById('t-creator');
+  crSel.innerHTML=staff.filter(s=>s.active).map(s=>`<option value="${s.id}" data-name="${s.name}">${s.name} — ${s.role}</option>`).join('');
+
+  // Staff — assigned
+  const asSel=document.getElementById('t-assigned');
+  asSel.innerHTML=staff.filter(s=>s.active).map(s=>`<option value="${s.id}" data-name="${s.name}">${s.name} — ${s.role}</option>`).join('');
+
+  // Staff — mechanic
+  const mSel=document.getElementById('t-mechanic');
+  mSel.innerHTML='<option value="">— не назначен —</option>'+staff.filter(s=>s.active&&(s.role==='mechanic'||s.role==='operator')).map(s=>`<option value="${s.id}" data-name="${s.name}">${s.name}</option>`).join('');
+
+  // Equipment
+  const eSel=document.getElementById('t-equip');
+  eSel.innerHTML='<option value="">— не выбрана —</option>'+equip.map(e=>`<option value="${e.id}" data-name="${e.name}">${e.name}${e.board_number?' · борт '+e.board_number:''} (${e.status==='free'?'свободен':'занят'})</option>`).join('');
+
+  // Attachments
+  const atSel=document.getElementById('t-attach');
+  atSel.innerHTML='<option value="">— не выбрано —</option>'+attach.map(a=>`<option value="${a.id}" data-name="${a.name}">${a.name}</option>`).join('');
+}
+
+function openNewTask(){
+  loadSelects();
+  document.getElementById('t-desc').value='';
+  document.getElementById('t-note').value='';
+  document.getElementById('t-due').value='';
+  document.getElementById('task-modal').classList.add('open');
+}
+function closeTaskModal(){ document.getElementById('task-modal').classList.remove('open'); }
+
+function getSelected(id){
+  const sel=document.getElementById(id);
+  if(!sel.value) return {id:null,name:null};
+  const opt=sel.options[sel.selectedIndex];
+  return {id:sel.value, name:opt.dataset.name||opt.textContent.split(' —')[0].trim()};
+}
+
+async function saveTask(){
+  const wt=getSelected('t-worktype');
+  const parcel=getSelected('t-parcel');
+  const creator=getSelected('t-creator');
+  const assigned=getSelected('t-assigned');
+  const mechanic=getSelected('t-mechanic');
+  const equip=getSelected('t-equip');
+  const attach=getSelected('t-attach');
+
+  if(!creator.id||!assigned.id){alert('Выберите агронома и исполнителя');return;}
+
+  const body={
+    work_type_id:wt.id, work_type_name:wt.name,
+    description:document.getElementById('t-desc').value.trim(),
+    parcel_id:parcel.id, parcel_name:parcel.name,
+    created_by_id:creator.id, created_by_name:creator.name,
+    assigned_to_id:assigned.id, assigned_to_name:assigned.name,
+    mechanic_id:mechanic.id, mechanic_name:mechanic.name,
+    equipment_id:equip.id, equipment_name:equip.name,
+    attachment:attach.name,
+    due_date:document.getElementById('t-due').value||null,
+    note:document.getElementById('t-note').value.trim()
+  };
+
+  const res=await fetch('/api/tasks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(res.ok){
+    closeTaskModal();
+    toast('Задание создано и отправлено в Telegram ✈️');
+    loadTasks();
+  } else {
+    const err=await res.json();
+    alert('Ошибка: '+err.error);
+  }
+}
+
+loadTasks();
+</script>
+</body>
+</html>
