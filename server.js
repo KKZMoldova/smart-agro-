@@ -32,6 +32,7 @@ app.use('/api/settings',    require('./routes/settings'));
 app.use('/api/staff',       require('./routes/staff'));
 app.use('/api/equipment',   require('./routes/equipment'));
 app.use('/api/tasks',       require('./routes/tasks'));
+app.use('/api/attachments', require('./routes/attachments'));
 // Full state import for Orchard
 app.post('/api/import/orchard', async (req, res) => {
   try {
