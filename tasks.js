@@ -1,0 +1,185 @@
+const express = require('express');
+const router  = express.Router();
+const { v4: uuidv4 } = require('uuid');
+const db = require('../db');
+
+// Отправка Telegram уведомления
+async function sendTelegram(message) {
+  try {
+    const cfg = await db.query("SELECT value FROM settings WHERE key='telegram'");
+    if (!cfg.rows.length) return;
+    const { bot_token, group_chat_id } = cfg.rows[0].value;
+    if (!bot_token || !group_chat_id) return;
+    await fetch(`https://api.telegram.org/bot${bot_token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: group_chat_id, text: message, parse_mode: 'HTML' })
+    });
+  } catch (e) { console.error('Telegram error:', e.message); }
+}
+
+// Формат сообщения для Telegram
+function buildTelegramMessage(task) {
+  const due = task.due_date ? new Date(task.due_date).toLocaleDateString('ru-RU') : '—';
+  return `🌿 <b>ЗАДАНИЕ #${task.id.slice(-4).toUpperCase()}</b>
+📋 <b>${task.work_type_name || 'Работа'}</b>
+🌱 Участок: ${task.parcel_name || '—'}
+📝 ${task.description || ''}
+👤 Создал: ${task.created_by_name || '—'}
+👷 Исполнитель: ${task.assigned_to_name || '—'}
+🚜 Техника: ${task.equipment_name || '—'} ${task.attachment ? '· ' + task.attachment : ''}
+📅 Срок: ${due}
+
+🔗 Открыть задание в системе`;
+}
+
+// GET /api/tasks
+router.get('/', async (req, res) => {
+  try {
+    const { status, assigned_to_id, mechanic_id, parcel_id } = req.query;
+    let q = 'SELECT * FROM tasks WHERE 1=1';
+    const params = [];
+    if (status)         { params.push(status);         q += ` AND status = $${params.length}`; }
+    if (assigned_to_id) { params.push(assigned_to_id); q += ` AND assigned_to_id = $${params.length}`; }
+    if (mechanic_id)    { params.push(mechanic_id);    q += ` AND mechanic_id = $${params.length}`; }
+    if (parcel_id)      { params.push(parcel_id);      q += ` AND parcel_id = $${params.length}`; }
+    q += ' ORDER BY created_at DESC';
+    const result = await db.query(q, params);
+    res.json(result.rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// GET /api/tasks/:id
+router.get('/:id', async (req, res) => {
+  try {
+    const result = await db.query('SELECT * FROM tasks WHERE id=$1', [req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Not found' });
+    res.json(result.rows[0]);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/tasks — создать задание (агроном)
+router.post('/', async (req, res) => {
+  try {
+    const {
+      work_type_id, work_type_name, description,
+      parcel_id, parcel_name, treatment_id,
+      created_by_id, created_by_name,
+      assigned_to_id, assigned_to_name,
+      equipment_id, equipment_name, attachment,
+      mechanic_id, mechanic_name,
+      due_date, note
+    } = req.body;
+
+    const id = uuidv4();
+    const result = await db.query(
+      `INSERT INTO tasks (
+        id, work_type_id, work_type_name, description,
+        parcel_id, parcel_name, treatment_id,
+        created_by_id, created_by_name,
+        assigned_to_id, assigned_to_name,
+        equipment_id, equipment_name, attachment,
+        mechanic_id, mechanic_name,
+        due_date, note, status
+      ) VALUES (
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
+        $11,$12,$13,$14,$15,$16,$17,$18,'new'
+      ) RETURNING *`,
+      [id, work_type_id||null, work_type_name||null, description||null,
+       parcel_id||null, parcel_name||null, treatment_id||null,
+       created_by_id||null, created_by_name||null,
+       assigned_to_id||null, assigned_to_name||null,
+       equipment_id||null, equipment_name||null, attachment||null,
+       mechanic_id||null, mechanic_name||null,
+       due_date||null, note||null]
+    );
+    const task = result.rows[0];
+
+    // Telegram уведомление в группу
+    await sendTelegram(buildTelegramMessage(task));
+    await db.query('UPDATE tasks SET telegram_sent=true, telegram_sent_at=NOW() WHERE id=$1', [id]);
+
+    // Личное уведомление механизатору если есть telegram_id
+    if (mechanic_id) {
+      const mech = await db.query('SELECT telegram_id, name FROM staff WHERE id=$1', [mechanic_id]);
+      if (mech.rows.length && mech.rows[0].telegram_id) {
+        const due = due_date ? new Date(due_date).toLocaleDateString('ru-RU') : '—';
+        const personalMsg = `👋 ${mech.rows[0].name}, вам назначено задание!\n\n📋 ${work_type_name || 'Работа'}\n🌱 ${parcel_name || ''}\n🚜 ${equipment_name || ''}\n📅 Срок: ${due}`;
+        try {
+          const cfg = await db.query("SELECT value FROM settings WHERE key='telegram'");
+          const { bot_token } = cfg.rows[0].value;
+          if (bot_token) {
+            await fetch(`https://api.telegram.org/bot${bot_token}/sendMessage`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ chat_id: mech.rows[0].telegram_id, text: personalMsg })
+            });
+          }
+        } catch(e) { console.error('Personal telegram error:', e.message); }
+      }
+    }
+
+    res.status(201).json(task);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// PATCH /api/tasks/:id/status — изменить статус
+router.patch('/:id/status', async (req, res) => {
+  try {
+    const { status, problem_note, closed_by_id, closed_by_name,
+            equipment_id, equipment_name, attachment } = req.body;
+    const allowed = ['new','accepted','in_progress','done','closed','problem'];
+    if (!allowed.includes(status)) return res.status(400).json({ error: 'Invalid status' });
+
+    let q = `UPDATE tasks SET status=$1, updated_at=NOW()`;
+    const params = [status];
+
+    if (status === 'in_progress') {
+      q += `, started_at=NOW()`;
+    }
+    if (status === 'done' || status === 'closed') {
+      q += `, finished_at=NOW()`;
+    }
+    if (problem_note) {
+      params.push(problem_note); q += `, problem_note=$${params.length}`;
+    }
+    if (closed_by_id) {
+      params.push(closed_by_id);   q += `, closed_by_id=$${params.length}`;
+      params.push(closed_by_name); q += `, closed_by_name=$${params.length}`;
+      q += `, closed_at=NOW()`;
+    }
+    if (equipment_id) {
+      params.push(equipment_id);   q += `, equipment_id=$${params.length}`;
+      params.push(equipment_name); q += `, equipment_name=$${params.length}`;
+      params.push(attachment);     q += `, attachment=$${params.length}`;
+    }
+
+    params.push(req.params.id);
+    q += ` WHERE id=$${params.length} RETURNING *`;
+
+    const result = await db.query(q, params);
+    if (!result.rows.length) return res.status(404).json({ error: 'Not found' });
+    const task = result.rows[0];
+
+    // Уведомление о проблеме в Telegram
+    if (status === 'problem' && problem_note) {
+      await sendTelegram(`⚠️ <b>ПРОБЛЕМА по заданию #${task.id.slice(-4).toUpperCase()}</b>\n👷 ${task.assigned_to_name || '—'}\n❗ ${problem_note}`);
+    }
+    // Уведомление о выполнении
+    if (status === 'done' || status === 'closed') {
+      await sendTelegram(`✅ <b>Задание #${task.id.slice(-4).toUpperCase()} выполнено</b>\n📋 ${task.work_type_name || ''} · ${task.parcel_name || ''}\n👷 ${task.closed_by_name || task.assigned_to_name || '—'}`);
+    }
+
+    res.json(task);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// GET /api/tasks/work-types — список типов работ
+router.get('/meta/work-types', async (req, res) => {
+  try {
+    const result = await db.query('SELECT * FROM work_types ORDER BY name ASC');
+    res.json(result.rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+module.exports = router;
