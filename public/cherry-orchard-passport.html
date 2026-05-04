@@ -8534,15 +8534,34 @@ async function init(){
   await checkServer();
   updateServerIndicator();
 
-  // Load data (API + localStorage fallback)
-  await load();
+  // Try to load full state from server first
+  if (_serverAvailable) {
+    try {
+      const r = await fetch('/api/state/orchard');
+      const json = await r.json();
+      if (json.ok && json.data) {
+        const d = typeof json.data === 'string' ? JSON.parse(json.data) : json.data;
+        // Merge server state
+        _mergeState(d);
+        console.log('[init] Loaded full state from server');
+        localStorage.setItem('cherry_v5', JSON.stringify(S));
+      } else {
+        // Fall back to localStorage
+        await load();
+      }
+    } catch(e) {
+      console.warn('[init] Server state load failed:', e.message);
+      await load();
+    }
+  } else {
+    await load();
+  }
 
   // Render
   renderMap();
   loadSettings();
   populateGddVarietySelect();
 
-  // Show server status in header
   console.log('[init] Server:', _serverAvailable ? 'online' : 'offline (localStorage mode)');
 }
 init();
