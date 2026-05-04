@@ -1255,6 +1255,8 @@ const DEFAULT_STATE = {
 };
 
 let S = JSON.parse(JSON.stringify(DEFAULT_STATE));
+const STORAGE_KEY = 'sveg_v1';
+
 // ═══════════════════════════════════════════════════════════════════════════
 // SERVER API LAYER — Railway + PostgreSQL
 // Falls back to localStorage when server unavailable
@@ -4651,17 +4653,15 @@ function renderVegAnalyses() {
 // ─── INIT ─────────────────────────────────────────────────────────────────
 async function startApp() {
   load();           // instant from localStorage
-  initRoleSystem(); // show login screen
   await checkVServer();
 
-  // Try to load full state from server
+  // Try to load full state from server BEFORE showing login
   if (_vServerAvailable) {
     try {
       const r = await fetch('/api/state/vegetable');
       const json = await r.json();
       if (json.ok && json.data) {
         const d = typeof json.data === 'string' ? JSON.parse(json.data) : json.data;
-        // Apply server state
         if (d.parcels?.length) {
           S.parcels = d.parcels.map(p => {
             if (p.sowingDate) p.sowingDate = normalizeDate(p.sowingDate) || p.sowingDate;
@@ -4677,15 +4677,15 @@ async function startApp() {
         if (d.farmName)            S.farmName    = d.farmName;
         if (d.region)              S.region      = d.region;
         localStorage.setItem(STORAGE_KEY, JSON.stringify(S));
-        console.log('[Veg] Loaded full state from server');
+        console.log('[Veg] Loaded', S.parcels.length, 'parcels from server');
       }
     } catch(e) {
       console.warn('[Veg] Server state load failed:', e.message);
     }
   }
 
-  await syncFromServer(); // pull weather + treatments from server
-  renderParcels();
+  initRoleSystem(); // show login screen AFTER data loaded
+  renderParcels();  // render with server data
 }
 startApp();
 </script>
