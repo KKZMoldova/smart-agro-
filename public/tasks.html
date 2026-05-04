@@ -340,7 +340,7 @@ async function loadSelects(){
     fetch('/api/equipment').then(r=>r.json()),
     fetch('/api/attachments').then(r=>r.json()),
     fetch('/api/parcels').then(r=>r.json()),
-    fetch('/api/tasks/meta/work-types').then(r=>r.json())
+    fetch('/api/work-types').then(r=>r.json()),
   ]);
   staffList=staff; equipList=equip; attachList=attach; parcelList=parcels;
 
