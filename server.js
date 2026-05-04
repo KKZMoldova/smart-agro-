@@ -32,6 +32,13 @@ app.use('/api/settings',    require('./routes/settings'));
 app.use('/api/staff',       require('./routes/staff'));
 app.use('/api/equipment',   require('./routes/equipment'));
 app.use('/api/tasks',       require('./routes/tasks'));
+app.get('/api/work-types', async (req, res) => {
+  try {
+    const db = require('./db');
+    const result = await db.query('SELECT * FROM work_types ORDER BY name ASC');
+    res.json(result.rows);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
 app.use('/api/attachments', require('./routes/attachments'));
 // Full state import for Orchard
 app.post('/api/import/orchard', async (req, res) => {
