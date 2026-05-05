@@ -8541,21 +8541,59 @@ async function init(){
       const json = await r.json();
       if (json.ok && json.data) {
         const d = typeof json.data === 'string' ? JSON.parse(json.data) : json.data;
-        // Merge server state
         _mergeState(d);
         console.log('[init] Loaded full state from server');
         localStorage.setItem('cherry_v5', JSON.stringify(S));
       } else {
-        // Fall back to localStorage
         await load();
       }
     } catch(e) {
       console.warn('[init] Server state load failed:', e.message);
       await load();
     }
+
+    // ═══ ЗАГРУЗКА ПОГОДЫ С МЕТЕОСТАНЦИИ ═══
+    try {
+      const wRes = await fetch('/api/weather?days=90&station=00002158');
+      const wJson = await wRes.json();
+      if (wJson.ok && wJson.data && wJson.data.length) {
+        S.weather = wJson.data.map(d => ({
+          id: 'w_' + d.date.replace(/-/g,''),
+          date: d.date,
+          tmax: d.tmax,
+          tmin: d.tmin,
+          tavg: d.tavg,
+          humidity: d.humidity,
+          precip: d.precip,
+          et0: d.et0,
+          leafwet: d.leaf_wet || 0,
+          wind: d.wind_speed || null,
+          phase: null,
+          note: 'Авто-импорт с метеостанции',
+        }));
+        S.weather.sort((a,b) => b.date.localeCompare(a.date));
+        localStorage.setItem('cherry_v5', JSON.stringify(S));
+        console.log('[init] Weather loaded:', S.weather.length, 'days');
+      }
+    } catch(e) {
+      console.warn('[init] Weather load failed:', e.message);
+    }
+    // ══════════════════════════════════════
+
   } else {
     await load();
   }
+
+  // Render
+  renderMap();
+  loadSettings();
+  populateGddVarietySelect();
+  if (S.weather.length) renderWeather();
+
+  console.log('[init] Server:', _serverAvailable ? 'online' : 'offline');
+  console.log('[init] Weather records:', S.weather.length);
+}
+init();
 
   // Render
   renderMap();
