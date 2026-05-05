@@ -125,3 +125,24 @@ function parseResponse(json) {
   }
   return rows;
 }
+async function syncFieldClimate() {
+  for (const station of STATIONS) {
+    try {
+      const json = await fetchFromFieldClimate(station, '3h');
+      const rows = parseResponse(json);
+      for (const row of rows) {
+        await db.run(`
+          INSERT OR REPLACE INTO field_climate
+          (station_id, date, hour, tmax, tmin, tavg, humidity, precip, solar_rad, leaf_wet, et0)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [station.id, row.date, row.hour, row.tmax, row.tmin, row.tavg,
+            row.humidity, row.precip, row.solar_rad, row.leaf_wet, row.et0]);
+      }
+      console.log(`[FC][${station.label}] saved ${rows.length} rows`);
+    } catch(e) {
+      console.error(`[FC][${station.label}] error:`, e.message);
+    }
+  }
+}
+
+module.exports = { syncFieldClimate };
