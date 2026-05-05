@@ -4704,8 +4704,9 @@ async function startApp() {
     }
   }
 
+ await syncFromServer();
   initRoleSystem(); // show login screen AFTER data loaded
-  renderParcels();  // render with server data
+  renderParcels();  // render with server data 
 }
 startApp();
 </script>
