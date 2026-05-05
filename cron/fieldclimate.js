@@ -134,9 +134,10 @@ async function syncStation(station) {
     const json = await fetchFromFieldClimate(station);
     const rows = parseResponse(json, station.id);
     if (!rows.length) {
-      console.log(`[FieldClimate][${station.label}] No rows parsed`);
-      return 0;
-    }
+  console.log(`[FieldClimate][${station.label}] No rows parsed. Sensors: ${JSON.stringify((json.sensors||[]).map(s=>s.name||s.code)).slice(0,200)}`);
+  console.log(`[FieldClimate][${station.label}] Dates count: ${(json.dates||[]).length}`);
+  return 0;
+}
     const saved = await saveWeatherRows(rows, station.id);
     console.log(`[FieldClimate][${station.label}] Saved ${saved}/${rows.length} rows`);
     return saved;
