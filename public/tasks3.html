@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Журнал работ</title>
+<style>
+body{font-family:sans-serif;background:#f5f4f0;margin:0}
+.header{background:#fff;padding:12px 20px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #ddd}
+.btn{padding:8px 16px;border-radius:7px;border:1px solid #ddd;cursor:pointer;background:#fff}
+.btn-g{background:#1d6a4a;color:#fff;border-color:#1d6a4a}
+select{width:100%;padding:8px;margin-bottom:10px;border:1px solid #ddd;border-radius:6px;font-size:14px}
+label{display:block;font-size:12px;color:#666;margin-bottom:4px}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:10;align-items:center;justify-content:center}
+.modal.open{display:flex}
+.box{background:#fff;padding:24px;border-radius:12px;width:90%;max-width:500px;max-height:90vh;overflow-y:auto}
+</style>
+</head>
+<body>
+<div class="header">
+  <b style="color:#1d6a4a">SmartAgro</b>
+  <span style="flex:1;font-weight:600">Журнал работ</span>
+  <button class="btn btn-g" id="new-btn">+ Новое задание</button>
+</div>
+
+<div id="task-list" style="padding:20px;max-width:860px;margin:0 auto">
+  <p style="color:#999;text-align:center;padding:40px">Загрузка...</p>
+</div>
+
+<div class="modal" id="modal">
+<div class="box">
+  <h2 style="margin-bottom:16px">Новое задание</h2>
+  <div id="form-loading" style="color:#999;text-align:center;padding:20px">Загрузка данных...</div>
+  <div id="form-body" style="display:none">
+    <label>Тип работы</label>
+    <select id="f-wt"></select>
+    <label>Создал (агроном)</label>
+    <select id="f-cr"></select>
+    <label>Исполнитель</label>
+    <select id="f-as"></select>
+    <label>Техника</label>
+    <select id="f-eq"></select>
+    <label>Навесное оборудование</label>
+    <select id="f-at"></select>
+    <label>Участок</label>
+    <select id="f-par"></select>
+    <label>Срок</label>
+    <input type="date" id="f-due" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;margin-bottom:10px">
+    <label>Описание</label>
+    <textarea id="f-desc" rows="2" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;margin-bottom:16px"></textarea>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn" id="cancel-btn">Отмена</button>
+      <button class="btn btn-g" id="save-btn">Создать + Telegram</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+document.getElementById('new-btn').onclick = async function() {
+  document.getElementById('modal').classList.add('open');
+  document.getElementById('form-loading').style.display = 'block';
+  document.getElementById('form-body').style.display = 'none';
+  
+  const staff  = await fetch('/api/staff').then(r=>r.json());
+  const equip  = await fetch('/api/equipment').then(r=>r.json());
+  const attach = await fetch('/api/attachments').then(r=>r.json());
+  const wt     = await fetch('/api/work-types').then(r=>r.json());
+  let parcels = [];
+  try { parcels = await fetch('/api/parcels').then(r=>r.json()); } catch(e){}
+
+  document.getElementById('f-wt').innerHTML  = wt.map(w=>`<option value="${w.id}" data-name="${w.name}">${w.name}</option>`).join('');
+  document.getElementById('f-cr').innerHTML  = staff.map(s=>`<option value="${s.id}" data-name="${s.name}">${s.name} (${s.role})</option>`).join('');
+  document.getElementById('f-as').innerHTML  = staff.map(s=>`<option value="${s.id}" data-name="${s.name}">${s.name} (${s.role})</option>`).join('');
+  document.getElementById('f-eq').innerHTML  = '<option value="">— не выбрана —</option>'+equip.map(e=>`<option value="${e.id}" data-name="${e.name}">${e.name}</option>`).join('');
+  document.getElementById('f-at').innerHTML  = '<option value="">— не выбрано —</option>'+attach.map(a=>`<option value="${a.id}" data-name="${a.name}">${a.name}</option>`).join('');
+  document.getElementById('f-par').innerHTML = '<option value="">— не выбран —</option>'+parcels.map(p=>`<option value="${p.id}" data-name="${p.name}">${p.name}</option>`).join('');
+
+  document.getElementById('form-loading').style.display = 'none';
+  document.getElementById('form-body').style.display = 'block';
+};
+
+document.getElementById('cancel-btn').onclick = function() {
+  document.getElementById('modal').classList.remove('open');
+};
+
+function gsel(id) {
+  const s = document.getElementById(id);
+  if (!s || !s.value) return {id:null, name:null};
+  return {id: s.value, name: s.options[s.selectedIndex].dataset.name || s.options[s.selectedIndex].textContent};
+}
+
+document.getElementById('save-btn').onclick = async function() {
+  const cr = gsel('f-cr'), as_ = gsel('f-as');
+  if (!cr.id || !as_.id) { alert('Выберите создателя и исполнителя'); return; }
+  const body = {
+    work_type_id: gsel('f-wt').id, work_type_name: gsel('f-wt').name,
+    parcel_id: gsel('f-par').id, parcel_name: gsel('f-par').name,
+    created_by_id: cr.id, created_by_name: cr.name,
+    assigned_to_id: as_.id, assigned_to_name: as_.name,
+    equipment_id: gsel('f-eq').id, equipment_name: gsel('f-eq').name,
+    attachment: gsel('f-at').name,
+    due_date: document.getElementById('f-due').value || null,
+    description: document.getElementById('f-desc').value.trim()
+  };
+  const r = await fetch('/api/tasks', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+  if (r.ok) {
+    document.getElementById('modal').classList.remove('open');
+    alert('Задание создано!');
+    loadTasks();
+  } else {
+    const e = await r.json();
+    alert('Ошибка: ' + e.error);
+  }
+};
+
+async function loadTasks() {
+  const tasks = await fetch('/api/tasks').then(r=>r.json());
+  const el = document.getElementById('task-list');
+  if (!tasks.length) { el.innerHTML='<p style="color:#999;text-align:center;padding:40px">Заданий нет. Нажмите + Новое задание</p>'; return; }
+  el.innerHTML = tasks.map(t=>`
+    <div style="background:#fff;border:1px solid #ddd;border-radius:10px;padding:14px 18px;margin-bottom:10px">
+      <b>${t.work_type_name||'Работа'}</b> — ${t.parcel_name||''}
+      <span style="background:#e8f1f8;color:#1a4f7a;padding:2px 8px;border-radius:20px;font-size:11px;margin-left:8px">${t.status}</span>
+      <div style="font-size:12px;color:#666;margin-top:6px">
+        Создал: ${t.created_by_name||'—'} · Исполнитель: ${t.assigned_to_name||'—'} · Техника: ${t.equipment_name||'—'}
+      </div>
+    </div>`).join('');
+}
+
+loadTasks();
+</script>
+</body>
+</html>
