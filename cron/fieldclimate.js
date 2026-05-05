@@ -125,7 +125,7 @@ function parseResponse(json) {
 async function syncFieldClimate() {
   for (const station of STATIONS) {
     try {
-      const json = await fetchFromFieldClimate(station, '3h');
+      const json = await fetchFromFieldClimate(station, '48h');
       const rows = parseResponse(json);
       for (const row of rows) {
         await db.query(`
