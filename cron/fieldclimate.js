@@ -131,7 +131,7 @@ const vEt0   = findVals(['et0','eto'], 'result');
 async function syncFieldClimate() {
   for (const station of STATIONS) {
     try {
-      const json = await fetchFromFieldClimate(station, '48h');
+      const json = await fetchFromFieldClimate(station, '120d');
       const rows = parseResponse(json);
       for (const row of rows) {
         await db.query(`
