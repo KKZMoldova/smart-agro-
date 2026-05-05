@@ -17,18 +17,7 @@ const STATIONS = [
   },
 ];
 
-function buildHmacHeaders(method, route, publicKey, privateKey) {
-  if (!publicKey || !privateKey) throw new Error('Missing FieldClimate API keys');
-  const timestamp = Math.floor(Date.now() / 1000).toString();
-  const msg       = method + route + timestamp + publicKey;
-  const signature = crypto.createHmac('sha256', privateKey.trim()).update(msg).digest('hex');
-  const safeAuth  = ('hmac ' + publicKey.trim() + ':' + signature).replace(/[^\x20-\x7E]/g, '');
-  return {
-    'Accept':        'application/json',
-    'Authorization': safeAuth,
-    'Date':          timestamp,
-  };
-}
+const route = '/v2/data/' + station.id + '/last/' + hours + 'h';
 
 function fetchFromFieldClimate(station, hours) {
   hours = hours || 3;
