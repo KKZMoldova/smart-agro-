@@ -80,8 +80,10 @@ if (firstKey) {
     const sensorName = ((sensor.name || '') + ' ' + (sensor.name_original || '')).toLowerCase();
     const matches = keywords.some(k => sensorName.includes(k.toLowerCase()));
     if (matches) {
-      if (Array.isArray(sensor.values)) return sensor.values;
-      if (Array.isArray(sensor.aggr))   return sensor.aggr;
+      if (sensor.values && Array.isArray(sensor.values.avg)) return sensor.values.avg;
+if (sensor.aggr   && Array.isArray(sensor.aggr.avg))   return sensor.aggr.avg;
+if (Array.isArray(sensor.values)) return sensor.values;
+if (Array.isArray(sensor.aggr))   return sensor.aggr;
       if (Array.isArray(sensor))        return sensor;
     }
   }
