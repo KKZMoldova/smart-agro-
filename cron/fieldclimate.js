@@ -44,9 +44,9 @@ function fetchFromFieldClimate(station, period) {
           console.log('[FC][' + station.label + '] keys: ' + Object.keys(parsed).join(','));
           if (parsed.message) console.log('[FC][' + station.label + '] message: ' + parsed.message);
           console.log('[FC][' + station.label + '] dates: ' + (parsed.dates || []).length);
-if (parsed.sensors && parsed.sensors.length > 0) {
-  console.log('[FC][' + station.label + '] sensors: ' + parsed.sensors.map(s => s.name + '(' + s.code + ')').join(', '));
-}
+          if (parsed.sensors && parsed.sensors.length > 0) {
+            console.log('[FC][' + station.label + '] sensors: ' + parsed.sensors.map(s => s.name + '(' + s.code + ')').join(', '));
+          }
           resolve(parsed);
         } catch(e) {
           console.log('[FC][' + station.label + '] raw: ' + data.slice(0, 300));
@@ -64,17 +64,13 @@ function parseResponse(json) {
   const dates = json.dates || [];
   const data  = json.data  || {};
 
-  // data — объект где ключи это коды сенсоров
-  // Логируем что есть
   console.log('[FC] data keys: ' + Object.keys(data).join(', '));
 
-  // Найти сенсор по возможным ключам
   function findVals(keys) {
     for (let k of keys) {
       for (let dk of Object.keys(data)) {
         if (dk.toLowerCase().includes(k.toLowerCase())) {
           const sensor = data[dk];
-          // sensor может быть массивом или объектом с полем values
           if (Array.isArray(sensor)) return sensor;
           if (sensor && Array.isArray(sensor.values)) return sensor.values;
           if (sensor && Array.isArray(sensor.aggr)) return sensor.aggr;
@@ -96,7 +92,7 @@ function parseResponse(json) {
   const rows = [];
   for (let i = 0; i < dates.length; i++) {
     if (!dates[i]) continue;
-    const dt = new Date(typeof dates[i] === 'number' ? dates[i] * 1000 : dates[i]);
+    const dt   = new Date(typeof dates[i] === 'number' ? dates[i] * 1000 : dates[i]);
     const date = dt.toISOString().slice(0, 10);
     const hour = dt.getUTCHours();
 
@@ -125,6 +121,7 @@ function parseResponse(json) {
   }
   return rows;
 }
+
 async function syncFieldClimate() {
   for (const station of STATIONS) {
     try {
@@ -132,12 +129,21 @@ async function syncFieldClimate() {
       const rows = parseResponse(json);
       for (const row of rows) {
         await db.query(`
-  INSERT INTO weather
-  (station_id, date, hour, tmax, tmin, tavg, humidity, precip, solar_rad, leaf_wet, et0)
-  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-  ON CONFLICT (station_id, date, hour) DO UPDATE SET
-    tmax=EXCLUDED.tmax, tmin=EXCLUDED.tmin, tavg=EXCLUDED.tavg,
-    humidity=EXCLUDED.humidity, precip=EXCLUDED.precip,
-    solar_rad=EXCLUDED.solar_rad, leaf_wet=EXCLUDED.leaf_wet, et0=EXCLUDED.et0
-`, [station.id, row.date, row.hour, row.tmax, row.tmin, row.tavg,
-    row.humidity, row.precip, row.solar_rad, row.leaf_wet, row.et0]);
+          INSERT INTO weather
+          (station_id, date, hour, tmax, tmin, tavg, humidity, precip, solar_rad, leaf_wet, et0)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+          ON CONFLICT (station_id, date, hour) DO UPDATE SET
+            tmax=EXCLUDED.tmax, tmin=EXCLUDED.tmin, tavg=EXCLUDED.tavg,
+            humidity=EXCLUDED.humidity, precip=EXCLUDED.precip,
+            solar_rad=EXCLUDED.solar_rad, leaf_wet=EXCLUDED.leaf_wet, et0=EXCLUDED.et0
+        `, [station.id, row.date, row.hour, row.tmax, row.tmin, row.tavg,
+            row.humidity, row.precip, row.solar_rad, row.leaf_wet, row.et0]);
+      }
+      console.log(`[FC][${station.label}] saved ${rows.length} rows`);
+    } catch(e) {
+      console.error(`[FC][${station.label}] error:`, e.message);
+    }
+  }
+}
+
+module.exports = { syncFieldClimate };
