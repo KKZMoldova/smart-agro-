@@ -131,10 +131,14 @@ async function syncFieldClimate() {
       const json = await fetchFromFieldClimate(station, '3h');
       const rows = parseResponse(json);
       for (const row of rows) {
-        await db.run(`
-          INSERT OR REPLACE INTO field_climate
+        await db.query(`
+          INSERT INTO field_climate
           (station_id, date, hour, tmax, tmin, tavg, humidity, precip, solar_rad, leaf_wet, et0)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+          ON CONFLICT (station_id, date, hour) DO UPDATE SET
+            tmax=EXCLUDED.tmax, tmin=EXCLUDED.tmin, tavg=EXCLUDED.tavg,
+            humidity=EXCLUDED.humidity, precip=EXCLUDED.precip,
+            solar_rad=EXCLUDED.solar_rad, leaf_wet=EXCLUDED.leaf_wet, et0=EXCLUDED.et0
         `, [station.id, row.date, row.hour, row.tmax, row.tmin, row.tavg,
             row.humidity, row.precip, row.solar_rad, row.leaf_wet, row.et0]);
       }
