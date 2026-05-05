@@ -21,10 +21,13 @@ function buildHmacHeaders(method, route, publicKey, privateKey) {
   if (!publicKey || !privateKey) throw new Error('Missing FieldClimate API keys');
   const timestamp = Math.floor(Date.now() / 1000).toString();
   const msg       = method + route + timestamp + publicKey;
-  const signature = crypto.createHmac('sha256', privateKey).update(msg).digest('hex');
+  const signature = crypto.createHmac('sha256', privateKey.trim()).update(msg).digest('hex');
+  const auth      = `hmac ${publicKey.trim()}:${signature}`;
+  // Strip any characters that are invalid in HTTP headers
+  const safeAuth  = auth.replace(/[^\x20-\x7E]/g, '');
   return {
     'Accept':        'application/json',
-    'Authorization': `hmac ${publicKey}:${signature}`,
+    'Authorization': safeAuth,
     'Date':          timestamp,
   };
 }
