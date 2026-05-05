@@ -67,7 +67,12 @@ function parseResponse(json) {
   console.log('[FC] data keys: ' + Object.keys(data).join(', '));
   // Логируем первый сенсор для диагностики
 const firstKey = Object.keys(data)[0];
-if (firstKey) console.log('[FC] first sensor sample: ' + JSON.stringify(data[firstKey]).slice(0, 200));
+if (firstKey) {
+  const s = data[firstKey];
+  console.log('[FC] sensor keys: ' + Object.keys(s).join(', '));
+  console.log('[FC] sensor name: ' + s.name);
+  console.log('[FC] values sample: ' + JSON.stringify(s.values || s.aggr || s.vals || 'none').slice(0, 200));
+}
 
   function findVals(keywords) {
   for (let dk of Object.keys(data)) {
