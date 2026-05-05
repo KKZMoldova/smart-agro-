@@ -132,7 +132,7 @@ cron.schedule('0 * * * *', async () => {
   catch(err) { console.error('[CRON] Weather sync FAILED:', err.message); }
 });
 setTimeout(() => {
-  if (!process.env.FIELDCLIMATE_PUBLIC_KEY) {
+  if (!process.env.FIELDCLIMATE_PUBLIC_KEY_ORCHARD && !process.env.FIELDCLIMATE_PUBLIC_KEY_VEG) {
     console.log('[CRON] FieldClimate keys not set — skipping');
     return;
   }
