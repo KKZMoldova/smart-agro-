@@ -29,10 +29,10 @@ function buildHmacHeaders(method, route, publicKey, privateKey) {
   };
 }
 
-function fetchFromFieldClimate(station, hours) {
-  hours = hours || 3;
+function fetchFromFieldClimate(station, period) {
+  period = period || '3h';
   return new Promise(function(resolve, reject) {
-    const route = '/v2/data/' + station.id + '/raw/last/' + hours + 'h';
+    const route = '/v2/data/' + station.id + '/raw/last/' + period;
     const headers = buildHmacHeaders('GET', route, station.publicKey, station.privateKey);
     const options = { hostname: 'api.fieldclimate.com', path: route, method: 'GET', headers: headers };
     const req = https.request(options, function(res) {
@@ -52,7 +52,7 @@ function fetchFromFieldClimate(station, hours) {
       });
     });
     req.on('error', reject);
-    req.setTimeout(15000, function() { req.destroy(); reject(new Error('Timeout')); });
+    req.setTimeout(30000, function() { req.destroy(); reject(new Error('Timeout')); });
     req.end();
   });
 }
@@ -107,55 +107,4 @@ function parseResponse(json) {
     rows.push({
       date: date, hour: hour,
       tmax: val(idxTmax), tmin: val(idxTmin), tavg: val(idxTavg),
-      humidity: val(idxHum), precip: val(idxRain),
-      solar_rad: val(idxSolar), leaf_wet: val(idxLeaf), et0: et0,
-    });
-  }
-  return rows;
-}
-
-async function saveWeatherRows(rows, stationId) {
-  let inserted = 0;
-  for (let i = 0; i < rows.length; i++) {
-    const r = rows[i];
-    const res = await db.query(
-      'INSERT INTO weather (station_id,date,hour,tmax,tmin,tavg,humidity,precip,solar_rad,leaf_wet,et0) ' +
-      'VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ' +
-      'ON CONFLICT (station_id,date,hour) DO UPDATE SET ' +
-      'tmax=EXCLUDED.tmax,tmin=EXCLUDED.tmin,tavg=EXCLUDED.tavg,' +
-      'humidity=EXCLUDED.humidity,precip=EXCLUDED.precip,' +
-      'solar_rad=EXCLUDED.solar_rad,leaf_wet=EXCLUDED.leaf_wet,et0=EXCLUDED.et0',
-      [stationId, r.date, r.hour, r.tmax, r.tmin, r.tavg,
-       r.humidity, r.precip, r.solar_rad, r.leaf_wet, r.et0]
-    );
-    inserted += res.rowCount;
-  }
-  return inserted;
-}
-
-async function syncStation(station) {
-  try {
-    const json = await fetchFromFieldClimate(station);
-    const rows = parseResponse(json);
-    if (!rows.length) {
-      console.log('[FieldClimate][' + station.label + '] No rows parsed');
-      return 0;
-    }
-    const saved = await saveWeatherRows(rows, station.id);
-    console.log('[FieldClimate][' + station.label + '] Saved ' + saved + '/' + rows.length + ' rows');
-    return saved;
-  } catch(e) {
-    console.error('[FieldClimate][' + station.label + '] Error:', e.message);
-    return 0;
-  }
-}
-
-async function syncFieldClimate() {
-  let total = 0;
-  for (let i = 0; i < STATIONS.length; i++) {
-    total += await syncStation(STATIONS[i]);
-  }
-  return total;
-}
-
-module.exports = { syncFieldClimate };
+      humidity: val(idxHum), precip: val(idx
