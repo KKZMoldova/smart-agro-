@@ -32,7 +32,7 @@ function buildHmacHeaders(method, route, publicKey, privateKey) {
 function fetchFromFieldClimate(station, hours) {
   hours = hours || 3;
   return new Promise(function(resolve, reject) {
-    const route   = '/v2/data/' + station.id + '/last/' + hours + 'h';
+    const route = '/v2/data/' + station.id + '/raw/last/' + hours + 'h';
     const headers = buildHmacHeaders('GET', route, station.publicKey, station.privateKey);
     const options = { hostname: 'api.fieldclimate.com', path: route, method: 'GET', headers: headers };
     const req = https.request(options, function(res) {
