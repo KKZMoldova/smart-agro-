@@ -27,6 +27,9 @@ CREATE TABLE IF NOT EXISTS users (
   pin_hash   VARCHAR(64) NOT NULL,
   label      VARCHAR(50),
   created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Default PINs (hashed with SHA-256)
 
 
 -- Default PINs (hashed with SHA-256)
