@@ -7,29 +7,14 @@
 <link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg: #f5f4f0;
-  --surface: #ffffff;
-  --border: #e2e0d8;
-  --border2: #ccc9be;
-  --text: #1a1a18;
-  --muted: #6b6a64;
-  --green: #1d6a4a;
-  --green-light: #e8f4ee;
-  --green-mid: #2d9566;
-  --amber: #b85c00;
-  --amber-light: #fef3e2;
-  --red: #c0392b;
-  --red-light: #fdecea;
-  --blue: #1a4f7a;
-  --blue-light: #e8f1f8;
-  --radius: 10px;
-  --font: 'Golos Text', sans-serif;
-  --mono: 'JetBrains Mono', monospace;
+  --bg: #f5f4f0; --surface: #ffffff; --border: #e2e0d8; --border2: #ccc9be;
+  --text: #1a1a18; --muted: #6b6a64; --green: #1d6a4a; --green-light: #e8f4ee;
+  --green-mid: #2d9566; --amber: #b85c00; --amber-light: #fef3e2;
+  --red: #c0392b; --red-light: #fdecea; --blue: #1a4f7a; --blue-light: #e8f1f8;
+  --radius: 10px; --font: 'Golos Text', sans-serif; --mono: 'JetBrains Mono', monospace;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; }
-
-/* Header */
 .header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; align-items: center; gap: 0; height: 56px; }
 .logo { font-size: 15px; font-weight: 600; color: var(--green); letter-spacing: -0.3px; margin-right: 32px; }
 .logo span { color: var(--muted); font-weight: 400; }
@@ -39,13 +24,9 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
 .nav-tab.active { color: var(--green); border-bottom-color: var(--green); }
 .back-btn { margin-left: auto; font-size: 13px; color: var(--muted); text-decoration: none; display: flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--border); border-radius: 8px; transition: all 0.15s; }
 .back-btn:hover { border-color: var(--border2); color: var(--text); }
-
-/* Layout */
-.page { display: none; padding: 24px; max-width: 900px; margin: 0 auto; }
+.page { display: none; padding: 24px; max-width: 960px; margin: 0 auto; }
 .page.active { display: block; }
-
-/* Toolbar */
-.toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+.toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
 .toolbar h1 { font-size: 18px; font-weight: 600; flex: 1; }
 .btn { padding: 8px 16px; font-size: 13px; font-weight: 500; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; transition: all 0.15s; font-family: var(--font); }
 .btn:hover { border-color: var(--border2); background: var(--bg); }
@@ -54,8 +35,6 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
 .btn-danger { background: var(--red-light); color: var(--red); border-color: #f5c6c2; }
 .btn-danger:hover { background: #fad5d2; }
 .btn-sm { padding: 5px 10px; font-size: 12px; }
-
-/* Cards */
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; margin-bottom: 10px; transition: box-shadow 0.15s; }
 .card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
 .card-header { display: flex; align-items: center; gap: 12px; }
@@ -70,24 +49,38 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
 .meta-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .meta-item .label { font-size: 11px; color: var(--muted); margin-bottom: 2px; }
 .meta-item .val   { font-size: 13px; font-weight: 500; }
-
-/* Badge */
 .badge { display: inline-flex; align-items: center; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
 .badge-green  { background: var(--green-light); color: var(--green); }
 .badge-blue   { background: var(--blue-light);  color: var(--blue); }
 .badge-amber  { background: var(--amber-light); color: var(--amber); }
 .badge-red    { background: var(--red-light);   color: var(--red); }
 .badge-gray   { background: #f0efe9; color: var(--muted); }
-
-/* Empty state */
 .empty { text-align: center; padding: 60px 20px; color: var(--muted); }
 .empty-icon { font-size: 40px; margin-bottom: 12px; }
 .empty p { font-size: 14px; }
-
-/* Modal */
-.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100; align-items: center; justify-content: center; }
+.type-filter { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+.tf { padding: 5px 12px; font-size: 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; font-weight: 500; font-family: var(--font); transition: all .15s; }
+.tf:hover { background: var(--bg); }
+.tf.active { background: var(--green); color: #fff; border-color: var(--green); }
+.impl-card { border-left: 4px solid var(--border); }
+.impl-sprayer { border-left-color: #2d9566; }
+.impl-seeder { border-left-color: #b85c00; }
+.impl-plow { border-left-color: #7a3d1a; }
+.impl-disc { border-left-color: #1a5c8a; }
+.impl-cult { border-left-color: #6b3fa0; }
+.impl-spreader { border-left-color: #2d7a8a; }
+.impl-trailer { border-left-color: #888; }
+.impl-mower { border-left-color: #639922; }
+.impl-baler { border-left-color: #c0850a; }
+.impl-roller { border-left-color: #4a7a4a; }
+.impl-other { border-left-color: #aaa; }
+.spec-pills { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+.spec-pill { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 3px 9px; font-size: 11px; }
+.spec-pill .sk { color: var(--muted); }
+.spec-pill .sv { font-weight: 600; }
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100; align-items: center; justify-content: center; padding: 16px; }
 .modal-overlay.open { display: flex; }
-.modal { background: var(--surface); border-radius: 12px; padding: 24px; width: 100%; max-width: 480px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); }
+.modal { background: var(--surface); border-radius: 12px; padding: 24px; width: 100%; max-width: 620px; max-height: 92vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.15); }
 .modal h2 { font-size: 16px; font-weight: 600; margin-bottom: 20px; }
 .form-group { margin-bottom: 14px; }
 .form-group label { display: block; font-size: 12px; font-weight: 500; color: var(--muted); margin-bottom: 5px; }
@@ -98,24 +91,25 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
 }
 .form-group input:focus, .form-group select:focus { border-color: var(--green-mid); }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
 .modal-footer { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
-
-/* Toast */
+.sec-title { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin: 18px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.impl-section { display: none; }
+.impl-section.visible { display: block; }
 .toast { position: fixed; bottom: 24px; right: 24px; background: var(--text); color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 13px; z-index: 200; opacity: 0; transform: translateY(8px); transition: all 0.2s; pointer-events: none; }
 .toast.show { opacity: 1; transform: translateY(0); }
 </style>
 </head>
 <body>
-
 <div class="header">
   <div class="logo">Smart<span>Agro</span></div>
   <div class="nav-tabs">
-    <button class="nav-tab active" onclick="switchPage('staff', this)">Персонал</button>
-    <button class="nav-tab" onclick="switchPage('equipment', this)">Техника</button>
+    <button class="nav-tab active" onclick="switchPage('staff', this)">👥 Персонал</button>
+    <button class="nav-tab" onclick="switchPage('equipment', this)">🚜 Техника</button>
+    <button class="nav-tab" onclick="switchPage('implements', this)">🔧 Прицепная техника</button>
   </div>
   <a class="back-btn" href="/vegetable">← Вернуться</a>
 </div>
-
 <!-- ПЕРСОНАЛ -->
 <div id="page-staff" class="page active">
   <div class="toolbar">
@@ -134,18 +128,37 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
   <div id="equip-list"></div>
 </div>
 
+<!-- ПРИЦЕПНАЯ ТЕХНИКА -->
+<div id="page-implements" class="page">
+  <div class="toolbar">
+    <h1>Прицепная и навесная техника</h1>
+    <button class="btn btn-primary" onclick="openImplModal()">+ Добавить</button>
+  </div>
+  <div class="type-filter" id="impl-type-filter">
+    <button class="tf active" onclick="setImplType('',this)">Все</button>
+    <button class="tf" onclick="setImplType('sprayer',this)">🌿 Опрыскиватели</button>
+    <button class="tf" onclick="setImplType('seeder',this)">🌱 Сеялки</button>
+    <button class="tf" onclick="setImplType('plow',this)">🔧 Плуги</button>
+    <button class="tf" onclick="setImplType('disc',this)">💿 Дисковые</button>
+    <button class="tf" onclick="setImplType('cult',this)">⚡ Культиваторы</button>
+    <button class="tf" onclick="setImplType('spreader',this)">📦 Разбрасыватели</button>
+    <button class="tf" onclick="setImplType('trailer',this)">🚛 Прицепы</button>
+    <button class="tf" onclick="setImplType('mower',this)">✂️ Косилки</button>
+    <button class="tf" onclick="setImplType('baler',this)">🎯 Прессы</button>
+    <button class="tf" onclick="setImplType('roller',this)">⭕ Катки</button>
+    <button class="tf" onclick="setImplType('other',this)">Прочее</button>
+  </div>
+  <div id="impl-list"></div>
+</div>
+
 <!-- МОДАЛ: Персонал -->
 <div class="modal-overlay" id="staff-modal">
   <div class="modal">
     <h2 id="staff-modal-title">Новый сотрудник</h2>
     <input type="hidden" id="staff-id">
     <div class="form-row">
-      <div class="form-group">
-        <label>Имя и фамилия *</label>
-        <input type="text" id="staff-name" placeholder="Попов Андрей">
-      </div>
-      <div class="form-group">
-        <label>Роль *</label>
+      <div class="form-group"><label>Имя и фамилия *</label><input type="text" id="staff-name" placeholder="Попов Андрей"></div>
+      <div class="form-group"><label>Роль *</label>
         <select id="staff-role">
           <option value="agronomist">Агроном</option>
           <option value="engineer">Инженер</option>
@@ -156,19 +169,10 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
       </div>
     </div>
     <div class="form-row">
-      <div class="form-group">
-        <label>Телефон</label>
-        <input type="text" id="staff-phone" placeholder="+373 69 xxx xxx">
-      </div>
-      <div class="form-group">
-        <label>Telegram ID (для уведомлений)</label>
-        <input type="text" id="staff-telegram" placeholder="123456789">
-      </div>
+      <div class="form-group"><label>Телефон</label><input type="text" id="staff-phone" placeholder="+373 69 xxx xxx"></div>
+      <div class="form-group"><label>Telegram ID</label><input type="text" id="staff-telegram" placeholder="123456789"></div>
     </div>
-    <div class="form-group">
-      <label>Специализация</label>
-      <input type="text" id="staff-specialty" placeholder="Опрыскивание, ирригация...">
-    </div>
+    <div class="form-group"><label>Специализация</label><input type="text" id="staff-specialty" placeholder="Опрыскивание, ирригация..."></div>
     <div class="modal-footer">
       <button class="btn" onclick="closeStaffModal()">Отмена</button>
       <button class="btn btn-primary" onclick="saveStaff()">Сохранить</button>
@@ -182,12 +186,8 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
     <h2 id="equip-modal-title">Новая техника</h2>
     <input type="hidden" id="equip-id">
     <div class="form-row">
-      <div class="form-group">
-        <label>Название *</label>
-        <input type="text" id="equip-name" placeholder="МТЗ-82 борт 03">
-      </div>
-      <div class="form-group">
-        <label>Тип *</label>
+      <div class="form-group"><label>Название *</label><input type="text" id="equip-name" placeholder="МТЗ-82 борт 03"></div>
+      <div class="form-group"><label>Тип *</label>
         <select id="equip-type">
           <option value="tractor">Трактор</option>
           <option value="sprayer">Опрыскиватель</option>
@@ -198,22 +198,12 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
       </div>
     </div>
     <div class="form-row">
-      <div class="form-group">
-        <label>Бортовой номер</label>
-        <input type="text" id="equip-board" placeholder="03">
-      </div>
-      <div class="form-group">
-        <label>Гос. номер</label>
-        <input type="text" id="equip-plate" placeholder="MD 123 ABC">
-      </div>
+      <div class="form-group"><label>Бортовой номер</label><input type="text" id="equip-board" placeholder="03"></div>
+      <div class="form-group"><label>Гос. номер</label><input type="text" id="equip-plate" placeholder="MD 123 ABC"></div>
     </div>
     <div class="form-row">
-      <div class="form-group">
-        <label>Объём бака (литры)</label>
-        <input type="number" id="equip-tank" placeholder="2000">
-      </div>
-      <div class="form-group">
-        <label>Статус</label>
+      <div class="form-group"><label>Объём бака (литры)</label><input type="number" id="equip-tank" placeholder="2000"></div>
+      <div class="form-group"><label>Статус</label>
         <select id="equip-status">
           <option value="free">Свободен</option>
           <option value="busy">В работе</option>
@@ -221,14 +211,8 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
         </select>
       </div>
     </div>
-    <div class="form-group">
-      <label>Навесные агрегаты (через запятую)</label>
-      <input type="text" id="equip-attach" placeholder="ОП-2000, Туман-2">
-    </div>
-    <div class="form-group">
-      <label>Примечание</label>
-      <input type="text" id="equip-note" placeholder="">
-    </div>
+    <div class="form-group"><label>Навесные агрегаты (через запятую)</label><input type="text" id="equip-attach" placeholder="ОП-2000, Туман-2"></div>
+    <div class="form-group"><label>Примечание</label><input type="text" id="equip-note"></div>
     <div class="modal-footer">
       <button class="btn" onclick="closeEquipModal()">Отмена</button>
       <button class="btn btn-primary" onclick="saveEquip()">Сохранить</button>
@@ -236,148 +220,583 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
   </div>
 </div>
 
+<!-- МОДАЛ: Прицепная техника -->
+<div class="modal-overlay" id="impl-modal">
+<div class="modal" style="max-width:680px;">
+  <h2 id="impl-modal-title">Добавить прицепную технику</h2>
+  <input type="hidden" id="impl-id">
+
+  <div class="sec-title">Основная информация</div>
+  <div class="form-row">
+    <div class="form-group"><label>Название *</label><input id="im-name" placeholder="ОП-2000, БДП-3, КРН-5.6..."></div>
+    <div class="form-group"><label>Тип техники *</label>
+      <select id="im-type" onchange="onImplTypeChange()">
+        <option value="sprayer">🌿 Опрыскиватель / Цистерна</option>
+        <option value="seeder">🌱 Сеялка</option>
+        <option value="plow">🔧 Плуг</option>
+        <option value="disc">💿 Дисковая борона / БДП</option>
+        <option value="cult">⚡ Культиватор</option>
+        <option value="spreader">📦 Разбрасыватель удобрений</option>
+        <option value="trailer">🚛 Прицеп / Платформа</option>
+        <option value="mower">✂️ Косилка</option>
+        <option value="baler">🎯 Пресс-подборщик</option>
+        <option value="roller">⭕ Каток</option>
+        <option value="other">Прочее</option>
+      </select>
+    </div>
+  </div>
+  <div class="form-row3">
+    <div class="form-group"><label>Марка / Производитель</label><input id="im-brand" placeholder="Amazone, Kuhn, ОПШ..."></div>
+    <div class="form-group"><label>Модель</label><input id="im-model" placeholder="UF-1501, КРН-5.6"></div>
+    <div class="form-group"><label>Год выпуска</label><input id="im-year" type="number" placeholder="2019" min="1980" max="2030"></div>
+  </div>
+  <div class="form-row">
+    <div class="form-group"><label>Инвентарный номер</label><input id="im-inv" placeholder="НТ-001"></div>
+    <div class="form-group"><label>Состояние</label>
+      <select id="im-condition">
+        <option value="good">✅ Хорошее</option>
+        <option value="ok">⚠️ Рабочее</option>
+        <option value="repair">🔧 Требует ремонта</option>
+        <option value="off">❌ Списано</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- ОПРЫСКИВАТЕЛЬ -->
+  <div class="impl-section" id="is-sprayer">
+    <div class="sec-title">🌿 Параметры опрыскивателя / цистерны</div>
+    <div class="form-row3">
+      <div class="form-group"><label>Объём бака (л) *</label><input id="sp-tank" type="number" placeholder="2000"></div>
+      <div class="form-group"><label>Рабочая ширина (м)</label><input id="sp-width" type="number" step="0.5" placeholder="18"></div>
+      <div class="form-group"><label>Кол-во секций штанги</label><input id="sp-sections" type="number" placeholder="5"></div>
+    </div>
+    <div class="form-row3">
+      <div class="form-group"><label>Тип форсунок</label><input id="sp-nozzle" placeholder="плоскоструйные, антидрейф"></div>
+      <div class="form-group"><label>Расстояние между форс. (см)</label><input id="sp-nozzle-dist" type="number" placeholder="50"></div>
+      <div class="form-group"><label>Производит. насоса (л/мин)</label><input id="sp-pump-flow" type="number" placeholder="120"></div>
+    </div>
+    <div class="form-row3">
+      <div class="form-group"><label>Рабочее давление (бар)</label><input id="sp-pressure" type="number" step="0.5" placeholder="3"></div>
+      <div class="form-group"><label>Объём чистой воды (л)</label><input id="sp-clean" type="number" placeholder="200"></div>
+      <div class="form-group"><label>GPS / автоматика</label>
+        <select id="sp-gps">
+          <option value="нет">Нет</option>
+          <option value="базовый компьютер">Базовый компьютер</option>
+          <option value="посекционное отключение">Посекционное отключение</option>
+          <option value="GPS + карты">GPS + карты</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Тип навески</label>
+        <select id="sp-mount">
+          <option value="прицепной">Прицепной</option>
+          <option value="навесной">Навесной</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Тип насоса</label><input id="sp-pump" placeholder="мембранный, центробежный..."></div>
+    </div>
+  </div>
+
+  <!-- СЕЯЛКА -->
+  <div class="impl-section" id="is-seeder">
+    <div class="sec-title">🌱 Параметры сеялки</div>
+    <div class="form-row3">
+      <div class="form-group"><label>Кол-во рядов *</label><input id="se-rows" type="number" placeholder="12"></div>
+      <div class="form-group"><label>Ширина захвата (м) *</label><input id="se-width" type="number" step="0.1" placeholder="4.5"></div>
+      <div class="form-group"><label>Межрядное расстояние (см)</label><input id="se-row-dist" type="number" placeholder="45"></div>
+    </div>
+    <div class="form-row3">
+      <div class="form-group"><label>Объём семенного бункера (л)</label><input id="se-hopper" type="number" placeholder="600"></div>
+      <div class="form-group"><label>Объём бункера удобрений (л)</label><input id="se-fert" type="number" placeholder="400"></div>
+      <div class="form-group"><label>Глубина посева (мм)</label><input id="se-depth" placeholder="30–80"></div>
+    </div>
+    <div class="form-row3">
+      <div class="form-group"><label>Тип высевающего аппарата</label>
+        <select id="se-mechanism">
+          <option value="катушечный">Катушечный</option>
+          <option value="дисковый">Дисковый</option>
+          <option value="пневматический">Пневматический</option>
+          <option value="ленточный">Ленточный</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Тип сошника</label>
+        <select id="se-coulter">
+          <option value="дисковый">Дисковый</option>
+          <option value="анкерный">Анкерный</option>
+          <option value="лаповый">Лаповый</option>
+          <option value="пальчиковый">Пальчиковый</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Культуры</label><input id="se-crops" placeholder="горох, кукуруза, пшеница..."></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Прикатывающие катки</label>
+        <select id="se-roller"><option value="есть">Есть</option><option value="нет">Нет</option></select>
+      </div>
+      <div class="form-group"><label>Маркеры</label>
+        <select id="se-marker">
+          <option value="механические">Механические</option>
+          <option value="гидравлические">Гидравлические</option>
+          <option value="нет">Нет</option>
+        </select>
+      </div>
+    </div>
+  </div>
+  <!-- ПЛУГ -->
+  <div class="impl-section" id="is-plow">
+    <div class="sec-title">🔧 Параметры плуга</div>
+    <div class="form-row3">
+      <div class="form-group"><label>Кол-во корпусов *</label><input id="pl-bodies" type="number" placeholder="4"></div>
+      <div class="form-group"><label>Ширина захвата 1 корпуса (см) *</label><input id="pl-body-width" type="number" placeholder="35"></div>
+      <div class="form-group"><label>Общая ширина захвата (м)</label><input id="pl-total-width" type="number" step="0.1" placeholder="1.4"></div>
+    </div>
+    <div class="form-row3">
+      <div class="form-group"><label>Глубина вспашки (см)</label><input id="pl-depth" placeholder="25–35"></div>
+      <div class="form-group"><label>Тип плуга</label>
+        <select id="pl-type">
+          <option value="навесной">Навесной</option>
+          <option value="полунавесной">Полунавесной</option>
+          <option value="прицепной">Прицепной</option>
+          <option value="оборотный">Оборотный</option>
+          <option value="дисковый плуг">Дисковый плуг</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Тип стойки</label>
+        <select id="pl-shank">
+          <option value="жёсткая">Жёсткая</option>
+          <option value="пружинная">Пружинная (срезная)</option>
+          <option value="авто-сброс">Авто-сброс</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row3">
+      <div class="form-group"><label>Тип отвала</label>
+        <select id="pl-mouldboard">
+          <option value="культурный">Культурный</option>
+          <option value="скоростной">Скоростной</option>
+          <option value="полувинтовой">Полувинтовой</option>
+          <option value="винтовой">Винтовой</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Предплужник</label>
+        <select id="pl-preploug"><option value="есть">Есть</option><option value="нет">Нет</option></select>
+      </div>
+      <div class="form-group"><label>Требуемая мощность (л.с.)</label><input id="pl-hp" type="number" placeholder="120"></div>
+    </div>
+  </div>
+
+  <!-- ДИСКОВАЯ БОРОНА -->
+  <div class="impl-section" id="is-disc">
+    <div class="sec-title">💿 Параметры дисковой бороны / БДП</div>
+    <div class="form-row3">
+      <div class="form-group"><label>Ширина захвата (м) *</label><input id="di-width" type="number" step="0.1" placeholder="3.0"></div>
+      <div class="form-group"><label>Диаметр диска (мм)</label><input id="di-disc-diam" type="number" placeholder="560"></div>
+      <div class="form-group"><label>Кол-во дисков</label><input id="di-discs" type="number" placeholder="24"></div>
+    </div>
+    <div class="form-row3">
+      <div class="form-group"><label>Глубина обработки (см) *</label><input id="di-depth" placeholder="8–16"></div>
+      <div class="form-group"><label>Расстояние между дисками (см)</label><input id="di-spacing" type="number" placeholder="18"></div>
+      <div class="form-group"><label>Угол атаки (°)</label><input id="di-angle" type="number" placeholder="16"></div>
+    </div>
+    <div class="form-row3">
+      <div class="form-group"><label>Тип дисков</label>
+        <select id="di-type">
+          <option value="вырезные">Вырезные</option>
+          <option value="гладкие">Гладкие</option>
+          <option value="волнистые">Волнистые</option>
+          <option value="сферические">Сферические</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Катки (тип)</label>
+        <select id="di-roller">
+          <option value="нет">Нет</option>
+          <option value="кольчатые">Кольчатые</option>
+          <option value="резиновые">Резиновые</option>
+          <option value="трубчатые">Трубчатые</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Требуемая мощность (л.с.)</label><input id="di-hp" type="number" placeholder="80"></div>
+    </div>
+  </div>
+
+  <!-- КУЛЬТИВАТОР -->
+  <div class="impl-section" id="is-cult">
+    <div class="sec-title">⚡ Параметры культиватора</div>
+    <div class="form-row3">
+      <div class="form-group"><label>Ширина захвата (м) *</label><input id="cu-width" type="number" step="0.1" placeholder="6.0"></div>
+      <div class="form-group"><label>Кол-во рабочих органов</label><input id="cu-tines" type="number" placeholder="36"></div>
+      <div class="form-group"><label>Глубина обработки (см)</label><input id="cu-depth" placeholder="6–12"></div>
+    </div>
+    <div class="form-row3">
+      <div class="form-group"><label>Тип культиватора</label>
+        <select id="cu-type">
+          <option value="паровой">Паровой (сплошной)</option>
+          <option value="межрядный КРН">Межрядный (КРН)</option>
+          <option value="стрипп-тилл">Стрипп-тилл</option>
+          <option value="чизельный">Чизельный</option>
+          <option value="пропашной">Пропашной</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Тип рабочего органа</label>
+        <select id="cu-tine-type">
+          <option value="S-образная стойка">S-образная стойка</option>
+          <option value="C-образная стойка">C-образная стойка</option>
+          <option value="плоскорежущая лапа">Плоскорежущая лапа</option>
+          <option value="стрельчатая лапа">Стрельчатая лапа</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Межрядное расстояние (см) — КРН</label><input id="cu-row-dist" type="number" placeholder="70"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Катки / выравниватель</label>
+        <select id="cu-roller">
+          <option value="нет">Нет</option>
+          <option value="кольчатые катки">Кольчатые катки</option>
+          <option value="выравнивающая доска">Выравнивающая доска</option>
+          <option value="каток">Каток</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Требуемая мощность (л.с.)</label><input id="cu-hp" type="number" placeholder="60"></div>
+    </div>
+  </div>
+
+  <!-- РАЗБРАСЫВАТЕЛЬ -->
+  <div class="impl-section" id="is-spreader">
+    <div class="sec-title">📦 Параметры разбрасывателя удобрений</div>
+    <div class="form-row3">
+      <div class="form-group"><label>Объём бункера (л / кг) *</label><input id="sp2-vol" type="number" placeholder="1500"></div>
+      <div class="form-group"><label>Рабочая ширина (м)</label><input id="sp2-width" type="number" step="0.5" placeholder="24"></div>
+      <div class="form-group"><label>Тип разбрасывателя</label>
+        <select id="sp2-type">
+          <option value="центробежный (2 диска)">Центробежный (2 диска)</option>
+          <option value="пневматический">Пневматический</option>
+          <option value="цепной">Цепной (NPK твёрдые)</option>
+          <option value="жидкие удобрения">Жидкие удобрения (КАС)</option>
+          <option value="разбрасыватель навоза">Разбрасыватель навоза</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row3">
+      <div class="form-group"><label>Норма внесения мин. (кг/га)</label><input id="sp2-min" type="number" placeholder="50"></div>
+      <div class="form-group"><label>Норма внесения макс. (кг/га)</label><input id="sp2-max" type="number" placeholder="600"></div>
+      <div class="form-group"><label>Материалы</label><input id="sp2-materials" placeholder="КАС, аммиачн. сел., NPK..."></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Весовой контроль / ISOBUS</label>
+        <select id="sp2-weight">
+          <option value="нет">Нет</option>
+          <option value="базовый">Базовый</option>
+          <option value="ISOBUS / GPS">ISOBUS / GPS</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Привод дисков</label>
+        <select id="sp2-drive">
+          <option value="ВОМ трактора">ВОМ трактора</option>
+          <option value="гидравлика">Гидравлика</option>
+          <option value="электро">Электро</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- ПРИЦЕП -->
+  <div class="impl-section" id="is-trailer">
+    <div class="sec-title">🚛 Параметры прицепа / платформы</div>
+    <div class="form-row3">
+      <div class="form-group"><label>Грузоподъёмность (т) *</label><input id="tr-load" type="number" step="0.5" placeholder="8"></div>
+      <div class="form-group"><label>Объём кузова (м³)</label><input id="tr-vol" type="number" step="0.5" placeholder="12"></div>
+      <div class="form-group"><label>Тип прицепа</label>
+        <select id="tr-type">
+          <option value="общего назначения">Общего назначения</option>
+          <option value="самосвальный">Самосвальный</option>
+          <option value="зерновоз">Зерновоз</option>
+          <option value="цистерна">Цистерна</option>
+          <option value="платформа">Платформа</option>
+          <option value="силосный">Силосный</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row3">
+      <div class="form-group"><label>Длина кузова (м)</label><input id="tr-length" type="number" step="0.1" placeholder="5.5"></div>
+      <div class="form-group"><label>Ширина кузова (м)</label><input id="tr-width" type="number" step="0.1" placeholder="2.2"></div>
+      <div class="form-group"><label>Высота бортов (м)</label><input id="tr-height" type="number" step="0.1" placeholder="0.6"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Кол-во осей</label>
+        <select id="tr-axles">
+          <option value="1 ось">1 ось</option>
+          <option value="2 оси (тандем)">2 оси (тандем)</option>
+          <option value="3 оси">3 оси</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Тип разгрузки</label>
+        <select id="tr-unload">
+          <option value="задний борт">Задний борт</option>
+          <option value="боковой">Боковой</option>
+          <option value="трёхсторонний">Трёхсторонний</option>
+          <option value="шнек">Шнек</option>
+          <option value="транспортёрная лента">Транспортёрная лента</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- КОСИЛКА -->
+  <div class="impl-section" id="is-mower">
+    <div class="sec-title">✂️ Параметры косилки</div>
+    <div class="form-row3">
+      <div class="form-group"><label>Ширина захвата (м) *</label><input id="mo-width" type="number" step="0.1" placeholder="2.8"></div>
+      <div class="form-group"><label>Тип косилки</label>
+        <select id="mo-type">
+          <option value="ротационная">Ротационная</option>
+          <option value="барабанная">Барабанная</option>
+          <option value="дисковая">Дисковая</option>
+          <option value="пальцевая">Пальцевая</option>
+          <option value="мульчер">Мульчер</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Расположение</label>
+        <select id="mo-pos">
+          <option value="задняя навеска">Задняя навеска</option>
+          <option value="передняя навеска">Передняя навеска</option>
+          <option value="боковая">Боковая</option>
+          <option value="центральная">Центральная</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row3">
+      <div class="form-group"><label>Высота среза мин. (мм)</label><input id="mo-min-cut" type="number" placeholder="40"></div>
+      <div class="form-group"><label>Высота среза макс. (мм)</label><input id="mo-max-cut" type="number" placeholder="120"></div>
+      <div class="form-group"><label>Плющилка / кондиционер</label>
+        <select id="mo-cond">
+          <option value="нет">Нет</option>
+          <option value="роликовая">Роликовая</option>
+          <option value="пальчиковая">Пальчиковая</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- ПРЕСС-ПОДБОРЩИК -->
+  <div class="impl-section" id="is-baler">
+    <div class="sec-title">🎯 Параметры пресс-подборщика</div>
+    <div class="form-row3">
+      <div class="form-group"><label>Тип пресса</label>
+        <select id="ba-type">
+          <option value="рулонный (фиксированная камера)">Рулонный (фикс. камера)</option>
+          <option value="рулонный (переменная камера)">Рулонный (перем. камера)</option>
+          <option value="малый тюкопресс">Малый тюкопресс</option>
+          <option value="большой тюкопресс">Большой тюкопресс</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Ширина подборщика (м)</label><input id="ba-pickup" type="number" step="0.1" placeholder="2.0"></div>
+      <div class="form-group"><label>Диаметр рулона (м)</label><input id="ba-diam" type="number" step="0.1" placeholder="1.5"></div>
+    </div>
+    <div class="form-row3">
+      <div class="form-group"><label>Ширина рулона / тюка (м)</label><input id="ba-width" type="number" step="0.1" placeholder="1.2"></div>
+      <div class="form-group"><label>Масса рулона / тюка (кг)</label><input id="ba-weight" type="number" placeholder="600"></div>
+      <div class="form-group"><label>Обвязка</label>
+        <select id="ba-wrap">
+          <option value="шпагат">Шпагат</option>
+          <option value="сетка">Сетка</option>
+          <option value="плёнка">Плёнка</option>
+          <option value="шпагат + сетка">Шпагат + сетка</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Измельчитель (кол-во ножей)</label>
+        <select id="ba-knives">
+          <option value="нет">Нет</option>
+          <option value="8 ножей">8 ножей</option>
+          <option value="16 ножей">16 ножей</option>
+          <option value="25 ножей">25 ножей</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Требуемая мощность (л.с.)</label><input id="ba-hp" type="number" placeholder="80"></div>
+    </div>
+  </div>
+
+  <!-- КАТОК -->
+  <div class="impl-section" id="is-roller">
+    <div class="sec-title">⭕ Параметры катка</div>
+    <div class="form-row3">
+      <div class="form-group"><label>Ширина захвата (м) *</label><input id="ro-width" type="number" step="0.1" placeholder="6.0"></div>
+      <div class="form-group"><label>Диаметр катка (м)</label><input id="ro-diam" type="number" step="0.1" placeholder="0.6"></div>
+      <div class="form-group"><label>Масса (кг)</label><input id="ro-weight" type="number" placeholder="1800"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Тип катка</label>
+        <select id="ro-type">
+          <option value="кольчатый">Кольчатый</option>
+          <option value="кембридж">Кембридж</option>
+          <option value="гладкий">Гладкий</option>
+          <option value="резиновый">Резиновый</option>
+          <option value="паккер">Паккер</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Балластировка</label>
+        <select id="ro-ballast">
+          <option value="нет">Нет</option>
+          <option value="водой">Водой</option>
+          <option value="пригрузы">Пригрузы</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- ПРОЧЕЕ -->
+  <div class="impl-section" id="is-other">
+    <div class="sec-title">📐 Технические параметры</div>
+    <div class="form-row3">
+      <div class="form-group"><label>Ширина захвата (м)</label><input id="ot-width" type="number" step="0.1" placeholder="3.0"></div>
+      <div class="form-group"><label>Рабочая глубина (см)</label><input id="ot-depth" placeholder="напр. 10–20"></div>
+      <div class="form-group"><label>Требуемая мощность (л.с.)</label><input id="ot-hp" type="number" placeholder="80"></div>
+    </div>
+  </div>
+
+  <!-- ОБЩИЕ ТЕХНИЧЕСКИЕ -->
+  <div class="sec-title">Технические данные и эксплуатация</div>
+  <div class="form-row3">
+    <div class="form-group"><label>Масса машины (кг)</label><input id="im-weight" type="number" placeholder="1200"></div>
+    <div class="form-group"><label>Тип навески</label>
+      <select id="im-hitch">
+        <option value="Категория 2">Категория 2 (стандарт)</option>
+        <option value="Категория 3">Категория 3 (тяжёлая)</option>
+        <option value="Категория 1">Категория 1 (лёгкая)</option>
+        <option value="Дышло / сцепка">Дышло / сцепка</option>
+        <option value="Самоходная">Самоходная</option>
+      </select>
+    </div>
+    <div class="form-group"><label>ВОМ (об/мин)</label>
+      <select id="im-pto">
+        <option value="не требуется">Не требуется</option>
+        <option value="540">540 об/мин</option>
+        <option value="1000">1000 об/мин</option>
+        <option value="540 / 1000">540 / 1000</option>
+        <option value="гидравлика">Гидравлика</option>
+      </select>
+    </div>
+  </div>
+  <div class="form-row3">
+    <div class="form-group"><label>Мин. мощность трактора (л.с.)</label><input id="im-hp-min" type="number" placeholder="80"></div>
+    <div class="form-group"><label>Последнее ТО</label><input id="im-last-service" type="date"></div>
+    <div class="form-group"><label>Следующее ТО</label><input id="im-next-service" type="date"></div>
+  </div>
+  <div class="form-row">
+    <div class="form-group"><label>Ответственный механизатор</label><input id="im-operator" placeholder="Имя оператора"></div>
+    <div class="form-group"></div>
+  </div>
+  <div class="form-group"><label>Описание / примечание / история ремонтов</label>
+    <textarea id="im-note" rows="3" placeholder="Особенности настройки, история ремонтов, важные замечания..."></textarea>
+  </div>
+
+  <div class="modal-footer">
+    <button class="btn btn-danger" id="impl-del-btn" style="display:none;margin-right:auto" onclick="deleteImpl()">Удалить</button>
+    <button class="btn" onclick="closeImplModal()">Отмена</button>
+    <button class="btn btn-primary" onclick="saveImpl()">Сохранить</button>
+  </div>
+</div>
+</div>
+
 <div class="toast" id="toast"></div>
-
 <script>
-const API = '';
+const ROLE_LABELS={agronomist:'Агроном',engineer:'Инженер',director:'Директор',operator:'Оператор',mechanic:'Механизатор'};
+const ROLE_COLORS={agronomist:'badge-green',engineer:'badge-blue',director:'badge-amber',operator:'badge-gray',mechanic:'badge-gray'};
+const EQUIP_LABELS={tractor:'Трактор',sprayer:'Опрыскиватель',pump:'Насосная станция',trailer:'Прицеп',other:'Другое'};
+const STATUS_LABELS={free:'Свободен',busy:'В работе',repair:'На ремонте'};
+const STATUS_COLORS={free:'badge-green',busy:'badge-amber',repair:'badge-red'};
+const IMPL_LABELS={sprayer:'🌿 Опрыскиватель',seeder:'🌱 Сеялка',plow:'🔧 Плуг',disc:'💿 Дисковая борона',
+  cult:'⚡ Культиватор',spreader:'📦 Разбрасыватель',trailer:'🚛 Прицеп',mower:'✂️ Косилка',
+  baler:'🎯 Пресс-подборщик',roller:'⭕ Каток',other:'Прочее'};
+const COND_LABELS={good:'✅ Хорошее',ok:'⚠️ Рабочее',repair:'🔧 Ремонт',off:'❌ Списано'};
 
-const ROLE_LABELS = {
-  agronomist: 'Агроном', engineer: 'Инженер', director: 'Директор',
-  operator: 'Оператор', mechanic: 'Механизатор'
+const IMPL_SPEC_FIELDS={
+  sprayer:[['sp-tank','Объём бака,л'],['sp-width','Ширина,м'],['sp-sections','Секций'],['sp-nozzle','Форсунки'],['sp-pump-flow','Насос,л/мин'],['sp-pressure','Давление,бар'],['sp-clean','Чистая вода,л'],['sp-gps','GPS'],['sp-mount','Навеска'],['sp-pump','Тип насоса'],['sp-nozzle-dist','Расст. форсунок,см']],
+  seeder:[['se-rows','Рядов'],['se-width','Ширина,м'],['se-row-dist','Межрядье,см'],['se-hopper','Семян бункер,л'],['se-fert','Удобр. бункер,л'],['se-depth','Глубина посева'],['se-mechanism','Высевающий аппарат'],['se-coulter','Сошник'],['se-crops','Культуры'],['se-roller','Катки'],['se-marker','Маркеры']],
+  plow:[['pl-bodies','Корпусов'],['pl-body-width','Ширина корпуса,см'],['pl-total-width','Общая ширина,м'],['pl-depth','Глубина,см'],['pl-type','Тип плуга'],['pl-shank','Стойка'],['pl-mouldboard','Отвал'],['pl-preploug','Предплужник'],['pl-hp','Мощность,л.с.']],
+  disc:[['di-width','Ширина,м'],['di-disc-diam','Диаметр диска,мм'],['di-discs','Дисков'],['di-depth','Глубина,см'],['di-spacing','Расст. дисков,см'],['di-angle','Угол атаки,°'],['di-type','Тип дисков'],['di-roller','Катки'],['di-hp','Мощность,л.с.']],
+  cult:[['cu-width','Ширина,м'],['cu-tines','Рабочих органов'],['cu-depth','Глубина,см'],['cu-type','Тип'],['cu-tine-type','Рабочий орган'],['cu-row-dist','Межрядье,см'],['cu-roller','Катки'],['cu-hp','Мощность,л.с.']],
+  spreader:[['sp2-vol','Бункер,л/кг'],['sp2-width','Ширина,м'],['sp2-type','Тип'],['sp2-min','Норма мин.,кг/га'],['sp2-max','Норма макс.,кг/га'],['sp2-materials','Материалы'],['sp2-weight','Весовой контроль'],['sp2-drive','Привод']],
+  trailer:[['tr-load','Грузоп.,т'],['tr-vol','Объём,м³'],['tr-type','Тип'],['tr-length','Длина,м'],['tr-width','Ширина,м'],['tr-height','Борта,м'],['tr-axles','Осей'],['tr-unload','Разгрузка']],
+  mower:[['mo-width','Ширина,м'],['mo-type','Тип'],['mo-pos','Расположение'],['mo-min-cut','Высота среза мин.,мм'],['mo-max-cut','Высота среза макс.,мм'],['mo-cond','Кондиционер']],
+  baler:[['ba-type','Тип пресса'],['ba-pickup','Подборщик,м'],['ba-diam','Диаметр рулона,м'],['ba-width','Ширина,м'],['ba-weight','Масса рулона,кг'],['ba-wrap','Обвязка'],['ba-knives','Ножей'],['ba-hp','Мощность,л.с.']],
+  roller:[['ro-width','Ширина,м'],['ro-diam','Диаметр,м'],['ro-weight','Масса,кг'],['ro-type','Тип катка'],['ro-ballast','Балласт']],
+  other:[['ot-width','Ширина,м'],['ot-depth','Глубина'],['ot-hp','Мощность,л.с.']],
 };
-const ROLE_COLORS = {
-  agronomist: 'badge-green', engineer: 'badge-blue', director: 'badge-amber',
-  operator: 'badge-gray', mechanic: 'badge-gray'
-};
-const EQUIP_LABELS = {
-  tractor: 'Трактор', sprayer: 'Опрыскиватель', pump: 'Насосная станция',
-  trailer: 'Прицеп', other: 'Другое'
-};
-const STATUS_LABELS = { free: 'Свободен', busy: 'В работе', repair: 'На ремонте' };
-const STATUS_COLORS = { free: 'badge-green', busy: 'badge-amber', repair: 'badge-red' };
 
-function initials(name) {
-  return name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
-}
+let implTypeFilter='', implEditId=null;
 
-function avatarColor(role) {
-  if (role === 'agronomist') return 'av-green';
-  if (role === 'director' || role === 'engineer') return 'av-amber';
-  return 'av-blue';
-}
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
+function initials(name){return name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();}
+function avatarColor(role){if(role==='agronomist')return 'av-green';if(role==='director'||role==='engineer')return 'av-amber';return 'av-blue';}
 
-function toast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg; t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2500);
-}
-
-function switchPage(id, el) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-  document.getElementById('page-' + id).classList.add('active');
+function switchPage(id,el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
   el.classList.add('active');
+  if(id==='implements') loadImpl();
 }
 
-// ─── STAFF ───────────────────────────────────────────────
-async function loadStaff() {
-  const res = await fetch('/api/staff');
-  const data = await res.json();
-  const el = document.getElementById('staff-list');
-  if (!data.length) {
-    el.innerHTML = `<div class="empty"><div class="empty-icon">👥</div><p>Персонал не добавлен</p></div>`;
-    return;
-  }
-  el.innerHTML = data.map(s => `
+// ─── STAFF ────────────────────────────────────────────────────────────────
+async function loadStaff(){
+  const data=await fetch('/api/staff').then(r=>r.json());
+  const el=document.getElementById('staff-list');
+  if(!data.length){el.innerHTML=`<div class="empty"><div class="empty-icon">👥</div><p>Персонал не добавлен</p></div>`;return;}
+  el.innerHTML=data.map(s=>`
     <div class="card">
       <div class="card-header">
         <div class="avatar ${avatarColor(s.role)}">${initials(s.name)}</div>
-        <div>
-          <div class="card-name">${s.name}</div>
-          <div class="card-sub">${s.specialty || ''}</div>
-        </div>
-        <span class="badge ${ROLE_COLORS[s.role] || 'badge-gray'}">${ROLE_LABELS[s.role] || s.role}</span>
+        <div><div class="card-name">${s.name}</div><div class="card-sub">${s.specialty||''}</div></div>
+        <span class="badge ${ROLE_COLORS[s.role]||'badge-gray'}">${ROLE_LABELS[s.role]||s.role}</span>
         <div class="card-actions">
           <button class="btn btn-sm" onclick="editStaff(${JSON.stringify(s).replace(/"/g,'&quot;')})">Изменить</button>
           <button class="btn btn-sm btn-danger" onclick="deleteStaff('${s.id}')">Удалить</button>
         </div>
       </div>
-      ${s.phone || s.telegram_id ? `
-      <div class="divider"></div>
-      <div class="meta-grid">
-        ${s.phone ? `<div class="meta-item"><div class="label">Телефон</div><div class="val">${s.phone}</div></div>` : ''}
-        ${s.telegram_id ? `<div class="meta-item"><div class="label">Telegram ID</div><div class="val" style="font-family:var(--mono);font-size:12px">${s.telegram_id}</div></div>` : ''}
-      </div>` : ''}
-    </div>
-  `).join('');
+      ${s.phone||s.telegram_id?`<div class="divider"></div><div class="meta-grid">
+        ${s.phone?`<div class="meta-item"><div class="label">Телефон</div><div class="val">${s.phone}</div></div>`:''}
+        ${s.telegram_id?`<div class="meta-item"><div class="label">Telegram ID</div><div class="val" style="font-family:var(--mono);font-size:12px">${s.telegram_id}</div></div>`:''}
+      </div>`:''}
+    </div>`).join('');
 }
-
-function openStaffModal(clear=true) {
-  if (clear) {
-    document.getElementById('staff-id').value = '';
-    document.getElementById('staff-modal-title').textContent = 'Новый сотрудник';
-    ['staff-name','staff-phone','staff-telegram','staff-specialty'].forEach(id => document.getElementById(id).value = '');
-    document.getElementById('staff-role').value = 'operator';
-  }
+function openStaffModal(clear=true){
+  if(clear){document.getElementById('staff-id').value='';document.getElementById('staff-modal-title').textContent='Новый сотрудник';
+    ['staff-name','staff-phone','staff-telegram','staff-specialty'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('staff-role').value='operator';}
   document.getElementById('staff-modal').classList.add('open');
 }
-
-function closeStaffModal() { document.getElementById('staff-modal').classList.remove('open'); }
-
-function editStaff(s) {
-  document.getElementById('staff-id').value = s.id;
-  document.getElementById('staff-modal-title').textContent = 'Изменить сотрудника';
-  document.getElementById('staff-name').value = s.name;
-  document.getElementById('staff-role').value = s.role;
-  document.getElementById('staff-phone').value = s.phone || '';
-  document.getElementById('staff-telegram').value = s.telegram_id || '';
-  document.getElementById('staff-specialty').value = s.specialty || '';
-  openStaffModal(false);
+function closeStaffModal(){document.getElementById('staff-modal').classList.remove('open');}
+function editStaff(s){
+  document.getElementById('staff-id').value=s.id;document.getElementById('staff-modal-title').textContent='Изменить сотрудника';
+  document.getElementById('staff-name').value=s.name;document.getElementById('staff-role').value=s.role;
+  document.getElementById('staff-phone').value=s.phone||'';document.getElementById('staff-telegram').value=s.telegram_id||'';
+  document.getElementById('staff-specialty').value=s.specialty||'';openStaffModal(false);
 }
-
-async function saveStaff() {
-  const id = document.getElementById('staff-id').value;
-  const body = {
-    name: document.getElementById('staff-name').value.trim(),
-    role: document.getElementById('staff-role').value,
-    phone: document.getElementById('staff-phone').value.trim(),
-    telegram_id: document.getElementById('staff-telegram').value.trim(),
-    specialty: document.getElementById('staff-specialty').value.trim()
-  };
-  if (!body.name) { alert('Введите имя'); return; }
-  const url = id ? `/api/staff/${id}` : '/api/staff';
-  const method = id ? 'PUT' : 'POST';
-  await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
-  closeStaffModal();
-  toast(id ? 'Сотрудник обновлён' : 'Сотрудник добавлен');
-  loadStaff();
+async function saveStaff(){
+  const id=document.getElementById('staff-id').value;
+  const body={name:document.getElementById('staff-name').value.trim(),role:document.getElementById('staff-role').value,
+    phone:document.getElementById('staff-phone').value.trim(),telegram_id:document.getElementById('staff-telegram').value.trim(),
+    specialty:document.getElementById('staff-specialty').value.trim()};
+  if(!body.name){alert('Введите имя');return;}
+  await fetch(id?`/api/staff/${id}`:'/api/staff',{method:id?'PUT':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  closeStaffModal();toast(id?'Сотрудник обновлён':'Сотрудник добавлен');loadStaff();
 }
+async function deleteStaff(id){if(!confirm('Деактивировать?'))return;await fetch(`/api/staff/${id}`,{method:'DELETE'});toast('Деактивирован');loadStaff();}
 
-async function deleteStaff(id) {
-  if (!confirm('Деактивировать сотрудника?')) return;
-  await fetch(`/api/staff/${id}`, { method: 'DELETE' });
-  toast('Сотрудник деактивирован');
-  loadStaff();
-}
-
-// ─── EQUIPMENT ───────────────────────────────────────────
-async function loadEquip() {
-  const res = await fetch('/api/equipment');
-  const data = await res.json();
-  const el = document.getElementById('equip-list');
-  if (!data.length) {
-    el.innerHTML = `<div class="empty"><div class="empty-icon">🚜</div><p>Техника не добавлена</p></div>`;
-    return;
-  }
-  el.innerHTML = data.map(e => `
+// ─── EQUIPMENT ────────────────────────────────────────────────────────────
+async function loadEquip(){
+  const data=await fetch('/api/equipment').then(r=>r.json());
+  const el=document.getElementById('equip-list');
+  if(!data.length){el.innerHTML=`<div class="empty"><div class="empty-icon">🚜</div><p>Техника не добавлена</p></div>`;return;}
+  el.innerHTML=data.map(e=>`
     <div class="card">
       <div class="card-header">
         <div class="avatar av-green" style="border-radius:8px;font-size:18px">🚜</div>
-        <div>
-          <div class="card-name">${e.name}</div>
-          <div class="card-sub">${EQUIP_LABELS[e.type] || e.type}${e.board_number ? ' · борт ' + e.board_number : ''}</div>
-        </div>
-        <span class="badge ${STATUS_COLORS[e.status] || 'badge-gray'}">${STATUS_LABELS[e.status] || e.status}</span>
+        <div><div class="card-name">${e.name}</div><div class="card-sub">${EQUIP_LABELS[e.type]||e.type}${e.board_number?' · борт '+e.board_number:''}</div></div>
+        <span class="badge ${STATUS_COLORS[e.status]||'badge-gray'}">${STATUS_LABELS[e.status]||e.status}</span>
         <div class="card-actions">
           <button class="btn btn-sm" onclick="editEquip(${JSON.stringify(e).replace(/"/g,'&quot;')})">Изменить</button>
           <button class="btn btn-sm btn-danger" onclick="deleteEquip('${e.id}')">Удалить</button>
@@ -385,71 +804,213 @@ async function loadEquip() {
       </div>
       <div class="divider"></div>
       <div class="meta-grid">
-        ${e.tank_volume ? `<div class="meta-item"><div class="label">Объём бака</div><div class="val">${e.tank_volume} л</div></div>` : ''}
-        ${e.license_plate ? `<div class="meta-item"><div class="label">Гос. номер</div><div class="val" style="font-family:var(--mono);font-size:12px">${e.license_plate}</div></div>` : ''}
-        ${e.attachments?.length ? `<div class="meta-item"><div class="label">Навесные</div><div class="val">${e.attachments.join(', ')}</div></div>` : ''}
-        ${e.operator_name ? `<div class="meta-item"><div class="label">Оператор</div><div class="val">${e.operator_name}</div></div>` : ''}
-        ${e.note ? `<div class="meta-item" style="grid-column:1/-1"><div class="label">Примечание</div><div class="val">${e.note}</div></div>` : ''}
+        ${e.tank_volume?`<div class="meta-item"><div class="label">Объём бака</div><div class="val">${e.tank_volume} л</div></div>`:''}
+        ${e.license_plate?`<div class="meta-item"><div class="label">Гос. номер</div><div class="val" style="font-family:var(--mono);font-size:12px">${e.license_plate}</div></div>`:''}
+        ${e.attachments?.length?`<div class="meta-item"><div class="label">Навесные</div><div class="val">${e.attachments.join(', ')}</div></div>`:''}
+        ${e.note?`<div class="meta-item" style="grid-column:1/-1"><div class="label">Примечание</div><div class="val">${e.note}</div></div>`:''}
       </div>
-    </div>
-  `).join('');
+    </div>`).join('');
 }
-
-function openEquipModal(clear=true) {
-  if (clear) {
-    document.getElementById('equip-id').value = '';
-    document.getElementById('equip-modal-title').textContent = 'Новая техника';
-    ['equip-name','equip-board','equip-plate','equip-attach','equip-note'].forEach(id => document.getElementById(id).value = '');
-    document.getElementById('equip-tank').value = '';
-    document.getElementById('equip-type').value = 'tractor';
-    document.getElementById('equip-status').value = 'free';
-  }
+function openEquipModal(clear=true){
+  if(clear){document.getElementById('equip-id').value='';document.getElementById('equip-modal-title').textContent='Новая техника';
+    ['equip-name','equip-board','equip-plate','equip-attach','equip-note'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('equip-tank').value='';document.getElementById('equip-type').value='tractor';document.getElementById('equip-status').value='free';}
   document.getElementById('equip-modal').classList.add('open');
 }
-
-function closeEquipModal() { document.getElementById('equip-modal').classList.remove('open'); }
-
-function editEquip(e) {
-  document.getElementById('equip-id').value = e.id;
-  document.getElementById('equip-modal-title').textContent = 'Изменить технику';
-  document.getElementById('equip-name').value = e.name;
-  document.getElementById('equip-type').value = e.type;
-  document.getElementById('equip-board').value = e.board_number || '';
-  document.getElementById('equip-plate').value = e.license_plate || '';
-  document.getElementById('equip-tank').value = e.tank_volume || '';
-  document.getElementById('equip-status').value = e.status || 'free';
-  document.getElementById('equip-attach').value = (e.attachments||[]).join(', ');
-  document.getElementById('equip-note').value = e.note || '';
+function closeEquipModal(){document.getElementById('equip-modal').classList.remove('open');}
+function editEquip(e){
+  document.getElementById('equip-id').value=e.id;document.getElementById('equip-modal-title').textContent='Изменить технику';
+  document.getElementById('equip-name').value=e.name;document.getElementById('equip-type').value=e.type;
+  document.getElementById('equip-board').value=e.board_number||'';document.getElementById('equip-plate').value=e.license_plate||'';
+  document.getElementById('equip-tank').value=e.tank_volume||'';document.getElementById('equip-status').value=e.status||'free';
+  document.getElementById('equip-attach').value=(e.attachments||[]).join(', ');document.getElementById('equip-note').value=e.note||'';
   openEquipModal(false);
 }
+async function saveEquip(){
+  const id=document.getElementById('equip-id').value;
+  const attachStr=document.getElementById('equip-attach').value.trim();
+  const body={name:document.getElementById('equip-name').value.trim(),type:document.getElementById('equip-type').value,
+    board_number:document.getElementById('equip-board').value.trim(),license_plate:document.getElementById('equip-plate').value.trim(),
+    tank_volume:parseFloat(document.getElementById('equip-tank').value)||null,status:document.getElementById('equip-status').value,
+    attachments:attachStr?attachStr.split(',').map(s=>s.trim()).filter(Boolean):[],note:document.getElementById('equip-note').value.trim()};
+  if(!body.name){alert('Введите название');return;}
+  await fetch(id?`/api/equipment/${id}`:'/api/equipment',{method:id?'PUT':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  closeEquipModal();toast(id?'Техника обновлена':'Техника добавлена');loadEquip();
+}
+async function deleteEquip(id){if(!confirm('Удалить?'))return;await fetch(`/api/equipment/${id}`,{method:'DELETE'});toast('Удалено');loadEquip();}
+  // ─── IMPLEMENTS ───────────────────────────────────────────────────────────
+let implItems=[];
 
-async function saveEquip() {
-  const id = document.getElementById('equip-id').value;
-  const attachStr = document.getElementById('equip-attach').value.trim();
-  const body = {
-    name: document.getElementById('equip-name').value.trim(),
-    type: document.getElementById('equip-type').value,
-    board_number: document.getElementById('equip-board').value.trim(),
-    license_plate: document.getElementById('equip-plate').value.trim(),
-    tank_volume: parseFloat(document.getElementById('equip-tank').value) || null,
-    status: document.getElementById('equip-status').value,
-    attachments: attachStr ? attachStr.split(',').map(s=>s.trim()).filter(Boolean) : [],
-    note: document.getElementById('equip-note').value.trim()
-  };
-  if (!body.name) { alert('Введите название'); return; }
-  const url = id ? `/api/equipment/${id}` : '/api/equipment';
-  const method = id ? 'PUT' : 'POST';
-  await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
-  closeEquipModal();
-  toast(id ? 'Техника обновлена' : 'Техника добавлена');
-  loadEquip();
+async function loadImpl(){
+  try{
+    const r=await fetch('/api/attachments');
+    const data=await r.json();
+    implItems=Array.isArray(data)?data:(data.data||[]);
+    implItems=implItems.map(it=>{
+      if(typeof it.specs==='string'){try{it.specs=JSON.parse(it.specs);}catch(e){it.specs={};}}
+      if(!it.specs) it.specs={};
+      return it;
+    });
+  }catch(e){implItems=[];}
+  renderImpl();
 }
 
-async function deleteEquip(id) {
-  if (!confirm('Удалить технику?')) return;
-  await fetch(`/api/equipment/${id}`, { method: 'DELETE' });
-  toast('Удалено');
-  loadEquip();
+function setImplType(type,el){
+  implTypeFilter=type;
+  document.querySelectorAll('.tf').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  renderImpl();
+}
+
+function renderImpl(){
+  let items=implItems;
+  if(implTypeFilter) items=items.filter(it=>(it.impl_type||it.type||'other')===implTypeFilter);
+  const el=document.getElementById('impl-list');
+  if(!items.length){
+    el.innerHTML=`<div class="empty"><div class="empty-icon">🔧</div><p>Прицепная техника не добавлена. Нажмите + Добавить</p></div>`;
+    return;
+  }
+  el.innerHTML=items.map(it=>{
+    const type=it.impl_type||it.type||'other';
+    const specs=it.specs||{};
+    const brand=specs.brand||'';
+    const model=specs.model||'';
+    const year=specs.year||'';
+    const condition=specs.condition||'good';
+    const nextSvc=specs.next_service||'';
+    const svcAlert=nextSvc&&new Date(nextSvc)<new Date()?true:false;
+    const typeFields=(IMPL_SPEC_FIELDS[type]||[]).slice(0,6);
+    const pills=typeFields.map(([fid,lbl])=>{
+      const v=specs[fid];
+      if(!v||v==='') return '';
+      const [sk,sv]=lbl.split(',');
+      return `<div class="spec-pill"><span class="sk">${sk}: </span><span class="sv">${v}${sv?' '+sv:''}</span></div>`;
+    }).filter(Boolean).join('');
+    return `<div class="card impl-card impl-${type}">
+      <div class="card-header">
+        <div class="avatar av-green" style="border-radius:8px;font-size:18px">${IMPL_LABELS[type]?.split(' ')[0]||'🔧'}</div>
+        <div>
+          <div class="card-name">${it.name}</div>
+          <div class="card-sub">${brand?brand+' ':''} ${model} ${year?'· '+year:''}</div>
+        </div>
+        <span class="badge badge-green">${IMPL_LABELS[type]||type}</span>
+        <div class="card-actions">
+          <button class="btn btn-sm" onclick="editImpl('${it.id}')">Изменить</button>
+          <button class="btn btn-sm btn-danger" onclick="quickDeleteImpl('${it.id}')">Удалить</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap;">
+        <span class="badge badge-gray">${COND_LABELS[condition]||condition}</span>
+        ${svcAlert?`<span class="badge badge-red">⚠️ ТО просрочено (${nextSvc})</span>`:''}
+        ${nextSvc&&!svcAlert?`<span class="badge badge-gray">🔧 ТО: ${nextSvc}</span>`:''}
+        ${specs.operator?`<span class="badge badge-blue">👤 ${specs.operator}</span>`:''}
+      </div>
+      ${pills?`<div class="spec-pills">${pills}</div>`:''}
+      ${it.note||specs.note?`<div class="divider"></div><div style="font-size:12px;color:var(--muted);">${it.note||specs.note}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function onImplTypeChange(){
+  const type=document.getElementById('im-type').value;
+  document.querySelectorAll('.impl-section').forEach(s=>s.classList.remove('visible'));
+  const sec=document.getElementById('is-'+type);
+  if(sec) sec.classList.add('visible');
+}
+
+function openImplModal(){
+  implEditId=null;
+  document.getElementById('impl-modal-title').textContent='Добавить прицепную технику';
+  document.getElementById('impl-del-btn').style.display='none';
+  clearImplForm();
+  onImplTypeChange();
+  document.getElementById('impl-modal').classList.add('open');
+}
+
+function clearImplForm(){
+  document.querySelectorAll('#impl-modal input, #impl-modal select, #impl-modal textarea').forEach(el=>{
+    if(el.tagName==='SELECT') el.selectedIndex=0; else el.value='';
+  });
+}
+
+function editImpl(id){
+  const it=implItems.find(x=>String(x.id)===String(id));
+  if(!it) return;
+  implEditId=id;
+  document.getElementById('impl-modal-title').textContent='Редактировать технику';
+  document.getElementById('impl-del-btn').style.display='block';
+  clearImplForm();
+  const s=it.specs||{};
+  const type=it.impl_type||it.type||'other';
+  document.getElementById('im-name').value=it.name||'';
+  document.getElementById('im-type').value=type;
+  document.getElementById('im-brand').value=s.brand||'';
+  document.getElementById('im-model').value=s.model||'';
+  document.getElementById('im-year').value=s.year||'';
+  document.getElementById('im-inv').value=s.inv||'';
+  document.getElementById('im-condition').value=s.condition||'good';
+  document.getElementById('im-weight').value=s.weight||'';
+  document.getElementById('im-hitch').value=s.hitch||'Категория 2';
+  document.getElementById('im-pto').value=s.pto||'не требуется';
+  document.getElementById('im-hp-min').value=s.hp_min||'';
+  document.getElementById('im-last-service').value=s.last_service||'';
+  document.getElementById('im-next-service').value=s.next_service||'';
+  document.getElementById('im-operator').value=s.operator||'';
+  document.getElementById('im-note').value=it.note||s.note||'';
+  const fields=IMPL_SPEC_FIELDS[type]||[];
+  fields.forEach(([fid])=>{const el=document.getElementById(fid);if(el&&s[fid]!==undefined) el.value=s[fid];});
+  onImplTypeChange();
+  document.getElementById('impl-modal').classList.add('open');
+}
+
+function gatherImplSpecs(type){
+  const specs={};
+  ['brand','model','year','inv','condition','weight','hitch','pto','hp_min','last_service','next_service','operator'].forEach(k=>{
+    const el=document.getElementById('im-'+k.replace('_','-'));
+    if(el&&el.value!=='') specs[k]=el.value;
+  });
+  const fields=IMPL_SPEC_FIELDS[type]||[];
+  fields.forEach(([fid])=>{const el=document.getElementById(fid);if(el&&el.value!=='') specs[fid]=el.value;});
+  return specs;
+}
+
+function closeImplModal(){document.getElementById('impl-modal').classList.remove('open');}
+
+async function saveImpl(){
+  const name=document.getElementById('im-name').value.trim();
+  const type=document.getElementById('im-type').value;
+  if(!name){alert('Введите название');return;}
+  const specs=gatherImplSpecs(type);
+  const note=document.getElementById('im-note').value.trim();
+  const body={name,impl_type:type,type,specs:JSON.stringify(specs),note};
+  const url=implEditId?`/api/attachments/${implEditId}`:'/api/attachments';
+  const method=implEditId?'PUT':'POST';
+  try{
+    const r=await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    if(r.ok){
+      closeImplModal();toast(implEditId?'Техника обновлена ✅':'Техника добавлена ✅');loadImpl();
+    } else {
+      if(implEditId&&method==='PUT'){
+        const r2=await fetch('/api/attachments',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...body,id:implEditId})});
+        if(r2.ok){closeImplModal();toast('Техника обновлена ✅');loadImpl();}
+        else{const e=await r2.json();alert('Ошибка: '+(e.error||r2.status));}
+      } else {
+        const e=await r.json();alert('Ошибка: '+(e.error||r.status));
+      }
+    }
+  }catch(err){alert('Ошибка: '+err.message);}
+}
+
+async function deleteImpl(){
+  if(!implEditId||!confirm('Удалить технику?'))return;
+  await fetch(`/api/attachments/${implEditId}`,{method:'DELETE'});
+  closeImplModal();toast('Удалено');loadImpl();
+}
+
+async function quickDeleteImpl(id){
+  if(!confirm('Удалить?'))return;
+  await fetch(`/api/attachments/${id}`,{method:'DELETE'});
+  toast('Удалено');loadImpl();
 }
 
 // Init
