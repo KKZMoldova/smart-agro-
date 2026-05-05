@@ -96,7 +96,7 @@ function parseResponse(json) {
   const rows = [];
   for (let i = 0; i < dates.length; i++) {
     if (!dates[i]) continue;
-    const dt   = new Date(dates[i] * 1000); // unix timestamp
+    const dt = new Date(typeof dates[i] === 'number' ? dates[i] * 1000 : dates[i]);
     const date = dt.toISOString().slice(0, 10);
     const hour = dt.getUTCHours();
 
