@@ -128,7 +128,7 @@ app.get('/', (req, res) =>
 // Cron: FieldClimate sync every hour
 const fc = require('./cron/fieldclimate');
 const syncFieldClimate = fc.syncFieldClimate || fc;
-cron.schedule('0 * * * *', async () => {
+cron.schedule('0 6 * * *', async () => {
   try { await syncFieldClimate(); console.log('[CRON] Weather sync OK'); }
   catch(err) { console.error('[CRON] Weather sync FAILED:', err.message); }
 });
