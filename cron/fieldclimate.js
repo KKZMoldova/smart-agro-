@@ -17,12 +17,22 @@ const STATIONS = [
   },
 ];
 
-const route = '/v2/data/' + station.id + '/last/' + hours + 'h';
+function buildHmacHeaders(method, route, publicKey, privateKey) {
+  if (!publicKey || !privateKey) throw new Error('Missing FieldClimate API keys');
+  const timestamp = new Date().toUTCString();
+  const msg       = method + route + timestamp + publicKey;
+  const signature = crypto.createHmac('sha256', privateKey.trim()).update(msg).digest('hex');
+  return {
+    'Accept':        'application/json',
+    'Authorization': 'hmac ' + publicKey.trim() + ':' + signature,
+    'Request-Date':  timestamp,
+  };
+}
 
 function fetchFromFieldClimate(station, hours) {
   hours = hours || 3;
   return new Promise(function(resolve, reject) {
-    const route = '/v2/data/' + station.id + '/last/' + hours;
+    const route   = '/v2/data/' + station.id + '/last/' + hours + 'h';
     const headers = buildHmacHeaders('GET', route, station.publicKey, station.privateKey);
     const options = { hostname: 'api.fieldclimate.com', path: route, method: 'GET', headers: headers };
     const req = https.request(options, function(res) {
@@ -31,6 +41,7 @@ function fetchFromFieldClimate(station, hours) {
       res.on('end', function() {
         try {
           const parsed = JSON.parse(data);
+          console.log('[FC][' + station.label + '] keys: ' + Object.keys(parsed).join(','));
           if (parsed.message) console.log('[FC][' + station.label + '] message: ' + parsed.message);
           console.log('[FC][' + station.label + '] dates: ' + (parsed.dates || []).length);
           resolve(parsed);
