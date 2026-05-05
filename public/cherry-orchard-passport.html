@@ -8530,11 +8530,9 @@ function mergeWeatherDays(days, statusEl, soilReadings, sensorMapping) {
 
 // ===================== INIT =====================
 async function init(){
-  // Check if server is available
   await checkServer();
   updateServerIndicator();
 
-  // Try to load full state from server first
   if (_serverAvailable) {
     try {
       const r = await fetch('/api/state/orchard');
@@ -8551,6 +8549,46 @@ async function init(){
       console.warn('[init] Server state load failed:', e.message);
       await load();
     }
+
+    try {
+      const wRes = await fetch('/api/weather?days=90&station=00002158');
+      const wJson = await wRes.json();
+      if (wJson.ok && wJson.data && wJson.data.length) {
+        S.weather = wJson.data.map(d => ({
+          id: 'w_' + d.date.replace(/-/g,''),
+          date: d.date,
+          tmax: d.tmax,
+          tmin: d.tmin,
+          tavg: d.tavg,
+          humidity: d.humidity,
+          precip: d.precip,
+          et0: d.et0,
+          leafwet: d.leaf_wet || 0,
+          wind: null,
+          phase: null,
+          note: 'Авто-импорт с метеостанции',
+        }));
+        S.weather.sort((a,b) => b.date.localeCompare(a.date));
+        localStorage.setItem('cherry_v5', JSON.stringify(S));
+        console.log('[init] Weather loaded:', S.weather.length, 'days');
+      }
+    } catch(e) {
+      console.warn('[init] Weather load failed:', e.message);
+    }
+
+  } else {
+    await load();
+  }
+
+  renderMap();
+  loadSettings();
+  populateGddVarietySelect();
+  if (S.weather.length) renderWeather();
+
+  console.log('[init] Server:', _serverAvailable ? 'online' : 'offline');
+  console.log('[init] Weather records:', S.weather.length);
+}
+init();
 
     // ═══ ЗАГРУЗКА ПОГОДЫ С МЕТЕОСТАНЦИИ ═══
     try {
