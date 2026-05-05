@@ -32,7 +32,7 @@ function buildHmacHeaders(method, route, publicKey, privateKey) {
 function fetchFromFieldClimate(station, period) {
   period = period || '3h';
   return new Promise(function(resolve, reject) {
-    const route = '/v2/data/' + station.id + '/hourly/last/' + period;
+    const route = '/v2/data/' + station.id + '/raw/last/' + period;
     const headers = buildHmacHeaders('GET', route, station.publicKey, station.privateKey);
     const options = { hostname: 'api.fieldclimate.com', path: route, method: 'GET', headers: headers };
     const req = https.request(options, function(res) {
@@ -44,6 +44,9 @@ function fetchFromFieldClimate(station, period) {
           console.log('[FC][' + station.label + '] keys: ' + Object.keys(parsed).join(','));
           if (parsed.message) console.log('[FC][' + station.label + '] message: ' + parsed.message);
           console.log('[FC][' + station.label + '] dates: ' + (parsed.dates || []).length);
+if (parsed.sensors && parsed.sensors.length > 0) {
+  console.log('[FC][' + station.label + '] sensors: ' + parsed.sensors.map(s => s.name + '(' + s.code + ')').join(', '));
+}
           resolve(parsed);
         } catch(e) {
           console.log('[FC][' + station.label + '] raw: ' + data.slice(0, 300));
