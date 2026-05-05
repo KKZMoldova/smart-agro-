@@ -61,109 +61,67 @@ if (parsed.sensors && parsed.sensors.length > 0) {
 }
 
 function parseResponse(json) {
-  const dates   = json.dates   || [];
-  const sensors = json.sensors || [];
+  const dates = json.dates || [];
+  const data  = json.data  || {};
 
-  function getIdx(names) {
-    for (let n = 0; n < names.length; n++) {
-      const idx = sensors.findIndex(function(s) {
-        return (s.name || '').toLowerCase().indexOf(names[n].toLowerCase()) >= 0 ||
-               (s.code || '').toLowerCase().indexOf(names[n].toLowerCase()) >= 0;
-      });
-      if (idx >= 0) return idx;
+  // data — объект где ключи это коды сенсоров
+  // Логируем что есть
+  console.log('[FC] data keys: ' + Object.keys(data).join(', '));
+
+  // Найти сенсор по возможным ключам
+  function findVals(keys) {
+    for (let k of keys) {
+      for (let dk of Object.keys(data)) {
+        if (dk.toLowerCase().includes(k.toLowerCase())) {
+          const sensor = data[dk];
+          // sensor может быть массивом или объектом с полем values
+          if (Array.isArray(sensor)) return sensor;
+          if (sensor && Array.isArray(sensor.values)) return sensor.values;
+          if (sensor && Array.isArray(sensor.aggr)) return sensor.aggr;
+        }
+      }
     }
-    return -1;
+    return null;
   }
 
-  const idxTmax  = getIdx(['temp max', 'tmax', 'air temp max']);
-  const idxTmin  = getIdx(['temp min', 'tmin', 'air temp min']);
-  const idxTavg  = getIdx(['temp avg', 'tavg', 'air temp', 'temperature']);
-  const idxHum   = getIdx(['humidity', 'rh', 'relative hum']);
-  const idxRain  = getIdx(['rain', 'precip', 'precipitation']);
-  const idxSolar = getIdx(['solar', 'radiation', 'global rad']);
-  const idxLeaf  = getIdx(['leaf wet', 'leaf']);
-  const idxEt0   = getIdx(['eto', 'et0', 'evapotrans']);
+  const vTmax  = findVals(['tmax','temp_max','air_temp_max','HC_Air_temp_max']);
+  const vTmin  = findVals(['tmin','temp_min','air_temp_min','HC_Air_temp_min']);
+  const vTavg  = findVals(['tavg','temp_avg','air_temp_avg','HC_Air_temp','temperature']);
+  const vHum   = findVals(['hum','rh','relative_hum','HC_Air_rh']);
+  const vRain  = findVals(['rain','precip','precipitation','HC_Precip']);
+  const vSolar = findVals(['solar','rad','global_rad','HC_Solar']);
+  const vLeaf  = findVals(['leaf','leaf_wet','HC_Leaf']);
+  const vEt0   = findVals(['eto','et0','evapotrans']);
 
   const rows = [];
   for (let i = 0; i < dates.length; i++) {
     if (!dates[i]) continue;
-    const dt   = new Date(dates[i]);
+    const dt   = new Date(dates[i] * 1000); // unix timestamp
     const date = dt.toISOString().slice(0, 10);
     const hour = dt.getUTCHours();
 
-    function val(idx) {
-      if (idx < 0) return null;
-      const v = sensors[idx] && sensors[idx].values && sensors[idx].values[i];
+    function val(arr) {
+      if (!arr) return null;
+      const v = arr[i];
       if (v === null || v === undefined || v === '') return null;
       return parseFloat(v);
     }
 
-    let et0 = val(idxEt0);
+    let et0 = val(vEt0);
     if (et0 === null) {
-      const solar = val(idxSolar);
-      const tavg  = val(idxTavg) || ((val(idxTmax) || 0) + (val(idxTmin) || 0)) / 2;
+      const solar = val(vSolar);
+      const tavg  = val(vTavg) || ((val(vTmax)||0) + (val(vTmin)||0)) / 2;
       if (solar !== null) {
         et0 = Math.max(0, 0.0135 * solar * 0.0864 * (tavg + 5) / 25);
       }
     }
 
     rows.push({
-      date: date, hour: hour,
-      tmax: val(idxTmax), tmin: val(idxTmin), tavg: val(idxTavg),
-      humidity: val(idxHum), precip: val(idxRain),
-      solar_rad: val(idxSolar), leaf_wet: val(idxLeaf), et0: et0,
+      date, hour,
+      tmax: val(vTmax), tmin: val(vTmin), tavg: val(vTavg),
+      humidity: val(vHum), precip: val(vRain),
+      solar_rad: val(vSolar), leaf_wet: val(vLeaf), et0,
     });
   }
   return rows;
 }
-
-async function saveWeatherRows(rows, stationId) {
-  let inserted = 0;
-  for (let i = 0; i < rows.length; i++) {
-    const r = rows[i];
-    const res = await db.query(
-      'INSERT INTO weather (station_id,date,hour,tmax,tmin,tavg,humidity,precip,solar_rad,leaf_wet,et0) ' +
-      'VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ' +
-      'ON CONFLICT (station_id,date,hour) DO UPDATE SET ' +
-      'tmax=EXCLUDED.tmax,tmin=EXCLUDED.tmin,tavg=EXCLUDED.tavg,' +
-      'humidity=EXCLUDED.humidity,precip=EXCLUDED.precip,' +
-      'solar_rad=EXCLUDED.solar_rad,leaf_wet=EXCLUDED.leaf_wet,et0=EXCLUDED.et0',
-      [stationId, r.date, r.hour, r.tmax, r.tmin, r.tavg,
-       r.humidity, r.precip, r.solar_rad, r.leaf_wet, r.et0]
-    );
-    inserted += res.rowCount;
-  }
-  return inserted;
-}
-
-let isFirstRun = true;
-
-async function syncStation(station, period) {
-  try {
-    const json = await fetchFromFieldClimate(station, period);
-    const rows = parseResponse(json);
-    if (!rows.length) {
-      console.log('[FieldClimate][' + station.label + '] No rows parsed');
-      return 0;
-    }
-    const saved = await saveWeatherRows(rows, station.id);
-    console.log('[FieldClimate][' + station.label + '] Saved ' + saved + '/' + rows.length + ' rows');
-    return saved;
-  } catch(e) {
-    console.error('[FieldClimate][' + station.label + '] Error:', e.message);
-    return 0;
-  }
-}
-
-async function syncFieldClimate() {
-  const period = isFirstRun ? '7d' : '3h';
-  console.log('[FieldClimate] Period: ' + period);
-  let total = 0;
-  for (let i = 0; i < STATIONS.length; i++) {
-    total += await syncStation(STATIONS[i], period);
-  }
-  isFirstRun = false;
-  return total;
-}
-
-module.exports = { syncFieldClimate };
