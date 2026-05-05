@@ -42,7 +42,7 @@ function fetchFromFieldClimate(station, hours) {
       res.on('end', function() {
         try {
           const parsed = JSON.parse(data);
-          console.log('[FC][' + station.label + '] keys: ' + Object.keys(parsed).join(','));
+          if (parsed.message) console.log('[FC][' + station.label + '] message: ' + parsed.message);
           console.log('[FC][' + station.label + '] dates: ' + (parsed.dates || []).length);
           resolve(parsed);
         } catch(e) {
