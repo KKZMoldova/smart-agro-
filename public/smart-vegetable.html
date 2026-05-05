@@ -2295,7 +2295,25 @@ function saveParcel() {
   } else {
     S.parcels.push(parcel);
   }
-  save(); closeModal('modal-parcel'); renderParcels();
+  save();
+// Sync to PostgreSQL
+fetch('/api/parcels', {
+  method: 'POST',
+  headers: {'Content-Type': 'application/json'},
+  body: JSON.stringify({
+    id: parcel.id,
+    name: parcel.name,
+    ha: parcel.ha,
+    crop_id: parcel.cropId,
+    variety: parcel.variety,
+    sowing_date: parcel.sowingDate,
+    soil: parcel.soil,
+    harvest_gdd: parcel.harvestGdd,
+    tdu_window: parcel.tduWindow,
+    note: parcel.note
+  })
+}).catch(e => console.warn('Parcel sync failed:', e));
+closeModal('modal-parcel'); renderParcels();
 }
 
 function deleteParcel() {
