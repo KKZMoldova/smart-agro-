@@ -69,28 +69,28 @@ function parseResponse(json) {
 const firstKey = Object.keys(data)[0];
 if (firstKey) console.log('[FC] first sensor sample: ' + JSON.stringify(data[firstKey]).slice(0, 200));
 
-  function findVals(keys) {
-    for (let k of keys) {
-      for (let dk of Object.keys(data)) {
-        if (dk.toLowerCase().includes(k.toLowerCase())) {
-          const sensor = data[dk];
-          if (Array.isArray(sensor)) return sensor;
-          if (sensor && Array.isArray(sensor.values)) return sensor.values;
-          if (sensor && Array.isArray(sensor.aggr)) return sensor.aggr;
-        }
-      }
+  function findVals(keywords) {
+  for (let dk of Object.keys(data)) {
+    const sensor = data[dk];
+    const sensorName = ((sensor.name || '') + ' ' + (sensor.name_original || '')).toLowerCase();
+    const matches = keywords.some(k => sensorName.includes(k.toLowerCase()));
+    if (matches) {
+      if (Array.isArray(sensor.values)) return sensor.values;
+      if (Array.isArray(sensor.aggr))   return sensor.aggr;
+      if (Array.isArray(sensor))        return sensor;
     }
-    return null;
   }
+  return null;
+}
 
-  const vTmax  = findVals(['tmax','temp_max','air_temp_max','HC_Air_temp_max']);
-  const vTmin  = findVals(['tmin','temp_min','air_temp_min','HC_Air_temp_min']);
-  const vTavg  = findVals(['tavg','temp_avg','air_temp_avg','HC_Air_temp','temperature']);
-  const vHum   = findVals(['hum','rh','relative_hum','HC_Air_rh']);
-  const vRain  = findVals(['rain','precip','precipitation','HC_Precip']);
-  const vSolar = findVals(['solar','rad','global_rad','HC_Solar']);
-  const vLeaf  = findVals(['leaf','leaf_wet','HC_Leaf']);
-  const vEt0   = findVals(['eto','et0','evapotrans']);
+  const vTmax  = findVals(['max','tmax','maximum']);
+const vTmin  = findVals(['min','tmin','minimum']);
+const vTavg  = findVals(['temperatura aerului','air temperature','temp']);
+const vHum   = findVals(['umiditate','humidity','rh']);
+const vRain  = findVals(['precipit','rain','ploaie']);
+const vSolar = findVals(['solar','rad']);
+const vLeaf  = findVals(['leaf','frunza','foliar']);
+const vEt0   = findVals(['et0','eto','evapotrans']);
 
   const rows = [];
   for (let i = 0; i < dates.length; i++) {
