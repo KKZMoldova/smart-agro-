@@ -232,7 +232,7 @@ document.getElementById('new-btn').onclick=async function(){
     const attach=await fetch('/api/attachments').then(r=>r.json());
     const wt=await fetch('/api/work-types').then(r=>r.json());
     let parcels=[];
-    try{const pd=await fetch('/api/parcels').then(r=>r.json());parcels=Array.isArray(pd)?pd:[];}catch(e){}
+    try{const pd=await fetch('/api/parcels').then(r=>r.json());parcels=Array.isArray(pd)?pd:(pd.data||[]);}catch(e){}
 
     document.getElementById('f-wt').innerHTML=wt.map(w=>`<option value="${w.id}" data-name="${w.name}">${w.name}</option>`).join('');
     document.getElementById('f-par').innerHTML='<option value="">— не выбран —</option>'+parcels.map(p=>`<option value="${p.id}" data-name="${p.name}">${p.name}</option>`).join('');
