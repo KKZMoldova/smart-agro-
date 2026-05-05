@@ -1349,10 +1349,11 @@ async function syncFromServer() {
     const wRes = await VAPI.weather(90);
     if (wRes?.data?.length) {
       S.weather = wRes.data.map(d => ({
-        date: typeof d.date === 'string' ? d.date : new Date(d.date).toISOString().slice(0,10),
-        tmax: d.tmax, tmin: d.tmin, humidity: d.humidity,
-        precip: d.precip, et0: d.et0,
-      }));
+  date: typeof d.date === 'string' ? d.date.slice(0,10) : new Date(d.date).toISOString().slice(0,10),
+  tmax: d.tmax, tmin: d.tmin, tavg: d.tavg,
+  humidity: d.humidity, precip: d.precip,
+  et0: d.et0, leafwet: d.leaf_wet,
+}));
     }
     // Treatments
     const tRes = await VAPI.getTreatments();
