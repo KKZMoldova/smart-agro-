@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Калькулятор баков — Smart Agro</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:sans-serif;background:#f5f4f0;color:#1a1a18;min-height:100vh}
+.header{background:#fff;border-bottom:1px solid #e2e0d8;padding:0 20px;display:flex;align-items:center;height:52px;gap:12px}
+.logo{font-weight:700;color:#1d6a4a;font-size:15px}
+.header h1{font-size:15px;font-weight:600;flex:1}
+.btn{padding:7px 14px;font-size:13px;border-radius:7px;border:1px solid #e2e0d8;background:#fff;cursor:pointer;color:#1a1a18;text-decoration:none;display:inline-block}
+.btn-g{background:#1d6a4a;color:#fff;border-color:#1d6a4a}
+.main{max-width:720px;margin:0 auto;padding:20px}
+.card{background:#fff;border:1px solid #e2e0d8;border-radius:10px;padding:20px;margin-bottom:16px}
+.card h2{font-size:14px;font-weight:600;margin-bottom:16px;color:#1d6a4a}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.fg{display:flex;flex-direction:column;gap:5px}
+.fg label{font-size:11px;font-weight:600;color:#6b6a64;text-transform:uppercase;letter-spacing:.5px}
+.fg input,.fg select{padding:9px 12px;border:1px solid #e2e0d8;border-radius:7px;font-size:14px;background:#f5f4f0;outline:none;width:100%}
+.fg input:focus,.fg select:focus{border-color:#1d6a4a}
+.fg .hint{font-size:11px;color:#9b9a94}
+.product-row{display:grid;grid-template-columns:1fr 120px 80px 30px;gap:8px;align-items:center;margin-bottom:8px}
+.product-row input,.product-row select{padding:8px 10px;border:1px solid #e2e0d8;border-radius:7px;font-size:13px;background:#f5f4f0;width:100%}
+.add-btn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:9px;border:1px dashed #ccc9be;border-radius:7px;font-size:13px;color:#6b6a64;cursor:pointer;background:none;margin-top:4px}
+.rm-btn{width:28px;height:28px;border:none;background:#fdecea;color:#c0392b;border-radius:6px;cursor:pointer;font-size:14px}
+.result-card{background:#fff;border:2px solid #1d6a4a;border-radius:10px;padding:20px;margin-bottom:16px}
+.result-card h2{font-size:14px;font-weight:600;color:#1d6a4a;margin-bottom:16px}
+.tank{background:#f5f4f0;border:1px solid #e2e0d8;border-radius:8px;padding:14px;margin-bottom:10px;position:relative}
+.tank.last{background:#e8f4ee;border-color:#a8dbc0}
+.tank.last::after{content:'ПОСЛЕДНИЙ БАК';position:absolute;top:10px;right:12px;font-size:10px;font-weight:700;color:#1d6a4a}
+.tank-num{font-size:13px;font-weight:700;margin-bottom:8px}
+.tank-row{display:flex;justify-content:space-between;font-size:13px;padding:3px 0;border-bottom:1px solid #e2e0d8}
+.tank-row:last-child{border-bottom:none}
+.tank-row .lbl{color:#6b6a64}
+.tank-row .val{font-weight:600}
+.tank-row .val.green{color:#1d6a4a}
+.tank-row .val.amber{color:#b85c00}
+.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.stat{background:#f5f4f0;border-radius:8px;padding:12px;text-align:center}
+.stat .n{font-size:22px;font-weight:700;color:#1d6a4a}
+.stat .l{font-size:11px;color:#6b6a64;margin-top:2px}
+.warn{background:#fef3e2;border:1px solid #f5c6a0;border-radius:8px;padding:10px 14px;font-size:12px;color:#b85c00;margin-bottom:12px}
+.tip{background:#e8f1f8;border:1px solid #b5d4f4;border-radius:8px;padding:10px 14px;font-size:12px;color:#1a4f7a;margin-bottom:12px}
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="logo">SmartAgro</div>
+  <h1>🧪 Калькулятор баков</h1>
+  <a class="btn" href="/tasks.html">📋 Журнал</a>
+  <a class="btn" href="/vegetable">🌿 Vegetable</a>
+</div>
+<div class="main">
+<div class="card">
+  <h2>Параметры обработки</h2>
+  <div class="form-grid">
+    <div class="fg">
+      <label>Культура</label>
+      <select id="crop" onchange="onCropChange()">
+        <option value="">— выбрать —</option>
+        <option value="tomato">🍅 Томат</option>
+        <option value="pepper">🫑 Перец</option>
+        <option value="pea">🫛 Горошек зелёный</option>
+        <option value="sweet_corn">🌽 Кукуруза сладкая</option>
+        <option value="cucumber">🥒 Огурец</option>
+        <option value="onion">🧅 Лук</option>
+        <option value="cabbage">🥬 Капуста</option>
+        <option value="other">Другое</option>
+      </select>
+    </div>
+    <div class="fg">
+      <label>Фаза / цель обработки</label>
+      <input type="text" id="phase" placeholder="Вегетация, фитофтора...">
+    </div>
+    <div class="fg">
+      <label>Площадь (га)</label>
+      <input type="number" id="area" placeholder="12" step="0.1" oninput="calc()">
+    </div>
+    <div class="fg">
+      <label>Объём бака (л)</label>
+      <input type="number" id="tank-vol" placeholder="2000" step="100" oninput="calc()">
+      <span class="hint">Внести вручную по технике</span>
+    </div>
+    <div class="fg">
+      <label>Норма воды (л/га)</label>
+      <input type="number" id="water-rate" placeholder="300" step="10" oninput="calc()">
+      <span class="hint" id="water-hint">Рекомендация по культуре</span>
+    </div>
+    <div class="fg">
+      <label>Потери на заправку (л)</label>
+      <input type="number" id="losses" placeholder="50" value="50" step="10" oninput="calc()">
+      <span class="hint">Обычно 30–80 л на бак</span>
+    </div>
+  </div>
+  <div style="margin-top:16px">
+    <div style="font-size:11px;font-weight:600;color:#6b6a64;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Препараты</div>
+    <div style="display:grid;grid-template-columns:1fr 120px 80px 30px;gap:8px;margin-bottom:6px">
+      <div style="font-size:11px;color:#9b9a94">Название</div>
+      <div style="font-size:11px;color:#9b9a94">Норма/га</div>
+      <div style="font-size:11px;color:#9b9a94">Ед.изм.</div>
+      <div></div>
+    </div>
+    <div id="products"></div>
+    <button class="add-btn" onclick="addProduct()">+ Добавить препарат</button>
+  </div>
+  <button class="btn btn-g" style="margin-top:16px;width:100%;padding:12px;font-size:14px" onclick="calc()">🧮 Рассчитать</button>
+</div>
+<div id="result" style="display:none">
+  <div class="result-card">
+    <h2>📊 Результат</h2>
+    <div id="warnings"></div>
+    <div id="tips"></div>
+    <div class="summary" id="summary"></div>
+    <div id="tanks"></div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn btn-g" onclick="window.print()">🖨️ Распечатать</button>
+      <button class="btn" onclick="copyResult()">📋 Скопировать в Telegram</button>
+    </div>
+  </div>
+</div>
+</div>
+<script>
+const WATER_RATES={tomato:{min:300,max:500,note:'Густая листва — 400–500 л/га'},pepper:{min:300,max:400,note:'300–400 л/га'},pea:{min:200,max:300,note:'200–300 л/га'},sweet_corn:{min:200,max:400,note:'Ранние 200, VT+ 400 л/га'},cucumber:{min:300,max:400,note:'300–400 л/га'},onion:{min:200,max:300,note:'200–300 л/га'},cabbage:{min:300,max:400,note:'300–400 л/га'},other:{min:200,max:400,note:'200–400 л/га'}};
+let products=[{name:'',rate:0,unit:'кг/га'}];
+function onCropChange(){const c=document.getElementById('crop').value;const r=WATER_RATES[c];if(r){document.getElementById('water-rate').value=Math.round((r.min+r.max)/2/50)*50;document.getElementById('water-hint').textContent=r.note;}calc();}
+function renderProducts(){document.getElementById('products').innerHTML=products.map((p,i)=>`<div class="product-row"><input type="text" value="${p.name}" placeholder="Ридомил Голд..." oninput="products[${i}].name=this.value;calc()"><input type="number" value="${p.rate||''}" placeholder="2.5" step="0.01" oninput="products[${i}].rate=parseFloat(this.value)||0;calc()"><select onchange="products[${i}].unit=this.value;calc()"><option value="кг/га" ${p.unit==='кг/га'?'selected':''}>кг/га</option><option value="л/га" ${p.unit==='л/га'?'selected':''}>л/га</option><option value="г/га" ${p.unit==='г/га'?'selected':''}>г/га</option><option value="мл/га" ${p.unit==='мл/га'?'selected':''}>мл/га</option></select><button class="rm-btn" onclick="removeProduct(${i})">✕</button></div>`).join('');}
+function addProduct(){products.push({name:'',rate:0,unit:'кг/га'});renderProducts();}
+function removeProduct(i){products.splice(i,1);if(!products.length)products.push({name:'',rate:0,unit:'кг/га'});renderProducts();calc();}
+function calcAmt(ratePerHa,unit,waterInTank,waterRatePerHa){const ha=waterInTank/waterRatePerHa;const amt=ha*ratePerHa;if(unit==='г/га'||unit==='мл/га')return amt>=1000?(amt/1000).toFixed(3)+' кг/л':amt.toFixed(0);return amt>=10?amt.toFixed(1):amt.toFixed(3);}
+function calc(){
+  const area=parseFloat(document.getElementById('area').value)||0;
+  const tankVol=parseFloat(document.getElementById('tank-vol').value)||0;
+  const waterRate=parseFloat(document.getElementById('water-rate').value)||0;
+  const losses=parseFloat(document.getElementById('losses').value)||0;
+  const crop=document.getElementById('crop').value;
+  if(!area||!tankVol||!waterRate){document.getElementById('result').style.display='none';return;}
+  const eff=tankVol-losses;
+  if(eff<=0)return;
+  const total=area*waterRate;
+  const full=Math.floor(total/eff);
+  const lastW=total-full*eff;
+  const totalT=full+(lastW>0?1:0);
+  const prods=products.filter(p=>p.name&&p.rate>0);
+  const tanksData=[];
+  for(let i=1;i<=full;i++){tanksData.push({num:i,area:eff/waterRate,water:eff,full:true,prods:prods.map(p=>({name:p.name,unit:p.unit,amount:calcAmt(p.rate,p.unit,eff,waterRate)}))});}
+  if(lastW>1)tanksData.push({num:full+1,area:lastW/waterRate,water:lastW,full:false,prods:prods.map(p=>({name:p.name,unit:p.unit,amount:calcAmt(p.rate,p.unit,lastW,waterRate)}))});
+  const warns=[],tips=[];
+  if(lastW>0&&lastW<eff*0.1)warns.push('⚠️ Последний бак очень маленький — рассмотрите возможность объединения с предыдущим проходом');
+  if(waterRate>500)warns.push('⚠️ Норма воды >500 л/га — уточните настройки форсунок');
+  const r=WATER_RATES[crop];
+  if(r&&waterRate<r.min)warns.push(`⚠️ Норма воды ${waterRate} л/га ниже рекомендуемой (${r.min}–${r.max} л/га)`);
+  if(!prods.length)tips.push('💡 Добавьте препараты для расчёта их количества на каждый бак');
+  document.getElementById('result').style.display='block';
+  document.getElementById('warnings').innerHTML=warns.map(w=>`<div class="warn">${w}</div>`).join('');
+  document.getElementById('tips').innerHTML=tips.map(t=>`<div class="tip">${t}</div>`).join('');
+  document.getElementById('summary').innerHTML=`<div class="stat"><div class="n">${totalT}</div><div class="l">Всего баков</div></div><div class="stat"><div class="n">${full}</div><div class="l">Полных баков</div></div><div class="stat"><div class="n">${total.toFixed(0)}</div><div class="l">Воды всего (л)</div></div><div class="stat"><div class="n">${area.toFixed(1)}</div><div class="l">Площадь (га)</div></div>`;
+  document.getElementById('tanks').innerHTML=tanksData.map(t=>`<div class="tank ${!t.full?'last':''}"><div class="tank-num">Бак № ${t.num} ${!t.full?'(неполный)':''}</div><div class="tank-row"><span class="lbl">Площадь</span><span class="val green">${t.area.toFixed(2)} га</span></div><div class="tank-row"><span class="lbl">Вода в бак</span><span class="val ${!t.full?'amber':'green'}">${t.water.toFixed(0)} л</span></div>${t.prods.map(p=>`<div class="tank-row"><span class="lbl">🧪 ${p.name}</span><span class="val ${!t.full?'amber':'green'}">${p.amount} ${p.unit.replace('/га','')}</span></div>`).join('')}</div>`).join('');
+  window._d={area,tankVol,waterRate,totalT,full,total,tanksData,crop,phase:document.getElementById('phase').value,prods,losses};
+}
+function copyResult(){const d=window._d;if(!d)return;const cn=document.getElementById('crop').selectedOptions[0]?.text||'';let t=`🧪 РАСЧЁТ БАКОВ — SmartAgro\n🌱 ${cn}${d.phase?' · '+d.phase:''}\n📏 Площадь: ${d.area} га\n🚜 Бак: ${d.tankVol} л · Норма воды: ${d.waterRate} л/га\n📊 Всего баков: ${d.totalT} (${d.full} полных)\n\n`;d.tanksData.forEach(b=>{t+=`БАК №${b.num}${!b.full?' (последний)':''}:\n  💧 Вода: ${b.water.toFixed(0)} л\n  📏 Площадь: ${b.area.toFixed(2)} га\n`;b.prods.forEach(p=>{t+=`  🧪 ${p.name}: ${p.amount} ${p.unit.replace('/га','')}\n`;});t+='\n';});navigator.clipboard.writeText(t).then(()=>alert('Скопировано!')).catch(()=>prompt('Скопируйте:',t));}
+renderProducts();
+</script>
+</body>
+</html>
