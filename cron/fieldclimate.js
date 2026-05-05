@@ -41,10 +41,16 @@ function fetchFromFieldClimate(station, hours = 3) {
       let data = '';
       res.on('data', chunk => data += chunk);
       res.on('end', () => {
-        try { resolve(JSON.parse(data)); }
-        catch (e) { reject(new Error('Invalid JSON: ' + data.slice(0, 200))); }
-      });
-    });
+  try {
+    const parsed = JSON.parse(data);
+    console.log(`[FC] Raw response keys: ${Object.keys(parsed).join(',')}`);
+    console.log(`[FC] Status: ${parsed.status || parsed.message || 'ok'}`);
+    resolve(parsed);
+  } catch (e) {
+    console.log(`[FC] Raw response: ${data.slice(0, 300)}`);
+    reject(new Error('Invalid JSON: ' + data.slice(0, 200)));
+  }
+});
     req.on('error', reject);
     req.setTimeout(15000, () => { req.destroy(); reject(new Error('Timeout')); });
     req.end();
