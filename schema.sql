@@ -19,7 +19,26 @@ CREATE TABLE IF NOT EXISTS weather (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(station_id, date, hour)
 );
+-- ── FieldClimate (station sensor data) ───────────────────────────────────
+CREATE TABLE IF NOT EXISTS field_climate (
+  id         SERIAL PRIMARY KEY,
+  station_id VARCHAR(20) NOT NULL,
+  date       DATE        NOT NULL,
+  hour       SMALLINT    NOT NULL DEFAULT 0,
+  tmax       NUMERIC(5,2),
+  tmin       NUMERIC(5,2),
+  tavg       NUMERIC(5,2),
+  humidity   NUMERIC(5,2),
+  precip     NUMERIC(6,2) DEFAULT 0,
+  solar_rad  NUMERIC(8,2),
+  leaf_wet   NUMERIC(6,2),
+  et0        NUMERIC(6,3),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(station_id, date, hour)
+);
 
+CREATE INDEX IF NOT EXISTS idx_field_climate_date    ON field_climate(date DESC);
+CREATE INDEX IF NOT EXISTS idx_field_climate_station ON field_climate(station_id, date DESC);
 -- ── Users / Roles ─────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS users (
   id         SERIAL PRIMARY KEY,
