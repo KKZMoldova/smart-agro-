@@ -68,7 +68,9 @@ function parseResponse(json) {
   // Логируем первый сенсор для диагностики
 const firstKey = Object.keys(data)[0];
 if (firstKey) {
-  const s = data[firstKey];
+  Object.keys(data).forEach(k => {
+  console.log('[FC] sensor ' + k + ': ' + data[k].name + ' | values keys: ' + Object.keys(data[k].values || {}).join(','));
+});
   console.log('[FC] sensor keys: ' + Object.keys(s).join(', '));
   console.log('[FC] sensor name: ' + s.name);
   console.log('[FC] values sample: ' + JSON.stringify(s.values || s.aggr || s.vals || 'none').slice(0, 200));
