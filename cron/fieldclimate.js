@@ -91,7 +91,10 @@ function parseResponse(json, label) {
   var vSolar = findSensor(data, keys, ['Solar radiation', 'solar rad', 'global rad'], 'avg');
   var vLeaf  = findSensor(data, keys, ['Leaf Wetness', 'leaf wet', 'Влажность листьев'], 'time');
   var vEt0   = findSensor(data, keys, ['ET0', 'et0', 'ETO'], 'result');
-
+console.log('[FC][' + (label||'?') + '] tmax found: ' + (vTmax ? 'YES len='+vTmax.length : 'NO'));
+  console.log('[FC][' + (label||'?') + '] hum found: ' + (vHum ? 'YES' : 'NO'));
+  console.log('[FC][' + (label||'?') + '] rain found: ' + (vRain ? 'YES' : 'NO'));
+  console.log('[FC][' + (label||'?') + '] first date raw: ' + dates[0]);
   var rows = [];
   for (var i = 0; i < dates.length; i++) {
     if (!dates[i]) continue;
