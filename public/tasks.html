@@ -455,14 +455,14 @@ function renderTemplates(){
     <div class="tmpl-item" onclick="loadTemplate('${t.id}')">
       <strong>${t.work_type_name||'Обработка'}</strong> · ${new Date(t.created_at).toLocaleDateString('ru-RU')}
       ${t.parcel_name?' · '+t.parcel_name.slice(0,25):''}
-      ${t.chemicals?' · '+JSON.parse(t.chemicals).length+' препаратов':''}
+      ${t.chemicals?' · '+(typeof t.chemicals==='string'?JSON.parse(t.chemicals):t.chemicals).length+' препаратов':''}
     </div>`).join('');
 }
 function loadTemplate(id){
   const t=templates.find(x=>x.id===id);if(!t) return;
   if(t.work_type_id) document.getElementById('f-wt').value=t.work_type_id;
   if(t.description) document.getElementById('f-desc').value=t.description;
-  if(t.chemicals){addedChems=JSON.parse(t.chemicals).map(c=>({...c}));renderAddedChems();}
+  if(t.chemicals){const ch=typeof t.chemicals==='string'?JSON.parse(t.chemicals):t.chemicals;addedChems=ch.map(c=>({...c}));renderAddedChems();}
   document.getElementById('tmpl-list').classList.remove('open');
   toast('Шаблон загружен — проверьте и скорректируйте данные ✏️');
 }
@@ -532,7 +532,7 @@ async function saveAgro(){
 async function openEng(id){
   const t=tasks.find(x=>x.id===id);if(!t) return;
   document.getElementById('eng-task-id').value=id;
-  const chems=t.chemicals?JSON.parse(t.chemicals):[];
+  const chems=t.chemicals?(typeof t.chemicals==='string'?JSON.parse(t.chemicals):t.chemicals):[];
   document.getElementById('eng-info').innerHTML=`
     <strong>${t.work_type_name||'Работа'}</strong><br>
     🌱 ${t.parcel_name||'—'}${t.total_ha?' · '+t.total_ha+' га':''}<br>
