@@ -490,10 +490,12 @@ document.getElementById('new-btn').onclick=async function(){
     allStaff=await fetch('/api/staff').then(r=>r.json());
     allEquip=await fetch('/api/equipment').then(r=>r.json());
     const wt=await fetch('/api/work-types').then(r=>r.json());
-    const cat=await fetch('/api/catalog').then(r=>r.json());
-    allCatalog=Array.isArray(cat)?cat:(cat.data||[]);
-    const pd=await fetch('/api/parcels').then(r=>r.json());
-    allParcels=Array.isArray(pd)?pd:(pd.data||[]);
+    const catRaw=await fetch('/api/catalog').then(r=>r.text());
+const cat=JSON.parse(catRaw);
+allCatalog=Array.isArray(cat)?cat:(cat.data||[]);
+    const pdRaw=await fetch('/api/parcels').then(r=>r.text());
+const pd=JSON.parse(pdRaw);
+allParcels=Array.isArray(pd)?pd:(pd.data||[]);
     const tr=await fetch('/api/tasks').then(r=>r.json());
     templates=tr.filter(t=>t.chemicals&&JSON.parse(t.chemicals).length>0).slice(0,20);
     document.getElementById('f-wt').innerHTML=wt.map(w=>`<option value="${w.id}" data-name="${w.name}">${w.name}</option>`).join('');
