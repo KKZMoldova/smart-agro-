@@ -181,18 +181,24 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
 </div>
 
 <!-- МОДАЛ: Техника -->
+<!-- МОДАЛ: Техника -->
 <div class="modal-overlay" id="equip-modal">
-  <div class="modal">
+  <div class="modal" style="max-width:580px;">
     <h2 id="equip-modal-title">Новая техника</h2>
     <input type="hidden" id="equip-id">
     <div class="form-row">
       <div class="form-group"><label>Название *</label><input type="text" id="equip-name" placeholder="МТЗ-82 борт 03"></div>
       <div class="form-group"><label>Тип *</label>
         <select id="equip-type">
-          <option value="tractor">Трактор</option>
-          <option value="sprayer">Опрыскиватель</option>
-          <option value="pump">Насосная станция</option>
-          <option value="trailer">Прицеп</option>
+          <option value="tractor">🚜 Трактор</option>
+          <option value="harvester_pea">🌿 Комбайн гороховый</option>
+          <option value="harvester_corn">🌽 Комбайн кукурузный</option>
+          <option value="harvester_tomato">🍅 Томатоуборочный</option>
+          <option value="harvester_other">🌾 Комбайн (другой)</option>
+          <option value="truck">🚛 Грузовой автомобиль</option>
+          <option value="car">🚗 Легковой автомобиль</option>
+          <option value="sprayer">💧 Опрыскиватель самоходный</option>
+          <option value="pump">⚙️ Насосная станция</option>
           <option value="other">Другое</option>
         </select>
       </div>
@@ -201,19 +207,50 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
       <div class="form-group"><label>Бортовой номер</label><input type="text" id="equip-board" placeholder="03"></div>
       <div class="form-group"><label>Гос. номер</label><input type="text" id="equip-plate" placeholder="MD 123 ABC"></div>
     </div>
+    <div class="form-row3">
+      <div class="form-group"><label>Мощность (л.с.)</label><input type="number" id="equip-hp" placeholder="120"></div>
+      <div class="form-group"><label>Объём бака (л)</label><input type="number" id="equip-tank" placeholder="200"></div>
+      <div class="form-group"><label>Моточасы</label><input type="number" id="equip-hours" placeholder="1250"></div>
+    </div>
     <div class="form-row">
-      <div class="form-group"><label>Объём бака (литры)</label><input type="number" id="equip-tank" placeholder="2000"></div>
+      <div class="form-group"><label>Марка / Модель</label><input type="text" id="equip-model" placeholder="John Deere 6120M"></div>
+      <div class="form-group"><label>Год выпуска</label><input type="number" id="equip-year" placeholder="2019" min="1980" max="2030"></div>
+    </div>
+    <div class="form-row">
       <div class="form-group"><label>Статус</label>
         <select id="equip-status">
-          <option value="free">Свободен</option>
-          <option value="busy">В работе</option>
-          <option value="repair">На ремонте</option>
+          <option value="free">✅ Свободен</option>
+          <option value="busy">🔄 В работе</option>
+          <option value="repair">🔧 На ремонте</option>
         </select>
       </div>
+      <div class="form-group"><label>Ответственный механизатор</label><input type="text" id="equip-operator" placeholder="Имя механизатора"></div>
+    </div>
+    <div class="sec-title">Мониторинг и телематика</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>ДУТ (датчик уровня топлива)</label>
+        <select id="equip-dut">
+          <option value="no">❌ Не установлен</option>
+          <option value="yes">✅ Установлен</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>GPS трекер</label>
+        <select id="equip-gps">
+          <option value="no">❌ Не установлен</option>
+          <option value="yes">✅ Установлен</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>ID устройства GPS/ДУТ</label><input type="text" id="equip-tracker-id" placeholder="ID трекера"></div>
+      <div class="form-group"><label>Расход топлива (л/ч норма)</label><input type="number" id="equip-fuel-rate" placeholder="12" step="0.5"></div>
     </div>
     <div class="form-group"><label>Навесные агрегаты (через запятую)</label><input type="text" id="equip-attach" placeholder="ОП-2000, Туман-2"></div>
     <div class="form-group"><label>Примечание</label><input type="text" id="equip-note"></div>
     <div class="modal-footer">
+      <button class="btn btn-danger" id="equip-del-btn" style="display:none;margin-right:auto" onclick="deleteEquipCurrent()">Удалить</button>
       <button class="btn" onclick="closeEquipModal()">Отмена</button>
       <button class="btn btn-primary" onclick="saveEquip()">Сохранить</button>
     </div>
