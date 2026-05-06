@@ -98,7 +98,7 @@ console.log('[FC][' + (label||'?') + '] tmax found: ' + (vTmax ? 'YES len='+vTma
   var rows = [];
   for (var i = 0; i < dates.length; i++) {
     if (!dates[i]) continue;
-    var dt   = new Date(typeof dates[i] === 'number' ? dates[i] * 1000 : dates[i]);
+    var dt   = new Date(dates[i].toString().replace(' ', 'T') + 'Z');
     var date = dt.toISOString().slice(0, 10);
     var hour = dt.getUTCHours();
 
