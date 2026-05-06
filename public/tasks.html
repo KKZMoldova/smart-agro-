@@ -14,12 +14,14 @@ body{font-family:sans-serif;background:#f5f4f0;color:#1a1a18}
 .btn-g{background:#1d6a4a;color:#fff;border-color:#1d6a4a}
 .btn-r{background:#fdecea;color:#c0392b;border-color:#f5c6c2}
 .btn-a{background:#fef3e2;color:#b85c00;border-color:#f5c6a0}
+.btn-b{background:#e8f1f8;color:#1a4f7a;border-color:#b8d0e8}
 .filters{padding:10px 20px;display:flex;gap:6px;background:#fff;border-bottom:1px solid #e2e0d8;flex-wrap:wrap}
 .fb{padding:4px 12px;font-size:12px;border-radius:20px;border:1px solid #e2e0d8;background:none;cursor:pointer}
 .fb.active{background:#1d6a4a;color:#fff;border-color:#1d6a4a}
-.main{padding:16px 20px;max-width:860px;margin:0 auto}
+.main{padding:16px 20px;max-width:900px;margin:0 auto}
 .card{background:#fff;border:1px solid #e2e0d8;border-radius:10px;padding:14px 18px;margin-bottom:10px}
 .card.s-new{border-left:3px solid #378add}
+.card.s-assigned{border-left:3px solid #8e44ad}
 .card.s-accepted{border-left:3px solid #b85c00}
 .card.s-in_progress{border-left:3px solid #2d9566}
 .card.s-done{border-left:3px solid #639922}
@@ -27,43 +29,83 @@ body{font-family:sans-serif;background:#f5f4f0;color:#1a1a18}
 .card.s-problem{border-left:3px solid #c0392b}
 .card-title{font-size:15px;font-weight:600;margin-bottom:3px}
 .card-sub{font-size:12px;color:#6b6a64}
-.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;margin-right:4px;margin-top:6px}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;margin-right:4px;margin-top:4px}
 .b-blue{background:#e8f1f8;color:#1a4f7a}
 .b-amber{background:#fef3e2;color:#b85c00}
 .b-green{background:#e8f4ee;color:#1d6a4a}
 .b-gray{background:#f0efe9;color:#6b6a64}
 .b-red{background:#fdecea;color:#c0392b}
 .b-lime{background:#eaf3de;color:#27500a}
+.b-purple{background:#f3edfb;color:#6b3fa0}
 .hr{border-top:1px solid #e2e0d8;margin:10px 0}
-.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;font-size:12px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:12px}
 .grid .l{color:#6b6a64;margin-bottom:2px;font-size:11px}
 .grid .v{font-weight:500}
 .actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
 .prob{background:#fdecea;border:1px solid #f5c6c2;border-radius:7px;padding:8px 12px;margin-top:8px;font-size:13px;color:#c0392b}
+.chem-list{margin-top:6px}
+.chem-item{background:#f0efe9;border-radius:6px;padding:5px 10px;margin-bottom:4px;font-size:12px;display:flex;justify-content:space-between}
+.chem-item .cn{font-weight:500}
+.chem-item .cd{color:#6b6a64}
 .empty{text-align:center;padding:60px 20px;color:#6b6a64}
 .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:100;align-items:center;justify-content:center;padding:16px}
 .overlay.open{display:flex}
-.modal{background:#fff;border-radius:12px;padding:22px;width:100%;max-width:620px;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.15)}
-.modal h2{font-size:16px;font-weight:600;margin-bottom:16px}
+.modal{background:#fff;border-radius:12px;padding:22px;width:100%;max-width:660px;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.15)}
+.modal h2{font-size:16px;font-weight:600;margin-bottom:4px}
+.modal-stage{font-size:12px;color:#6b6a64;margin-bottom:12px}
 .fg{margin-bottom:12px}
 .fg label{display:block;font-size:11px;font-weight:600;color:#6b6a64;margin-bottom:4px;text-transform:uppercase}
 .fg select,.fg input,.fg textarea{width:100%;padding:8px 10px;border:1px solid #e2e0d8;border-radius:7px;font-size:13px;background:#f5f4f0;outline:none}
-.fg select:focus,.fg input:focus{border-color:#2d9566}
+.fg select:focus,.fg input:focus,.fg textarea:focus{border-color:#2d9566;background:#fff}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.sec{font-size:11px;font-weight:600;color:#6b6a64;text-transform:uppercase;letter-spacing:.5px;margin:14px 0 8px;padding-bottom:5px;border-bottom:1px solid #e2e0d8}
+.sec{font-size:11px;font-weight:600;color:#6b6a64;text-transform:uppercase;letter-spacing:.5px;margin:16px 0 8px;padding-bottom:5px;border-bottom:1px solid #e2e0d8}
 .mf{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;padding-top:14px;border-top:1px solid #e2e0d8}
 .toast{position:fixed;bottom:20px;right:20px;background:#1a1a18;color:#fff;padding:9px 16px;border-radius:7px;font-size:13px;z-index:200;opacity:0;transition:all .2s;pointer-events:none}
 .toast.show{opacity:1}
-.parcel-list{border:1px solid #e2e0d8;border-radius:7px;background:#f5f4f0;max-height:180px;overflow-y:auto;padding:4px}
-.parcel-item{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:5px;cursor:pointer;font-size:13px;transition:background .1s}
+.parcel-list{border:1px solid #e2e0d8;border-radius:7px;background:#f5f4f0;max-height:160px;overflow-y:auto;padding:4px}
+.parcel-item{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:5px;cursor:pointer;font-size:13px}
 .parcel-item:hover{background:#e8f4ee}
-.parcel-item input[type=checkbox]{width:15px;height:15px;cursor:pointer;accent-color:#1d6a4a}
+.parcel-item input[type=checkbox]{accent-color:#1d6a4a;width:15px;height:15px}
 .parcel-item.selected{background:#e8f4ee;font-weight:500}
-.selected-parcels{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;min-height:24px}
-.parcel-tag{background:#1d6a4a;color:#fff;padding:2px 8px;border-radius:12px;font-size:11px;display:flex;align-items:center;gap:4px}
-.parcel-tag button{background:none;border:none;color:#fff;cursor:pointer;font-size:13px;line-height:1;padding:0}
-.parcel-area{font-size:11px;color:#6b6a64;margin-top:4px}
-.equip-rec{border-radius:7px;padding:8px 12px;font-size:12px;margin-top:4px;display:none}
+.selected-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
+.ptag{background:#1d6a4a;color:#fff;padding:2px 8px;border-radius:12px;font-size:11px;display:flex;align-items:center;gap:3px}
+.ptag button{background:none;border:none;color:#fff;cursor:pointer;font-size:13px;padding:0;line-height:1}
+.area-info{font-size:11px;color:#6b6a64;margin-top:3px}
+.chem-search-row{display:flex;gap:8px;margin-bottom:6px}
+.chem-search-row input{flex:1;padding:7px 10px;border:1px solid #e2e0d8;border-radius:7px;font-size:13px;background:#f5f4f0;outline:none}
+.chem-dropdown{border:1px solid #e2e0d8;border-radius:7px;background:#fff;max-height:150px;overflow-y:auto;display:none}
+.chem-dropdown.open{display:block}
+.chem-opt{padding:7px 12px;font-size:13px;cursor:pointer;display:flex;justify-content:space-between;align-items:center}
+.chem-opt:hover{background:#f0efe9}
+.chem-opt .ct{font-size:10px;padding:1px 6px;border-radius:10px;font-weight:600}
+.ct-fungicide{background:#e8f4ee;color:#1d6a4a}
+.ct-insecticide{background:#fdecea;color:#c0392b}
+.ct-fertilizer{background:#fef3e2;color:#b85c00}
+.ct-herbicide{background:#f3edfb;color:#6b3fa0}
+.ct-other{background:#f0efe9;color:#6b6a64}
+.added-chems{margin-top:6px}
+.added-chem{background:#f5f4f0;border:1px solid #e2e0d8;border-radius:7px;padding:8px 12px;margin-bottom:6px}
+.added-chem-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.added-chem-name{font-size:13px;font-weight:500}
+.added-chem-fields{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.added-chem-fields input{width:100%;padding:5px 8px;border:1px solid #e2e0d8;border-radius:5px;font-size:12px;background:#fff;outline:none}
+.added-chem-fields input:focus{border-color:#2d9566}
+.added-chem-target{margin-top:6px}
+.added-chem-target select,.added-chem-target input{width:100%;padding:5px 8px;border:1px solid #e2e0d8;border-radius:5px;font-size:12px;background:#fff;outline:none;margin-top:3px}
+.remove-chem{background:none;border:none;color:#c0392b;cursor:pointer;font-size:18px;line-height:1}
+.tmpl-btn{font-size:12px;color:#1a4f7a;cursor:pointer;text-decoration:underline;margin-bottom:8px;display:inline-block}
+.tmpl-list{border:1px solid #e2e0d8;border-radius:7px;background:#fff;max-height:130px;overflow-y:auto;display:none;margin-bottom:8px}
+.tmpl-list.open{display:block}
+.tmpl-item{padding:8px 12px;font-size:12px;cursor:pointer;border-bottom:1px solid #f0efe9}
+.tmpl-item:hover{background:#f0efe9}
+.tmpl-item:last-child{border-bottom:none}
+.stage-indicator{display:flex;margin-bottom:14px}
+.stage-step{flex:1;padding:7px;text-align:center;font-size:11px;font-weight:600;border:1px solid #e2e0d8;background:#f5f4f0;color:#6b6a64}
+.stage-step:first-child{border-radius:7px 0 0 7px}
+.stage-step:last-child{border-radius:0 7px 7px 0}
+.stage-step.active{background:#1d6a4a;color:#fff;border-color:#1d6a4a}
+.stage-step.done{background:#e8f4ee;color:#1d6a4a;border-color:#b8dfc9}
+.equip-warn{background:#fef3e2;border:1px solid #f5c6a0;border-radius:6px;padding:6px 10px;font-size:12px;color:#b85c00;margin-top:4px;display:none}
 </style>
 </head>
 <body>
@@ -77,6 +119,7 @@ body{font-family:sans-serif;background:#f5f4f0;color:#1a1a18}
 <div class="filters">
   <button class="fb active" onclick="filt('all',this)">Все <span id="ca">0</span></button>
   <button class="fb" onclick="filt('new',this)">Новые <span id="cn">0</span></button>
+  <button class="fb" onclick="filt('assigned',this)">Назначено <span id="cas">0</span></button>
   <button class="fb" onclick="filt('accepted',this)">Принято <span id="cac">0</span></button>
   <button class="fb" onclick="filt('in_progress',this)">В работе <span id="cip">0</span></button>
   <button class="fb" onclick="filt('done',this)">Выполнено <span id="cd">0</span></button>
@@ -84,89 +127,136 @@ body{font-family:sans-serif;background:#f5f4f0;color:#1a1a18}
   <button class="fb" onclick="filt('closed',this)">Закрыто <span id="cc">0</span></button>
 </div>
 <div class="main"><div id="list"></div></div>
-
-<div class="overlay" id="m-task">
+<!-- МОДАЛ: ЭТАП 1 — АГРОНОМ -->
+<div class="overlay" id="m-agro">
 <div class="modal">
-  <h2>Новое задание</h2>
-  <div id="m-loading" style="color:#999;text-align:center;padding:20px">Загрузка данных...</div>
-  <div id="m-form" style="display:none">
+  <h2>📋 Новое задание</h2>
+  <div class="modal-stage">Этап 1 — Агроном создаёт задание</div>
+  <div class="stage-indicator">
+    <div class="stage-step active">1 · Агроном</div>
+    <div class="stage-step">2 · Инженер</div>
+  </div>
+  <div id="agro-loading" style="text-align:center;padding:20px;color:#999">Загрузка...</div>
+  <div id="agro-form" style="display:none">
     <div class="sec">📋 Тип работы</div>
     <div class="row2">
       <div class="fg"><label>Тип работы *</label><select id="f-wt"></select></div>
       <div class="fg"><label>Срок выполнения</label><input type="date" id="f-due"></div>
     </div>
-    <div class="fg"><label>Описание / инструкция агронома</label><textarea id="f-desc" rows="2" placeholder="Детали задания, особые условия..."></textarea></div>
+    <div class="fg"><label>Описание / инструкция</label><textarea id="f-desc" rows="2" placeholder="Что нужно сделать, особые условия..."></textarea></div>
+    <span class="tmpl-btn" onclick="toggleTemplates()">📂 Загрузить из прошлых обработок</span>
+    <div class="tmpl-list" id="tmpl-list"></div>
     <div class="sec">🌱 Участки (можно выбрать несколько)</div>
-    <div class="fg">
-      <input type="text" id="parcel-search" placeholder="🔍 Поиск участка..." style="margin-bottom:6px" oninput="filterParcels(this.value)">
-      <div class="parcel-list" id="parcel-list"></div>
-      <div class="selected-parcels" id="selected-parcels"></div>
-      <div class="parcel-area" id="parcel-area"></div>
+    <input type="text" id="parcel-search" placeholder="🔍 Поиск участка..." style="width:100%;padding:7px 10px;border:1px solid #e2e0d8;border-radius:7px;font-size:13px;background:#f5f4f0;outline:none;margin-bottom:6px" oninput="filterParcels(this.value)">
+    <div class="parcel-list" id="parcel-list"></div>
+    <div class="selected-tags" id="selected-tags"></div>
+    <div class="area-info" id="area-info"></div>
+    <div class="sec">💊 Препараты (из каталога)</div>
+    <div class="chem-search-row">
+      <input type="text" id="chem-search" placeholder="🔍 Найти препарат..." oninput="searchChems(this.value)" onfocus="searchChems(this.value)">
     </div>
+    <div class="chem-dropdown" id="chem-dropdown"></div>
+    <div class="added-chems" id="added-chems"></div>
     <div class="sec">👥 Исполнители</div>
     <div class="row2">
       <div class="fg"><label>Создал (агроном) *</label><select id="f-cr"></select></div>
       <div class="fg"><label>Исполнитель *</label><select id="f-as"></select></div>
     </div>
-    <div class="fg"><label>Механизатор</label><select id="f-me"></select></div>
-    <div class="sec">🚜 Техника</div>
-    <div class="row2">
-      <div class="fg">
-        <label>Техника</label>
-        <select id="f-eq" onchange="onEquipChange()"></select>
-        <div class="equip-rec" id="equip-rec"></div>
-      </div>
-      <div class="fg"><label>Навесное / прицепное</label><select id="f-at"></select></div>
-    </div>
-    <div class="row2">
-      <div class="fg"><label>Скорость движения (км/ч)</label><input type="number" id="f-speed" placeholder="напр. 6" step="0.5" min="1" max="30"></div>
-      <div class="fg"><label>Глубина обработки (см)</label><input type="number" id="f-depth" placeholder="напр. 25"></div>
-    </div>
-    <div class="fg"><label>Примечание</label><input type="text" id="f-no" placeholder="Дополнительная информация..."></div>
     <div class="mf">
-      <button class="btn" id="cancel-btn">Отмена</button>
-      <button class="btn btn-g" id="save-btn">✈️ Создать + отправить в Telegram</button>
+      <button class="btn" onclick="closeAgro()">Отмена</button>
+      <button class="btn btn-g" onclick="saveAgro()">✈️ Создать + уведомить всех</button>
     </div>
   </div>
 </div>
 </div>
 
+<!-- МОДАЛ: ЭТАП 2 — ИНЖЕНЕР -->
+<div class="overlay" id="m-eng">
+<div class="modal">
+  <h2>🔧 Назначить технику</h2>
+  <div class="modal-stage">Этап 2 — Инженер назначает технику</div>
+  <div class="stage-indicator">
+    <div class="stage-step done">1 · Агроном ✓</div>
+    <div class="stage-step active">2 · Инженер</div>
+  </div>
+  <input type="hidden" id="eng-task-id">
+  <div id="eng-info" style="background:#f0efe9;border-radius:7px;padding:10px 14px;margin-bottom:14px;font-size:13px"></div>
+  <div class="sec">🚜 Техника</div>
+  <div class="row2">
+    <div class="fg">
+      <label>Техника</label>
+      <select id="e-eq" onchange="onEngEquipChange()"></select>
+      <div class="equip-warn" id="equip-warn"></div>
+    </div>
+    <div class="fg"><label>Навесное / прицепное</label><select id="e-at"></select></div>
+  </div>
+  <div class="row2">
+    <div class="fg"><label>Механизатор *</label><select id="e-me"></select></div>
+    <div class="fg"><label>Скорость движения (км/ч)</label><input type="number" id="e-speed" placeholder="напр. 6" step="0.5"></div>
+  </div>
+  <div class="fg"><label>Примечание инженера</label><input type="text" id="e-note" placeholder="Настройки техники, особые условия..."></div>
+  <div class="mf">
+    <button class="btn" onclick="closeEng()">Отмена</button>
+    <button class="btn btn-g" onclick="saveEng()">✅ Назначить + уведомить механизатора</button>
+  </div>
+</div>
+</div>
+
+<!-- МОДАЛ: Проблема -->
 <div class="overlay" id="m-prob">
 <div class="modal" style="max-width:400px">
   <h2>⚠️ Сообщить о проблеме</h2>
   <input type="hidden" id="prob-id">
-  <div class="fg"><label>Опишите проблему</label><textarea id="prob-txt" rows="3" style="background:#f5f4f0"></textarea></div>
+  <div class="fg"><label>Опишите проблему</label><textarea id="prob-txt" rows="3"></textarea></div>
   <div class="mf">
-    <button class="btn" id="prob-cancel">Отмена</button>
+    <button class="btn" onclick="closeProb()">Отмена</button>
     <button class="btn btn-r" id="prob-save">Отправить в Telegram</button>
+  </div>
+</div>
+</div>
+
+<!-- МОДАЛ: Закрытие агрономом -->
+<div class="overlay" id="m-close">
+<div class="modal" style="max-width:420px">
+  <h2>✅ Подтвердить выполнение</h2>
+  <input type="hidden" id="close-id">
+  <div class="fg"><label>Ваше имя (агроном)</label><input type="text" id="close-name" placeholder="Имя агронома"></div>
+  <div class="fg"><label>Комментарий (необязательно)</label><textarea id="close-note" rows="2" placeholder="Замечания, отклонения от плана..."></textarea></div>
+  <div class="mf">
+    <button class="btn" onclick="document.getElementById('m-close').classList.remove('open')">Отмена</button>
+    <button class="btn btn-g" onclick="doClose()">Закрыть задание</button>
   </div>
 </div>
 </div>
 
 <div class="toast" id="toast"></div>
 <script>
-const SL={new:'Новое',accepted:'Принято',in_progress:'В работе',done:'Выполнено',closed:'Закрыто',problem:'Проблема'};
-const SB={new:'b-blue',accepted:'b-amber',in_progress:'b-green',done:'b-lime',closed:'b-gray',problem:'b-red'};
-let tasks=[],cf='all';
-let allParcels=[], selectedParcels=[], allEquip=[];
+const SL={new:'Новое',assigned:'Назначено',accepted:'Принято',in_progress:'В работе',done:'Выполнено',closed:'Закрыто',problem:'Проблема'};
+const SB={new:'b-blue',assigned:'b-purple',accepted:'b-amber',in_progress:'b-green',done:'b-lime',closed:'b-gray',problem:'b-red'};
+const TYPE_LABEL={fungicide:'Фунгицид',insecticide:'Инсектицид',fertilizer:'Удобрение',herbicide:'Гербицид',microelement:'Микроэлемент',other:'Другое'};
 
-function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
+let tasks=[],cf='all';
+let allParcels=[],selectedParcels=[],allEquip=[],allStaff=[];
+let allCatalog=[],addedChems=[],templates=[];
+
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2800);}
 function filt(f,el){cf=f;document.querySelectorAll('.fb').forEach(b=>b.classList.remove('active'));el.classList.add('active');render();}
+function fd(d){return d?new Date(d).toLocaleDateString('ru-RU'):'—';}
 
 function counts(){
   document.getElementById('ca').textContent=tasks.length;
-  ['new','accepted','in_progress','done','problem','closed'].forEach((s,i)=>{
-    const ids=['cn','cac','cip','cd','cp','cc'];
-    document.getElementById(ids[i]).textContent=tasks.filter(t=>t.status===s).length;
-  });
+  const map={new:'cn',assigned:'cas',accepted:'cac',in_progress:'cip',done:'cd',problem:'cp',closed:'cc'};
+  Object.entries(map).forEach(([s,id])=>{document.getElementById(id).textContent=tasks.filter(t=>t.status===s).length;});
 }
-
-function fd(d){return d?new Date(d).toLocaleDateString('ru-RU'):'—';}
 
 function actions(t){
   let h='';
   if(t.status==='new'){
-    h+=`<button class="btn" onclick="st('${t.id}','accepted',{})">✓ Принять</button>`;
+    h+=`<button class="btn btn-b" onclick="openEng('${t.id}')">🔧 Назначить технику (инженер)</button>`;
+    h+=`<button class="btn btn-a" onclick="openProb('${t.id}')">⚠️ Проблема</button>`;
+  }
+  if(t.status==='assigned'){
+    h+=`<button class="btn" onclick="st('${t.id}','accepted',{})">✓ Принять задание</button>`;
     h+=`<button class="btn btn-a" onclick="openProb('${t.id}')">⚠️ Проблема</button>`;
   }
   if(t.status==='accepted'){
@@ -174,11 +264,11 @@ function actions(t){
     h+=`<button class="btn btn-a" onclick="openProb('${t.id}')">⚠️ Проблема</button>`;
   }
   if(t.status==='in_progress'){
-    h+=`<button class="btn btn-g" onclick="doneTask('${t.id}')">✅ Подтвердить выполнение</button>`;
+    h+=`<button class="btn btn-g" onclick="st('${t.id}','done',{closed_by_name:'Механизатор'})">✅ Завершить работу</button>`;
     h+=`<button class="btn btn-a" onclick="openProb('${t.id}')">⚠️ Проблема</button>`;
   }
   if(t.status==='done'||t.status==='problem'){
-    h+=`<button class="btn" onclick="st('${t.id}','closed',{closed_by_name:'Агроном'})">Закрыть (агроном)</button>`;
+    h+=`<button class="btn btn-g" onclick="openClose('${t.id}')">✅ Закрыть (агроном)</button>`;
   }
   return h;
 }
@@ -187,29 +277,37 @@ function render(){
   const f=cf==='all'?tasks:tasks.filter(t=>t.status===cf);
   const el=document.getElementById('list');
   if(!f.length){el.innerHTML='<div class="empty"><div style="font-size:40px;margin-bottom:12px">📋</div><p>Заданий нет. Нажмите + Новое задание</p></div>';return;}
-  el.innerHTML=f.map(t=>`
-  <div class="card s-${t.status}">
-    <div class="card-title">${t.work_type_name||'Работа'}</div>
-    <div class="card-sub">${t.parcel_name||''} ${t.description?'· '+t.description.slice(0,60):''}</div>
-    <div>
-      <span class="badge ${SB[t.status]||'b-gray'}">${SL[t.status]||t.status}</span>
-      ${t.due_date?`<span class="badge b-amber">До ${fd(t.due_date)}</span>`:''}
-      ${t.telegram_sent?`<span class="badge b-gray">✈️ Telegram</span>`:''}
-      ${t.speed_kmh?`<span class="badge b-gray">🚜 ${t.speed_kmh} км/ч</span>`:''}
-    </div>
-    <div class="hr"></div>
-    <div class="grid">
-      <div><div class="l">Создал</div><div class="v">${t.created_by_name||'—'}</div></div>
-      <div><div class="l">Исполнитель</div><div class="v">${t.assigned_to_name||'—'}</div></div>
-      <div><div class="l">Техника</div><div class="v">${t.equipment_name||'—'}</div></div>
-      <div><div class="l">Навесное</div><div class="v">${t.attachment||'—'}</div></div>
-      ${t.mechanic_name?`<div><div class="l">Механизатор</div><div class="v">${t.mechanic_name}</div></div>`:''}
-      ${t.work_depth_cm?`<div><div class="l">Глубина</div><div class="v">${t.work_depth_cm} см</div></div>`:''}
-      ${t.closed_by_name?`<div><div class="l">Закрыл</div><div class="v">${t.closed_by_name}</div></div>`:''}
-    </div>
-    ${t.problem_note?`<div class="prob">⚠️ ${t.problem_note}</div>`:''}
-    <div class="actions">${actions(t)}</div>
-  </div>`).join('');
+  el.innerHTML=f.map(t=>{
+    const chems=t.chemicals?JSON.parse(t.chemicals):[];
+    return `<div class="card s-${t.status}">
+      <div class="card-title">${t.work_type_name||'Работа'}</div>
+      <div class="card-sub">${t.parcel_name||''} ${t.description?'· '+t.description.slice(0,60):''}</div>
+      <div>
+        <span class="badge ${SB[t.status]||'b-gray'}">${SL[t.status]||t.status}</span>
+        ${t.due_date?`<span class="badge b-amber">До ${fd(t.due_date)}</span>`:''}
+        ${t.telegram_sent?`<span class="badge b-gray">✈️ Telegram</span>`:''}
+        ${t.total_ha?`<span class="badge b-gray">📐 ${t.total_ha} га</span>`:''}
+      </div>
+      <div class="hr"></div>
+      <div class="grid">
+        <div><div class="l">Агроном</div><div class="v">${t.created_by_name||'—'}</div></div>
+        <div><div class="l">Исполнитель</div><div class="v">${t.assigned_to_name||'—'}</div></div>
+        <div><div class="l">Механизатор</div><div class="v">${t.mechanic_name||'—'}</div></div>
+        <div><div class="l">Техника</div><div class="v">${t.equipment_name||'—'}</div></div>
+        <div><div class="l">Навесное</div><div class="v">${t.attachment||'—'}</div></div>
+        ${t.speed_kmh?`<div><div class="l">Скорость</div><div class="v">${t.speed_kmh} км/ч</div></div>`:''}
+        ${t.closed_by_name?`<div><div class="l">Закрыл</div><div class="v">${t.closed_by_name}</div></div>`:''}
+      </div>
+      ${chems.length?`<div class="hr"></div>
+        <div style="font-size:11px;color:#6b6a64;margin-bottom:4px">💊 ПРЕПАРАТЫ:</div>
+        <div class="chem-list">${chems.map(c=>`<div class="chem-item">
+          <span class="cn">${c.name}</span>
+          <span class="cd">${c.dose_actual||c.dose_default||''} л/га${c.target?' · против: '+c.target:''}</span>
+        </div>`).join('')}</div>`:''}
+      ${t.problem_note?`<div class="prob">⚠️ ${t.problem_note}</div>`:''}
+      <div class="actions">${actions(t)}</div>
+    </div>`;
+  }).join('');
 }
 
 async function load(){
@@ -220,158 +318,271 @@ async function load(){
 
 async function st(id,status,extra){
   await fetch(`/api/tasks/${id}/status`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status,...extra})});
-  toast('Статус обновлён');load();
+  toast('Статус обновлён ✅');load();
 }
 
-async function doneTask(id){
-  const n=prompt('Ваше имя (кто подтверждает):');
-  if(!n)return;
-  await st(id,'done',{closed_by_name:n});
-}
-
-function openProb(id){
-  document.getElementById('prob-id').value=id;
-  document.getElementById('prob-txt').value='';
-  document.getElementById('m-prob').classList.add('open');
-}
-
-document.getElementById('prob-cancel').onclick=function(){document.getElementById('m-prob').classList.remove('open');};
+function openProb(id){document.getElementById('prob-id').value=id;document.getElementById('prob-txt').value='';document.getElementById('m-prob').classList.add('open');}
+function closeProb(){document.getElementById('m-prob').classList.remove('open');}
 document.getElementById('prob-save').onclick=async function(){
   const id=document.getElementById('prob-id').value;
   const note=document.getElementById('prob-txt').value.trim();
   if(!note){alert('Опишите проблему');return;}
   await st(id,'problem',{problem_note:note});
-  document.getElementById('m-prob').classList.remove('open');
-  toast('Проблема отправлена в Telegram');
+  closeProb();toast('Проблема отправлена ⚠️');
 };
- // ─── МУЛЬТИ-ВЫБОР УЧАСТКОВ ───────────────────────────────────────────────
+
+function openClose(id){
+  document.getElementById('close-id').value=id;
+  document.getElementById('close-name').value='';
+  document.getElementById('close-note').value='';
+  document.getElementById('m-close').classList.add('open');
+}
+async function doClose(){
+  const id=document.getElementById('close-id').value;
+  const name=document.getElementById('close-name').value.trim()||'Агроном';
+  const note=document.getElementById('close-note').value.trim();
+  await st(id,'closed',{closed_by_name:name,problem_note:note||undefined});
+  document.getElementById('m-close').classList.remove('open');
+  toast('Задание закрыто ✅');
+}
+
 function renderParcelList(parcels){
-  const el=document.getElementById('parcel-list');
-  el.innerHTML=parcels.map(p=>`
+  document.getElementById('parcel-list').innerHTML=parcels.map(p=>`
     <div class="parcel-item ${selectedParcels.find(s=>s.id===p.id)?'selected':''}" onclick="toggleParcel('${p.id}','${p.name}',${p.ha||0})">
       <input type="checkbox" ${selectedParcels.find(s=>s.id===p.id)?'checked':''} onclick="event.stopPropagation();toggleParcel('${p.id}','${p.name}',${p.ha||0})">
       <span>${p.name}</span>
       <span style="margin-left:auto;color:#6b6a64;font-size:11px">${p.ha||0} га</span>
     </div>`).join('');
 }
-
 function toggleParcel(id,name,ha){
   const idx=selectedParcels.findIndex(s=>s.id===id);
-  if(idx>=0) selectedParcels.splice(idx,1);
-  else selectedParcels.push({id,name,ha:parseFloat(ha)||0});
-  renderSelectedParcels();
+  if(idx>=0) selectedParcels.splice(idx,1); else selectedParcels.push({id,name,ha:parseFloat(ha)||0});
+  renderSelectedTags();
   const q=document.getElementById('parcel-search').value;
   renderParcelList(q?allParcels.filter(p=>p.name.toLowerCase().includes(q.toLowerCase())):allParcels);
 }
-
-function removeParcel(id){
-  selectedParcels=selectedParcels.filter(s=>s.id!==id);
-  renderSelectedParcels();
-  renderParcelList(allParcels);
-}
-
-function renderSelectedParcels(){
-  const el=document.getElementById('selected-parcels');
-  const area=document.getElementById('parcel-area');
-  el.innerHTML=selectedParcels.map(p=>`
-    <div class="parcel-tag">${p.name} <button onclick="removeParcel('${p.id}')">×</button></div>`).join('');
+function removeParcel(id){selectedParcels=selectedParcels.filter(s=>s.id!==id);renderSelectedTags();renderParcelList(allParcels);}
+function renderSelectedTags(){
+  document.getElementById('selected-tags').innerHTML=selectedParcels.map(p=>`
+    <div class="ptag">${p.name}<button onclick="removeParcel('${p.id}')">×</button></div>`).join('');
   const total=selectedParcels.reduce((s,p)=>s+p.ha,0);
-  area.textContent=selectedParcels.length?`Выбрано: ${selectedParcels.length} уч. · Площадь: ${total.toFixed(1)} га`:'';
+  document.getElementById('area-info').textContent=selectedParcels.length?`Выбрано: ${selectedParcels.length} уч. · Площадь: ${total.toFixed(1)} га`:'';
+}
+function filterParcels(q){renderParcelList(q?allParcels.filter(p=>p.name.toLowerCase().includes(q.toLowerCase())):allParcels);}
+  const DISEASE_TARGETS=['Фитофтора','Пероноспороз','Мучнистая роса','Серая гниль','Альтернариоз','Антракноз','Бактериоз','Вертициллёз','Фузариоз','Ботритис','Парша','Ржавчина','Кладоспориоз'];
+const PEST_TARGETS=['Тля','Трипс','Клещ','Белокрылка','Совка','Колорадский жук','Минёр','Нематода','Проволочник','Медведка','Цикадка','Щитовка','Листоблошка'];
+
+function searchChems(q){
+  const dd=document.getElementById('chem-dropdown');
+  const filtered=q?allCatalog.filter(c=>c.name.toLowerCase().includes(q.toLowerCase())):allCatalog.slice(0,20);
+  if(!filtered.length){dd.classList.remove('open');return;}
+  dd.innerHTML=filtered.map(c=>`
+    <div class="chem-opt" onclick="addChem('${c.id}')">
+      <span>${c.name}</span>
+      <span class="ct ct-${c.type||'other'}">${TYPE_LABEL[c.type]||c.type||'—'}</span>
+    </div>`).join('');
+  dd.classList.add('open');
 }
 
-function filterParcels(q){
-  const filtered=q?allParcels.filter(p=>p.name.toLowerCase().includes(q.toLowerCase())):allParcels;
-  renderParcelList(filtered);
+function addChem(id){
+  if(addedChems.find(c=>c.id===id)){toast('Препарат уже добавлен');return;}
+  const c=allCatalog.find(x=>x.id===id);
+  if(!c) return;
+  addedChems.push({id:c.id,name:c.name,type:c.type,dose_default:c.dose||'',dose_actual:c.dose||'',target:''});
+  document.getElementById('chem-search').value='';
+  document.getElementById('chem-dropdown').classList.remove('open');
+  renderAddedChems();
 }
 
-function onEquipChange(){
-  const sel=document.getElementById('f-eq');
-  const eq=allEquip.find(e=>e.id===sel.value);
-  const rec=document.getElementById('equip-rec');
-  if(eq&&eq.status==='busy'){
-    rec.style.display='block';
-    rec.style.background='#fef3e2';rec.style.border='1px solid #f5c6a0';rec.style.color='#b85c00';
-    rec.textContent='⚠️ Эта техника сейчас занята на другом задании!';
-  } else if(eq&&eq.status==='repair'){
-    rec.style.display='block';
-    rec.style.background='#fdecea';rec.style.border='1px solid #f5c6c2';rec.style.color='#c0392b';
-    rec.textContent='🔧 Эта техника на ремонте!';
-  } else {
-    rec.style.display='none';
-  }
+function removeChem(id){addedChems=addedChems.filter(c=>c.id!==id);renderAddedChems();}
+
+function renderAddedChems(){
+  document.getElementById('added-chems').innerHTML=addedChems.map(c=>{
+    const targets=c.type==='fungicide'?DISEASE_TARGETS:c.type==='insecticide'?PEST_TARGETS:[];
+    return `<div class="added-chem">
+      <div class="added-chem-head">
+        <span class="added-chem-name">${c.name}</span>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="ct ct-${c.type||'other'}" style="padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">${TYPE_LABEL[c.type]||'—'}</span>
+          <button class="remove-chem" onclick="removeChem('${c.id}')">×</button>
+        </div>
+      </div>
+      <div class="added-chem-fields">
+        <div>
+          <div style="font-size:10px;color:#6b6a64;margin-bottom:2px">РЕКОМЕНДОВАННАЯ ДОЗА</div>
+          <input type="text" value="${c.dose_default||'—'}" readonly style="background:#f0efe9;color:#6b6a64">
+        </div>
+        <div>
+          <div style="font-size:10px;color:#6b6a64;margin-bottom:2px">ФАКТИЧЕСКАЯ ДОЗА (л/га)</div>
+          <input type="text" id="dose-${c.id}" value="${c.dose_actual}" placeholder="Введите дозу" oninput="updateDose('${c.id}',this.value)">
+        </div>
+      </div>
+      ${targets.length?`<div class="added-chem-target">
+        <div style="font-size:10px;color:#6b6a64;margin-top:6px;margin-bottom:2px">${c.type==='fungicide'?'🦠 ПРОТИВ БОЛЕЗНИ':'🐛 ПРОТИВ ВРЕДИТЕЛЯ'}</div>
+        <select onchange="updateTarget('${c.id}',this.value)">
+          <option value="">— выбрать —</option>
+          ${targets.map(tg=>`<option value="${tg}" ${c.target===tg?'selected':''}>${tg}</option>`).join('')}
+          <option value="__other__">Другое (ввести вручную)</option>
+        </select>
+        <input type="text" id="target-custom-${c.id}" placeholder="Введите болезнь/вредителя" style="display:${c.target&&!targets.includes(c.target)?'block':'none'}" value="${c.target&&!targets.includes(c.target)?c.target:''}" oninput="updateTargetCustom('${c.id}',this.value)">
+      </div>`:''}
+    </div>`;
+  }).join('');
 }
 
-document.getElementById('new-btn').onclick=async function(){
-  document.getElementById('m-task').classList.add('open');
-  document.getElementById('m-loading').style.display='block';
-  document.getElementById('m-form').style.display='none';
-  document.getElementById('f-desc').value='';
-  document.getElementById('f-no').value='';
-  document.getElementById('f-due').value='';
-  document.getElementById('f-speed').value='';
-  document.getElementById('f-depth').value='';
-  selectedParcels=[];
-  document.getElementById('selected-parcels').innerHTML='';
-  document.getElementById('parcel-area').textContent='';
-  document.getElementById('parcel-search').value='';
-  try{
-    const staff=await fetch('/api/staff').then(r=>r.json());
-    allEquip=await fetch('/api/equipment').then(r=>r.json());
-    const attach=await fetch('/api/attachments').then(r=>r.json());
-    const wt=await fetch('/api/work-types').then(r=>r.json());
-    try{const pd=await fetch('/api/parcels').then(r=>r.json());allParcels=Array.isArray(pd)?pd:(pd.data||[]);}catch(e){allParcels=[];}
+function updateDose(id,val){const c=addedChems.find(x=>x.id===id);if(c) c.dose_actual=val;}
+function updateTarget(id,val){
+  const c=addedChems.find(x=>x.id===id);if(!c) return;
+  if(val==='__other__'){c.target='';const inp=document.getElementById('target-custom-'+id);if(inp) inp.style.display='block';}
+  else{c.target=val;const inp=document.getElementById('target-custom-'+id);if(inp) inp.style.display='none';}
+}
+function updateTargetCustom(id,val){const c=addedChems.find(x=>x.id===id);if(c) c.target=val;}
 
-    document.getElementById('f-wt').innerHTML=wt.map(w=>`<option value="${w.id}" data-name="${w.name}">${w.name}</option>`).join('');
-    document.getElementById('f-cr').innerHTML=staff.map(s=>`<option value="${s.id}" data-name="${s.name}">${s.name} (${s.role})</option>`).join('');
-    document.getElementById('f-as').innerHTML=staff.map(s=>`<option value="${s.id}" data-name="${s.name}">${s.name} (${s.role})</option>`).join('');
-    document.getElementById('f-me').innerHTML='<option value="">— не назначен —</option>'+staff.map(s=>`<option value="${s.id}" data-name="${s.name}">${s.name}</option>`).join('');
-    document.getElementById('f-eq').innerHTML='<option value="">— не выбрана —</option>'+allEquip.map(e=>`<option value="${e.id}" data-name="${e.name}">${e.name}${e.hp?' ('+e.hp+' л.с.)':''}${e.status!=='free'?' ⚠️':''}</option>`).join('');
-    document.getElementById('f-at').innerHTML='<option value="">— не выбрано —</option>'+attach.map(a=>`<option value="${a.id}" data-name="${a.name}">${a.name}</option>`).join('');
+document.addEventListener('click',function(e){
+  if(!e.target.closest('#chem-search')&&!e.target.closest('#chem-dropdown'))
+    document.getElementById('chem-dropdown').classList.remove('open');
+});
 
-    renderParcelList(allParcels);
-    document.getElementById('m-loading').style.display='none';
-    document.getElementById('m-form').style.display='block';
-  }catch(e){document.getElementById('m-loading').textContent='Ошибка: '+e.message;}
-};
-
-document.getElementById('cancel-btn').onclick=function(){document.getElementById('m-task').classList.remove('open');};
+function toggleTemplates(){
+  const el=document.getElementById('tmpl-list');
+  el.classList.toggle('open');
+  if(el.classList.contains('open')) renderTemplates();
+}
+function renderTemplates(){
+  const el=document.getElementById('tmpl-list');
+  if(!templates.length){el.innerHTML='<div style="padding:10px;font-size:12px;color:#6b6a64">Нет сохранённых обработок с препаратами</div>';return;}
+  el.innerHTML=templates.map(t=>`
+    <div class="tmpl-item" onclick="loadTemplate('${t.id}')">
+      <strong>${t.work_type_name||'Обработка'}</strong> · ${new Date(t.created_at).toLocaleDateString('ru-RU')}
+      ${t.parcel_name?' · '+t.parcel_name.slice(0,25):''}
+      ${t.chemicals?' · '+JSON.parse(t.chemicals).length+' препаратов':''}
+    </div>`).join('');
+}
+function loadTemplate(id){
+  const t=templates.find(x=>x.id===id);if(!t) return;
+  if(t.work_type_id) document.getElementById('f-wt').value=t.work_type_id;
+  if(t.description) document.getElementById('f-desc').value=t.description;
+  if(t.chemicals){addedChems=JSON.parse(t.chemicals).map(c=>({...c}));renderAddedChems();}
+  document.getElementById('tmpl-list').classList.remove('open');
+  toast('Шаблон загружен — проверьте и скорректируйте данные ✏️');
+}
 
 function gsel(id){
   const s=document.getElementById(id);
-  if(!s||!s.value)return{id:null,name:null};
+  if(!s||!s.value) return{id:null,name:null};
   return{id:s.value,name:s.options[s.selectedIndex].dataset.name||s.options[s.selectedIndex].textContent};
 }
 
-document.getElementById('save-btn').onclick=async function(){
+document.getElementById('new-btn').onclick=async function(){
+  document.getElementById('m-agro').classList.add('open');
+  document.getElementById('agro-loading').style.display='block';
+  document.getElementById('agro-form').style.display='none';
+  selectedParcels=[];addedChems=[];
+  document.getElementById('selected-tags').innerHTML='';
+  document.getElementById('area-info').textContent='';
+  document.getElementById('parcel-search').value='';
+  document.getElementById('f-desc').value='';
+  document.getElementById('f-due').value='';
+  document.getElementById('added-chems').innerHTML='';
+  document.getElementById('chem-search').value='';
+  document.getElementById('tmpl-list').classList.remove('open');
+  try{
+    allStaff=await fetch('/api/staff').then(r=>r.json());
+    allEquip=await fetch('/api/equipment').then(r=>r.json());
+    const wt=await fetch('/api/work-types').then(r=>r.json());
+    const cat=await fetch('/api/catalog').then(r=>r.json());
+    allCatalog=Array.isArray(cat)?cat:(cat.data||[]);
+    const pd=await fetch('/api/parcels').then(r=>r.json());
+    allParcels=Array.isArray(pd)?pd:(pd.data||[]);
+    const tr=await fetch('/api/tasks').then(r=>r.json());
+    templates=tr.filter(t=>t.chemicals&&JSON.parse(t.chemicals).length>0).slice(0,20);
+    document.getElementById('f-wt').innerHTML=wt.map(w=>`<option value="${w.id}" data-name="${w.name}">${w.name}</option>`).join('');
+    document.getElementById('f-cr').innerHTML=allStaff.map(s=>`<option value="${s.id}" data-name="${s.name}">${s.name} (${s.role})</option>`).join('');
+    document.getElementById('f-as').innerHTML=allStaff.map(s=>`<option value="${s.id}" data-name="${s.name}">${s.name} (${s.role})</option>`).join('');
+    renderParcelList(allParcels);
+    document.getElementById('agro-loading').style.display='none';
+    document.getElementById('agro-form').style.display='block';
+  }catch(e){document.getElementById('agro-loading').textContent='Ошибка: '+e.message;}
+};
+
+function closeAgro(){document.getElementById('m-agro').classList.remove('open');}
+
+async function saveAgro(){
   const cr=gsel('f-cr'),as_=gsel('f-as');
-  if(!cr.id||!as_.id){alert('Выберите создателя и исполнителя');return;}
+  if(!cr.id||!as_.id){alert('Выберите агронома и исполнителя');return;}
   const parcelId=selectedParcels.length===1?selectedParcels[0].id:null;
-  const parcelName=selectedParcels.length===1?selectedParcels[0].name:
-    selectedParcels.length>1?selectedParcels.map(p=>p.name).join(', '):null;
+  const parcelName=selectedParcels.length>0?selectedParcels.map(p=>p.name).join(', '):null;
   const totalHa=selectedParcels.reduce((s,p)=>s+p.ha,0);
   const body={
-    work_type_id:gsel('f-wt').id,work_type_name:gsel('f-wt').name,
+    work_type_id:gsel('f-wt').id, work_type_name:gsel('f-wt').name,
     description:document.getElementById('f-desc').value.trim(),
-    parcel_id:parcelId,
-    parcel_name:parcelName,
-    parcels_json:selectedParcels.length>0?JSON.stringify(selectedParcels):null,
+    parcel_id:parcelId, parcel_name:parcelName,
+    parcels_json:selectedParcels.length?JSON.stringify(selectedParcels):null,
     total_ha:totalHa||null,
-    created_by_id:cr.id,created_by_name:cr.name,
-    assigned_to_id:as_.id,assigned_to_name:as_.name,
-    mechanic_id:gsel('f-me').id,mechanic_name:gsel('f-me').name,
-    equipment_id:gsel('f-eq').id,equipment_name:gsel('f-eq').name,
-    attachment:gsel('f-at').name,
+    chemicals:addedChems.length?JSON.stringify(addedChems):null,
+    created_by_id:cr.id, created_by_name:cr.name,
+    assigned_to_id:as_.id, assigned_to_name:as_.name,
     due_date:document.getElementById('f-due').value||null,
-    note:document.getElementById('f-no').value.trim(),
-    speed_kmh:parseFloat(document.getElementById('f-speed').value)||null,
-    work_depth_cm:parseFloat(document.getElementById('f-depth').value)||null,
   };
   const r=await fetch('/api/tasks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-  if(r.ok){document.getElementById('m-task').classList.remove('open');toast('Задание создано и отправлено в Telegram! ✈️');load();}
+  if(r.ok){closeAgro();toast('Задание создано! Уведомление отправлено ✈️');load();}
   else{const e=await r.json();alert('Ошибка: '+e.error);}
-};
+}
+
+async function openEng(id){
+  const t=tasks.find(x=>x.id===id);if(!t) return;
+  document.getElementById('eng-task-id').value=id;
+  const chems=t.chemicals?JSON.parse(t.chemicals):[];
+  document.getElementById('eng-info').innerHTML=`
+    <strong>${t.work_type_name||'Работа'}</strong><br>
+    🌱 ${t.parcel_name||'—'}${t.total_ha?' · '+t.total_ha+' га':''}<br>
+    👤 ${t.created_by_name||'—'} · Исполнитель: ${t.assigned_to_name||'—'}
+    ${t.due_date?'<br>📅 Срок: '+fd(t.due_date):''}
+    ${t.description?'<br>📝 '+t.description:''}
+    ${chems.length?'<br>💊 '+chems.map(c=>c.name+(c.dose_actual?' '+c.dose_actual+' л/га':'')).join(', '):''}`;
+  if(!allEquip.length) allEquip=await fetch('/api/equipment').then(r=>r.json());
+  if(!allStaff.length) allStaff=await fetch('/api/staff').then(r=>r.json());
+  const attach=await fetch('/api/attachments').then(r=>r.json());
+  const attachArr=Array.isArray(attach)?attach:(attach.data||[]);
+  document.getElementById('e-eq').innerHTML='<option value="">— не выбрана —</option>'+allEquip.map(e=>`<option value="${e.id}" data-name="${e.name}">${e.name}${e.hp?' ('+e.hp+' л.с.)':''}${e.status!=='free'?' ⚠️':''}</option>`).join('');
+  document.getElementById('e-at').innerHTML='<option value="">— не выбрано —</option>'+attachArr.map(a=>`<option value="${a.id}" data-name="${a.name}">${a.name}</option>`).join('');
+  document.getElementById('e-me').innerHTML='<option value="">— не назначен —</option>'+allStaff.map(s=>`<option value="${s.id}" data-name="${s.name}">${s.name}</option>`).join('');
+  document.getElementById('e-speed').value='';
+  document.getElementById('e-note').value='';
+  document.getElementById('equip-warn').style.display='none';
+  document.getElementById('m-eng').classList.add('open');
+}
+
+function closeEng(){document.getElementById('m-eng').classList.remove('open');}
+
+function onEngEquipChange(){
+  const sel=document.getElementById('e-eq');
+  const eq=allEquip.find(e=>e.id===sel.value);
+  const w=document.getElementById('equip-warn');
+  if(eq&&eq.status==='busy'){w.style.display='block';w.textContent='⚠️ Эта техника сейчас занята!';}
+  else if(eq&&eq.status==='repair'){w.style.display='block';w.textContent='🔧 Эта техника на ремонте!';}
+  else{w.style.display='none';}
+}
+
+async function saveEng(){
+  const id=document.getElementById('eng-task-id').value;
+  const me=gsel('e-me');
+  if(!me.id){alert('Выберите механизатора');return;}
+  const eq=gsel('e-eq');
+  const at=gsel('e-at');
+  const body={
+    status:'assigned',
+    equipment_id:eq.id, equipment_name:eq.name,
+    attachment:at.name,
+    mechanic_id:me.id, mechanic_name:me.name,
+    speed_kmh:parseFloat(document.getElementById('e-speed').value)||null,
+    note:document.getElementById('e-note').value.trim(),
+  };
+  await fetch(`/api/tasks/${id}/status`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  closeEng();toast('Техника назначена! Механизатор уведомлён ✈️');load();
+}
 
 load();
 </script>
 </body>
-</html> 
+</html>
