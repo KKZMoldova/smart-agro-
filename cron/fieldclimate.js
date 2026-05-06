@@ -61,9 +61,10 @@ function findSensor(data, keys, nameFragments, valueKey) {
     var frag = nameFragments[fi].toLowerCase();
     for (var ki = 0; ki < keys.length; ki++) {
       var s = data[keys[ki]];
-      var name = (s && s.name || '').toLowerCase();
+      if (!s) continue;
+      var name = (s.name || '').toLowerCase();
       if (name.indexOf(frag) >= 0) {
-        if (s && s.values && s.values[valueKey]) {
+        if (s.values && Array.isArray(s.values[valueKey]) && s.values[valueKey].length > 0) {
           return s.values[valueKey];
         }
       }
