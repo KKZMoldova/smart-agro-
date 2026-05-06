@@ -521,7 +521,7 @@ async function saveAgro(){
     work_type_id:gsel('f-wt').id, work_type_name:gsel('f-wt').name,
     description:document.getElementById('f-desc').value.trim(),
     parcel_id:parcelId, parcel_name:parcelName,
-    parcels_json:selectedParcels.length?JSON.stringify(selectedParcels):null,
+    parcels_json:selectedParcels.length?selectedParcels:null,
     total_ha:totalHa||null,
     chemicals:addedChems.length?JSON.stringify(addedChems):null,
     created_by_id:cr.id, created_by_name:cr.name,
