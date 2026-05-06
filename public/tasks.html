@@ -43,17 +43,27 @@ body{font-family:sans-serif;background:#f5f4f0;color:#1a1a18}
 .empty{text-align:center;padding:60px 20px;color:#6b6a64}
 .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:100;align-items:center;justify-content:center;padding:16px}
 .overlay.open{display:flex}
-.modal{background:#fff;border-radius:12px;padding:22px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.15)}
+.modal{background:#fff;border-radius:12px;padding:22px;width:100%;max-width:620px;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.15)}
 .modal h2{font-size:16px;font-weight:600;margin-bottom:16px}
 .fg{margin-bottom:12px}
 .fg label{display:block;font-size:11px;font-weight:600;color:#6b6a64;margin-bottom:4px;text-transform:uppercase}
 .fg select,.fg input,.fg textarea{width:100%;padding:8px 10px;border:1px solid #e2e0d8;border-radius:7px;font-size:13px;background:#f5f4f0;outline:none}
 .fg select:focus,.fg input:focus{border-color:#2d9566}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.sec{font-size:11px;font-weight:600;color:#6b6a64;text-transform:uppercase;letter-spacing:.5px;margin:14px 0 8px}
+.sec{font-size:11px;font-weight:600;color:#6b6a64;text-transform:uppercase;letter-spacing:.5px;margin:14px 0 8px;padding-bottom:5px;border-bottom:1px solid #e2e0d8}
 .mf{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;padding-top:14px;border-top:1px solid #e2e0d8}
 .toast{position:fixed;bottom:20px;right:20px;background:#1a1a18;color:#fff;padding:9px 16px;border-radius:7px;font-size:13px;z-index:200;opacity:0;transition:all .2s;pointer-events:none}
 .toast.show{opacity:1}
+.parcel-list{border:1px solid #e2e0d8;border-radius:7px;background:#f5f4f0;max-height:180px;overflow-y:auto;padding:4px}
+.parcel-item{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:5px;cursor:pointer;font-size:13px;transition:background .1s}
+.parcel-item:hover{background:#e8f4ee}
+.parcel-item input[type=checkbox]{width:15px;height:15px;cursor:pointer;accent-color:#1d6a4a}
+.parcel-item.selected{background:#e8f4ee;font-weight:500}
+.selected-parcels{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;min-height:24px}
+.parcel-tag{background:#1d6a4a;color:#fff;padding:2px 8px;border-radius:12px;font-size:11px;display:flex;align-items:center;gap:4px}
+.parcel-tag button{background:none;border:none;color:#fff;cursor:pointer;font-size:13px;line-height:1;padding:0}
+.parcel-area{font-size:11px;color:#6b6a64;margin-top:4px}
+.equip-rec{border-radius:7px;padding:8px 12px;font-size:12px;margin-top:4px;display:none}
 </style>
 </head>
 <body>
@@ -80,28 +90,42 @@ body{font-family:sans-serif;background:#f5f4f0;color:#1a1a18}
   <h2>Новое задание</h2>
   <div id="m-loading" style="color:#999;text-align:center;padding:20px">Загрузка данных...</div>
   <div id="m-form" style="display:none">
-    <div class="sec">Что делать</div>
+    <div class="sec">📋 Тип работы</div>
     <div class="row2">
       <div class="fg"><label>Тип работы *</label><select id="f-wt"></select></div>
-      <div class="fg"><label>Участок</label><select id="f-par"></select></div>
+      <div class="fg"><label>Срок выполнения</label><input type="date" id="f-due"></div>
     </div>
-    <div class="fg"><label>Описание / инструкция</label><textarea id="f-desc" rows="2"></textarea></div>
-    <div class="fg"><label>Срок</label><input type="date" id="f-due"></div>
-    <div class="sec">Кто выполняет</div>
+    <div class="fg"><label>Описание / инструкция агронома</label><textarea id="f-desc" rows="2" placeholder="Детали задания, особые условия..."></textarea></div>
+    <div class="sec">🌱 Участки (можно выбрать несколько)</div>
+    <div class="fg">
+      <input type="text" id="parcel-search" placeholder="🔍 Поиск участка..." style="margin-bottom:6px" oninput="filterParcels(this.value)">
+      <div class="parcel-list" id="parcel-list"></div>
+      <div class="selected-parcels" id="selected-parcels"></div>
+      <div class="parcel-area" id="parcel-area"></div>
+    </div>
+    <div class="sec">👥 Исполнители</div>
     <div class="row2">
       <div class="fg"><label>Создал (агроном) *</label><select id="f-cr"></select></div>
       <div class="fg"><label>Исполнитель *</label><select id="f-as"></select></div>
     </div>
     <div class="fg"><label>Механизатор</label><select id="f-me"></select></div>
-    <div class="sec">Техника</div>
+    <div class="sec">🚜 Техника</div>
     <div class="row2">
-      <div class="fg"><label>Техника</label><select id="f-eq"></select></div>
+      <div class="fg">
+        <label>Техника</label>
+        <select id="f-eq" onchange="onEquipChange()"></select>
+        <div class="equip-rec" id="equip-rec"></div>
+      </div>
       <div class="fg"><label>Навесное / прицепное</label><select id="f-at"></select></div>
     </div>
-    <div class="fg"><label>Примечание</label><input type="text" id="f-no"></div>
+    <div class="row2">
+      <div class="fg"><label>Скорость движения (км/ч)</label><input type="number" id="f-speed" placeholder="напр. 6" step="0.5" min="1" max="30"></div>
+      <div class="fg"><label>Глубина обработки (см)</label><input type="number" id="f-depth" placeholder="напр. 25"></div>
+    </div>
+    <div class="fg"><label>Примечание</label><input type="text" id="f-no" placeholder="Дополнительная информация..."></div>
     <div class="mf">
       <button class="btn" id="cancel-btn">Отмена</button>
-      <button class="btn btn-g" id="save-btn">Создать + отправить в Telegram</button>
+      <button class="btn btn-g" id="save-btn">✈️ Создать + отправить в Telegram</button>
     </div>
   </div>
 </div>
@@ -120,11 +144,11 @@ body{font-family:sans-serif;background:#f5f4f0;color:#1a1a18}
 </div>
 
 <div class="toast" id="toast"></div>
-
 <script>
 const SL={new:'Новое',accepted:'Принято',in_progress:'В работе',done:'Выполнено',closed:'Закрыто',problem:'Проблема'};
 const SB={new:'b-blue',accepted:'b-amber',in_progress:'b-green',done:'b-lime',closed:'b-gray',problem:'b-red'};
 let tasks=[],cf='all';
+let allParcels=[], selectedParcels=[], allEquip=[];
 
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
 function filt(f,el){cf=f;document.querySelectorAll('.fb').forEach(b=>b.classList.remove('active'));el.classList.add('active');render();}
@@ -171,6 +195,7 @@ function render(){
       <span class="badge ${SB[t.status]||'b-gray'}">${SL[t.status]||t.status}</span>
       ${t.due_date?`<span class="badge b-amber">До ${fd(t.due_date)}</span>`:''}
       ${t.telegram_sent?`<span class="badge b-gray">✈️ Telegram</span>`:''}
+      ${t.speed_kmh?`<span class="badge b-gray">🚜 ${t.speed_kmh} км/ч</span>`:''}
     </div>
     <div class="hr"></div>
     <div class="grid">
@@ -179,6 +204,7 @@ function render(){
       <div><div class="l">Техника</div><div class="v">${t.equipment_name||'—'}</div></div>
       <div><div class="l">Навесное</div><div class="v">${t.attachment||'—'}</div></div>
       ${t.mechanic_name?`<div><div class="l">Механизатор</div><div class="v">${t.mechanic_name}</div></div>`:''}
+      ${t.work_depth_cm?`<div><div class="l">Глубина</div><div class="v">${t.work_depth_cm} см</div></div>`:''}
       ${t.closed_by_name?`<div><div class="l">Закрыл</div><div class="v">${t.closed_by_name}</div></div>`:''}
     </div>
     ${t.problem_note?`<div class="prob">⚠️ ${t.problem_note}</div>`:''}
@@ -218,6 +244,62 @@ document.getElementById('prob-save').onclick=async function(){
   document.getElementById('m-prob').classList.remove('open');
   toast('Проблема отправлена в Telegram');
 };
+ // ─── МУЛЬТИ-ВЫБОР УЧАСТКОВ ───────────────────────────────────────────────
+function renderParcelList(parcels){
+  const el=document.getElementById('parcel-list');
+  el.innerHTML=parcels.map(p=>`
+    <div class="parcel-item ${selectedParcels.find(s=>s.id===p.id)?'selected':''}" onclick="toggleParcel('${p.id}','${p.name}',${p.ha||0})">
+      <input type="checkbox" ${selectedParcels.find(s=>s.id===p.id)?'checked':''} onclick="event.stopPropagation();toggleParcel('${p.id}','${p.name}',${p.ha||0})">
+      <span>${p.name}</span>
+      <span style="margin-left:auto;color:#6b6a64;font-size:11px">${p.ha||0} га</span>
+    </div>`).join('');
+}
+
+function toggleParcel(id,name,ha){
+  const idx=selectedParcels.findIndex(s=>s.id===id);
+  if(idx>=0) selectedParcels.splice(idx,1);
+  else selectedParcels.push({id,name,ha:parseFloat(ha)||0});
+  renderSelectedParcels();
+  const q=document.getElementById('parcel-search').value;
+  renderParcelList(q?allParcels.filter(p=>p.name.toLowerCase().includes(q.toLowerCase())):allParcels);
+}
+
+function removeParcel(id){
+  selectedParcels=selectedParcels.filter(s=>s.id!==id);
+  renderSelectedParcels();
+  renderParcelList(allParcels);
+}
+
+function renderSelectedParcels(){
+  const el=document.getElementById('selected-parcels');
+  const area=document.getElementById('parcel-area');
+  el.innerHTML=selectedParcels.map(p=>`
+    <div class="parcel-tag">${p.name} <button onclick="removeParcel('${p.id}')">×</button></div>`).join('');
+  const total=selectedParcels.reduce((s,p)=>s+p.ha,0);
+  area.textContent=selectedParcels.length?`Выбрано: ${selectedParcels.length} уч. · Площадь: ${total.toFixed(1)} га`:'';
+}
+
+function filterParcels(q){
+  const filtered=q?allParcels.filter(p=>p.name.toLowerCase().includes(q.toLowerCase())):allParcels;
+  renderParcelList(filtered);
+}
+
+function onEquipChange(){
+  const sel=document.getElementById('f-eq');
+  const eq=allEquip.find(e=>e.id===sel.value);
+  const rec=document.getElementById('equip-rec');
+  if(eq&&eq.status==='busy'){
+    rec.style.display='block';
+    rec.style.background='#fef3e2';rec.style.border='1px solid #f5c6a0';rec.style.color='#b85c00';
+    rec.textContent='⚠️ Эта техника сейчас занята на другом задании!';
+  } else if(eq&&eq.status==='repair'){
+    rec.style.display='block';
+    rec.style.background='#fdecea';rec.style.border='1px solid #f5c6c2';rec.style.color='#c0392b';
+    rec.textContent='🔧 Эта техника на ремонте!';
+  } else {
+    rec.style.display='none';
+  }
+}
 
 document.getElementById('new-btn').onclick=async function(){
   document.getElementById('m-task').classList.add('open');
@@ -226,22 +308,27 @@ document.getElementById('new-btn').onclick=async function(){
   document.getElementById('f-desc').value='';
   document.getElementById('f-no').value='';
   document.getElementById('f-due').value='';
+  document.getElementById('f-speed').value='';
+  document.getElementById('f-depth').value='';
+  selectedParcels=[];
+  document.getElementById('selected-parcels').innerHTML='';
+  document.getElementById('parcel-area').textContent='';
+  document.getElementById('parcel-search').value='';
   try{
     const staff=await fetch('/api/staff').then(r=>r.json());
-    const equip=await fetch('/api/equipment').then(r=>r.json());
+    allEquip=await fetch('/api/equipment').then(r=>r.json());
     const attach=await fetch('/api/attachments').then(r=>r.json());
     const wt=await fetch('/api/work-types').then(r=>r.json());
-    let parcels=[];
-    try{const pd=await fetch('/api/parcels').then(r=>r.json());parcels=Array.isArray(pd)?pd:(pd.data||[]);}catch(e){}
+    try{const pd=await fetch('/api/parcels').then(r=>r.json());allParcels=Array.isArray(pd)?pd:(pd.data||[]);}catch(e){allParcels=[];}
 
     document.getElementById('f-wt').innerHTML=wt.map(w=>`<option value="${w.id}" data-name="${w.name}">${w.name}</option>`).join('');
-    document.getElementById('f-par').innerHTML='<option value="">— не выбран —</option>'+parcels.map(p=>`<option value="${p.id}" data-name="${p.name}">${p.name}</option>`).join('');
     document.getElementById('f-cr').innerHTML=staff.map(s=>`<option value="${s.id}" data-name="${s.name}">${s.name} (${s.role})</option>`).join('');
     document.getElementById('f-as').innerHTML=staff.map(s=>`<option value="${s.id}" data-name="${s.name}">${s.name} (${s.role})</option>`).join('');
     document.getElementById('f-me').innerHTML='<option value="">— не назначен —</option>'+staff.map(s=>`<option value="${s.id}" data-name="${s.name}">${s.name}</option>`).join('');
-    document.getElementById('f-eq').innerHTML='<option value="">— не выбрана —</option>'+equip.map(e=>`<option value="${e.id}" data-name="${e.name}">${e.name}</option>`).join('');
+    document.getElementById('f-eq').innerHTML='<option value="">— не выбрана —</option>'+allEquip.map(e=>`<option value="${e.id}" data-name="${e.name}">${e.name}${e.hp?' ('+e.hp+' л.с.)':''}${e.status!=='free'?' ⚠️':''}</option>`).join('');
     document.getElementById('f-at').innerHTML='<option value="">— не выбрано —</option>'+attach.map(a=>`<option value="${a.id}" data-name="${a.name}">${a.name}</option>`).join('');
 
+    renderParcelList(allParcels);
     document.getElementById('m-loading').style.display='none';
     document.getElementById('m-form').style.display='block';
   }catch(e){document.getElementById('m-loading').textContent='Ошибка: '+e.message;}
@@ -258,17 +345,26 @@ function gsel(id){
 document.getElementById('save-btn').onclick=async function(){
   const cr=gsel('f-cr'),as_=gsel('f-as');
   if(!cr.id||!as_.id){alert('Выберите создателя и исполнителя');return;}
+  const parcelId=selectedParcels.length===1?selectedParcels[0].id:null;
+  const parcelName=selectedParcels.length===1?selectedParcels[0].name:
+    selectedParcels.length>1?selectedParcels.map(p=>p.name).join(', '):null;
+  const totalHa=selectedParcels.reduce((s,p)=>s+p.ha,0);
   const body={
     work_type_id:gsel('f-wt').id,work_type_name:gsel('f-wt').name,
     description:document.getElementById('f-desc').value.trim(),
-    parcel_id:gsel('f-par').id,parcel_name:gsel('f-par').name,
+    parcel_id:parcelId,
+    parcel_name:parcelName,
+    parcels_json:selectedParcels.length>0?JSON.stringify(selectedParcels):null,
+    total_ha:totalHa||null,
     created_by_id:cr.id,created_by_name:cr.name,
     assigned_to_id:as_.id,assigned_to_name:as_.name,
     mechanic_id:gsel('f-me').id,mechanic_name:gsel('f-me').name,
     equipment_id:gsel('f-eq').id,equipment_name:gsel('f-eq').name,
     attachment:gsel('f-at').name,
     due_date:document.getElementById('f-due').value||null,
-    note:document.getElementById('f-no').value.trim()
+    note:document.getElementById('f-no').value.trim(),
+    speed_kmh:parseFloat(document.getElementById('f-speed').value)||null,
+    work_depth_cm:parseFloat(document.getElementById('f-depth').value)||null,
   };
   const r=await fetch('/api/tasks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   if(r.ok){document.getElementById('m-task').classList.remove('open');toast('Задание создано и отправлено в Telegram! ✈️');load();}
@@ -278,4 +374,4 @@ document.getElementById('save-btn').onclick=async function(){
 load();
 </script>
 </body>
-</html>
+</html> 
