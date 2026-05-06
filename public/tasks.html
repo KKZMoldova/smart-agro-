@@ -278,7 +278,7 @@ function render(){
   const el=document.getElementById('list');
   if(!f.length){el.innerHTML='<div class="empty"><div style="font-size:40px;margin-bottom:12px">📋</div><p>Заданий нет. Нажмите + Новое задание</p></div>';return;}
   el.innerHTML=f.map(t=>{
-    const chems=t.chemicals?JSON.parse(t.chemicals):[];
+    const chems=t.chemicals?(typeof t.chemicals==='string'?JSON.parse(t.chemicals):t.chemicals):[];
     return `<div class="card s-${t.status}">
       <div class="card-title">${t.work_type_name||'Работа'}</div>
       <div class="card-sub">${t.parcel_name||''} ${t.description?'· '+t.description.slice(0,60):''}</div>
