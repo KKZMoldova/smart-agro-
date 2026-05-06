@@ -180,7 +180,7 @@ async function syncFieldClimate() {
   for (const station of STATIONS) {
     try {
       const json = await fetchFromFieldClimate(station, '7d');
-      const rows = parseResponse(json);
+      const rows = parseResponse(json, station.label);
       for (const row of rows) {
         await db.query(`
           INSERT INTO weather
