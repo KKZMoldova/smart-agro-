@@ -60,15 +60,63 @@ function fetchFromFieldClimate(station, period) {
   });
 }
 
-function parseResponse(json) {
-  const dates = json.dates || [];
-  const data  = json.data  || {};
+function parseResponse(json, label) {
+  const dates  = json.dates || [];
+  const data   = json.data  || {};
+  const keys   = Object.keys(data);
 
-  console.log('[FC] data keys: ' + Object.keys(data).join(', '));
-  // Логируем первый сенсор для диагностики
-Object.keys(data).forEach(k => {
-  console.log('[FC] sensor ' + k + ': ' + data[k].name + ' | values keys: ' + Object.keys(data[k].values || {}).join(','));
-});
+  function findSensor(nameFragments) {
+    for (const frag of nameFragments) {
+      for (const k of keys) {
+        const s = data[k];
+        const name = (s && s.name || '').toLowerCase();
+        if (name.includes(frag.toLowerCase())) return s;
+      }
+    }
+    return null;
+  }
+
+  const sTavg  = findSensor(['HC Air temperature']);
+  const sHum   = findSensor(['HC Relative humidity']);
+  const sRain  = findSensor(['Precipitatii','Precipitation','осадки']);
+  const sSolar = findSensor(['Solar radiation']);
+  const sLeaf  = findSensor(['Leaf Wetness','Влажность листьев']);
+  const sEt0   = findSensor(['ET0']);
+
+  function getVal(sensor, key, i) {
+    if (!sensor || !sensor.values) return null;
+    const v = sensor.values[key];
+    if (!Array.isArray(v)) return null;
+    const x = v[i];
+    if (x === null || x === undefined || x === '') return null;
+    return parseFloat(x);
+  }
+
+  const rows = [];
+  for (let i = 0; i < dates.length; i++) {
+    if (!dates[i]) continue;
+    const dt   = new Date(dates[i] * 1000);
+    const date = dt.toISOString().slice(0, 10);
+    const hour = dt.getUTCHours();
+
+    const tmax = getVal(sTavg, 'max', i);
+    const tmin = getVal(sTavg, 'min', i);
+    const tavg = getVal(sTavg, 'avg', i);
+    const hum  = getVal(sHum,  'avg', i);
+    const rain = getVal(sRain, 'sum', i);
+    const solar= getVal(sSolar,'avg', i);
+    const leaf = getVal(sLeaf, 'time', i);
+    let   et0  = getVal(sEt0,  'result', i);
+
+    if (et0 === null && solar !== null) {
+      const t = tavg || ((tmax||0)+(tmin||0))/2;
+      et0 = Math.max(0, 0.0135 * solar * 0.0864 * (t + 5) / 25);
+    }
+
+    rows.push({ date, hour, tmax, tmin, tavg, humidity: hum, precip: rain, solar_rad: solar, leaf_wet: leaf, et0 });
+  }
+  return rows;
+}
 
   function findVals(keywords, subkey) {
   for (let dk of Object.keys(data)) {
