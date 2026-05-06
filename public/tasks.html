@@ -495,7 +495,11 @@ allCatalog=Array.isArray(cat)?cat:(cat.data||[]);
     const pd=await fetch('/api/parcels').then(r=>r.json());
 allParcels=Array.isArray(pd)?pd:(pd.data||[]);
     const tr=await fetch('/api/tasks').then(r=>r.json());
-    templates=tr.filter(t=>t.chemicals&&JSON.parse(t.chemicals).length>0).slice(0,20);
+    templates=tr.filter(t=>{
+  if(!t.chemicals) return false;
+  const ch=typeof t.chemicals==='string'?JSON.parse(t.chemicals):t.chemicals;
+  return Array.isArray(ch)&&ch.length>0;
+}).slice(0,20);
     document.getElementById('f-wt').innerHTML=wt.map(w=>`<option value="${w.id}" data-name="${w.name}">${w.name}</option>`).join('');
     document.getElementById('f-cr').innerHTML=allStaff.map(s=>`<option value="${s.id}" data-name="${s.name}">${s.name} (${s.role})</option>`).join('');
     document.getElementById('f-as').innerHTML=allStaff.map(s=>`<option value="${s.id}" data-name="${s.name}">${s.name} (${s.role})</option>`).join('');
