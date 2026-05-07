@@ -3,12 +3,7 @@ const db     = require('../db');
 
 router.get('/', async (req, res) => {
   try {
-   const r = await db.query(`
-  SELECT id, name, type, active_substance, dose, whi, note FROM catalog
-  UNION ALL
-  SELECT id::text, name, type, active_substance, dose::text, whi, note FROM pesticides
-  ORDER BY name ASC
-`); 
+   const r = await db.query('SELECT * FROM catalog ORDER BY name ASC');
     res.json({ ok:true, data: r.rows });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
