@@ -4027,7 +4027,18 @@ function saveCatalogItem() {
   };
   if(_editCatId){const idx=S.catalog.findIndex(c=>c.id===_editCatId);if(idx>=0)S.catalog[idx]=item;}
   else S.catalog.push(item);
-  save();closeModal('modal-catalog');renderCatalog();
+  save();
+  // Сохранить в PostgreSQL
+  fetch('/api/catalog',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      id:item.id, name:item.name, type:item.type,
+      activeSubstance:item.ai, dose:item.dose,
+      whi:item.whi, note:item.crops+' · '+item.targets
+    })
+  }).catch(e=>console.warn('Catalog sync failed:',e));
+  closeModal('modal-catalog');renderCatalog();
 }
 function renderCatalog() {
   const typeFilter=document.getElementById('cat-type-filter').value;
