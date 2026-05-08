@@ -661,30 +661,45 @@ body[data-readonly="true"] .parcel-card { cursor: default; pointer-events: none;
 </div>
 
 <!-- Weather Modal -->
-<div class="modal-overlay" id="modal-weather">
-  <div class="modal">
-    <h2>🌡️ Добавить день</h2>
-    <div class="form-grid">
-      <div class="ff"><label>Дата</label><input type="date" id="w-date"></div>
-      <div class="ff"><label>Влажность %</label><input type="number" id="w-hum" placeholder="65"></div>
-      <div class="ff"><label>Tмин °C</label><input type="number" id="w-tmin" step="0.1"></div>
-      <div class="ff"><label>Tмакс °C</label><input type="number" id="w-tmax" step="0.1"></div>
-      <div class="ff"><label>Осадки мм</label><input type="number" id="w-rain" step="0.1" placeholder="0"></div>
-      <div class="ff"><label>Влажн. листа ч</label><input type="number" id="w-leaf" step="0.5" placeholder="0"></div>
-      <div class="ff"><label>ET₀ мм</label><input type="number" id="w-et0" step="0.1" placeholder="auto"></div>
-      <div class="ff"><label>Ветер м/с</label><input type="number" id="w-wind" step="0.1" placeholder="0"></div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeModal('modal-weather')">Отмена</button>
-      <button class="btn btn-primary" onclick="saveWeather()">Сохранить</button>
-    </div>
-  </div>
-</div>
-
-<!-- Treatment Modal -->
-<div class="modal-overlay" id="modal-treatment">
-  <div class="modal" style="max-width:780px;width:96%;">
-    <h2 id="t-modal-title">💊 Новая обработка</h2>
+function saveWeather() {
+  const d = {
+    id: uid(),
+    date: document.getElementById('w-date').value,
+    tmin: document.getElementById('w-tmin').value,
+    tmax: document.getElementById('w-tmax').value,
+    humidity: document.getElementById('w-hum').value,
+    precip: document.getElementById('w-rain').value||'0',
+    leafwet: document.getElementById('w-leaf').value||'0',
+    et0: document.getElementById('w-et0').value||null,
+    wind: document.getElementById('w-wind').value||null,
+    source: 'manual',
+  };
+  if (!d.date||!d.tmin||!d.tmax) { alert('Заполните дату, Tмин и Tмакс'); return; }
+  const idx = S.weather.findIndex(w=>w.date===d.date);
+  if (idx>=0) S.weather[idx]=d; else S.weather.push(d);
+  S.weather.sort((a,b)=>b.date.localeCompare(a.date));
+  save();
+  // Сохранить на сервер (async, не блокирует UI)
+  if (_vServerAvailable) {
+    fetch('/api/weather', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        date: d.date,
+        tmin: parseFloat(d.tmin),
+        tmax: parseFloat(d.tmax),
+        tavg: (parseFloat(d.tmin) + parseFloat(d.tmax)) / 2,
+        humidity: parseFloat(d.humidity) || null,
+        precip: parseFloat(d.precip) || 0,
+        leaf_wet: parseFloat(d.leafwet) || 0,
+        et0: d.et0 ? parseFloat(d.et0) : null,
+        wind: d.wind ? parseFloat(d.wind) : null,
+        source: 'manual',
+      })
+    }).catch(e => console.warn('Weather save to server failed:', e));
+  }
+  closeModal('modal-weather'); renderWeather();
+}
 
     <!-- Header: date, parcel, method, note -->
     <div class="form-grid" style="margin-bottom:12px;">
