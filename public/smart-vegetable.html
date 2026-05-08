@@ -726,47 +726,7 @@ body[data-readonly="true"] .parcel-card { cursor: default; pointer-events: none;
   </div>
 </div>
 
-    <!-- Copy from previous -->
-    <div style="margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-      <span style="font-size:11px;color:var(--text3);">Быстрый старт:</span>
-      <select id="t-copy-from" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 10px;color:var(--text);font-size:11px;flex:1;min-width:160px;">
-        <option value="">— скопировать из предыдущей —</option>
-      </select>
-      <button class="btn btn-secondary btn-sm" onclick="copyFromTreatment()">📋 Скопировать</button>
-    </div>
-
-    <!-- Tank mix / Products list -->
-    <div style="font-family:'Unbounded',sans-serif;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">
-      🧪 Баковая смесь · Препараты
-    </div>
-
-    <!-- Compatibility warning -->
-    <div id="t-compat-warning" style="display:none;margin-bottom:8px;padding:8px 12px;background:rgba(255,85,85,.1);border:1px solid rgba(255,85,85,.3);border-radius:8px;font-size:11px;color:var(--red);"></div>
-
-    <!-- Rotation warning -->
-    <div id="t-rotation-warning" style="display:none;margin-bottom:8px;padding:8px 12px;background:rgba(255,216,77,.08);border:1px solid rgba(255,216,77,.3);border-radius:8px;font-size:11px;color:var(--yellow);"></div>
-
-    <!-- Product rows -->
-    <div id="t-products-list" style="margin-bottom:10px;"></div>
-
-    <!-- Add product button -->
-    <button class="btn btn-secondary btn-sm" onclick="addTreatProductRow()" style="margin-bottom:16px;width:100%;border-style:dashed;">
-      + Добавить препарат в баковую смесь
-    </button>
-
-    <!-- Tank mix order hint -->
-    <div id="t-tank-order" style="display:none;padding:10px 14px;background:rgba(107,221,107,.06);border:1px solid rgba(107,221,107,.15);border-radius:8px;margin-bottom:14px;font-size:11px;color:var(--text2);line-height:1.7;">
-      <div style="font-weight:700;color:var(--accent);margin-bottom:4px;">💧 Порядок заправки бака:</div>
-      <div id="t-tank-order-text"></div>
-    </div>
-
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeModal('modal-treatment')">Отмена</button>
-      <button class="btn btn-danger btn-sm" id="t-delete-btn" style="display:none;margin-right:auto;" onclick="deleteTreatmentFromModal()">Удалить</button>
-      <button class="btn btn-primary" onclick="saveTreatment()">Сохранить обработку</button>
-    </div>
-  </div>
-</div>
+    <
 
 <!-- Catalog Modal -->
 <div class="modal-overlay" id="modal-catalog">
