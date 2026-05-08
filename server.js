@@ -101,6 +101,8 @@ app.post('/api/import/vegetable', async (req, res) => {
 
 // Full state GET for Orchard
 app.get('/api/state/orchard', async (req, res) => {
+ app.get('/analyses', (req, res) =>
+  res.sendFile(path.join(__dirname, 'public', 'analyses.html'))); 
   try {
     const r = await db.query(`SELECT value FROM settings WHERE key='orchard_full_state'`);
     if (!r.rows.length) return res.json({ ok: false });
