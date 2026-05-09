@@ -4862,6 +4862,270 @@ async function startApp() {
   initRoleSystem(); // show login screen AFTER data loaded
   renderParcels();  // render with server data 
 }
+ // ═══ FIELDS / СПРАВОЧНИК ПОЛЕЙ ═══════════════════════════════════════════
+let _editFieldId = null;
+let _rotationRows = [];
+
+const SOIL_LABELS = {loam:'Суглинок',sandy_loam:'Супесь',clay_loam:'Тяж. суглинок',sandy:'Песчаная',clay:'Глина',chernozem:'Чернозём'};
+const RELIEF_LABELS = {flat:'Ровный',slope_light:'Слабый уклон',slope_medium:'Средний уклон',slope_steep:'Крутой уклон',valley:'Лощина'};
+const IRRIG_LABELS = {none:'Без орошения',drip:'💧 Капельное (стац.)',drip_seasonal:'💧 Капельное (сезон.)',sprinkler_fixed:'🌧 Дождевание (стац.)',sprinkler_mobile:'🌧 Дождевание (перенос.)',reel:'🥁 Барабанная катушка',mixed:'⚡ Смешанный'};
+const WATER_LABELS = {canal:'Канал',river:'Река',well:'Скважина',reservoir:'Водохранилище',pump:'Насосная станция'};
+
+function updateFieldIrrigFields() {
+  const type = document.getElementById('f-irrig-type').value;
+  document.getElementById('f-drip-fields').style.display = (type==='drip'||type==='drip_seasonal') ? 'block' : 'none';
+  document.getElementById('f-sprinkler-fixed-fields').style.display = type==='sprinkler_fixed' ? 'block' : 'none';
+  document.getElementById('f-reel-fields').style.display = type==='reel' ? 'block' : 'none';
+}
+
+function addRotationYear(year, culture) {
+  _rotationRows.push({ year: year || new Date().getFullYear(), culture: culture || '' });
+  renderRotationRows();
+}
+
+function renderRotationRows() {
+  const container = document.getElementById('f-rotation-history');
+  if (!container) return;
+  if (!_rotationRows.length) {
+    container.innerHTML = `<div style="font-size:11px;color:var(--text3);padding:8px;">Нет данных о севообороте</div>`;
+    return;
+  }
+  container.innerHTML = _rotationRows.map((row, idx) => `
+    <div style="display:grid;grid-template-columns:80px 1fr 30px;gap:8px;align-items:center;margin-bottom:6px;">
+      <input type="number" value="${row.year}" placeholder="2024"
+        oninput="_rotationRows[${idx}].year=parseInt(this.value)"
+        style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-size:11px;">
+      <input type="text" value="${row.culture}" placeholder="Горошек, томат, кукуруза..."
+        oninput="_rotationRows[${idx}].culture=this.value"
+        style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-size:11px;">
+      <button onclick="_rotationRows.splice(${idx},1);renderRotationRows()"
+        style="width:26px;height:26px;border:none;background:rgba(255,85,85,.15);color:var(--red);border-radius:6px;cursor:pointer;">✕</button>
+    </div>`).join('');
+}
+
+function openFieldModal(fieldId) {
+  _editFieldId = fieldId || null;
+  _rotationRows = [];
+  const f = fieldId ? (S.fields||[]).find(x=>x.id===fieldId) : null;
+  document.getElementById('field-modal-title').textContent = f ? '✏️ Редактировать поле' : '🌍 Новое поле';
+  document.getElementById('f-delete-btn').style.display = f ? 'block' : 'none';
+
+  // Заполнить поля
+  document.getElementById('f-number').value = f?.number || '';
+  document.getElementById('f-name').value = f?.name || '';
+  document.getElementById('f-ha').value = f?.ha || '';
+  document.getElementById('f-soil').value = f?.soil || 'loam';
+  document.getElementById('f-relief').value = f?.relief || 'flat';
+  document.getElementById('f-lat').value = f?.lat || '';
+  document.getElementById('f-lng').value = f?.lng || '';
+  document.getElementById('f-note').value = f?.note || '';
+  document.getElementById('f-irrig-type').value = f?.irrigType || 'none';
+
+  // Капельное
+  document.getElementById('f-emitter-flow').value = f?.emitterFlow || '';
+  document.getElementById('f-emitter-spacing').value = f?.emitterSpacing || '';
+  document.getElementById('f-row-spacing').value = f?.rowSpacing || '';
+  document.getElementById('f-pressure').value = f?.pressure || '';
+  document.getElementById('f-line-length').value = f?.lineLength || '';
+  document.getElementById('f-lines-per-ha').value = f?.linesPerHa || '';
+
+  // Дождевание
+  document.getElementById('f-sprinkler-intensity').value = f?.sprinklerIntensity || '';
+  document.getElementById('f-sprinkler-radius').value = f?.sprinklerRadius || '';
+  document.getElementById('f-sprinkler-pressure').value = f?.sprinklerPressure || '';
+  document.getElementById('f-sprinkler-count').value = f?.sprinklerCount || '';
+
+  // Барабанная катушка
+  document.getElementById('f-reel-flow').value = f?.reelFlow || '';
+  document.getElementById('f-reel-width').value = f?.reelWidth || '';
+  document.getElementById('f-reel-speed').value = f?.reelSpeed || '';
+  document.getElementById('f-reel-length').value = f?.reelLength || '';
+
+  // Источник воды
+  document.getElementById('f-water-source').value = f?.waterSource || 'canal';
+  document.getElementById('f-pump-flow').value = f?.pumpFlow || '';
+  document.getElementById('f-water-distance').value = f?.waterDistance || '';
+  document.getElementById('f-water-quality').value = f?.waterQuality || 'good';
+
+  // Севооборот
+  _rotationRows = f?.rotation ? [...f.rotation] : [];
+  renderRotationRows();
+  updateFieldIrrigFields();
+  openModal('modal-field');
+}
+
+function saveField() {
+  const name = document.getElementById('f-name').value.trim();
+  const number = document.getElementById('f-number').value.trim();
+  if (!name && !number) { alert('Введите номер или название поля'); return; }
+
+  const field = {
+    id: _editFieldId || uid(),
+    number, name,
+    ha: parseFloat(document.getElementById('f-ha').value) || 0,
+    soil: document.getElementById('f-soil').value,
+    relief: document.getElementById('f-relief').value,
+    lat: parseFloat(document.getElementById('f-lat').value) || null,
+    lng: parseFloat(document.getElementById('f-lng').value) || null,
+    note: document.getElementById('f-note').value.trim(),
+    irrigType: document.getElementById('f-irrig-type').value,
+    // Капельное
+    emitterFlow: parseFloat(document.getElementById('f-emitter-flow').value) || null,
+    emitterSpacing: parseFloat(document.getElementById('f-emitter-spacing').value) || null,
+    rowSpacing: parseFloat(document.getElementById('f-row-spacing').value) || null,
+    pressure: parseFloat(document.getElementById('f-pressure').value) || null,
+    lineLength: parseFloat(document.getElementById('f-line-length').value) || null,
+    linesPerHa: parseFloat(document.getElementById('f-lines-per-ha').value) || null,
+    // Дождевание
+    sprinklerIntensity: parseFloat(document.getElementById('f-sprinkler-intensity').value) || null,
+    sprinklerRadius: parseFloat(document.getElementById('f-sprinkler-radius').value) || null,
+    sprinklerPressure: parseFloat(document.getElementById('f-sprinkler-pressure').value) || null,
+    sprinklerCount: parseFloat(document.getElementById('f-sprinkler-count').value) || null,
+    // Барабанная катушка
+    reelFlow: parseFloat(document.getElementById('f-reel-flow').value) || null,
+    reelWidth: parseFloat(document.getElementById('f-reel-width').value) || null,
+    reelSpeed: parseFloat(document.getElementById('f-reel-speed').value) || null,
+    reelLength: parseFloat(document.getElementById('f-reel-length').value) || null,
+    // Вода
+    waterSource: document.getElementById('f-water-source').value,
+    pumpFlow: parseFloat(document.getElementById('f-pump-flow').value) || null,
+    waterDistance: parseFloat(document.getElementById('f-water-distance').value) || null,
+    waterQuality: document.getElementById('f-water-quality').value,
+    // Севооборот
+    rotation: [..._rotationRows],
+  };
+
+  if (!S.fields) S.fields = [];
+  if (_editFieldId) {
+    const idx = S.fields.findIndex(f=>f.id===_editFieldId);
+    if (idx>=0) S.fields[idx] = field; else S.fields.push(field);
+  } else {
+    S.fields.push(field);
+  }
+  save();
+  closeModal('modal-field');
+  renderFields();
+}
+
+function deleteField() {
+  if (!_editFieldId || !confirm('Удалить поле?')) return;
+  S.fields = (S.fields||[]).filter(f=>f.id!==_editFieldId);
+  save();
+  closeModal('modal-field');
+  renderFields();
+}
+
+function calcIrrigRate(field) {
+  // Расчёт интенсивности полива мм/ч для данного поля
+  const type = field.irrigType;
+  if (type === 'drip' || type === 'drip_seasonal') {
+    if (!field.emitterFlow || !field.emitterSpacing || !field.rowSpacing) return null;
+    // мм/ч = (расход эмиттера л/ч) / (расстояние между эмиттерами м × расстояние между рядами м) / 1000 × 1000
+    const rate = field.emitterFlow / (field.emitterSpacing/100 * field.rowSpacing);
+    return Math.round(rate * 10) / 10;
+  }
+  if (type === 'sprinkler_fixed' || type === 'sprinkler_mobile') {
+    return field.sprinklerIntensity || null;
+  }
+  if (type === 'reel') {
+    if (!field.reelFlow || !field.reelWidth) return null;
+    // мм/ч = (расход м³/ч × 1000) / (ширина захвата м × скорость м/мин × 60 мин)
+    const rate = (field.reelFlow * 1000) / (field.reelWidth * (field.reelSpeed||1.5) * 60);
+    return Math.round(rate * 10) / 10;
+  }
+  return null;
+}
+
+function calcIrrigTime(field, normMm) {
+  // Сколько часов нужно поливать чтобы дать normMm мм воды
+  const rate = calcIrrigRate(field);
+  if (!rate || !normMm) return null;
+  return Math.round((normMm / rate) * 10) / 10;
+}
+
+function renderFields() {
+  const fields = S.fields || [];
+
+  // KPIs
+  const totalHa = fields.reduce((s,f)=>s+parseFloat(f.ha||0),0);
+  const irrigated = fields.filter(f=>f.irrigType && f.irrigType!=='none').length;
+  document.getElementById('fields-kpis').innerHTML = `
+    <div class="kpi-card"><div class="kpi-val">${fields.length}</div><div class="kpi-lbl">Полей</div></div>
+    <div class="kpi-card"><div class="kpi-val">${totalHa.toFixed(1)}</div><div class="kpi-lbl">Гектар</div></div>
+    <div class="kpi-card"><div class="kpi-val" style="color:var(--blue);">${irrigated}</div><div class="kpi-lbl">С ирригацией</div></div>
+    <div class="kpi-card"><div class="kpi-val" style="color:var(--text3);">${fields.length-irrigated}</div><div class="kpi-lbl">Без ирригации</div></div>`;
+
+  if (!fields.length) {
+    document.getElementById('fields-grid').innerHTML = `
+      <div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text3);">
+        <div style="font-size:48px;margin-bottom:12px;">🌍</div>
+        <div style="font-size:14px;margin-bottom:8px;">Нет полей</div>
+        <div style="font-size:12px;">Нажмите + Поле чтобы добавить первое</div>
+      </div>`;
+    return;
+  }
+
+  const IRRIG_COLORS = {
+    none:'var(--text3)', drip:'var(--blue)', drip_seasonal:'var(--teal)',
+    sprinkler_fixed:'var(--accent)', sprinkler_mobile:'var(--accent2)',
+    reel:'var(--orange)', mixed:'var(--purple)'
+  };
+
+  document.getElementById('fields-grid').innerHTML = fields.map(f => {
+    const irrigRate = calcIrrigRate(f);
+    const currentYear = new Date().getFullYear();
+    const currentCrop = f.rotation?.find(r=>r.year===currentYear)?.culture || '—';
+    const lastYear = f.rotation?.find(r=>r.year===currentYear-1)?.culture || '—';
+
+    // Участки привязанные к этому полю
+    const linkedParcels = (S.parcels||[]).filter(p=>p.fieldId===f.id);
+
+    return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;cursor:pointer;transition:all .2s;border-left:4px solid ${IRRIG_COLORS[f.irrigType]||'var(--border)'};"
+      onclick="openFieldModal('${f.id}')">
+
+      <!-- Заголовок -->
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+        <div>
+          <div style="font-size:14px;font-weight:700;">${f.number ? '№'+f.number+' · ' : ''}${f.name}</div>
+          <div style="font-size:11px;color:var(--text3);">${SOIL_LABELS[f.soil]||f.soil} · ${RELIEF_LABELS[f.relief]||f.relief}</div>
+        </div>
+        <div style="font-family:'Unbounded',sans-serif;font-size:16px;font-weight:700;color:var(--accent);">${f.ha} га</div>
+      </div>
+
+      <!-- Ирригация -->
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:6px 10px;background:var(--surface2);border-radius:8px;">
+        <span style="font-size:12px;color:${IRRIG_COLORS[f.irrigType]||'var(--text3)'};">${IRRIG_LABELS[f.irrigType]||'—'}</span>
+        ${irrigRate ? `<span style="margin-left:auto;font-size:11px;color:var(--blue);">⚡ ${irrigRate} мм/ч</span>` : ''}
+      </div>
+
+      <!-- Севооборот -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;font-size:11px;">
+        <div style="padding:5px 8px;background:var(--surface2);border-radius:6px;">
+          <div style="color:var(--text3);font-size:9px;">СЕЗОН ${currentYear}</div>
+          <div style="color:var(--accent);font-weight:600;">${currentCrop}</div>
+        </div>
+        <div style="padding:5px 8px;background:var(--surface2);border-radius:6px;">
+          <div style="color:var(--text3);font-size:9px;">ПРОШЛЫЙ ${currentYear-1}</div>
+          <div style="color:var(--text2);">${lastYear}</div>
+        </div>
+      </div>
+
+      <!-- Участки -->
+      ${linkedParcels.length ? `
+      <div style="font-size:10px;color:var(--text3);margin-bottom:4px;">Делянки этого сезона:</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;">
+        ${linkedParcels.map(p=>{
+          const crop = getCropById(p.cropId);
+          return `<span style="font-size:10px;padding:2px 7px;border-radius:8px;background:rgba(107,221,107,.1);color:var(--accent);">${p.name}${crop?' '+crop.emoji:''} ${p.ha}га</span>`;
+        }).join('')}
+      </div>` : `<div style="font-size:10px;color:var(--text3);">Делянки не привязаны</div>`}
+
+      <!-- GPS -->
+      ${f.lat && f.lng ? `<div style="font-size:10px;color:var(--text3);margin-top:6px;">📍 ${f.lat}, ${f.lng}</div>` : ''}
+      ${f.note ? `<div style="font-size:10px;color:var(--text3);margin-top:4px;">📝 ${f.note}</div>` : ''}
+    </div>`;
+  }).join('');
+} 
 startApp();
 </script>
 </body>
