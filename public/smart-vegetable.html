@@ -783,7 +783,12 @@ body[data-readonly="true"] .parcel-card { cursor: default; pointer-events: none;
           <option value="clay">Глина</option>
         </select>
       </div>
-      <div class="ff full"><label>Примечание</label><input type="text" id="p-note" placeholder="Капельное орошение, теплица..."></div>
+      <div class="ff full"><label>Поле (привязка)</label>
+  <select id="p-field">
+    <option value="">— не привязан —</option>
+  </select>
+</div>
+<div class="ff full"><label>Примечание</label><input type="text" id="p-note" placeholder="Капельное орошение, теплица..."></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-parcel')">Отмена</button>
