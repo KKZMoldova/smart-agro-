@@ -213,6 +213,7 @@ body[data-readonly="true"] .parcel-card { cursor: default; pointer-events: none;
   <div class="tab" onclick="showTab('gdd')">📈 GDD / ФАЗЫ</div>
   <div class="tab" onclick="showTab('diseases')">🦠 БОЛЕЗНИ</div>
   <div class="tab" onclick="showTab('irrigation')">💧 ИРРИГАЦИЯ</div>
+  <div class="tab" onclick="showTab('fields')">🌍 ПОЛЯ</div>
   <div class="tab" onclick="showTab('treatments')">💊 ОБРАБОТКИ</div>
   <div class="tab" onclick="showTab('analyses')">🔬 АНАЛИЗЫ</div>
   <div class="tab" onclick="showTab('catalog')">📦 ПРЕПАРАТЫ</div>
@@ -326,7 +327,139 @@ body[data-readonly="true"] .parcel-card { cursor: default; pointer-events: none;
     <tbody id="gdd-tbody"></tbody>
   </table>
 </div>
+<!-- ═══ FIELDS ═══ -->
+<div class="panel" id="panel-fields">
+  <div class="section-hdr">
+    <h2>🌍 Справочник полей</h2>
+    <button class="btn btn-primary" onclick="openFieldModal()">+ Поле</button>
+  </div>
+  <!-- KPIs -->
+  <div class="card-grid" id="fields-kpis" style="grid-template-columns:repeat(auto-fill,minmax(160px,1fr));margin-bottom:20px;"></div>
+  <!-- Fields grid -->
+  <div id="fields-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;"></div>
+</div>
 
+<!-- Field Modal -->
+<div class="modal-overlay" id="modal-field">
+  <div class="modal" style="max-width:700px;width:96%;max-height:92vh;overflow-y:auto;">
+    <h2 id="field-modal-title">🌍 Новое поле</h2>
+
+    <!-- Основная информация -->
+    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:'Unbounded',sans-serif;margin-bottom:8px;">📋 Основная информация</div>
+    <div class="form-grid" style="margin-bottom:14px;">
+      <div class="ff"><label>Номер поля</label><input type="text" id="f-number" placeholder="№5"></div>
+      <div class="ff"><label>Название</label><input type="text" id="f-name" placeholder="Поле Северное"></div>
+      <div class="ff"><label>Площадь (га)</label><input type="number" id="f-ha" step="0.1" placeholder="50.0"></div>
+      <div class="ff"><label>Тип почвы</label>
+        <select id="f-soil">
+          <option value="loam">Суглинок</option>
+          <option value="sandy_loam">Супесь</option>
+          <option value="clay_loam">Тяжёлый суглинок</option>
+          <option value="sandy">Песчаная</option>
+          <option value="clay">Глина</option>
+          <option value="chernozem">Чернозём</option>
+        </select>
+      </div>
+      <div class="ff"><label>Рельеф</label>
+        <select id="f-relief">
+          <option value="flat">Ровный</option>
+          <option value="slope_light">Слабый уклон</option>
+          <option value="slope_medium">Средний уклон</option>
+          <option value="slope_steep">Крутой уклон</option>
+          <option value="valley">Лощина</option>
+        </select>
+      </div>
+      <div class="ff"><label>GPS (широта)</label><input type="number" id="f-lat" step="0.0001" placeholder="47.1234"></div>
+      <div class="ff"><label>GPS (долгота)</label><input type="number" id="f-lng" step="0.0001" placeholder="28.5678"></div>
+      <div class="ff full"><label>Примечание</label><input type="text" id="f-note" placeholder="Особенности поля..."></div>
+    </div>
+
+    <!-- Ирригация -->
+    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:'Unbounded',sans-serif;margin-bottom:8px;">💧 Система ирригации</div>
+    <div class="form-grid" style="margin-bottom:14px;">
+      <div class="ff full"><label>Тип ирригации</label>
+        <select id="f-irrig-type" onchange="updateFieldIrrigFields()">
+          <option value="none">Без орошения</option>
+          <option value="drip">💧 Капельное (стационарное)</option>
+          <option value="drip_seasonal">💧 Капельное (сезонная лента)</option>
+          <option value="sprinkler_fixed">🌧 Дождевание (стационарное)</option>
+          <option value="sprinkler_mobile">🌧 Дождевание (переносное)</option>
+          <option value="reel">🥁 Барабанная катушка</option>
+          <option value="mixed">⚡ Смешанный тип</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Капельное -->
+    <div id="f-drip-fields" style="display:none;margin-bottom:14px;">
+      <div style="font-size:10px;color:var(--text3);margin-bottom:8px;padding:6px 10px;background:rgba(85,170,255,.06);border-radius:6px;">💧 Параметры капельного орошения</div>
+      <div class="form-grid">
+        <div class="ff"><label>Расход эмиттера (л/ч)</label><input type="number" id="f-emitter-flow" step="0.1" placeholder="1.6"></div>
+        <div class="ff"><label>Расстояние между эмиттерами (см)</label><input type="number" id="f-emitter-spacing" step="1" placeholder="30"></div>
+        <div class="ff"><label>Расстояние между рядами (м)</label><input type="number" id="f-row-spacing" step="0.1" placeholder="1.5"></div>
+        <div class="ff"><label>Рабочее давление (бар)</label><input type="number" id="f-pressure" step="0.1" placeholder="1.2"></div>
+        <div class="ff"><label>Длина линии (м)</label><input type="number" id="f-line-length" step="1" placeholder="200"></div>
+        <div class="ff"><label>Кол-во линий на га</label><input type="number" id="f-lines-per-ha" step="1" placeholder="6"></div>
+      </div>
+    </div>
+
+    <!-- Дождевание стационарное -->
+    <div id="f-sprinkler-fixed-fields" style="display:none;margin-bottom:14px;">
+      <div style="font-size:10px;color:var(--text3);margin-bottom:8px;padding:6px 10px;background:rgba(85,170,255,.06);border-radius:6px;">🌧 Параметры стационарного дождевания</div>
+      <div class="form-grid">
+        <div class="ff"><label>Интенсивность (мм/ч)</label><input type="number" id="f-sprinkler-intensity" step="0.1" placeholder="8.0"></div>
+        <div class="ff"><label>Радиус захвата (м)</label><input type="number" id="f-sprinkler-radius" step="0.5" placeholder="18"></div>
+        <div class="ff"><label>Рабочее давление (бар)</label><input type="number" id="f-sprinkler-pressure" step="0.1" placeholder="3.5"></div>
+        <div class="ff"><label>Кол-во дождевателей</label><input type="number" id="f-sprinkler-count" step="1" placeholder="24"></div>
+      </div>
+    </div>
+
+    <!-- Барабанная катушка -->
+    <div id="f-reel-fields" style="display:none;margin-bottom:14px;">
+      <div style="font-size:10px;color:var(--text3);margin-bottom:8px;padding:6px 10px;background:rgba(85,170,255,.06);border-radius:6px;">🥁 Параметры барабанной катушки</div>
+      <div class="form-grid">
+        <div class="ff"><label>Расход насадки (м³/ч)</label><input type="number" id="f-reel-flow" step="0.1" placeholder="45"></div>
+        <div class="ff"><label>Ширина захвата (м)</label><input type="number" id="f-reel-width" step="1" placeholder="60"></div>
+        <div class="ff"><label>Скорость движения (м/мин)</label><input type="number" id="f-reel-speed" step="0.1" placeholder="1.5"></div>
+        <div class="ff"><label>Длина шланга (м)</label><input type="number" id="f-reel-length" step="10" placeholder="300"></div>
+      </div>
+    </div>
+
+    <!-- Источник воды -->
+    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:'Unbounded',sans-serif;margin-bottom:8px;">🏞 Источник воды</div>
+    <div class="form-grid" style="margin-bottom:14px;">
+      <div class="ff"><label>Источник</label>
+        <select id="f-water-source">
+          <option value="canal">Канал</option>
+          <option value="river">Река</option>
+          <option value="well">Скважина</option>
+          <option value="reservoir">Водохранилище</option>
+          <option value="pump">Насосная станция</option>
+        </select>
+      </div>
+      <div class="ff"><label>Производительность насоса (м³/ч)</label><input type="number" id="f-pump-flow" step="1" placeholder="120"></div>
+      <div class="ff"><label>Расстояние до источника (м)</label><input type="number" id="f-water-distance" step="10" placeholder="500"></div>
+      <div class="ff"><label>Качество воды</label>
+        <select id="f-water-quality">
+          <option value="good">Хорошее</option>
+          <option value="medium">Среднее (фильтрация)</option>
+          <option value="poor">Плохое (очистка)</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- История севооборота -->
+    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:'Unbounded',sans-serif;margin-bottom:8px;">📅 История севооборота</div>
+    <div id="f-rotation-history" style="margin-bottom:14px;"></div>
+    <button class="btn btn-secondary btn-sm" onclick="addRotationYear()" style="margin-bottom:14px;">+ Добавить год</button>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-field')">Отмена</button>
+      <button class="btn btn-danger btn-sm" id="f-delete-btn" style="display:none;margin-right:auto;" onclick="deleteField()">Удалить</button>
+      <button class="btn btn-primary" onclick="saveField()">Сохранить</button>
+    </div>
+  </div>
+</div>
 <!-- ═══ DISEASES ═══ -->
 <div class="panel" id="panel-diseases">
   <div class="section-hdr">
