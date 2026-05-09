@@ -2343,6 +2343,12 @@ function openParcelModal(parcelId) {
   document.getElementById('p-density').value = p?.density||'';
   document.getElementById('p-soil').value    = p?.soil||'loam';
   document.getElementById('p-note').value    = p?.note||'';
+  // Populate field select
+const fsel = document.getElementById('p-field');
+fsel.innerHTML = '<option value="">— не привязан —</option>';
+(S.fields||[]).forEach(f => {
+  fsel.innerHTML += `<option value="${f.id}" ${p?.fieldId===f.id?'selected':''}>${f.number?'№'+f.number+' · ':''}${f.name} (${f.ha}га)</option>`;
+});
   document.getElementById('p-harvest-gdd').value = p?.harvestGdd||'';
   document.getElementById('p-tdu-window').value  = p?.tduWindow||'';
 
@@ -2411,6 +2417,7 @@ function saveParcel() {
     density: parseFloat(document.getElementById('p-density').value)||0,
     soil: document.getElementById('p-soil').value,
     note: document.getElementById('p-note').value.trim(),
+    fieldId: document.getElementById('p-field').value || null,
     harvestGdd: parseFloat(document.getElementById('p-harvest-gdd').value)||null,
     tduWindow: parseFloat(document.getElementById('p-tdu-window').value)||null,
   };
