@@ -2757,6 +2757,30 @@ function parseXmlStation(xmlText, statusEl) {
   });
   S.weather.sort((a,b)=>b.date.localeCompare(a.date));
   save(); renderWeather(); renderParcels();
+  // Сохранить на сервер
+  if (_vServerAvailable) {
+    const weatherToSave = [...S.weather];
+    (async () => {
+      for (const w of weatherToSave) {
+        await fetch('/api/weather', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            date: w.date,
+            tmin: parseFloat(w.tmin),
+            tmax: parseFloat(w.tmax),
+            tavg: parseFloat(w.tavg) || (parseFloat(w.tmin)+parseFloat(w.tmax))/2,
+            humidity: parseFloat(w.humidity) || null,
+            precip: parseFloat(w.precip) || 0,
+            leaf_wet: parseFloat(w.leafwet) || 0,
+            et0: w.et0 ? parseFloat(w.et0) : null,
+            wind: w.wind ? parseFloat(w.wind) : null,
+            source: 'station',
+          })
+        }).catch(e => console.warn('Weather save failed:', e));
+      }
+    })();
+  }
   const lat = S.weather[0];
   statusEl.innerHTML = `<div style="padding:10px 14px;background:rgba(107,221,107,.08);border:1px solid rgba(107,221,107,.3);border-radius:8px;font-size:12px;color:var(--accent);">
     OK ${added} дней · ${updated} обновл.
