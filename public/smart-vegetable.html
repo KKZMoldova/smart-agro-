@@ -880,7 +880,10 @@ body[data-readonly="true"] .parcel-card { cursor: default; pointer-events: none;
   <select id="p-equipment-id">
     <option value="">— выбрать технику —</option>
   </select>
-</div><div class="ff full" id="p-drip-section" style="display:none;">
+</div>
+
+<!-- Капельная лента -->
+<div class="ff full" id="p-drip-section" style="display:none;">
   <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:'Unbounded',sans-serif;margin-bottom:8px;padding:6px 10px;background:rgba(85,170,255,.06);border-radius:6px;">💧 Капельная лента (сезон)</div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
     <div class="ff"><label>Расход эмиттера (л/ч)</label><input type="number" id="p-emitter-flow" step="0.1" placeholder="1.6"></div>
@@ -888,21 +891,7 @@ body[data-readonly="true"] .parcel-card { cursor: default; pointer-events: none;
     <div class="ff"><label>Расстояние между рядами (м)</label><input type="number" id="p-row-spacing" step="0.1" placeholder="1.5"></div>
     <div class="ff"><label>Рабочее давление (бар)</label><input type="number" id="p-drip-pressure" step="0.1" placeholder="1.2"></div>
   </div>
-</div> <div class="ff full"><label>Поле (привязка)</label>
-  <select id="p-field">
-    <option value="">— не привязан —</option>
-  </select>
 </div>
-<div class="ff full"><label>Примечание</label><input type="text" id="p-note" placeholder="Капельное орошение, теплица..."></div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeModal('modal-parcel')">Отмена</button>
-      <button class="btn btn-danger btn-sm" id="p-delete-btn" style="display:none;margin-right:auto;" onclick="deleteParcel()">Удалить</button>
-      <button class="btn btn-primary" onclick="saveParcel()">Сохранить</button>
-    </div>
-  </div>
-</div>
-
 <!-- Weather Modal -->
 <div class="modal-overlay" id="modal-weather">
   <div class="modal">
