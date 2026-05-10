@@ -96,8 +96,11 @@ app.post('/api/state/vegetable', async (req, res) => {
     res.json({ ok: true });
   } catch(e) {
     
-    res.json({ ok: true, treatments: d.treatments?.length||0 });
-  } catch(e) { res.status(500).json({ error: e.message }); }
+    res.json({ ok: true });
+  } catch(e) {
+    console.error('State POST error:', e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
 });
 
 // Full state GET for Orchard
