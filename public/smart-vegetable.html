@@ -5424,7 +5424,16 @@ function renderFields() {
       <div style="display:flex;flex-wrap:wrap;gap:4px;">
         ${linkedParcels.map(p=>{
           const crop = getCropById(p.cropId);
-          return `<span style="font-size:10px;padding:2px 7px;border-radius:8px;background:rgba(107,221,107,.1);color:var(--accent);">${p.name}${crop?' '+crop.emoji:''} ${p.ha}га</span>`;
+          const phase = getParcelPhase(p);
+const gdd = Math.round(calcParcelGdd(p));
+return `<div style="padding:6px 10px;background:var(--surface3);border-radius:8px;margin-bottom:4px;font-size:11px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;">
+    <span style="font-weight:600;">${p.name} ${crop?crop.emoji:''} ${p.ha}га</span>
+    <span style="font-size:10px;color:var(--text3);">GDD ${gdd}</span>
+  </div>
+  ${phase?`<div style="font-size:10px;color:${phase.color};margin-top:2px;">${phase.name}</div>`:''}
+  ${p.variety?`<div style="font-size:10px;color:var(--text3);">${p.variety}</div>`:''}
+</div>`;
         }).join('')}
       </div>` : `<div style="font-size:10px;color:var(--text3);">Делянки не привязаны</div>`}
 
