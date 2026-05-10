@@ -2526,6 +2526,10 @@ function saveParcel() {
     soil: document.getElementById('p-soil').value,
     note: document.getElementById('p-note').value.trim(),
     fieldId: document.getElementById('p-field').value || null,
+    emitterFlow: parseFloat(document.getElementById('p-emitter-flow').value) || null,
+emitterSpacing: parseFloat(document.getElementById('p-emitter-spacing').value) || null,
+rowSpacing: parseFloat(document.getElementById('p-row-spacing').value) || null,
+dripPressure: parseFloat(document.getElementById('p-drip-pressure').value) || null,
     harvestGdd: parseFloat(document.getElementById('p-harvest-gdd').value)||null,
     tduWindow: parseFloat(document.getElementById('p-tdu-window').value)||null,
   };
