@@ -5373,8 +5373,16 @@ function deleteField() {
   if (!_editFieldId || !confirm('Удалить поле?')) return;
   S.fields = (S.fields||[]).filter(f=>f.id!==_editFieldId);
   save();
-  closeModal('modal-field');
-  renderFields();
+// Sync fields to server
+if (_vServerAvailable) {
+  fetch('/api/state/vegetable', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ fields: S.fields, equipment: S.equipment })
+  }).catch(e => console.warn('Fields sync failed:', e));
+}
+closeModal('modal-field');
+renderFields();
 }
 
 function calcIrrigRate(field) {
