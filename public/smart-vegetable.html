@@ -4957,7 +4957,191 @@ async function startApp() {
   initRoleSystem(); // show login screen AFTER data loaded
   renderParcels();  // render with server data 
 }
- // ═══ FIELDS / СПРАВОЧНИК ПОЛЕЙ ═══════════════════════════════════════════
+// ═══ EQUIPMENT / СПРАВОЧНИК ТЕХНИКИ ═══════════════════════════════════════
+let _editEquipmentId = null;
+
+function updateEquipFields() {
+  const type = document.getElementById('eq-type').value;
+  document.getElementById('eq-reel-fields').style.display = type==='reel' ? 'block' : 'none';
+  document.getElementById('eq-sprinkler-fields').style.display = type==='sprinkler' ? 'block' : 'none';
+}
+
+function calcReelIntensity() {
+  const flow = parseFloat(document.getElementById('eq-reel-flow').value) || 0;
+  const width = parseFloat(document.getElementById('eq-reel-width').value) || 0;
+  const speed = parseFloat(document.getElementById('eq-reel-speed').value) || 0;
+  if (flow && width && speed) {
+    const intensity = (flow * 1000) / (width * speed * 60);
+    document.getElementById('eq-reel-intensity').value = Math.round(intensity * 10) / 10;
+  }
+}
+
+function openEquipmentModal(eqId) {
+  _editEquipmentId = eqId || null;
+  const eq = eqId ? (S.equipment||[]).find(x=>x.id===eqId) : null;
+  document.getElementById('equipment-modal-title').textContent = eq ? '✏️ Редактировать технику' : '🚜 Новая техника';
+  document.getElementById('eq-delete-btn').style.display = eq ? 'block' : 'none';
+
+  document.getElementById('eq-name').value = eq?.name || '';
+  document.getElementById('eq-type').value = eq?.type || 'reel';
+  document.getElementById('eq-model').value = eq?.model || '';
+  document.getElementById('eq-year').value = eq?.year || '';
+  document.getElementById('eq-reel-flow').value = eq?.reelFlow || '';
+  document.getElementById('eq-reel-width').value = eq?.reelWidth || '';
+  document.getElementById('eq-reel-speed').value = eq?.reelSpeed || '';
+  document.getElementById('eq-reel-length').value = eq?.reelLength || '';
+  document.getElementById('eq-reel-pressure').value = eq?.reelPressure || '';
+  document.getElementById('eq-reel-intensity').value = eq?.reelIntensity || '';
+  document.getElementById('eq-spr-intensity').value = eq?.sprIntensity || '';
+  document.getElementById('eq-spr-radius').value = eq?.sprRadius || '';
+  document.getElementById('eq-spr-flow').value = eq?.sprFlow || '';
+  document.getElementById('eq-spr-pressure').value = eq?.sprPressure || '';
+  document.getElementById('eq-spr-count').value = eq?.sprCount || '';
+  document.getElementById('eq-spr-width').value = eq?.sprWidth || '';
+  document.getElementById('eq-status').value = eq?.status || 'free';
+  document.getElementById('eq-busy-until').value = eq?.busyUntil || '';
+  document.getElementById('eq-note').value = eq?.note || '';
+
+  // Populate field select
+  const fsel = document.getElementById('eq-field');
+  fsel.innerHTML = '<option value="">— не на поле —</option>';
+  (S.fields||[]).forEach(f => {
+    fsel.innerHTML += `<option value="${f.id}" ${eq?.fieldId===f.id?'selected':''}>${f.number?'№'+f.number+' · ':''}${f.name}</option>`;
+  });
+  fsel.value = eq?.fieldId || '';
+
+  updateEquipFields();
+  openModal('modal-equipment');
+}
+
+function saveEquipment() {
+  const name = document.getElementById('eq-name').value.trim();
+  if (!name) { alert('Введите название'); return; }
+
+  const type = document.getElementById('eq-type').value;
+  const reelFlow = parseFloat(document.getElementById('eq-reel-flow').value) || null;
+  const reelWidth = parseFloat(document.getElementById('eq-reel-width').value) || null;
+  const reelSpeed = parseFloat(document.getElementById('eq-reel-speed').value) || null;
+  let reelIntensity = parseFloat(document.getElementById('eq-reel-intensity').value) || null;
+  if (type==='reel' && reelFlow && reelWidth && reelSpeed) {
+    reelIntensity = Math.round((reelFlow * 1000) / (reelWidth * reelSpeed * 60) * 10) / 10;
+  }
+
+  const eq = {
+    id: _editEquipmentId || uid(),
+    name, type,
+    model: document.getElementById('eq-model').value.trim(),
+    year: parseInt(document.getElementById('eq-year').value) || null,
+    reelFlow, reelWidth, reelSpeed,
+    reelLength: parseFloat(document.getElementById('eq-reel-length').value) || null,
+    reelPressure: parseFloat(document.getElementById('eq-reel-pressure').value) || null,
+    reelIntensity,
+    sprIntensity: parseFloat(document.getElementById('eq-spr-intensity').value) || null,
+    sprRadius: parseFloat(document.getElementById('eq-spr-radius').value) || null,
+    sprFlow: parseFloat(document.getElementById('eq-spr-flow').value) || null,
+    sprPressure: parseFloat(document.getElementById('eq-spr-pressure').value) || null,
+    sprCount: parseFloat(document.getElementById('eq-spr-count').value) || null,
+    sprWidth: parseFloat(document.getElementById('eq-spr-width').value) || null,
+    status: document.getElementById('eq-status').value,
+    fieldId: document.getElementById('eq-field').value || null,
+    busyUntil: document.getElementById('eq-busy-until').value || null,
+    note: document.getElementById('eq-note').value.trim(),
+  };
+
+  if (!S.equipment) S.equipment = [];
+  if (_editEquipmentId) {
+    const idx = S.equipment.findIndex(e=>e.id===_editEquipmentId);
+    if (idx>=0) S.equipment[idx] = eq; else S.equipment.push(eq);
+  } else {
+    S.equipment.push(eq);
+  }
+  save();
+  closeModal('modal-equipment');
+  renderEquipment();
+}
+
+function deleteEquipment() {
+  if (!_editEquipmentId || !confirm('Удалить технику?')) return;
+  S.equipment = (S.equipment||[]).filter(e=>e.id!==_editEquipmentId);
+  save();
+  closeModal('modal-equipment');
+  renderEquipment();
+}
+
+function getEquipIntensity(eq) {
+  if (eq.type === 'reel') return eq.reelIntensity || null;
+  if (eq.type === 'sprinkler') return eq.sprIntensity || null;
+  return null;
+}
+
+function renderEquipment() {
+  const equipment = S.equipment || [];
+  const free = equipment.filter(e=>e.status==='free').length;
+  const busy = equipment.filter(e=>e.status==='busy').length;
+  const repair = equipment.filter(e=>e.status==='repair').length;
+
+  document.getElementById('equipment-kpis').innerHTML = `
+    <div class="kpi-card"><div class="kpi-val">${equipment.length}</div><div class="kpi-lbl">Всего единиц</div></div>
+    <div class="kpi-card"><div class="kpi-val" style="color:var(--accent);">${free}</div><div class="kpi-lbl">Свободно</div></div>
+    <div class="kpi-card"><div class="kpi-val" style="color:var(--red);">${busy}</div><div class="kpi-lbl">Занято</div></div>
+    <div class="kpi-card"><div class="kpi-val" style="color:var(--orange);">${repair}</div><div class="kpi-lbl">В ремонте</div></div>`;
+
+  if (!equipment.length) {
+    document.getElementById('equipment-grid').innerHTML = `
+      <div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text3);">
+        <div style="font-size:48px;margin-bottom:12px;">🚜</div>
+        <div style="font-size:14px;margin-bottom:8px;">Нет техники</div>
+        <div style="font-size:12px;">Нажмите + Техника чтобы добавить</div>
+      </div>`;
+    return;
+  }
+
+  const STATUS_COLOR = {free:'var(--accent)',busy:'var(--red)',repair:'var(--orange)'};
+  const STATUS_LABEL = {free:'🟢 Свободна',busy:'🔴 Занята',repair:'🔧 Ремонт'};
+  const TYPE_EMOJI = {reel:'🥁',sprinkler:'🌧'};
+  const TYPE_LABEL = {reel:'Барабанная катушка',sprinkler:'Дождевальная установка'};
+
+  document.getElementById('equipment-grid').innerHTML = equipment.map(eq => {
+    const intensity = getEquipIntensity(eq);
+    const field = (S.fields||[]).find(f=>f.id===eq.fieldId);
+    const statusColor = STATUS_COLOR[eq.status] || 'var(--text3)';
+
+    let params = '';
+    if (eq.type === 'reel') {
+      params = `
+        ${eq.reelFlow ? `<div>💧 Расход: <strong>${eq.reelFlow} м³/ч</strong></div>` : ''}
+        ${eq.reelWidth ? `<div>↔️ Захват: <strong>${eq.reelWidth} м</strong></div>` : ''}
+        ${eq.reelSpeed ? `<div>🐢 Скорость: <strong>${eq.reelSpeed} м/мин</strong></div>` : ''}
+        ${eq.reelLength ? `<div>📏 Шланг: <strong>${eq.reelLength} м</strong></div>` : ''}`;
+    } else {
+      params = `
+        ${eq.sprIntensity ? `<div>🌧 Интенсивность: <strong>${eq.sprIntensity} мм/ч</strong></div>` : ''}
+        ${eq.sprRadius ? `<div>↔️ Радиус: <strong>${eq.sprRadius} м</strong></div>` : ''}
+        ${eq.sprFlow ? `<div>💧 Расход: <strong>${eq.sprFlow} м³/ч</strong></div>` : ''}
+        ${eq.sprCount ? `<div>🔢 Дождевателей: <strong>${eq.sprCount}</strong></div>` : ''}`;
+    }
+
+    return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;cursor:pointer;transition:all .2s;border-left:4px solid ${statusColor};"
+      onclick="openEquipmentModal('${eq.id}')">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+        <div>
+          <div style="font-size:14px;font-weight:700;">${TYPE_EMOJI[eq.type]} ${eq.name}</div>
+          <div style="font-size:11px;color:var(--text3);">${TYPE_LABEL[eq.type]}${eq.model?' · '+eq.model:''}${eq.year?' · '+eq.year+' г.':''}</div>
+        </div>
+        <span style="font-size:10px;padding:3px 10px;border-radius:10px;background:${statusColor}22;color:${statusColor};font-weight:700;">${STATUS_LABEL[eq.status]||eq.status}</span>
+      </div>
+
+      ${intensity ? `<div style="padding:6px 10px;background:rgba(85,170,255,.08);border-radius:8px;margin-bottom:8px;font-size:12px;color:var(--blue);">⚡ Интенсивность: <strong>${intensity} мм/ч</strong></div>` : ''}
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:11px;color:var(--text2);margin-bottom:8px;">
+        ${params}
+      </div>
+
+      ${eq.status==='busy'&&field ? `<div style="padding:6px 10px;background:rgba(255,85,85,.06);border-radius:8px;font-size:11px;color:var(--red);">📍 На поле: ${field.number?'№'+field.number+' · ':''}${field.name}${eq.busyUntil?' · до '+eq.busyUntil:''}</div>` : ''}
+      ${eq.note ? `<div style="font-size:10px;color:var(--text3);margin-top:6px;">📝 ${eq.note}</div>` : ''}
+    </div>`;
+  }).join('');
+} // ═══ FIELDS / СПРАВОЧНИК ПОЛЕЙ ═══════════════════════════════════════════
 let _editFieldId = null;
 let _rotationRows = [];
 
