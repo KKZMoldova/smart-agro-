@@ -5365,9 +5365,15 @@ function saveField() {
     S.fields.push(field);
   }
   save();
-  closeModal('modal-field');
-  renderFields();
+if (_vServerAvailable) {
+  fetch('/api/state/vegetable', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ fields: S.fields, equipment: S.equipment })
+  }).catch(e => console.warn('Fields sync failed:', e));
 }
+closeModal('modal-field');
+renderFields();}
 
 function deleteField() {
   if (!_editFieldId || !confirm('Удалить поле?')) return;
