@@ -2540,6 +2540,8 @@ function saveParcel() {
     soil: document.getElementById('p-soil').value,
     note: document.getElementById('p-note').value.trim(),
     fieldId: document.getElementById('p-field').value || null,
+    irrigMethod: document.getElementById('p-irrig-method').value || 'none',
+equipmentId: document.getElementById('p-equipment-id').value || null,
     emitterFlow: parseFloat(document.getElementById('p-emitter-flow').value) || null,
 emitterSpacing: parseFloat(document.getElementById('p-emitter-spacing').value) || null,
 rowSpacing: parseFloat(document.getElementById('p-row-spacing').value) || null,
