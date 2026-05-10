@@ -865,7 +865,22 @@ body[data-readonly="true"] .parcel-card { cursor: default; pointer-events: none;
         </select>
       </div>
      <!-- Капельная лента -->
-<div class="ff full" id="p-drip-section" style="display:none;">
+<div class="ff full"><label>Метод ирригации</label>
+  <select id="p-irrig-method" onchange="updateParcelIrrigFields()">
+    <option value="none">❌ Без орошения</option>
+    <option value="drip">💧 Капельное орошение</option>
+    <option value="sprinkler">🌧 Дождевание</option>
+    <option value="reel">🥁 Барабанная катушка</option>
+  </select>
+</div>
+
+<!-- Мобильная техника -->
+<div class="ff full" id="p-mobile-equip-section" style="display:none;">
+  <label>Техника (из справочника)</label>
+  <select id="p-equipment-id">
+    <option value="">— выбрать технику —</option>
+  </select>
+</div><div class="ff full" id="p-drip-section" style="display:none;">
   <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:'Unbounded',sans-serif;margin-bottom:8px;padding:6px 10px;background:rgba(85,170,255,.06);border-radius:6px;">💧 Капельная лента (сезон)</div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
     <div class="ff"><label>Расход эмиттера (л/ч)</label><input type="number" id="p-emitter-flow" step="0.1" placeholder="1.6"></div>
