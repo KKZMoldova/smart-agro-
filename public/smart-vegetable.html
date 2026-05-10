@@ -5024,9 +5024,10 @@ async function startApp() {
         if (d.treatments?.length)  S.treatments  = d.treatments;
         if (d.irrigations?.length) S.irrigations = d.irrigations;
         if (d.vegAnalyses?.length) S.vegAnalyses = d.vegAnalyses;
-        if (d.catalog?.length)     S.catalog     = d.catalog;
+        if (d.catalog?.length)     S.catalog     = d.catalog
         if (d.settings)            S.settings    = d.settings;
-        if (d.farmName)            S.farmName    = d.farmName;
+       if (d.fields?.length)      S.fields      = d.fields;
+        if (d.equipment?.length)   S.equipment   = d.equipment; if (d.farmName)            S.farmName    = d.farmName;
         if (d.region)              S.region      = d.region;
         localStorage.setItem(STORAGE_KEY, JSON.stringify(S));
         console.log('[Veg] Loaded', S.parcels.length, 'parcels from server');
