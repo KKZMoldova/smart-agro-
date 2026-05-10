@@ -68,33 +68,37 @@ app.post('/api/import/orchard', async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// Full state import for Vegetable
-app.post('/api/import/vegetable', async (req, res) => {
+// Full state GET for Vegetable
+app.get('/api/state/vegetable', async (req, res) => {
   try {
-    const d = req.body;
+    const r = await db.query(`SELECT value FROM settings WHERE key='vegetable_full_state'`);
+    if (!r.rows.length) return res.json({ ok: false });
+    res.json({ ok: true, data: r.rows[0].value });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Full state POST for Vegetable (fields, equipment, parcels)
+app.post('/api/state/vegetable', async (req, res) => {
+  try {
+    const { fields, equipment } = req.body;
+    const r = await db.query(`SELECT value FROM settings WHERE key='vegetable_full_state'`);
+    let state = {};
+    if (r.rows.length) {
+      state = typeof r.rows[0].value === 'string' ? JSON.parse(r.rows[0].value) : r.rows[0].value;
+    }
+    if (fields !== undefined) state.fields = fields;
+    if (equipment !== undefined) state.equipment = equipment;
     await db.query(
       `INSERT INTO settings (key,value) VALUES ('vegetable_full_state',$1)
        ON CONFLICT (key) DO UPDATE SET value=$1, updated_at=NOW()`,
-      [JSON.stringify(d)]
+      [JSON.stringify(state)]
     );
-    if (d.treatments?.length) {
-      for (const t of d.treatments) {
-        await db.query(
-          `INSERT INTO treatments (id,date,parcel_id,parcel_name,crop_id,crop_name,
-           variety,phase_name,gdd,products,method,volume,max_whi,whi_date,note)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
-           ON CONFLICT (id) DO UPDATE SET
-           date=$2,parcel_id=$3,parcel_name=$4,products=$10,
-           method=$11,volume=$12,max_whi=$13,whi_date=$14,note=$15`,
-          [String(t.id), t.date, t.parcelId||null, t.parcelName||'',
-           t.cropId||null, t.cropName||'', t.variety||'',
-           t.phaseName||'', t.gdd||0,
-           JSON.stringify(t.products||[]),
-           t.method||'foliar', t.volume||300,
-           t.maxWhi||0, t.whiDate||null, t.note||'']
-        );
-      }
-    }
+    res.json({ ok: true });
+  } catch(e) {
+    console.error('State POST error:', e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
     res.json({ ok: true, treatments: d.treatments?.length||0 });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
