@@ -340,7 +340,88 @@ body[data-readonly="true"] .parcel-card { cursor: default; pointer-events: none;
   <div id="fields-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;"></div>
 </div>
 
+<!-- ═══ EQUIPMENT ═══ -->
+<div class="panel" id="panel-equipment">
+  <div class="section-hdr">
+    <h2>🚜 Справочник техники</h2>
+    <button class="btn btn-primary" onclick="openEquipmentModal()">+ Техника</button>
+  </div>
+  <div class="card-grid" id="equipment-kpis" style="grid-template-columns:repeat(auto-fill,minmax(160px,1fr));margin-bottom:20px;"></div>
+  <div id="equipment-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;"></div>
+</div>
+
+<!-- Equipment Modal -->
+<div class="modal-overlay" id="modal-equipment">
+  <div class="modal" style="max-width:620px;width:96%;max-height:92vh;overflow-y:auto;">
+    <h2 id="equipment-modal-title">🚜 Новая техника</h2>
+
+    <div class="form-grid" style="margin-bottom:14px;">
+      <div class="ff"><label>Название</label><input type="text" id="eq-name" placeholder="Барабанная катушка №1"></div>
+      <div class="ff"><label>Тип</label>
+        <select id="eq-type" onchange="updateEquipFields()">
+          <option value="reel">🥁 Барабанная катушка</option>
+          <option value="sprinkler">🌧 Дождевальная установка</option>
+        </select>
+      </div>
+      <div class="ff"><label>Производитель / Модель</label><input type="text" id="eq-model" placeholder="Bauer S100"></div>
+      <div class="ff"><label>Год покупки</label><input type="number" id="eq-year" placeholder="2024"></div>
+    </div>
+
+    <!-- Барабанная катушка -->
+    <div id="eq-reel-fields" style="margin-bottom:14px;">
+      <div style="font-size:10px;color:var(--text3);margin-bottom:8px;padding:6px 10px;background:rgba(255,153,68,.06);border-radius:6px;">🥁 Параметры барабанной катушки</div>
+      <div class="form-grid">
+        <div class="ff"><label>Расход насадки (м³/ч)</label><input type="number" id="eq-reel-flow" step="0.1" placeholder="45"></div>
+        <div class="ff"><label>Ширина захвата (м)</label><input type="number" id="eq-reel-width" step="1" placeholder="60"></div>
+        <div class="ff"><label>Скорость движения (м/мин)</label><input type="number" id="eq-reel-speed" step="0.1" placeholder="1.5"></div>
+        <div class="ff"><label>Длина шланга (м)</label><input type="number" id="eq-reel-length" step="10" placeholder="300"></div>
+        <div class="ff"><label>Рабочее давление (бар)</label><input type="number" id="eq-reel-pressure" step="0.1" placeholder="5.0"></div>
+        <div class="ff"><label>Интенсивность (мм/ч)</label><input type="number" id="eq-reel-intensity" step="0.1" placeholder="8.0" readonly style="background:var(--surface3);color:var(--text3);" title="Рассчитывается автоматически"></div>
+      </div>
+    </div>
+
+    <!-- Дождевальная установка -->
+    <div id="eq-sprinkler-fields" style="display:none;margin-bottom:14px;">
+      <div style="font-size:10px;color:var(--text3);margin-bottom:8px;padding:6px 10px;background:rgba(85,170,255,.06);border-radius:6px;">🌧 Параметры дождевальной установки</div>
+      <div class="form-grid">
+        <div class="ff"><label>Интенсивность (мм/ч)</label><input type="number" id="eq-spr-intensity" step="0.1" placeholder="8.0"></div>
+        <div class="ff"><label>Радиус захвата (м)</label><input type="number" id="eq-spr-radius" step="0.5" placeholder="18"></div>
+        <div class="ff"><label>Расход (м³/ч)</label><input type="number" id="eq-spr-flow" step="1" placeholder="30"></div>
+        <div class="ff"><label>Рабочее давление (бар)</label><input type="number" id="eq-spr-pressure" step="0.1" placeholder="3.5"></div>
+        <div class="ff"><label>Кол-во дождевателей</label><input type="number" id="eq-spr-count" step="1" placeholder="1"></div>
+        <div class="ff"><label>Ширина захвата (м)</label><input type="number" id="eq-spr-width" step="1" placeholder="36"></div>
+      </div>
+    </div>
+
+    <!-- Статус -->
+    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:'Unbounded',sans-serif;margin-bottom:8px;">📍 Текущий статус</div>
+    <div class="form-grid" style="margin-bottom:14px;">
+      <div class="ff"><label>Статус</label>
+        <select id="eq-status">
+          <option value="free">🟢 Свободна</option>
+          <option value="busy">🔴 Занята</option>
+          <option value="repair">🔧 Ремонт</option>
+        </select>
+      </div>
+      <div class="ff"><label>На поле</label>
+        <select id="eq-field">
+          <option value="">— не на поле —</option>
+        </select>
+      </div>
+      <div class="ff"><label>Занята до</label><input type="date" id="eq-busy-until"></div>
+      <div class="ff"><label>Примечание</label><input type="text" id="eq-note" placeholder="Особенности..."></div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-equipment')">Отмена</button>
+      <button class="btn btn-danger btn-sm" id="eq-delete-btn" style="display:none;margin-right:auto;" onclick="deleteEquipment()">Удалить</button>
+      <button class="btn btn-primary" onclick="saveEquipment()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
 <!-- Field Modal -->
+<div class="modal-overlay" id="modal-field"><!-- Field Modal -->
 <div class="modal-overlay" id="modal-field">
   <div class="modal" style="max-width:700px;width:96%;max-height:92vh;overflow-y:auto;">
     <h2 id="field-modal-title">🌍 Новое поле</h2>
