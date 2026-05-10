@@ -5139,8 +5139,15 @@ function saveEquipment() {
     S.equipment.push(eq);
   }
   save();
-  closeModal('modal-equipment');
-  renderEquipment();
+if (_vServerAvailable) {
+  fetch('/api/state/vegetable', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ fields: S.fields, equipment: S.equipment })
+  }).catch(e => console.warn('Equipment sync failed:', e));
+}
+closeModal('modal-equipment');
+renderEquipment();
 }
 
 function deleteEquipment() {
