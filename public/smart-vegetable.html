@@ -2439,30 +2439,41 @@ function openParcelModal(parcelId) {
   document.getElementById('p-soil').value    = p?.soil||'loam';
   document.getElementById('p-note').value    = p?.note||'';
   // Капельная лента
-document.getElementById('p-emitter-flow').value = p?.emitterFlow || '';
-document.getElementById('p-emitter-spacing').value = p?.emitterSpacing || '';
-document.getElementById('p-row-spacing').value = p?.rowSpacing || '';
-document.getElementById('p-drip-pressure').value = p?.dripPressure || '';
+  document.getElementById('p-emitter-flow').value = p?.emitterFlow || '';
+  document.getElementById('p-emitter-spacing').value = p?.emitterSpacing || '';
+  document.getElementById('p-row-spacing').value = p?.rowSpacing || '';
+  document.getElementById('p-drip-pressure').value = p?.dripPressure || '';
 
-// Показать/скрыть блок капельной ленты
-const updateDripSection = () => {
-  const cropId = document.getElementById('p-crop').value;
-  const dripSection = document.getElementById('p-drip-section');
-  // Показываем для овощных культур (не сад)
-  const dripCrops = ['tomato','potato','pepper','eggplant','onion','cucumber','zucchini','pea','sweet_corn'];
-  if (dripSection) dripSection.style.display = dripCrops.includes(cropId) ? 'block' : 'none';
-};
-document.getElementById('p-crop').addEventListener('change', updateDripSection);
-updateDripSection();
+  // Метод ирригации
+  document.getElementById('p-irrig-method').value = p?.irrigMethod || 'none';
+
+  // Показать/скрыть блоки ирригации
+  const updateParcelIrrigFields = () => {
+    const method = document.getElementById('p-irrig-method').value;
+    const dripSection = document.getElementById('p-drip-section');
+    const mobileSection = document.getElementById('p-mobile-equip-section');
+    if (dripSection) dripSection.style.display = method==='drip' ? 'block' : 'none';
+    if (mobileSection) mobileSection.style.display = (method==='sprinkler'||method==='reel') ? 'block' : 'none';
+    if (method==='sprinkler'||method==='reel') {
+      const eqSel = document.getElementById('p-equipment-id');
+      eqSel.innerHTML = '<option value="">— выбрать технику —</option>';
+      (S.equipment||[]).filter(e=>e.type===(method==='reel'?'reel':'sprinkler')).forEach(e=>{
+        eqSel.innerHTML += `<option value="${e.id}" ${p?.equipmentId===e.id?'selected':''}>${e.name}${e.model?' · '+e.model:''} — ${e.status==='free'?'🟢 Свободна':'🔴 Занята'}</option>`;
+      });
+    }
+  };
+  document.getElementById('p-irrig-method').addEventListener('change', updateParcelIrrigFields);
+  updateParcelIrrigFields();
+
   // Populate field select
-const fsel = document.getElementById('p-field');
-fsel.innerHTML = '<option value="">— не привязан —</option>';
-(S.fields||[]).forEach(f => {
-  fsel.innerHTML += `<option value="${f.id}" ${p?.fieldId===f.id?'selected':''}>${f.number?'№'+f.number+' · ':''}${f.name} (${f.ha}га)</option>`;
-});
+  const fsel = document.getElementById('p-field');
+  fsel.innerHTML = '<option value="">— не привязан —</option>';
+  (S.fields||[]).forEach(f => {
+    fsel.innerHTML += `<option value="${f.id}" ${p?.fieldId===f.id?'selected':''}>${f.number?'№'+f.number+' · ':''}${f.name} (${f.ha}га)</option>`;
+  });
+
   document.getElementById('p-harvest-gdd').value = p?.harvestGdd||'';
   document.getElementById('p-tdu-window').value  = p?.tduWindow||'';
-
   // Populate crop select
   const sel = document.getElementById('p-crop');
   sel.innerHTML = '<option value="">— выбрать —</option>';
