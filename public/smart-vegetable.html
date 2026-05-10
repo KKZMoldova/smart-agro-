@@ -864,7 +864,7 @@ body[data-readonly="true"] .parcel-card { cursor: default; pointer-events: none;
           <option value="clay">Глина</option>
         </select>
       </div>
-     <!-- Капельная лента -->
+   <!-- Капельная лента -->
 <div class="ff full"><label>Метод ирригации</label>
   <select id="p-irrig-method" onchange="updateParcelIrrigFields()">
     <option value="none">❌ Без орошения</option>
@@ -873,32 +873,36 @@ body[data-readonly="true"] .parcel-card { cursor: default; pointer-events: none;
     <option value="reel">🥁 Барабанная катушка</option>
   </select>
 </div>
-
 <div class="ff full" id="p-mobile-equip-section" style="display:none;">
   <label>Техника (из справочника)</label>
   <select id="p-equipment-id">
     <option value="">— выбрать технику —</option>
   </select>
 </div>
-
 <div class="ff full" id="p-drip-section" style="display:none;">
   <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:'Unbounded',sans-serif;margin-bottom:8px;padding:6px 10px;background:rgba(85,170,255,.06);border-radius:6px;">💧 Капельная лента (сезон)</div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
     <div class="ff"><label>Расход эмиттера (л/ч)</label><input type="number" id="p-emitter-flow" step="0.1" placeholder="1.6"></div>
-   <div class="ff full"><label>Тип почвы</label>
-        <select id="p-soil">
-          <option value="loam">Суглинок</option>
-          <option value="sandy_loam">Супесь</option>
-          <option value="clay_loam">Тяжёлый суглинок</option>
-          <option value="sandy">Песчаная</option>
-          <option value="clay">Глина</option>
-        </select>
-      </div>
-      <div class="ff full"><label>Примечание</label><input type="text" id="p-note" placeholder="Капельное орошение, теплица..."></div> <div class="ff"><label>Расстояние между эмиттерами (см)</label><input type="number" id="p-emitter-spacing" step="1" placeholder="30"></div>
+    <div class="ff"><label>Расстояние между эмиттерами (см)</label><input type="number" id="p-emitter-spacing" step="1" placeholder="30"></div>
     <div class="ff"><label>Расстояние между рядами (м)</label><input type="number" id="p-row-spacing" step="0.1" placeholder="1.5"></div>
     <div class="ff"><label>Рабочее давление (бар)</label><input type="number" id="p-drip-pressure" step="0.1" placeholder="1.2"></div>
   </div>
 </div>
+<div class="ff full"><label>Тип почвы</label>
+  <select id="p-soil">
+    <option value="loam">Суглинок</option>
+    <option value="sandy_loam">Супесь</option>
+    <option value="clay_loam">Тяжёлый суглинок</option>
+    <option value="sandy">Песчаная</option>
+    <option value="clay">Глина</option>
+  </select>
+</div>
+<div class="ff full"><label>Поле (привязка)</label>
+  <select id="p-field">
+    <option value="">— не привязан —</option>
+  </select>
+</div>
+<div class="ff full"><label>Примечание</label><input type="text" id="p-note" placeholder="Капельное орошение, теплица..."></div>
 
 <!-- Мобильная техника -->
 <div class="ff full" id="p-mobile-equip-section" style="display:none;">
