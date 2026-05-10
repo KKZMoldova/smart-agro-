@@ -95,10 +95,6 @@ app.post('/api/state/vegetable', async (req, res) => {
     );
     res.json({ ok: true });
   } catch(e) {
-    
-    res.json({ ok: true });
-  } catch(e) {
-    console.error('State POST error:', e);
     res.status(500).json({ ok: false, error: e.message });
   }
 });
