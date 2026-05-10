@@ -2435,6 +2435,22 @@ function openParcelModal(parcelId) {
   document.getElementById('p-density').value = p?.density||'';
   document.getElementById('p-soil').value    = p?.soil||'loam';
   document.getElementById('p-note').value    = p?.note||'';
+  // Капельная лента
+document.getElementById('p-emitter-flow').value = p?.emitterFlow || '';
+document.getElementById('p-emitter-spacing').value = p?.emitterSpacing || '';
+document.getElementById('p-row-spacing').value = p?.rowSpacing || '';
+document.getElementById('p-drip-pressure').value = p?.dripPressure || '';
+
+// Показать/скрыть блок капельной ленты
+const updateDripSection = () => {
+  const cropId = document.getElementById('p-crop').value;
+  const dripSection = document.getElementById('p-drip-section');
+  // Показываем для овощных культур (не сад)
+  const dripCrops = ['tomato','potato','pepper','eggplant','onion','cucumber','zucchini','pea','sweet_corn'];
+  if (dripSection) dripSection.style.display = dripCrops.includes(cropId) ? 'block' : 'none';
+};
+document.getElementById('p-crop').addEventListener('change', updateDripSection);
+updateDripSection();
   // Populate field select
 const fsel = document.getElementById('p-field');
 fsel.innerHTML = '<option value="">— не привязан —</option>';
