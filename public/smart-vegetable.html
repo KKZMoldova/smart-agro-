@@ -903,6 +903,14 @@ body[data-readonly="true"] .parcel-card { cursor: default; pointer-events: none;
   </select>
 </div>
 <div class="ff full"><label>Примечание</label><input type="text" id="p-note" placeholder="Капельное орошение, теплица..."></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-parcel')">Отмена</button>
+      <button class="btn btn-danger btn-sm" id="p-delete-btn" style="display:none;margin-right:auto;" onclick="deleteParcel()">Удалить</button>
+      <button class="btn btn-primary" onclick="saveParcel()">Сохранить</button>
+    </div>
+  </div>
+</div>
 
 <!-- Мобильная техника -->
 <div class="ff full" id="p-mobile-equip-section" style="display:none;">
