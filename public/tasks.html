@@ -157,6 +157,27 @@ body{font-family:sans-serif;background:#f5f4f0;color:#1a1a18}
     </div>
     <div class="chem-dropdown" id="chem-dropdown"></div>
     <div class="added-chems" id="added-chems"></div>
+   <div id="irrig-block" style="display:none;">
+      <div class="sec">💧 Параметры полива</div>
+      <div class="row2">
+        <div class="fg"><label>Норма полива (мм)</label>
+          <input type="number" id="irrig-mm" step="0.5" placeholder="напр. 25" oninput="calcIrrigTime()">
+        </div>
+        <div class="fg"><label>= м³/га</label>
+          <input type="number" id="irrig-m3ha" step="1" placeholder="250" readonly style="background:#f0efe9;color:#6b6a64;">
+        </div>
+      </div>
+      <div id="irrig-calc-result" style="background:#e8f4ee;border-radius:7px;padding:10px 14px;font-size:13px;display:none;margin-bottom:10px;"></div>
+      <div class="fg"><label>Источник воды</label>
+        <select id="irrig-source">
+          <option value="">— не указан —</option>
+          <option value="canal">Канал</option>
+          <option value="river">Река (Днестр)</option>
+          <option value="well">Скважина</option>
+          <option value="reservoir">Водохранилище</option>
+        </select>
+      </div>
+    </div>
     <div class="sec">👥 Исполнители</div>
     <div class="row2">
       <div class="fg"><label>Создал (агроном) *</label><select id="f-cr"></select></div>
