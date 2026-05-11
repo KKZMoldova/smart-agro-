@@ -2460,7 +2460,7 @@ function openParcelModal(parcelId) {
   document.getElementById('p-irrig-method').value = p?.irrigMethod || 'none';
 
   // Показать/скрыть блоки ирригации
-  const updateParcelIrrigFields = () => {
+  window.updateParcelIrrigFields = () => {
     const method = document.getElementById('p-irrig-method').value;
     const dripSection = document.getElementById('p-drip-section');
     const mobileSection = document.getElementById('p-mobile-equip-section');
