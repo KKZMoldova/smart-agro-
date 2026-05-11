@@ -2485,8 +2485,7 @@ function openParcelModal(parcelId) {
   fieldsToUse.forEach(f => {
     fsel.innerHTML += `<option value="${f.id}" ${p?.fieldId===f.id?'selected':''}>${f.number?'№'+f.number+' · ':''}${f.name} (${f.ha}га)</option>`;
   });
-    fsel.innerHTML += `<option value="${f.id}" ${p?.fieldId===f.id?'selected':''}>${f.number?'№'+f.number+' · ':''}${f.name} (${f.ha}га)</option>`;
-  });
+   });
 
   document.getElementById('p-harvest-gdd').value = p?.harvestGdd||'';
   document.getElementById('p-tdu-window').value  = p?.tduWindow||'';
