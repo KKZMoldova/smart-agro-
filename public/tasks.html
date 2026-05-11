@@ -613,7 +613,60 @@ async function saveEng(){
   closeEng();toast('Техника назначена! Механизатор уведомлён ✈️');load();
 }
 
-load();
+function calcIrrigTime() {
+  const mm = parseFloat(document.getElementById('irrig-mm').value) || 0;
+  const m3El = document.getElementById('irrig-m3ha');
+  const resEl = document.getElementById('irrig-calc-result');
+  if (mm > 0) {
+    m3El.value = Math.round(mm * 10);
+  }
+  if (!selectedParcels.length || !mm) { resEl.style.display='none'; return; }
+  // Загружаем данные полей из vegetable state
+  fetch('/api/state/vegetable').then(r=>r.json()).then(d => {
+    const state = d.data || {};
+    const fields = state.fields || [];
+    const equipment = state.equipment || [];
+    let html = '<strong>💧 Расчёт времени полива:</strong><br><br>';
+    let hasCalc = false;
+    selectedParcels.forEach(p => {
+      // Найти участок в данных
+      const parcels = state.parcels || [];
+      const parcel = parcels.find(x => x.id === p.id);
+      if (!parcel) { html += `${p.name}: нет данных об ирригации<br>`; return; }
+      const field = fields.find(f => f.id === parcel.fieldId);
+      const irrigMethod = parcel.irrigMethod || 'none';
+      if (irrigMethod === 'none') { html += `${p.name}: без орошения<br>`; return; }
+      if (irrigMethod === 'drip') {
+        const ef = parcel.emitterFlow, es = parcel.emitterSpacing, rs = parcel.rowSpacing;
+        if (ef && es && rs) {
+          const intensity = ef / (es/100 * rs); // мм/ч
+          const hours = mm / intensity;
+          html += `<strong>${p.name}</strong> (💧 капельное): интенсивность ${intensity.toFixed(1)} мм/ч → <strong style="color:#1d6a4a">${hours.toFixed(1)} ч</strong> · ${(mm*10*p.ha).toFixed(0)} м³ всего<br>`;
+          hasCalc = true;
+        } else {
+          html += `${p.name}: нет параметров капельной ленты<br>`;
+        }
+      } else if (irrigMethod === 'sprinkler' || irrigMethod === 'reel') {
+        const eq = equipment.find(e => e.id === parcel.equipmentId);
+        if (eq) {
+          const intensity = eq.type==='reel' ? eq.reelIntensity : eq.sprIntensity;
+          if (intensity) {
+            const hours = mm / intensity;
+            html += `<strong>${p.name}</strong> (${irrigMethod==='reel'?'🥁':'🌧'} ${eq.name}): ${intensity} мм/ч → <strong style="color:#1d6a4a">${hours.toFixed(1)} ч</strong> · ${(mm*10*p.ha).toFixed(0)} м³ всего<br>`;
+            hasCalc = true;
+          } else {
+            html += `${p.name}: нет данных об интенсивности техники<br>`;
+          }
+        } else {
+          html += `${p.name}: техника не привязана<br>`;
+        }
+      }
+    });
+    if (!hasCalc) html += '<span style="color:#b85c00;">Заполните параметры ирригации в справочнике полей</span>';
+    resEl.innerHTML = html;
+    resEl.style.display = 'block';
+  }).catch(() => { resEl.style.display='none'; });
+}load();
 </script>
 </body>
 </html>
