@@ -80,7 +80,7 @@ app.get('/api/state/vegetable', async (req, res) => {
 // Full state POST for Vegetable (fields, equipment, parcels)
 app.post('/api/state/vegetable', async (req, res) => {
   try {
-    const { fields, equipment } = req.body;
+    const { fields, equipment, parcels } = req.body;
     const r = await db.query(`SELECT value FROM settings WHERE key='vegetable_full_state'`);
     let state = {};
     if (r.rows.length) {
@@ -88,6 +88,7 @@ app.post('/api/state/vegetable', async (req, res) => {
     }
     if (fields !== undefined) state.fields = fields;
     if (equipment !== undefined) state.equipment = equipment;
+    if (parcels !== undefined) state.parcels = parcels;
     await db.query(
       `INSERT INTO settings (key,value) VALUES ('vegetable_full_state',$1)
        ON CONFLICT (key) DO UPDATE SET value=$1, updated_at=NOW()`,
