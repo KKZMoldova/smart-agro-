@@ -2480,12 +2480,10 @@ function openParcelModal(parcelId) {
   // Populate field select
   const fsel = document.getElementById('p-field');
   fsel.innerHTML = '<option value="">— не привязан —</option>';
-  const fieldsToUse = S.fields && S.fields.length ? S.fields :
-    (() => { try { const d = JSON.parse(localStorage.getItem('sveg_v1')||'{}'); return d.fields||[]; } catch(e){ return []; } })();
+  const fieldsToUse = (S.fields && S.fields.length) ? S.fields : [];
   fieldsToUse.forEach(f => {
     fsel.innerHTML += `<option value="${f.id}" ${p?.fieldId===f.id?'selected':''}>${f.number?'№'+f.number+' · ':''}${f.name} (${f.ha}га)</option>`;
   });
-   });
 
   document.getElementById('p-harvest-gdd').value = p?.harvestGdd||'';
   document.getElementById('p-tdu-window').value  = p?.tduWindow||'';
