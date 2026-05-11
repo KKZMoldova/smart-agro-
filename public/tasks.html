@@ -501,6 +501,12 @@ allParcels=Array.isArray(pd)?pd:(pd.data||[]);
   return Array.isArray(ch)&&ch.length>0;
 }).slice(0,20);
     document.getElementById('f-wt').innerHTML=wt.map(w=>`<option value="${w.id}" data-name="${w.name}">${w.name}</option>`).join('');
+    document.getElementById('f-wt').onchange = function() {
+      const name = this.options[this.selectedIndex]?.textContent?.toLowerCase() || '';
+      const isIrrig = name.includes('полив') || name.includes('ирригац');
+      document.getElementById('irrig-block').style.display = isIrrig ? 'block' : 'none';
+      if (isIrrig) calcIrrigTime();
+    };
     document.getElementById('f-cr').innerHTML=allStaff.map(s=>`<option value="${s.id}" data-name="${s.name}">${s.name} (${s.role})</option>`).join('');
     document.getElementById('f-as').innerHTML=allStaff.map(s=>`<option value="${s.id}" data-name="${s.name}">${s.name} (${s.role})</option>`).join('');
     renderParcelList(allParcels);
