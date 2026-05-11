@@ -2608,9 +2608,24 @@ fetch('/api/parcels', {
     soil: parcel.soil,
     harvest_gdd: parcel.harvestGdd,
     tdu_window: parcel.tduWindow,
-    note: parcel.note
+    note: parcel.note,
+    field_id: parcel.fieldId,
+    irrig_method: parcel.irrigMethod,
+    equipment_id: parcel.equipmentId,
+    emitter_flow: parcel.emitterFlow,
+    emitter_spacing: parcel.emitterSpacing,
+    row_spacing: parcel.rowSpacing,
+    drip_pressure: parcel.dripPressure,
   })
 }).catch(e => console.warn('Parcel sync failed:', e));
+// Сохранить полный state
+if (_vServerAvailable) {
+  fetch('/api/state/vegetable', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ parcels: S.parcels })
+  }).catch(e => console.warn('Parcels state sync failed:', e));
+}
 closeModal('modal-parcel'); renderParcels();
 }
 
