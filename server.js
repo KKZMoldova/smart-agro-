@@ -105,7 +105,7 @@ app.get('/api/state/vegetable', async (req, res) => {
 // Full state POST for Vegetable (fields, equipment, parcels)
 app.post('/api/state/vegetable', async (req, res) => {
   try {
-    const { fields, equipment, parcels } = req.body;
+    const { fields, equipment, parcels, treatments } = req.body;
     const r = await db.query(`SELECT value FROM settings WHERE key='vegetable_full_state'`);
     let state = {};
     if (r.rows.length) {
