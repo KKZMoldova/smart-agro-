@@ -5028,7 +5028,7 @@ async function startApp() {
           });
         }
         if (d.weather?.length)     S.weather     = d.weather;
-        if (d.treatments?.length)  S.treatments  = d.treatments;
+        if (d.treatments !== undefined)  S.treatments  = d.treatments || [];
         if (d.irrigations?.length) S.irrigations = d.irrigations;
         if (d.vegAnalyses?.length) S.vegAnalyses = d.vegAnalyses;
         if (d.catalog?.length)     S.catalog     = d.catalog
