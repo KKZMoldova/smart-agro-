@@ -135,7 +135,9 @@ app.get('/api/state/orchard', async (req, res) => {
 });
 
 app.get('/map', (req, res) =>
-  res.sendFile(path.join(__dirname, 'public', 'map.html')));app.get('/analyses', (req, res) =>
+  res.sendFile(path.join(__dirname, 'public', 'map.html')));
+
+app.get('/analyses', (req, res) =>
   res.sendFile(path.join(__dirname, 'public', 'analyses.html')));
 
 // Full state GET for Vegetable
