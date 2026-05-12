@@ -285,7 +285,7 @@ function actions(t){
     h+=`<button class="btn btn-a" onclick="openProb('${t.id}')">⚠️ Проблема</button>`;
   }
   if(t.status==='in_progress'){
-    h+=`<button class="btn btn-g" onclick="st('${t.id}','done',{closed_by_name:'Механизатор'})">✅ Завершить работу</button>`;
+    h+=`<button class="btn btn-g" onclick="openDone('${t.id}')">✅ Завершить работу</button>`;
     h+=`<button class="btn btn-a" onclick="openProb('${t.id}')">⚠️ Проблема</button>`;
   }
   if(t.status==='done'||t.status==='problem'){
