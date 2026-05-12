@@ -1587,19 +1587,7 @@ async function syncFromServer() {
   et0: d.et0, leafwet: d.leaf_wet,
 }));
     }
-    // Treatments
-    const tRes = await VAPI.getTreatments();
-    if (tRes?.data?.length) {
-      S.treatments = tRes.data.map(t => ({
-        id: t.id, date: t.date,
-        parcelId: t.parcel_id, parcelName: t.parcel_name,
-        cropId: t.crop_id, cropName: t.crop_name,
-        variety: t.variety, phaseName: t.phase_name, gdd: t.gdd,
-        products: t.products || [],
-        method: t.method, volume: t.volume,
-        maxWhi: t.max_whi, whiDate: t.whi_date, note: t.note,
-      }));
-    }
+    
     // Analyses
     const aRes = await VAPI.getAnalyses();
     if (aRes?.data?.length) {
