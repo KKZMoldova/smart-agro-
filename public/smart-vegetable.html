@@ -1622,20 +1622,21 @@ function save() {
 
 async function _saveToServer() {
   try {
-    // Save treatments
-    for (const t of S.treatments) {
-      await VAPI.saveTreatment({
-        id: String(t.id), date: t.date,
-        parcel_id: t.parcelId || null, parcel_name: t.parcelName || '',
-        crop_id: t.cropId || null, crop_name: t.cropName || '',
-        variety: t.variety || '', phase_name: t.phaseName || '',
-        gdd: t.gdd || 0,
-        products: t.products || [],
-        method: t.method || 'foliar', volume: t.volume || 300,
-        max_whi: t.maxWhi || 0, whi_date: t.whiDate || null,
-        note: t.note || '',
+    // Save analyses
+    for (const a of (S.vegAnalyses || [])) {
+      const values = {};
+      ['N','P','K','Ca','Mg','S','Fe','Mn','Zn','B','Cu','Mo',
+       'pH','OM','NO3','EC','TDS','Cl','Na','TDS'].forEach(f => {
+        if (a[f] !== undefined) values[f] = a[f];
+      });
+      await VAPI.saveAnalysis({
+        id: String(a.id), type: a.type || 'leaf', date: a.date,
+        parcel_id: a.parcelId || null, parcel_name: '',
+        lab: a.lab || '', values, note: a.note || '',
       });
     }
+  } catch(e) { console.warn('[Veg] Save to server error:', e.message); }
+}
     // Save analyses
     for (const a of (S.vegAnalyses || [])) {
       const values = {};
