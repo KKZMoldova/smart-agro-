@@ -278,7 +278,6 @@ body{font-family:sans-serif;background:#f5f4f0;color:#1a1a18}
 </div>
 
 <div class="toast" id="toast"></div>
-<div class="toast" id="toast"></div>
 <script>
 const SL={new:'Новое',assigned:'Назначено',accepted:'Принято',in_progress:'В работе',done:'Выполнено',closed:'Закрыто',problem:'Проблема'};
 const SB={new:'b-blue',assigned:'b-purple',accepted:'b-amber',in_progress:'b-green',done:'b-lime',closed:'b-gray',problem:'b-red'};
@@ -694,7 +693,48 @@ function calcIrrigTime() {
     resEl.innerHTML = html;
     resEl.style.display = 'block';
   }).catch(() => { resEl.style.display='none'; });
-}load();
+}
+ function openDone(id) {
+  const t = tasks.find(x=>x.id===id);
+  document.getElementById('done-id').value = id;
+  document.getElementById('done-mm').value = '';
+  document.getElementById('done-m3ha').value = '';
+  document.getElementById('done-note').value = '';
+  document.getElementById('done-total-m3').textContent = '';
+  const isIrrig = t?.work_type_name?.toLowerCase().includes('полив') || t?.work_type_name?.toLowerCase().includes('ирригац');
+  document.getElementById('done-irrig-block').style.display = isIrrig ? 'block' : 'none';
+  document.getElementById('m-done').classList.add('open');
+}
+
+function syncDoneMm() {
+  const id = document.getElementById('done-id').value;
+  const t = tasks.find(x=>x.id===id);
+  const mm = parseFloat(document.getElementById('done-mm').value) || 0;
+  const m3ha = Math.round(mm * 10);
+  document.getElementById('done-m3ha').value = m3ha;
+  const totalHa = t?.total_ha || 0;
+  if (totalHa && mm) {
+    document.getElementById('done-total-m3').textContent = `Итого: ${Math.round(m3ha * totalHa)} м³ на ${totalHa} га`;
+  }
+}
+
+async function saveDone() {
+  const id = document.getElementById('done-id').value;
+  const mm = parseFloat(document.getElementById('done-mm').value) || null;
+  const m3ha = parseFloat(document.getElementById('done-m3ha').value) || null;
+  const note = document.getElementById('done-note').value.trim();
+  const t = tasks.find(x=>x.id===id);
+  const totalM3 = mm && t?.total_ha ? Math.round(mm * 10 * t.total_ha) : null;
+  await st(id, 'done', {
+    closed_by_name: 'Механизатор',
+    problem_note: note || undefined,
+    irrig_mm_actual: mm,
+    irrig_m3ha_actual: m3ha,
+    irrig_total_m3: totalM3,
+  });
+  document.getElementById('m-done').classList.remove('open');
+  toast('Работа завершена ✅');
+} load();
 </script>
 </body>
 </html>
