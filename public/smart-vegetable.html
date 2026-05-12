@@ -4063,7 +4063,15 @@ function deleteTreatmentFromModal(){
 function deleteTreatment(id){
   if(!confirm('Удалить?'))return;
   S.treatments=S.treatments.filter(t=>t.id!==id);
-  save();renderTreatments();
+  save();
+  if (_vServerAvailable) {
+    fetch('/api/state/vegetable', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ treatments: S.treatments })
+    }).catch(e => console.warn('Treatments sync failed:', e));
+  }
+  renderTreatments();
 }
 
 function renderTreatments(){
