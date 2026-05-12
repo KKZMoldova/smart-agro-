@@ -5028,7 +5028,9 @@ async function startApp() {
           });
         }
         if (d.weather?.length)     S.weather     = d.weather;
-        if (d.treatments !== undefined)  S.treatments  = d.treatments || [];
+        console.log('[DEBUG] server treatments:', d.treatments?.length, 'local:', S.treatments.length);
+if (d.treatments !== undefined)  S.treatments  = d.treatments || [];
+console.log('[DEBUG] after merge:', S.treatments.length);
         if (d.irrigations?.length) S.irrigations = d.irrigations;
         if (d.vegAnalyses?.length) S.vegAnalyses = d.vegAnalyses;
         if (d.catalog?.length)     S.catalog     = d.catalog
