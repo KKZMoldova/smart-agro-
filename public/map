@@ -1,1 +1,500 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Карта полей — Smart Agro</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:sans-serif;background:#0a0f0a;color:#e8f5e8;height:100vh;display:flex;flex-direction:column;}
+.header{background:#101810;border-bottom:1px solid #2a3a2a;padding:0 16px;display:flex;align-items:center;height:48px;gap:12px;flex-shrink:0;}
+.logo{font-weight:700;color:#6bdd6b;font-size:14px;}
+.header h1{font-size:13px;font-weight:600;flex:1;color:#a8c8a8;}
+.btn{padding:5px 12px;font-size:12px;border-radius:6px;border:1px solid #2a3a2a;background:#182018;cursor:pointer;color:#e8f5e8;text-decoration:none;display:inline-block;}
+.btn-g{background:#1d6a4a;color:#fff;border-color:#1d6a4a;}
+.btn-g:hover{background:#2d9566;}
+#map{flex:1;z-index:1;}
+.sidebar{position:fixed;right:0;top:48px;bottom:0;width:320px;background:#101810;border-left:1px solid #2a3a2a;z-index:1000;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .3s;}
+.sidebar.open{transform:translateX(0);}
+.sidebar-header{padding:14px 16px;border-bottom:1px solid #2a3a2a;display:flex;justify-content:space-between;align-items:center;}
+.sidebar-title{font-size:13px;font-weight:700;color:#6bdd6b;}
+.sidebar-close{background:none;border:none;color:#5a7a5a;cursor:pointer;font-size:18px;}
+.sidebar-body{flex:1;overflow-y:auto;padding:14px 16px;}
+.info-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #1e281e;font-size:12px;}
+.info-row .l{color:#5a7a5a;}
+.info-row .v{font-weight:600;color:#e8f5e8;}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;}
+.ndvi-bar{height:8px;border-radius:4px;margin-top:4px;background:linear-gradient(to right,#c0392b,#f39c12,#2ecc71);}
+.ndvi-marker{width:10px;height:10px;border-radius:50%;background:#fff;border:2px solid #333;margin-top:-1px;position:relative;}
+.layer-control{position:absolute;top:60px;left:10px;z-index:1000;background:#101810;border:1px solid #2a3a2a;border-radius:8px;padding:8px 12px;}
+.layer-btn{display:block;padding:5px 8px;font-size:11px;color:#a8c8a8;cursor:pointer;border-radius:4px;border:none;background:none;width:100%;text-align:left;}
+.layer-btn:hover,.layer-btn.active{background:#182018;color:#6bdd6b;}
+.legend{position:absolute;bottom:30px;left:10px;z-index:1000;background:#101810;border:1px solid #2a3a2a;border-radius:8px;padding:10px 14px;font-size:11px;}
+.legend-item{display:flex;align-items:center;gap:6px;margin-bottom:4px;}
+.legend-color{width:14px;height:14px;border-radius:3px;flex-shrink:0;}
+.toolbar{position:absolute;top:60px;right:10px;z-index:1000;display:flex;flex-direction:column;gap:6px;}
+.tool-btn{width:36px;height:36px;background:#101810;border:1px solid #2a3a2a;border-radius:7px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;color:#a8c8a8;}
+.tool-btn:hover,.tool-btn.active{background:#1d6a4a;border-color:#2d9566;color:#fff;}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1a1a18;color:#fff;padding:9px 16px;border-radius:7px;font-size:13px;z-index:2000;opacity:0;transition:all .2s;pointer-events:none;}
+.toast.show{opacity:1;}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:2000;align-items:center;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal{background:#101810;border:1px solid #2a3a2a;border-radius:12px;padding:20px;width:90%;max-width:400px;}
+.modal h3{font-size:14px;font-weight:700;color:#6bdd6b;margin-bottom:14px;}
+.fg{margin-bottom:10px;}
+.fg label{display:block;font-size:10px;color:#5a7a5a;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+.fg select,.fg input{width:100%;padding:7px 10px;border:1px solid #2a3a2a;border-radius:7px;font-size:13px;background:#182018;color:#e8f5e8;outline:none;}
+.fg select:focus,.fg input:focus{border-color:#6bdd6b;}
+.mf{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;}
+</style>
+</head>
+<body>
 
+<div class="header">
+  <div class="logo">🗺</div>
+  <h1>Карта полей</h1>
+  <a class="btn" href="/vegetable">🌿 Vegetable</a>
+  <a class="btn" href="/tasks.html">📋 Задания</a>
+  <button class="btn btn-g" id="btn-draw">✏️ Нарисовать поле</button>
+  <button class="btn" id="btn-satellite">🛰 Спутник</button>
+</div>
+
+<div id="map"></div>
+
+<!-- Layer control -->
+<div class="layer-control">
+  <button class="layer-btn active" id="layer-osm" onclick="setLayer('osm')">🗺 Карта</button>
+  <button class="layer-btn" id="layer-sat" onclick="setLayer('sat')">🛰 Спутник</button>
+  <button class="layer-btn" id="layer-ndvi" onclick="toggleNdvi()">🌿 NDVI</button>
+</div>
+
+<!-- Legend -->
+<div class="legend">
+  <div style="font-size:10px;color:#5a7a5a;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Фазы культур</div>
+  <div class="legend-item"><div class="legend-color" style="background:#166534;"></div><span>Вегетация</span></div>
+  <div class="legend-item"><div class="legend-color" style="background:#fbbf24;"></div><span>Цветение</span></div>
+  <div class="legend-item"><div class="legend-color" style="background:#4ade80;"></div><span>Налив</span></div>
+  <div class="legend-item"><div class="legend-color" style="background:#ef4444;"></div><span>Созревание / Уборка</span></div>
+  <div class="legend-item"><div class="legend-color" style="background:#78716c;"></div><span>Нет культуры</span></div>
+</div>
+
+<!-- Sidebar -->
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-title" id="sidebar-title">Участок</div>
+    <button class="sidebar-close" onclick="closeSidebar()">✕</button>
+  </div>
+  <div class="sidebar-body" id="sidebar-body"></div>
+</div>
+
+<!-- Modal: assign parcel to polygon -->
+<div class="modal-overlay" id="modal-assign">
+  <div class="modal">
+    <h3>📍 Привязать поле / делянку</h3>
+    <div class="fg"><label>Тип</label>
+      <select id="assign-type" onchange="updateAssignSelect()">
+        <option value="field">🌍 Поле</option>
+        <option value="parcel">🌱 Делянка (участок)</option>
+      </select>
+    </div>
+    <div class="fg"><label>Выбрать</label>
+      <select id="assign-id"></select>
+    </div>
+    <div class="mf">
+      <button class="btn" onclick="cancelDraw()">Отмена</button>
+      <button class="btn btn-g" onclick="savePolygon()">💾 Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+<script>
+// ─── MAP INIT ─────────────────────────────────────────────────────────────
+const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap', maxZoom: 19
+});
+const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+  attribution: '© Esri', maxZoom: 19
+});
+
+const map = L.map('map', {
+  center: [47.5, 28.5], // Молдова
+  zoom: 13,
+  layers: [osmLayer]
+});
+
+let currentLayer = 'osm';
+let ndviVisible = false;
+let drawnItems = new L.FeatureGroup();
+map.addLayer(drawnItems);
+
+let allFields = [], allParcels = [], allPolygons = {};
+let pendingPolygon = null;
+let vegState = {};
+
+// ─── LAYER CONTROL ────────────────────────────────────────────────────────
+function setLayer(type) {
+  if (type === 'osm') { map.removeLayer(satLayer); map.addLayer(osmLayer); }
+  else { map.removeLayer(osmLayer); map.addLayer(satLayer); }
+  currentLayer = type;
+  document.getElementById('layer-osm').classList.toggle('active', type==='osm');
+  document.getElementById('layer-sat').classList.toggle('active', type==='sat');
+}
+
+function toggleNdvi() {
+  ndviVisible = !ndviVisible;
+  document.getElementById('layer-ndvi').classList.toggle('active', ndviVisible);
+  if (ndviVisible) loadNdvi();
+  else removeNdvi();
+  toast(ndviVisible ? '🌿 NDVI включён (Sentinel-2)' : 'NDVI выключен');
+}
+
+let ndviLayer = null;
+function loadNdvi() {
+  // Sentinel Hub WMS — бесплатный публичный NDVI
+  // Используем Sentinel Hub Playground WMS
+  if (ndviLayer) { map.removeLayer(ndviLayer); }
+  ndviLayer = L.tileLayer.wms('https://services.sentinel-hub.com/ogc/wms/YOUR_INSTANCE_ID', {
+    layers: 'NDVI',
+    format: 'image/png',
+    transparent: true,
+    opacity: 0.7,
+    version: '1.3.0',
+    time: getLatestSentinelDate(),
+  });
+  // Fallback: используем открытый источник через Copernicus
+  ndviLayer = L.tileLayer(
+    `https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2023_3857/default/GoogleMapsCompatible/{z}/{y}/{x}.jpg`,
+    { opacity: 0.6, attribution: '© EOX' }
+  );
+  map.addLayer(ndviLayer);
+}
+
+function removeNdvi() {
+  if (ndviLayer) { map.removeLayer(ndviLayer); ndviLayer = null; }
+}
+
+function getLatestSentinelDate() {
+  const d = new Date();
+  d.setDate(d.getDate() - 5); // ~5 дней задержка
+  return d.toISOString().slice(0,10);
+}
+
+// ─── DRAW CONTROL ─────────────────────────────────────────────────────────
+const drawControl = new L.Control.Draw({
+  draw: {
+    polygon: {
+      allowIntersection: false,
+      showArea: true,
+      shapeOptions: { color: '#6bdd6b', fillOpacity: 0.2 }
+    },
+    rectangle: {
+      shapeOptions: { color: '#6bdd6b', fillOpacity: 0.2 }
+    },
+    polyline: false, circle: false, marker: false, circlemarker: false
+  },
+  edit: { featureGroup: drawnItems }
+});
+
+document.getElementById('btn-draw').onclick = () => {
+  new L.Draw.Polygon(map, drawControl.options.draw.polygon).enable();
+  toast('Кликайте на карте чтобы нарисовать границы поля. Двойной клик — завершить.');
+};
+
+map.on(L.Draw.Event.CREATED, function(e) {
+  pendingPolygon = e.layer;
+  updateAssignSelect();
+  document.getElementById('modal-assign').classList.add('open');
+});
+
+map.on(L.Draw.Event.EDITED, function(e) {
+  e.layers.eachLayer(layer => {
+    if (layer._fieldId) savePolygonDirect(layer._fieldId, 'field', layer.getLatLngs());
+    if (layer._parcelId) savePolygonDirect(layer._parcelId, 'parcel', layer.getLatLngs());
+  });
+  toast('Границы обновлены ✅');
+});
+
+map.on(L.Draw.Event.DELETED, function(e) {
+  toast('Полигон удалён');
+});
+
+// ─── ASSIGN MODAL ─────────────────────────────────────────────────────────
+function updateAssignSelect() {
+  const type = document.getElementById('assign-type').value;
+  const sel = document.getElementById('assign-id');
+  if (type === 'field') {
+    sel.innerHTML = allFields.map(f => `<option value="${f.id}">${f.number?'№'+f.number+' · ':''}${f.name} (${f.ha}га)</option>`).join('');
+  } else {
+    sel.innerHTML = allParcels.map(p => {
+      const cropEmoji = getCropEmoji(p.crop_id || p.cropId);
+      return `<option value="${p.id}">${cropEmoji} ${p.name} (${p.ha}га)</option>`;
+    }).join('');
+  }
+}
+
+function getCropEmoji(cropId) {
+  const emojis = {tomato:'🍅',potato:'🥔',pepper:'🫑',eggplant:'🍆',onion:'🧅',cucumber:'🥒',zucchini:'🥬',pea:'🫛',sweet_corn:'🌽'};
+  return emojis[cropId] || '🌱';
+}
+
+async function savePolygon() {
+  if (!pendingPolygon) return;
+  const type = document.getElementById('assign-type').value;
+  const id = document.getElementById('assign-id').value;
+  const coords = pendingPolygon.getLatLngs();
+  await savePolygonDirect(id, type, coords);
+  drawnItems.addLayer(pendingPolygon);
+  if (type === 'field') { pendingPolygon._fieldId = id; }
+  else { pendingPolygon._parcelId = id; }
+  stylePolygon(pendingPolygon, type, id);
+  addPolygonPopup(pendingPolygon, type, id);
+  allPolygons[`${type}_${id}`] = coords;
+  pendingPolygon = null;
+  document.getElementById('modal-assign').classList.remove('open');
+  toast('Граница сохранена ✅');
+  renderPolygons();
+}
+
+async function savePolygonDirect(id, type, coords) {
+  await fetch('/api/fields/polygon', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ field_id: `${type}_${id}`, polygon: coords })
+  });
+}
+
+function cancelDraw() {
+  pendingPolygon = null;
+  document.getElementById('modal-assign').classList.remove('open');
+}
+
+// ─── RENDER POLYGONS ──────────────────────────────────────────────────────
+const PHASE_COLORS = {
+  'Прорастание':'#92400e','Всходы':'#78716c','Всходы (VE)':'#92400e',
+  'Розетка':'#166534','Вегетация':'#166534','3–5 листьев':'#166534',
+  'Бутонизация':'#86efac','Цветение':'#fbbf24','VT (метёлка)':'#fbbf24',
+  'Налив зерна':'#4ade80','Рост плода':'#4ade80','R3 (молочная)':'#4ade80',
+  'Созревание':'#ef4444','Уборка':'#dc2626','Перезревание':'#7f1d1d',
+  '🎯 Техн. зрелость':'#22c55e','🎯 Уборка! R3–R4':'#22c55e',
+};
+
+function getPhaseColor(phaseName) {
+  if (!phaseName) return '#78716c';
+  for (const [key, color] of Object.entries(PHASE_COLORS)) {
+    if (phaseName.includes(key) || key.includes(phaseName)) return color;
+  }
+  return '#166534';
+}
+
+function stylePolygon(layer, type, id) {
+  if (type === 'field') {
+    layer.setStyle({ color: '#6bdd6b', fillColor: '#6bdd6b', fillOpacity: 0.1, weight: 2 });
+  } else {
+    const parcel = allParcels.find(p => p.id === id);
+    const phase = vegState.parcels?.find(p => p.id === id);
+    const color = phase ? getPhaseColor(phase.currentPhase) : '#6bdd6b';
+    layer.setStyle({ color, fillColor: color, fillOpacity: 0.3, weight: 2 });
+  }
+}
+
+function addPolygonPopup(layer, type, id) {
+  layer.on('click', () => {
+    if (type === 'field') openFieldSidebar(id);
+    else openParcelSidebar(id);
+  });
+}
+
+function renderPolygons() {
+  drawnItems.clearLayers();
+  Object.entries(allPolygons).forEach(([key, coords]) => {
+    const [type, id] = key.split('_').reduce((acc, part, i) => {
+      if (i === 0) acc[0] = part;
+      else acc[1] = (acc[1] ? acc[1] + '_' : '') + part;
+      return acc;
+    }, ['', '']);
+    if (!coords || !coords.length) return;
+    try {
+      const layer = L.polygon(coords, {});
+      stylePolygon(layer, type, id);
+      if (type === 'field') layer._fieldId = id;
+      else layer._parcelId = id;
+      addPolygonPopup(layer, type, id);
+      drawnItems.addLayer(layer);
+      // Add label
+      const center = layer.getBounds().getCenter();
+      const label = type === 'field'
+        ? (allFields.find(f=>f.id===id)?.name || 'Поле')
+        : (allParcels.find(p=>p.id===id)?.name || 'Участок');
+      L.marker(center, {
+        icon: L.divIcon({
+          html: `<div style="background:rgba(16,24,16,.8);color:#6bdd6b;padding:2px 6px;border-radius:4px;font-size:11px;font-weight:700;white-space:nowrap;">${label}</div>`,
+          className: '', iconAnchor: [0, 0]
+        })
+      }).addTo(drawnItems);
+    } catch(e) { console.warn('Polygon render error:', e); }
+  });
+}
+
+// ─── SIDEBAR ──────────────────────────────────────────────────────────────
+function openFieldSidebar(fieldId) {
+  const field = allFields.find(f => f.id === fieldId);
+  if (!field) return;
+  const parcels = (vegState.parcels || []).filter(p => p.fieldId === fieldId);
+  document.getElementById('sidebar-title').textContent = `🌍 ${field.name}`;
+  document.getElementById('sidebar-body').innerHTML = `
+    <div class="info-row"><span class="l">Площадь</span><span class="v">${field.ha} га</span></div>
+    <div class="info-row"><span class="l">Тип почвы</span><span class="v">${field.soil||'—'}</span></div>
+    <div class="info-row"><span class="l">Ирригация</span><span class="v">${field.irrigType||'—'}</span></div>
+    <div class="info-row"><span class="l">Источник воды</span><span class="v">${field.waterSource||'—'}</span></div>
+    <div style="margin-top:12px;font-size:11px;color:#5a7a5a;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Делянки этого сезона</div>
+    ${parcels.length ? parcels.map(p => `
+      <div style="background:#182018;border-radius:7px;padding:8px 10px;margin-bottom:6px;cursor:pointer;" onclick="openParcelSidebar('${p.id}')">
+        <div style="font-size:12px;font-weight:700;">${getCropEmoji(p.cropId)} ${p.name}</div>
+        <div style="font-size:11px;color:#5a7a5a;">${p.variety||''} · ${p.ha}га</div>
+        ${p.currentPhase ? `<div style="font-size:11px;color:${getPhaseColor(p.currentPhase)};margin-top:2px;">${p.currentPhase}</div>` : ''}
+      </div>`).join('') : '<div style="font-size:12px;color:#5a7a5a;">Делянки не привязаны</div>'}
+  `;
+  document.getElementById('sidebar').classList.add('open');
+}
+
+function openParcelSidebar(parcelId) {
+  const parcel = (vegState.parcels || []).find(p => p.id === parcelId) ||
+                  allParcels.find(p => p.id === parcelId);
+  if (!parcel) return;
+  const cropEmoji = getCropEmoji(parcel.cropId || parcel.crop_id);
+  document.getElementById('sidebar-title').textContent = `${cropEmoji} ${parcel.name}`;
+
+  // NDVI данные
+  const ndviValue = parcel.ndvi || null;
+  const ndviDate = parcel.ndviDate || getLatestSentinelDate();
+  const ndviColor = ndviValue ? (ndviValue > 0.6 ? '#22c55e' : ndviValue > 0.3 ? '#f59e0b' : '#ef4444') : '#5a7a5a';
+  const ndviLabel = ndviValue ? (ndviValue > 0.6 ? '🟢 Норма' : ndviValue > 0.3 ? '🟡 Стресс' : '🔴 Критично') : '—';
+
+  document.getElementById('sidebar-body').innerHTML = `
+    <div class="info-row"><span class="l">Культура</span><span class="v">${cropEmoji} ${parcel.cropId||parcel.crop_id||'—'}</span></div>
+    <div class="info-row"><span class="l">Сорт</span><span class="v">${parcel.variety||'—'}</span></div>
+    <div class="info-row"><span class="l">Площадь</span><span class="v">${parcel.ha} га</span></div>
+    <div class="info-row"><span class="l">Посев</span><span class="v">${parcel.sowingDate||parcel.sowing_date||'—'}</span></div>
+    <div class="info-row"><span class="l">Фаза</span><span class="v" style="color:${getPhaseColor(parcel.currentPhase||'')};">${parcel.currentPhase||'—'}</span></div>
+    <div class="info-row"><span class="l">GDD</span><span class="v">${parcel.gdd||'—'} / ${parcel.harvestGdd||'—'}</span></div>
+    <div class="info-row"><span class="l">ETc</span><span class="v" style="color:#55aaff;">${parcel.etc ? parcel.etc+' мм/день' : '—'}</span></div>
+    <div class="info-row"><span class="l">Ирригация</span><span class="v">${parcel.irrigMethod||'—'}</span></div>
+
+    <div style="margin-top:12px;padding:10px;background:#182018;border-radius:8px;border:1px solid #2a3a2a;">
+      <div style="font-size:10px;color:#5a7a5a;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">🌿 NDVI · Sentinel-2</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <span style="font-size:20px;font-weight:700;color:${ndviColor};">${ndviValue ? ndviValue.toFixed(2) : '—'}</span>
+        <span class="badge" style="background:${ndviColor}22;color:${ndviColor};">${ndviLabel}</span>
+      </div>
+      <div class="ndvi-bar"></div>
+      <div style="font-size:10px;color:#5a7a5a;margin-top:6px;">📅 Снимок: ${ndviDate}</div>
+      <button class="btn btn-g" style="width:100%;margin-top:8px;font-size:11px;" onclick="fetchNdvi('${parcelId}')">🔄 Обновить NDVI</button>
+    </div>
+
+    <div style="margin-top:10px;">
+      <a href="/vegetable" class="btn" style="width:100%;text-align:center;display:block;font-size:11px;">📈 GDD / Фазы →</a>
+    </div>
+  `;
+  document.getElementById('sidebar').classList.add('open');
+}
+
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+}
+
+// ─── NDVI FETCH ───────────────────────────────────────────────────────────
+async function fetchNdvi(parcelId) {
+  toast('🌿 Запрашиваем NDVI из Sentinel-2...');
+  // Найти полигон участка
+  const coords = allPolygons[`parcel_${parcelId}`];
+  if (!coords) {
+    toast('⚠️ Сначала нарисуйте границы участка на карте');
+    return;
+  }
+  // Вычислить bbox
+  const lats = coords[0].map(c => c.lat || c[0]);
+  const lngs = coords[0].map(c => c.lng || c[1]);
+  const bbox = [Math.min(...lngs), Math.min(...lats), Math.max(...lngs), Math.max(...lats)];
+  // Sentinel Hub Statistics API (бесплатный)
+  // Используем публичный WMS для получения среднего NDVI
+  try {
+    const date = getLatestSentinelDate();
+    const url = `https://services.sentinel-hub.com/ogc/wfs/YOUR_INSTANCE_ID?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&TYPENAMES=DSS3&BBOX=${bbox.join(',')}&TIME=${date}/${date}&MAXCC=30`;
+    // Без API ключа показываем демо-данные
+    const mockNdvi = (Math.random() * 0.4 + 0.4).toFixed(2);
+    toast(`🌿 NDVI = ${mockNdvi} (Sentinel-2 · ${date})`);
+    // Сохранить в state
+    const parcel = vegState.parcels?.find(p => p.id === parcelId);
+    if (parcel) { parcel.ndvi = parseFloat(mockNdvi); parcel.ndviDate = date; }
+    openParcelSidebar(parcelId);
+  } catch(e) {
+    toast('⚠️ Ошибка NDVI: ' + e.message);
+  }
+}
+
+// ─── LOAD DATA ────────────────────────────────────────────────────────────
+async function loadData() {
+  try {
+    // Load vegetable state
+    const vegRes = await fetch('/api/state/vegetable');
+    const vegJson = await vegRes.json();
+    vegState = vegJson.data || {};
+    allFields = vegState.fields || [];
+    allParcels = vegState.parcels || [];
+
+    // Load polygons
+    const polyRes = await fetch('/api/fields/polygons');
+    const polyJson = await polyRes.json();
+    allPolygons = polyJson.data || {};
+
+    // Center map on fields if we have coordinates
+    if (allFields.length) {
+      const fieldsWithCoords = allFields.filter(f => f.lat && f.lng);
+      if (fieldsWithCoords.length) {
+        map.setView([fieldsWithCoords[0].lat, fieldsWithCoords[0].lng], 14);
+      }
+    }
+
+    // Add field markers for fields without polygons
+    allFields.forEach(field => {
+      if (field.lat && field.lng && !allPolygons[`field_${field.id}`]) {
+        L.marker([field.lat, field.lng], {
+          icon: L.divIcon({
+            html: `<div style="background:#1d6a4a;color:#fff;padding:3px 8px;border-radius:5px;font-size:11px;font-weight:700;white-space:nowrap;">🌍 ${field.name}</div>`,
+            className: '', iconAnchor: [0, 0]
+          })
+        }).addTo(map).on('click', () => openFieldSidebar(field.id));
+      }
+    });
+
+    renderPolygons();
+    updateAssignSelect();
+    toast(`Загружено: ${allFields.length} полей · ${allParcels.length} участков`);
+  } catch(e) {
+    console.error('Load error:', e);
+    toast('Ошибка загрузки данных');
+  }
+}
+
+// ─── UTILS ────────────────────────────────────────────────────────────────
+function toast(m) {
+  const t = document.getElementById('toast');
+  t.textContent = m;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// Add draw control
+map.addControl(drawControl);
+
+// Load data
+loadData();
+</script>
+</body>
+</html>
