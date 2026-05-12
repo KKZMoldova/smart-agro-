@@ -250,6 +250,34 @@ body{font-family:sans-serif;background:#f5f4f0;color:#1a1a18}
 </div>
 </div>
 
+  <!-- МОДАЛ: Завершение работы -->
+<div class="overlay" id="m-done">
+<div class="modal" style="max-width:440px">
+  <h2>✅ Завершить работу</h2>
+  <input type="hidden" id="done-id">
+  <div id="done-irrig-block" style="display:none;">
+    <div class="sec">💧 Фактический полив</div>
+    <div class="row2">
+      <div class="fg"><label>Фактически вылито (мм)</label>
+        <input type="number" id="done-mm" step="0.5" placeholder="напр. 20" oninput="syncDoneMm()">
+      </div>
+      <div class="fg"><label>= м³/га</label>
+        <input type="number" id="done-m3ha" readonly style="background:#f0efe9;color:#6b6a64;">
+      </div>
+    </div>
+    <div id="done-total-m3" style="font-size:12px;color:#1d6a4a;margin-bottom:8px;"></div>
+  </div>
+  <div class="fg"><label>Комментарий</label>
+    <textarea id="done-note" rows="2" placeholder="Замечания, отклонения..."></textarea>
+  </div>
+  <div class="mf">
+    <button class="btn" onclick="document.getElementById('m-done').classList.remove('open')">Отмена</button>
+    <button class="btn btn-g" onclick="saveDone()">✅ Завершить</button>
+  </div>
+</div>
+</div>
+
+<div class="toast" id="toast"></div>
 <div class="toast" id="toast"></div>
 <script>
 const SL={new:'Новое',assigned:'Назначено',accepted:'Принято',in_progress:'В работе',done:'Выполнено',closed:'Закрыто',problem:'Проблема'};
