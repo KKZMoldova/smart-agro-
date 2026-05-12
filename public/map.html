@@ -457,7 +457,7 @@ async function loadData() {
     if (allFields.length) {
       const fieldsWithCoords = allFields.filter(f => f.lat && f.lng);
       if (fieldsWithCoords.length) {
-        map.setView([fieldsWithCoords[0].lat, fieldsWithCoords[0].lng], 14);
+        map.setView([48.0332, 28.5563], 12);
       }
     }
 
