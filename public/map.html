@@ -297,12 +297,19 @@ function getPhaseColor(phaseName) {
 
 function stylePolygon(layer, type, id) {
   if (type === 'field') {
-    layer.setStyle({ color: '#6bdd6b', fillColor: '#6bdd6b', fillOpacity: 0.1, weight: 2 });
+    layer.setStyle({ color: '#6bdd6b', fillColor: '#6bdd6b', fillOpacity: 0.08, weight: 2, dashArray: '5,5' });
   } else {
     const parcel = allParcels.find(p => p.id === id);
-    const phase = vegState.parcels?.find(p => p.id === id);
-    const color = phase ? getPhaseColor(phase.currentPhase) : '#6bdd6b';
-    layer.setStyle({ color, fillColor: color, fillOpacity: 0.3, weight: 2 });
+    // Определить цвет по сорту/названию если нет фазы
+    const PARCEL_COLORS = [
+      '#4ade80','#60a5fa','#f59e0b','#ef4444','#a78bfa',
+      '#34d399','#fb923c','#38bdf8','#e879f9','#facc15',
+      '#f87171','#86efac','#93c5fd','#fde68a','#c4b5fd'
+    ];
+    // Цвет по индексу участка для уникальности
+    const idx = allParcels.findIndex(p => p.id === id);
+    const baseColor = PARCEL_COLORS[idx % PARCEL_COLORS.length];
+    layer.setStyle({ color: baseColor, fillColor: baseColor, fillOpacity: 0.35, weight: 2 });
   }
 }
 
