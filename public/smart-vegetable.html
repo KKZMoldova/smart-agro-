@@ -4119,7 +4119,7 @@ function renderTreatments(){
           return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;${ow?'border-left:3px solid var(--red);':''}">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px;margin-bottom:8px;">
               <div>
-                <span style="font-size:12px;font-weight:700;">${t.parcelName}</span>
+                <span style="font-size:12px;font-weight:700;">${t.parcelName || t.variety || '—'}</span>
                 <span style="font-size:11px;color:var(--text3);"> · ${t.cropName||''}${t.variety?' · '+t.variety:''}</span>
                 <span style="font-size:10px;margin-left:6px;">${MI[t.method]||''} ${t.volume||300}л/га</span>
               </div>
@@ -4152,7 +4152,7 @@ function renderTreatments(){
       const pr=(t.products||[{name:t.product,type:t.type,dose:t.dose}]).map(p=>p.name).join(', ');
       return `<tr ${ow?'style="background:rgba(255,85,85,.05);"':''}>
         <td style="font-family:'JetBrains Mono',monospace;font-size:11px;">${t.date?.slice(0,10)||'—'}</td>
-        <td style="font-weight:600;">${t.parcelName}</td>
+        <td style="font-weight:600;">${t.parcelName || t.variety || '—'}</td>
         <td style="font-size:11px;">${pr}</td>
         <td>${MI[t.method]||''} ${t.volume||''}л</td>
         <td style="color:var(--accent);font-size:10px;">${t.phaseName||'—'}</td>
