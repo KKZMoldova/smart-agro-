@@ -4043,7 +4043,15 @@ function saveTreatment(){
   if(_editTreatId){const idx=S.treatments.findIndex(t=>t.id===_editTreatId);if(idx>=0)S.treatments[idx]=entry;}
   else S.treatments.push(entry);
   S.treatments.sort((a,b)=>b.date.localeCompare(a.date));
-  save();closeModal('modal-treatment');renderTreatments();
+  save();
+  if (_vServerAvailable) {
+    fetch('/api/state/vegetable', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ treatments: S.treatments })
+    }).catch(e => console.warn('Treatments sync failed:', e));
+  }
+  closeModal('modal-treatment');renderTreatments();
 }
 
 function deleteTreatmentFromModal(){
