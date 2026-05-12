@@ -68,7 +68,32 @@ app.post('/api/import/orchard', async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// Full state GET for Vegetable
+// Save field polygons
+app.post('/api/fields/polygon', async (req, res) => {
+  try {
+    const { field_id, polygon } = req.body;
+    if (!field_id || !polygon) return res.status(400).json({ error: 'field_id and polygon required' });
+    await db.query(
+      `INSERT INTO settings (key, value) VALUES ($1, $2)
+       ON CONFLICT (key) DO UPDATE SET value=$2, updated_at=NOW()`,
+      [`field_polygon_${field_id}`, JSON.stringify(polygon)]
+    );
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Get all field polygons
+app.get('/api/fields/polygons', async (req, res) => {
+  try {
+    const r = await db.query(`SELECT key, value FROM settings WHERE key LIKE 'field_polygon_%'`);
+    const polygons = {};
+    r.rows.forEach(row => {
+      const fieldId = row.key.replace('field_polygon_', '');
+      polygons[fieldId] = typeof row.value === 'string' ? JSON.parse(row.value) : row.value;
+    });
+    res.json({ ok: true, data: polygons });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});// Full state GET for Vegetable
 app.get('/api/state/vegetable', async (req, res) => {
   try {
     const r = await db.query(`SELECT value FROM settings WHERE key='vegetable_full_state'`);
