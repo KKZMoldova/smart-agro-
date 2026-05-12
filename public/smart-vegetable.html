@@ -1637,20 +1637,7 @@ async function _saveToServer() {
     }
   } catch(e) { console.warn('[Veg] Save to server error:', e.message); }
 }
-    // Save analyses
-    for (const a of (S.vegAnalyses || [])) {
-      const values = {};
-      ['N','P','K','Ca','Mg','S','Fe','Mn','Zn','B','Cu','Mo',
-       'pH','OM','NO3','EC','TDS','Cl','Na','TDS'].forEach(f => {
-        if (a[f] !== undefined) values[f] = a[f];
-      });
-      await VAPI.saveAnalysis({
-        id: String(a.id), type: a.type || 'leaf', date: a.date,
-        parcel_id: a.parcelId || null, parcel_name: '',
-        lab: a.lab || '', values, note: a.note || '',
-      });
-    }
-  } catch(e) { console.warn('[Veg] Save to server error:', e.message); }
+   } catch(e) { console.warn('[Veg] Save to server error:', e.message); }
 }
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────
