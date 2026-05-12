@@ -1637,8 +1637,6 @@ async function _saveToServer() {
     }
   } catch(e) { console.warn('[Veg] Save to server error:', e.message); }
 }
-   } catch(e) { console.warn('[Veg] Save to server error:', e.message); }
-
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────
 function getCropById(id) { return CROPS.find(c=>c.id===id); }
