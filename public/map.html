@@ -124,8 +124,9 @@ const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/servic
 });
 
 const map = L.map('map', {
-  center: [48.0332, 28.5563], // Центр хозяйства
+  center: [48.0332, 28.5563],
   zoom: 12,
+  zoomControl: false,
  zoomControl: true, layers: [osmLayer]
 });
 
@@ -133,6 +134,7 @@ let currentLayer = 'osm';
 let ndviVisible = false;
 let drawnItems = new L.FeatureGroup();
 map.addLayer(drawnItems);
+  L.control.zoom({ position: 'bottomright' }).addTo(map);
 
 let allFields = [], allParcels = [], allPolygons = {};
 let pendingPolygon = null;
