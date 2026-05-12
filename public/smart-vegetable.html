@@ -4151,7 +4151,7 @@ function renderTreatments(){
       const ow=t.whiDate&&t.whiDate>today();
       const pr=(t.products||[{name:t.product,type:t.type,dose:t.dose}]).map(p=>p.name).join(', ');
       return `<tr ${ow?'style="background:rgba(255,85,85,.05);"':''}>
-        <td style="font-family:'JetBrains Mono',monospace;font-size:11px;">${t.date}</td>
+        <td style="font-family:'JetBrains Mono',monospace;font-size:11px;">${t.date?.slice(0,10)||'—'}</td>
         <td style="font-weight:600;">${t.parcelName}</td>
         <td style="font-size:11px;">${pr}</td>
         <td>${MI[t.method]||''} ${t.volume||''}л</td>
