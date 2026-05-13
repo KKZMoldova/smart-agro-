@@ -4,7 +4,23 @@ const cron    = require('node-cron');
 const path    = require('path');
 const fs      = require('fs');
 const db      = require('./db');
+// Telegram
+const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN || '8694496744:AAEIfRwHFrau8tgZyQcMRt2k1tUiHYjgCHs';
+const TELEGRAM_GROUP_ID = process.env.TELEGRAM_GROUP_ID || '-1003971153442';
 
+async function sendTelegram(chatId, message) {
+  try {
+    await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: message,
+        parse_mode: 'HTML'
+      })
+    });
+  } catch(e) { console.error('[Telegram] Send error:', e.message); }
+}
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
