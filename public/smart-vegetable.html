@@ -5189,7 +5189,7 @@ if (d.treatments !== undefined)  S.treatments  = d.treatments || [];
 console.log('[DEBUG] after merge:', S.treatments.length);
         if (d.irrigations?.length) S.irrigations = d.irrigations;
         if (d.vegAnalyses?.length) S.vegAnalyses = d.vegAnalyses;
-        if (d.catalog?.length)     S.catalog     = d.catalog
+        if (d.catalog !== undefined && d.catalog?.length) S.catalog = d.catalog;
         if (d.settings)            S.settings    = d.settings;
        if (d.fields?.length)      S.fields      = d.fields;
         if (d.equipment?.length)   S.equipment   = d.equipment; if (d.farmName)            S.farmName    = d.farmName;
