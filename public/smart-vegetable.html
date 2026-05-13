@@ -4347,8 +4347,24 @@ function openCatalogModal(id) {
   document.getElementById('c-whi').value=item?.whi||'';
   document.getElementById('c-crops').value=item?.crops||'';
   document.getElementById('c-targets').value=item?.targets||'';
+  document.getElementById('c-buh-name').value=item?.buhName||'';
+  document.getElementById('c-legal').value=item?.legal||'legal';
+  document.getElementById('c-payment').value=item?.payment||'official';
+  document.getElementById('c-in-buh').value=item?.inBuh||'yes';
+  document.getElementById('c-price').value=item?.price||'';
+  document.getElementById('c-supplier').value=item?.supplier||'';
+  document.getElementById('c-unit').value=item?.unit||'l';
+  document.getElementById('c-min-stock').value=item?.minStock||'';
+  document.getElementById('c-delete-btn').style.display=id?'block':'none';
   openModal('modal-catalog');
 }
+
+function deleteCatalogItem() {
+  if(!_editCatId||!confirm('Удалить препарат?'))return;
+  S.catalog=S.catalog.filter(c=>c.id!==_editCatId);
+  save();closeModal('modal-catalog');renderCatalog();
+}
+
 function saveCatalogItem() {
   const name=document.getElementById('c-name').value.trim();
   if(!name){alert('Введите название');return;}
@@ -4360,11 +4376,19 @@ function saveCatalogItem() {
     whi:parseInt(document.getElementById('c-whi').value)||0,
     crops:document.getElementById('c-crops').value,
     targets:document.getElementById('c-targets').value,
+    // Двойной учёт
+    buhName:document.getElementById('c-buh-name').value.trim(),
+    legal:document.getElementById('c-legal').value,
+    payment:document.getElementById('c-payment').value,
+    inBuh:document.getElementById('c-in-buh').value,
+    price:parseFloat(document.getElementById('c-price').value)||null,
+    supplier:document.getElementById('c-supplier').value.trim(),
+    unit:document.getElementById('c-unit').value,
+    minStock:parseFloat(document.getElementById('c-min-stock').value)||null,
   };
   if(_editCatId){const idx=S.catalog.findIndex(c=>c.id===_editCatId);if(idx>=0)S.catalog[idx]=item;}
   else S.catalog.push(item);
   save();
-  // Сохранить в PostgreSQL
   fetch('/api/catalog',{
     method:'POST',
     headers:{'Content-Type':'application/json'},
