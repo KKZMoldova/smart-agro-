@@ -4298,6 +4298,42 @@ function saveTreatment(){
       body: JSON.stringify({ treatments: S.treatments })
     }).catch(e => console.warn('Treatments sync failed:', e));
   }
+// Создать задачу в журнале работ
+  if (!_editTreatId) {
+    const chemicals = entry.products.map(p => ({
+      id: p.catId || uid(),
+      name: p.name,
+      type: p.type || 'other',
+      target: '',
+      dose_actual: p.dose || '',
+      dose_default: p.dose || ''
+    }));
+    const parcelsJson = _selectedParcels.map(pid => {
+      const pc = S.parcels.find(x => x.id === pid);
+      return { id: pid, name: pc?.name || '—', ha: pc?.ha || 0 };
+    });
+    const totalHa = parcelsJson.reduce((s, p) => s + (p.ha || 0), 0);
+    const taskPayload = {
+      work_type_id: 'wt-001',
+      work_type_name: 'Обработка пестицидами',
+      parcel_id: _selectedParcels[0],
+      parcel_name: parcelsJson[0]?.name || '—',
+      parcels_json: parcelsJson,
+      total_ha: totalHa,
+      due_date: entry.date,
+      status: 'new',
+      chemicals,
+      treatment_id: entry.id,
+      note: entry.note || null
+    };
+    fetch('/api/tasks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(taskPayload)
+    }).then(r => r.json()).then(d => {
+      console.log('[Task created]', d);
+    }).catch(e => console.warn('Task creation failed:', e));
+  }
   closeModal('modal-treatment');renderTreatments();
 }
 
