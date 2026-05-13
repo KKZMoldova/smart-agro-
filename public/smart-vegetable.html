@@ -4217,7 +4217,6 @@ function renderParcelList() {
 }
 function saveTreatment(){
   const date=document.getElementById('t-date').value;
-  const parcelId=document.getElementById('t-parcel').value;
   if(!date){alert('Введите дату');return;}
   if(!parcelId){alert('Выберите участок');return;}
   const products=_treatProductRows.filter(r=>r.name?.trim());
