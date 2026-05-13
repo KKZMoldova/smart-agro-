@@ -4367,7 +4367,14 @@ function openCatalogModal(id) {
 function deleteCatalogItem() {
   if(!_editCatId||!confirm('Удалить препарат?'))return;
   S.catalog=S.catalog.filter(c=>c.id!==_editCatId);
-  save();closeModal('modal-catalog');renderCatalog();
+  if (_vServerAvailable) {
+    fetch('/api/state/vegetable', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ catalog: S.catalog })
+    }).catch(e => console.warn('Catalog sync failed:', e));
+  }
+  closeModal('modal-catalog');renderCatalog();
 }
 
 function saveCatalogItem() {
