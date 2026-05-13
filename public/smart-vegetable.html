@@ -4579,7 +4579,202 @@ function showBuhReport() {
   document.getElementById('close-grouped-report').onclick = () => el.style.display='none';
 }
 
-// ── Import/Export ─────────────────────────────────────────────────────────
+// ═══ WAREHOUSE ═══════════════════════════════════════════════════════════
+let _whTab = 'chemicals';
+
+if (!S.warehouse) S.warehouse = { chemicals: [], parts: [], history: [] };
+
+function showWarehouseTab(tab) {
+  _whTab = tab;
+  ['chemicals','parts','history'].forEach(t => {
+    const el = document.getElementById('wh-'+t);
+    const btn = document.getElementById('wh-tab-'+t);
+    if(el) el.style.display = t===tab ? '' : 'none';
+    if(btn) btn.classList.toggle('active', t===tab);
+  });
+  renderWarehouse();
+}
+
+function switchWhModalTab(type) {
+  document.getElementById('wh-modal-type').value = type;
+  document.getElementById('wh-modal-chemical').style.display = type==='chemical' ? '' : 'none';
+  document.getElementById('wh-modal-part').style.display = type==='part' ? '' : 'none';
+  document.getElementById('wh-modal-tab-chemical').classList.toggle('active', type==='chemical');
+  document.getElementById('wh-modal-tab-part').classList.toggle('active', type==='part');
+}
+
+function openWarehouseModal() {
+  if (!S.warehouse) S.warehouse = { chemicals: [], parts: [], history: [] };
+  document.getElementById('wh-modal-title').textContent = '📦 Приход товара';
+  document.getElementById('wh-date').value = today();
+  document.getElementById('wh-part-date').value = today();
+  document.getElementById('wh-qty').value = '';
+  document.getElementById('wh-price').value = '';
+  document.getElementById('wh-supplier').value = '';
+  document.getElementById('wh-min-stock').value = '';
+  document.getElementById('wh-note').value = '';
+  document.getElementById('wh-part-name').value = '';
+  document.getElementById('wh-part-qty').value = '';
+  document.getElementById('wh-part-price').value = '';
+  document.getElementById('wh-part-supplier').value = '';
+  document.getElementById('wh-part-min-stock').value = '';
+  document.getElementById('wh-part-resource-hours').value = '';
+  document.getElementById('wh-part-resource-seasons').value = '';
+  document.getElementById('wh-part-installed').value = '';
+  document.getElementById('wh-part-worked').value = '';
+  document.getElementById('wh-part-note').value = '';
+  // Populate chemicals select
+  const sel = document.getElementById('wh-chemical-id');
+  sel.innerHTML = '<option value="">— выбрать из каталога —</option>';
+  S.catalog.forEach(c => {
+    sel.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+  });
+  switchWhModalTab('chemical');
+  openModal('modal-warehouse');
+}
+
+function onWhChemicalSelect() {
+  const id = document.getElementById('wh-chemical-id').value;
+  const item = S.catalog.find(c => c.id === id);
+  if (!item) return;
+  if (item.price) document.getElementById('wh-price').value = item.price;
+  if (item.supplier) document.getElementById('wh-supplier').value = item.supplier;
+  if (item.unit) document.getElementById('wh-unit').value = item.unit;
+  if (item.minStock) document.getElementById('wh-min-stock').value = item.minStock;
+  if (item.payment) document.getElementById('wh-payment').value = item.payment;
+}
+
+function saveWarehouseItem() {
+  if (!S.warehouse) S.warehouse = { chemicals: [], parts: [], history: [] };
+  const type = document.getElementById('wh-modal-type').value;
+
+  if (type === 'chemical') {
+    const catId = document.getElementById('wh-chemical-id').value;
+    const cat = S.catalog.find(c => c.id === catId);
+    if (!catId || !cat) { alert('Выберите препарат'); return; }
+    const qty = parseFloat(document.getElementById('wh-qty').value) || 0;
+    if (!qty) { alert('Введите количество'); return; }
+    const price = parseFloat(document.getElementById('wh-price').value) || 0;
+    const unit = document.getElementById('wh-unit').value;
+    const supplier = document.getElementById('wh-supplier').value.trim();
+    const minStock = parseFloat(document.getElementById('wh-min-stock').value) || 0;
+    const payment = document.getElementById('wh-payment').value;
+    const note = document.getElementById('wh-note').value.trim();
+    const date = document.getElementById('wh-date').value;
+
+    // Update or create chemical stock entry
+    let stock = S.warehouse.chemicals.find(c => c.catId === catId);
+    if (!stock) {
+      stock = { id: uid(), catId, name: cat.name, type: cat.type, unit, qty: 0, minStock, price, supplier, payment };
+      S.warehouse.chemicals.push(stock);
+    }
+    stock.qty = Math.round((stock.qty + qty) * 1000) / 1000;
+    stock.price = price || stock.price;
+    stock.supplier = supplier || stock.supplier;
+    stock.minStock = minStock || stock.minStock;
+    stock.unit = unit;
+    stock.payment = payment;
+
+    // Add to history
+    S.warehouse.history.unshift({
+      id: uid(), date, type: 'chemical', name: cat.name,
+      operation: 'in', qty, unit, price, total: Math.round(qty * price),
+      supplier, payment, note
+    });
+
+  } else {
+    const name = document.getElementById('wh-part-name').value.trim();
+    if (!name) { alert('Введите название запчасти'); return; }
+    const qty = parseFloat(document.getElementById('wh-part-qty').value) || 0;
+    if (!qty) { alert('Введите количество'); return; }
+    const date = document.getElementById('wh-part-date').value;
+    const category = document.getElementById('wh-part-category').value;
+    const unit = document.getElementById('wh-part-unit').value;
+    const price = parseFloat(document.getElementById('wh-part-price').value) || 0;
+    const supplier = document.getElementById('wh-part-supplier').value.trim();
+    const minStock = parseFloat(document.getElementById('wh-part-min-stock').value) || 0;
+    const resourceHours = parseFloat(document.getElementById('wh-part-resource-hours').value) || null;
+    const resourceSeasons = parseFloat(document.getElementById('wh-part-resource-seasons').value) || null;
+    const installed = document.getElementById('wh-part-installed').value || null;
+    const worked = parseFloat(document.getElementById('wh-part-worked').value) || 0;
+    const note = document.getElementById('wh-part-note').value.trim();
+
+    // Update or create part stock
+    let part = S.warehouse.parts.find(p => p.name.toLowerCase() === name.toLowerCase());
+    if (!part) {
+      part = { id: uid(), name, category, unit, qty: 0, minStock, price, supplier, resourceHours, resourceSeasons, installed, worked, note };
+      S.warehouse.parts.push(part);
+    }
+    part.qty += qty;
+    part.price = price || part.price;
+    part.supplier = supplier || part.supplier;
+    part.minStock = minStock || part.minStock;
+    part.resourceHours = resourceHours || part.resourceHours;
+    part.resourceSeasons = resourceSeasons || part.resourceSeasons;
+    if (installed) part.installed = installed;
+    part.worked = worked || part.worked;
+
+    // Add to history
+    S.warehouse.history.unshift({
+      id: uid(), date, type: 'part', name,
+      operation: 'in', qty, unit, price, total: Math.round(qty * price),
+      supplier, note
+    });
+  }
+
+  save();
+  if (_vServerAvailable) {
+    fetch('/api/state/vegetable', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ warehouse: S.warehouse })
+    }).catch(e => console.warn('Warehouse sync failed:', e));
+  }
+  closeModal('modal-warehouse');
+  renderWarehouse();
+}
+
+function renderWarehouse() {
+  if (!S.warehouse) S.warehouse = { chemicals: [], parts: [], history: [] };
+  const chemicals = S.warehouse.chemicals || [];
+  const parts = S.warehouse.parts || [];
+
+  // KPIs
+  const lowChemicals = chemicals.filter(c => c.qty <= c.minStock).length;
+  const lowParts = parts.filter(p => p.qty <= p.minStock).length;
+  const totalValue = chemicals.reduce((s,c) => s + (c.qty * (c.price||0)), 0);
+  document.getElementById('warehouse-kpis').innerHTML = `
+    <div class="kpi-card"><div class="kpi-val">${chemicals.length}</div><div class="kpi-lbl">Препаратов</div></div>
+    <div class="kpi-card"><div class="kpi-val">${parts.length}</div><div class="kpi-lbl">Запчастей</div></div>
+    <div class="kpi-card" style="${lowChemicals||lowParts?'background:rgba(255,85,85,.08);border-color:rgba(255,85,85,.3)':''}">
+      <div class="kpi-val" style="color:${lowChemicals||lowParts?'var(--red)':'var(--accent)'};">${lowChemicals+lowParts}</div>
+      <div class="kpi-lbl">Мало на складе</div>
+    </div>
+    <div class="kpi-card"><div class="kpi-val" style="color:var(--accent);">${Math.round(totalValue).toLocaleString()}</div><div class="kpi-lbl">Стоимость склада (лей)</div></div>`;
+
+  // Chemicals table
+  const CAT_COLORS={fungicide:'var(--teal)',insecticide:'var(--orange)',herbicide:'var(--yellow)',fertilizer:'var(--accent)',acaricide:'var(--purple)',surfactant:'var(--blue)',microelement:'var(--teal)',other:'var(--text3)'};
+  document.getElementById('wh-chemicals-tbody').innerHTML = chemicals.length
+    ? chemicals.map(c => {
+        const low = c.minStock && c.qty <= c.minStock;
+        const critical = c.minStock && c.qty <= c.minStock * 0.5;
+        return `<tr style="${critical?'background:rgba(255,85,85,.05)':low?'background:rgba(255,216,77,.05)':''}">
+          <td style="font-weight:600;">${c.name}</td>
+          <td><span style="font-size:10px;padding:2px 7px;border-radius:8px;background:${CAT_COLORS[c.type]||'var(--surface2)'}22;color:${CAT_COLORS[c.type]||'var(--text3)'};">${c.type}</span></td>
+          <td style="font-family:'JetBrains Mono',monospace;font-weight:700;color:${critical?'var(--red)':low?'var(--yellow)':'var(--accent)'};">${c.qty} ${c.unit||'л'}</td>
+          <td style="font-size:11px;color:var(--text3);">${c.unit||'л'}</td>
+          <td style="font-size:11px;color:var(--text3);">${c.minStock||'—'} ${c.unit||'л'}</td>
+          <td style="font-size:11px;">${c.price?c.price+' лей':'—'}</td>
+          <td style="font-size:11px;color:var(--text3);">${c.supplier||'—'}</td>
+          <td>${critical?'<span class="badge badge-red">❌ МАЛО</span>':low?'<span class="badge badge-yellow">⚠️ Мало</span>':'<span class="badge badge-green">✅ OK</span>'}</td>
+          <td><button class="btn btn-primary btn-xs" onclick="openWarehouseModalForChemical('${c.catId}')">+ Приход</button></td>
+        </tr>`;
+      }).join('')
+    : `<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:20px;">Нет препаратов на складе. Нажмите + Приход.</td></tr>`;
+
+  // Parts table
+  const CAT_PART_LABELS={filter:'Фильтрация',drip:'Капельное',pump:'Насосы',m
+  // ── Import/Export ─────────────────────────────────────────────────────────
 function exportData() {
   const data=JSON.stringify(S,null,2);
   const a=document.createElement('a');a.href='data:application/json,'+encodeURIComponent(data);
