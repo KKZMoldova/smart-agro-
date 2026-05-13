@@ -789,9 +789,14 @@ body[data-readonly="true"] .parcel-card { cursor: default; pointer-events: none;
 <!-- ═══ CATALOG ═══ -->
 <div class="panel" id="panel-catalog">
   <div class="section-hdr">
-    <h2>📦 Справочник препаратов</h2>
+  <h2>📦 Справочник препаратов</h2>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <button class="btn btn-secondary" onclick="showMgmtReport()">📊 Управленческий отчёт</button>
+    <button class="btn btn-secondary" onclick="showBuhReport()">📋 Бухгалтерский отчёт</button>
     <button class="btn btn-primary" onclick="openCatalogModal()">+ Препарат</button>
   </div>
+</div>
+<div id="catalog-report" style="display:none;margin-bottom:16px;"></div>
 
   <!-- Filter -->
   <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
