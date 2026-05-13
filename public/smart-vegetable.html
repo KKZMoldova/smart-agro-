@@ -4347,8 +4347,17 @@ function renderTreatments(){
     </div>`;
   }
   if(_treatView==='grouped'){
+    // Группировка по дате + баковой смеси
     const byDate={};
-    treatments.forEach(t=>{if(!byDate[t.date])byDate[t.date]=[];byDate[t.date].push(t);});
+    treatments.forEach(t=>{
+      const mixKey = t.date+'__'+(t.products||[]).map(p=>p.name+'_'+p.dose).sort().join('|');
+      if(!byDate[mixKey]) byDate[mixKey]={...t, parcels:[{id:t.parcelId,name:t.parcelName,ha:S.parcels.find(p=>p.id===t.parcelId)?.ha||0}]};
+      else byDate[mixKey].parcels.push({id:t.parcelId,name:t.parcelName,ha:S.parcels.find(p=>p.id===t.parcelId)?.ha||0});
+    });
+    const grouped = Object.values(byDate).sort((a,b)=>b.date.localeCompare(a.date));
+    // Group by date
+    const byDateOnly={};
+    grouped.forEach(t=>{if(!byDateOnly[t.date])byDateOnly[t.date]=[];byDateOnly[t.date].push(t);});
     const ge=document.getElementById('treatment-grouped');
     if(!treatments.length){ge.innerHTML=`<div style="text-align:center;color:var(--text3);padding:30px;">Обработок нет. Нажмите + Обработка.</div>`;return;}
     ge.innerHTML=Object.keys(byDate).sort().reverse().map(date=>{
