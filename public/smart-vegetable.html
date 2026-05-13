@@ -4321,7 +4321,19 @@ function deleteTreatment(id){
   renderTreatments();
 }
 
-function renderTreatments(){
+function deleteRelatedTreatments(id) {
+  const t = S.treatments.find(x=>x.id===id);
+  if(!t||!confirm('Удалить обработку для всех участков?')) return;
+  const mixKey = (t.products||[]).map(p=>p.name+'_'+p.dose).sort().join('|');
+  S.treatments = S.treatments.filter(x => {
+    const xKey = (x.products||[]).map(p=>p.name+'_'+p.dose).sort().join('|');
+    return !(x.date===t.date && xKey===mixKey);
+  });
+  save();
+  fetch('/api/state/vegetable',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({treatments:S.treatments})}).catch(()=>{});
+  renderTreatments();
+}
+  function renderTreatments(){
   const pf=document.getElementById('tr-parcel-filter');
   const tf=document.getElementById('tr-type-filter');
   const curP=pf?.value||'';
