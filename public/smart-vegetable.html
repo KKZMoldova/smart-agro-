@@ -4185,6 +4185,16 @@ function copyFromTreatment(){
 function toggleParcelDropdown() {
   const dd = document.getElementById('t-parcel-dropdown');
   dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+  if (dd.style.display === 'none') return;
+  // Закрыть при клике вне
+  setTimeout(() => {
+    document.addEventListener('click', function closeDD(e) {
+      if (!dd.contains(e.target) && !document.getElementById('t-parcel-list').contains(e.target)) {
+        dd.style.display = 'none';
+        document.removeEventListener('click', closeDD);
+      }
+    });
+  }, 100);
 }
 
 function toggleParcelSelect(id) {
