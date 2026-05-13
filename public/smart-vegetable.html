@@ -5429,6 +5429,7 @@ console.log('[DEBUG] after merge:', S.treatments.length);
         if (d.settings)            S.settings    = d.settings;
        if (d.fields?.length)      S.fields      = d.fields;
         if (d.equipment?.length)   S.equipment   = d.equipment; if (d.farmName)            S.farmName    = d.farmName;
+        if (d.warehouse)           S.warehouse   = d.warehouse;
         if (d.region)              S.region      = d.region;
         localStorage.setItem(STORAGE_KEY, JSON.stringify(S));
         console.log('[Veg] Loaded', S.parcels.length, 'parcels from server');
