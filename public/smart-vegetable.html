@@ -4228,10 +4228,10 @@ function renderParcelList() {
 function saveTreatment(){
   const date=document.getElementById('t-date').value;
   if(!date){alert('Введите дату');return;}
+  const parcelId = _selectedParcels[0];
   if(!parcelId){alert('Выберите участок');return;}
   const products=_treatProductRows.filter(r=>r.name?.trim());
   if(!products.length){alert('Добавьте хотя бы один препарат');return;}
-  const parcelId = _selectedParcels[0];
   const parcel=S.parcels.find(p=>p.id===parcelId);
   const crop=getCropById(parcel?.cropId);
   const phase=getParcelPhase(parcel);
