@@ -831,6 +831,60 @@ body[data-readonly="true"] .parcel-card { cursor: default; pointer-events: none;
     <tbody id="catalog-tbody"></tbody>
   </table>
 </div>
+ <!-- ═══ WAREHOUSE ═══ -->
+<div class="panel" id="panel-warehouse">
+  <div class="section-hdr">
+    <h2>🏪 Склад</h2>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn btn-secondary" onclick="showWarehouseTab('chemicals')">💊 Препараты</button>
+      <button class="btn btn-secondary" onclick="showWarehouseTab('parts')">🔧 Запчасти</button>
+      <button class="btn btn-primary" id="btn-add-warehouse" onclick="openWarehouseModal()">+ Приход</button>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="card-grid" id="warehouse-kpis" style="grid-template-columns:repeat(auto-fill,minmax(160px,1fr));margin-bottom:20px;"></div>
+
+  <!-- Tabs -->
+  <div style="display:flex;gap:6px;margin-bottom:16px;">
+    <button class="sort-btn active" id="wh-tab-chemicals" onclick="showWarehouseTab('chemicals')">💊 Препараты</button>
+    <button class="sort-btn" id="wh-tab-parts" onclick="showWarehouseTab('parts')">🔧 Запчасти</button>
+    <button class="sort-btn" id="wh-tab-history" onclick="showWarehouseTab('history')">📋 История</button>
+  </div>
+
+  <!-- Chemicals -->
+  <div id="wh-chemicals">
+    <table class="data-table">
+      <thead><tr>
+        <th>Препарат</th><th>Тип</th><th>Остаток</th><th>Ед.</th>
+        <th>Мин. запас</th><th>Цена</th><th>Поставщик</th><th>Статус</th><th></th>
+      </tr></thead>
+      <tbody id="wh-chemicals-tbody"></tbody>
+    </table>
+  </div>
+
+  <!-- Parts -->
+  <div id="wh-parts" style="display:none;">
+    <table class="data-table">
+      <thead><tr>
+        <th>Запчасть</th><th>Категория</th><th>Остаток</th><th>Ед.</th>
+        <th>Мин. запас</th><th>Ресурс</th><th>Установлен</th><th>Осталось</th><th>Статус</th><th></th>
+      </tr></thead>
+      <tbody id="wh-parts-tbody"></tbody>
+    </table>
+  </div>
+
+  <!-- History -->
+  <div id="wh-history" style="display:none;">
+    <table class="data-table">
+      <thead><tr>
+        <th>Дата</th><th>Тип</th><th>Наименование</th><th>Операция</th>
+        <th>Кол-во</th><th>Цена</th><th>Сумма</th><th>Поставщик / Участок</th>
+      </tr></thead>
+      <tbody id="wh-history-tbody"></tbody>
+    </table>
+  </div>
+</div>
   <!-- ═══ SETTINGS ═══ -->
 <div class="panel" id="panel-settings">
   <div class="section-hdr"><h2>⚙️ Настройки</h2></div>
