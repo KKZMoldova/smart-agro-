@@ -1083,7 +1083,107 @@ body[data-readonly="true"] .parcel-card { cursor: default; pointer-events: none;
 
     <
 
-    <!-- Warehouse Modal -->
+   <!-- New Task Modal -->
+<div class="modal-overlay" id="modal-new-task">
+  <div class="modal" style="max-width:680px;width:96%;">
+    <h2>📋 Новое задание</h2>
+    <div class="form-grid">
+      <div class="ff"><label>Тип работы</label>
+        <select id="nt-wt"></select>
+      </div>
+      <div class="ff"><label>Срок выполнения</label>
+        <input type="date" id="nt-due">
+      </div>
+      <div class="ff full"><label>Описание</label>
+        <input type="text" id="nt-desc" placeholder="Что нужно сделать...">
+      </div>
+    </div>
+    <div style="font-family:'Unbounded',sans-serif;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin:12px 0 8px;">🌱 Участки</div>
+    <div id="nt-parcel-list" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;max-height:160px;overflow-y:auto;padding:4px;margin-bottom:6px;"></div>
+    <div id="nt-selected-tags" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px;"></div>
+    <div id="nt-area-info" style="font-size:11px;color:var(--text3);margin-bottom:12px;"></div>
+    <div style="font-family:'Unbounded',sans-serif;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">💊 Препараты</div>
+    <input type="text" id="nt-chem-search" placeholder="🔍 Найти препарат..." oninput="searchNtChems(this.value)" onfocus="searchNtChems(this.value)" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface2);color:var(--text);margin-bottom:4px;">
+    <div id="nt-chem-dropdown" style="display:none;border:1px solid var(--border);border-radius:8px;background:var(--surface);max-height:150px;overflow-y:auto;margin-bottom:8px;"></div>
+    <div id="nt-added-chems"></div>
+    <div style="font-family:'Unbounded',sans-serif;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin:12px 0 8px;">👥 Исполнители</div>
+    <div class="form-grid">
+      <div class="ff"><label>Агроном</label><select id="nt-creator"></select></div>
+      <div class="ff"><label>Исполнитель</label><select id="nt-assignee"></select></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-new-task')">Отмена</button>
+      <button class="btn btn-primary" onclick="saveNewTask()">✈️ Создать + уведомить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Task Engineer Modal -->
+<div class="modal-overlay" id="modal-task-eng">
+  <div class="modal" style="max-width:560px;width:96%;">
+    <h2>🔧 Назначить технику</h2>
+    <input type="hidden" id="task-eng-id">
+    <div id="task-eng-info" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;"></div>
+    <div class="form-grid">
+      <div class="ff"><label>Техника</label><select id="task-eng-equip"></select></div>
+      <div class="ff"><label>Навесное</label><select id="task-eng-attach"></select></div>
+      <div class="ff"><label>Механизатор</label><select id="task-eng-mechanic"></select></div>
+      <div class="ff"><label>Скорость (км/ч)</label><input type="number" id="task-eng-speed" placeholder="6" step="0.5"></div>
+      <div class="ff full"><label>Примечание</label><input type="text" id="task-eng-note" placeholder="Настройки техники..."></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-task-eng')">Отмена</button>
+      <button class="btn btn-primary" onclick="saveTaskEng()">✅ Назначить + уведомить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Task Problem Modal -->
+<div class="modal-overlay" id="modal-task-prob">
+  <div class="modal" style="max-width:420px;width:96%;">
+    <h2>⚠️ Сообщить о проблеме</h2>
+    <input type="hidden" id="task-prob-id">
+    <div class="ff"><label>Описание проблемы</label>
+      <textarea id="task-prob-txt" rows="3" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:13px;"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-task-prob')">Отмена</button>
+      <button class="btn btn-danger" onclick="saveTaskProb()">Отправить ⚠️</button>
+    </div>
+  </div>
+</div>
+
+<!-- Task Close Modal -->
+<div class="modal-overlay" id="modal-task-close">
+  <div class="modal" style="max-width:420px;width:96%;">
+    <h2>✅ Закрыть задание</h2>
+    <input type="hidden" id="task-close-id">
+    <div class="form-grid">
+      <div class="ff"><label>Ваше имя (агроном)</label><input type="text" id="task-close-name" placeholder="Имя агронома"></div>
+      <div class="ff full"><label>Комментарий</label><textarea id="task-close-note" rows="2" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:13px;"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-task-close')">Отмена</button>
+      <button class="btn btn-primary" onclick="saveTaskClose()">✅ Закрыть задание</button>
+    </div>
+  </div>
+</div>
+
+<!-- Task Done Modal -->
+<div class="modal-overlay" id="modal-task-done">
+  <div class="modal" style="max-width:420px;width:96%;">
+    <h2>✅ Завершить работу</h2>
+    <input type="hidden" id="task-done-id">
+    <div class="ff"><label>Комментарий</label>
+      <textarea id="task-done-note" rows="2" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:13px;"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-task-done')">Отмена</button>
+      <button class="btn btn-primary" onclick="saveTaskDone()">✅ Завершить</button>
+    </div>
+  </div>
+</div>
+      <!-- Warehouse Modal -->
 <div class="modal-overlay" id="modal-warehouse">
   <div class="modal" style="max-width:620px;width:96%;">
     <h2 id="wh-modal-title">📦 Приход товара</h2>
