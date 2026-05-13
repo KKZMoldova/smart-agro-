@@ -809,15 +809,17 @@ body[data-readonly="true"] .parcel-card { cursor: default; pointer-events: none;
       <option value="acaricide">Акарицид</option>
       <option value="surfactant">ПАВ</option>
     </select>
+    <select id="cat-legal-filter" onchange="renderCatalog()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:7px 10px;color:var(--text);font-size:12px;">
+      <option value="">Все статусы</option>
+      <option value="legal">✅ Разрешённые</option>
+      <option value="illegal">⛔ Не зарегистрированные</option>
+    </select>
+    <select id="cat-payment-filter" onchange="renderCatalog()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:7px 10px;color:var(--text);font-size:12px;">
+      <option value="">Все типы оплаты</option>
+      <option value="official">💳 Безнал</option>
+      <option value="cash">💵 Наличка</option>
+    </select>
   </div>
-  <table class="data-table">
-    <thead><tr>
-      <th>Торговое название</th><th>Бух. название</th><th>Тип</th>
-      <th>Доза</th><th>WHI</th><th>Цена</th><th>Статус</th><th></th>
-    </tr></thead>
-    <tbody id="catalog-tbody"></tbody>
-  </table>
-</div>
 
 <!-- ═══ SETTINGS ═══ -->
 <div class="panel" id="panel-settings">
