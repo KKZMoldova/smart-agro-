@@ -4405,12 +4405,7 @@ function saveCatalogItem() {
   }).catch(e=>console.warn('Catalog sync failed:',e));
   closeModal('modal-catalog');renderCatalog();
 }
-function renderCatalog() {
-  const typeFilter=document.getElementById('cat-type-filter').value;
-  let items=S.catalog;
-  if(typeFilter) items=items.filter(c=>c.type===typeFilter);
-  const TYPE_LABELS={fungicide:'Фунгицид',insecticide:'Инсектицид',herbicide:'Гербицид',fertilizer:'Удобрение',acaricide:'Акарицид'};
-  const TYPE_COLORS={fungicide:'var(--teal)',insecticide:'var(--orange)',herbicide:'var(--yellow)',fertilizer:'var(--accent)',acaricide:'var(--purple)'};
+
   function renderCatalog() {
   const typeFilter=document.getElementById('cat-type-filter').value;
   let items=S.catalog;
@@ -4429,7 +4424,7 @@ function renderCatalog() {
     <td style="font-size:11px;">${c.dose||'—'}</td>
     <td style="font-size:11px;color:${c.whi>14?'var(--orange)':'var(--text)'};">${c.whi?c.whi+' дн':'—'}</td>
     <td style="font-size:10px;color:var(--text3);">${c.crops||'—'}</td>
-    ${isOwner?`<td style="font-size:10px;color:var(--text3);">${c.price?c.price+' лей/'+( c.unit||'л'):'—'}</td>`:'<td>—</td>'}
+    <td style="font-size:10px;color:var(--text3);">${c.price ? c.price+' лей/'+(c.unit||'л') : '—'}</td>
     <td><button class="btn btn-secondary btn-xs" onclick="openCatalogModal('${c.id}')">✏️</button></td>
   </tr>`).join('');
 }
