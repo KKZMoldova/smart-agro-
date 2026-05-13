@@ -2448,7 +2448,7 @@ function showTab(id) {
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('panel-'+id).classList.add('active');
-  const tabs = ['parcels','weather','gdd','diseases','irrigation','fields','equipment','treatments','analyses','catalog','settings'];
+  const tabs = ['parcels','weather','gdd','diseases','irrigation','fields','equipment','treatments','analyses','catalog','warehouse','settings'];
   const idx = tabs.indexOf(id);
   document.querySelectorAll('.tab')[idx].classList.add('active');
   const renders = {
