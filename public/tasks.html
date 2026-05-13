@@ -538,8 +538,8 @@ document.getElementById('new-btn').onclick=async function(){
     allStaff=await fetch('/api/staff').then(r=>r.json());
     allEquip=await fetch('/api/equipment').then(r=>r.json());
     const wt=await fetch('/api/work-types').then(r=>r.json());
-    const cat=await fetch('/api/catalog').then(r=>r.json());
-allCatalog=Array.isArray(cat)?cat:(cat.data||[]);
+    const cat=await fetch('/api/state/vegetable').then(r=>r.json());
+allCatalog=Array.isArray(cat.data?.catalog)?cat.data.catalog:(cat.data||[]);
     const pd=await fetch('/api/parcels').then(r=>r.json());
 allParcels=Array.isArray(pd)?pd:(pd.data||[]);
     const tr=await fetch('/api/tasks').then(r=>r.json());
