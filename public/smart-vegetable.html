@@ -1043,7 +1043,82 @@ body[data-readonly="true"] .parcel-card { cursor: default; pointer-events: none;
 
     <
 
-<!-- Catalog Modal -->
+    <!-- Warehouse Modal -->
+<div class="modal-overlay" id="modal-warehouse">
+  <div class="modal" style="max-width:620px;width:96%;">
+    <h2 id="wh-modal-title">📦 Приход товара</h2>
+    <div style="display:flex;gap:6px;margin-bottom:16px;">
+      <button class="sort-btn active" id="wh-modal-tab-chemical" onclick="switchWhModalTab('chemical')">💊 Препарат</button>
+      <button class="sort-btn" id="wh-modal-tab-part" onclick="switchWhModalTab('part')">🔧 Запчасть</button>
+    </div>
+    <input type="hidden" id="wh-modal-type" value="chemical">
+    <div id="wh-modal-chemical">
+      <div class="form-grid">
+        <div class="ff"><label>Дата прихода</label><input type="date" id="wh-date"></div>
+        <div class="ff"><label>Препарат</label>
+          <select id="wh-chemical-id" onchange="onWhChemicalSelect()">
+            <option value="">— выбрать из каталога —</option>
+          </select>
+        </div>
+        <div class="ff"><label>Количество</label><input type="number" id="wh-qty" step="0.01" placeholder="10"></div>
+        <div class="ff"><label>Единица</label>
+          <select id="wh-unit">
+            <option value="l">Литр (л)</option>
+            <option value="kg">Килограмм (кг)</option>
+            <option value="pcs">Штука (шт)</option>
+          </select>
+        </div>
+        <div class="ff"><label>Цена за единицу (лей)</label><input type="number" id="wh-price" step="0.01" placeholder="450"></div>
+        <div class="ff"><label>Поставщик</label><input type="text" id="wh-supplier" placeholder="ООО АгроХим"></div>
+        <div class="ff"><label>Мин. запас</label><input type="number" id="wh-min-stock" step="0.1" placeholder="5"></div>
+        <div class="ff"><label>Тип оплаты</label>
+          <select id="wh-payment">
+            <option value="official">💳 Безнал</option>
+            <option value="cash">💵 Наличка</option>
+          </select>
+        </div>
+        <div class="ff full"><label>Примечание</label><input type="text" id="wh-note" placeholder="Партия, накладная..."></div>
+      </div>
+    </div>
+    <div id="wh-modal-part" style="display:none;">
+      <div class="form-grid">
+        <div class="ff"><label>Дата прихода</label><input type="date" id="wh-part-date"></div>
+        <div class="ff"><label>Название запчасти</label><input type="text" id="wh-part-name" placeholder="Фильтр диск 130мкм"></div>
+        <div class="ff"><label>Категория</label>
+          <select id="wh-part-category">
+            <option value="filter">Фильтрация</option>
+            <option value="drip">Капельное орошение</option>
+            <option value="pump">Насосы</option>
+            <option value="mechanical">Механика</option>
+            <option value="electrical">Электрика</option>
+            <option value="other">Другое</option>
+          </select>
+        </div>
+        <div class="ff"><label>Количество</label><input type="number" id="wh-part-qty" step="1" placeholder="10"></div>
+        <div class="ff"><label>Единица</label>
+          <select id="wh-part-unit">
+            <option value="pcs">Штука (шт)</option>
+            <option value="m">Метр (м)</option>
+            <option value="kg">Кг</option>
+          </select>
+        </div>
+        <div class="ff"><label>Цена за единицу (лей)</label><input type="number" id="wh-part-price" step="0.01" placeholder="50"></div>
+        <div class="ff"><label>Поставщик</label><input type="text" id="wh-part-supplier" placeholder="ООО Агротех"></div>
+        <div class="ff"><label>Мин. запас</label><input type="number" id="wh-part-min-stock" step="1" placeholder="5"></div>
+        <div class="ff"><label>Ресурс (часов)</label><input type="number" id="wh-part-resource-hours" step="1" placeholder="500"></div>
+        <div class="ff"><label>или ресурс (сезонов)</label><input type="number" id="wh-part-resource-seasons" step="1" placeholder="3"></div>
+        <div class="ff"><label>Дата установки</label><input type="date" id="wh-part-installed"></div>
+        <div class="ff"><label>Наработка (часов)</label><input type="number" id="wh-part-worked" step="1" placeholder="0"></div>
+        <div class="ff full"><label>Примечание</label><input type="text" id="wh-part-note" placeholder="Где установлено..."></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-warehouse')">Отмена</button>
+      <button class="btn btn-primary" onclick="saveWarehouseItem()">Сохранить</button>
+    </div>
+  </div>
+</div>  
+      <!-- Catalog Modal -->
 <div class="modal-overlay" id="modal-catalog">
   <div class="modal" style="max-width:680px;width:96%;">
     <h2>📦 Препарат</h2>
