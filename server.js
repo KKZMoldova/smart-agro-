@@ -132,6 +132,7 @@ app.post('/api/state/vegetable', async (req, res) => {
     if (parcels !== undefined) state.parcels = parcels;
     if (treatments !== undefined) state.treatments = treatments;
     if (catalog !== undefined) state.catalog = catalog;
+    if (warehouse !== undefined) state.warehouse = warehouse;
     await db.query(
       `INSERT INTO settings (key,value) VALUES ('vegetable_full_state',$1)
        ON CONFLICT (key) DO UPDATE SET value=$1, updated_at=NOW()`,
