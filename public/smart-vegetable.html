@@ -4238,8 +4238,21 @@ function saveTreatment(){
     note:document.getElementById('t-note').value.trim(),
     maxWhi,whiDate,
   };
-  if(_editTreatId){const idx=S.treatments.findIndex(t=>t.id===_editTreatId);if(idx>=0)S.treatments[idx]=entry;}
-  else S.treatments.push(entry);
+  if(_editTreatId){
+    const idx=S.treatments.findIndex(t=>t.id===_editTreatId);
+    if(idx>=0)S.treatments[idx]=entry;
+  } else {
+    _selectedParcels.forEach((pid, i) => {
+      const pc = S.parcels.find(p=>p.id===pid);
+      const cr = getCropById(pc?.cropId);
+      const ph = getParcelPhase(pc);
+      const e = {...entry, id: i===0?entry.id:uid(), parcelId:pid,
+        parcelName:pc?.name||'—', cropId:pc?.cropId||'',
+        cropName:cr?.name||'—', variety:pc?.variety||'',
+        phaseName:ph?.name||'—', gdd:Math.round(calcParcelGdd(pc||{}))};
+      S.treatments.push(e);
+    });
+  }
   S.treatments.sort((a,b)=>b.date.localeCompare(a.date));
   save();
   // Автосписание со склада (только новые обработки)
