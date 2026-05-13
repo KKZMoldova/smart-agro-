@@ -4507,14 +4507,7 @@ function showBuhReport() {
   el.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;"><div style="padding:12px 16px;background:var(--surface2);display:flex;justify-content:space-between;align-items:center;"><div style="font-family:Unbounded,sans-serif;font-size:12px;font-weight:700;color:var(--blue);">📋 Бухгалтерский отчёт</div><button class="btn btn-secondary btn-sm" onclick="document.getElementById(\'catalog-report\').style.display=\'none\'">✕</button></div><table class="data-table"><thead><tr><th>Бух. название</th><th>Торговое название</th><th>Тип</th><th>Цена</th><th>Поставщик</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
   el.style.display = 'block';
 }
-function showBuhReport() {
-  const el = document.getElementById('catalog-report');
-  const items = S.catalog.filter(c => c.inBuh === 'yes' && c.buhName);
-  // Группировать по бухгалтерскому названию
-  const grouped = {};
-  ...
-  el.innerHTML = html;
-  el.style.display = 'block';
+
 }
   function showGroupedByBuh() {
   const el = document.getElementById('catalog-report');
