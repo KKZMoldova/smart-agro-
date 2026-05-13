@@ -4770,7 +4770,79 @@ function renderWarehouse() {
     : `<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:20px;">Нет препаратов на складе. Нажмите + Приход.</td></tr>`;
 
   // Parts table
-  const CAT_PART_LABELS={filter:'Фильтрация',drip:'Капельное',pump:'Насосы',m
+  const CAT_PART_LABELS={filter:'Фильтрация',drip:'Капельное',pump:'Насосы',mechanical:'Механика',electrical:'Электрика',other:'Другое'};
+  document.getElementById('wh-parts-tbody').innerHTML = parts.length
+    ? parts.map(p => {
+        const low = p.minStock && p.qty <= p.minStock;
+        const critical = p.minStock && p.qty <= p.minStock * 0.5;
+        let resourceHtml = '—';
+        let resourceStatus = '';
+        if (p.resourceHours && p.installed) {
+          const daysWorked = Math.round((new Date(today()) - new Date(p.installed)) / 86400000);
+          const hoursWorked = p.worked || daysWorked * 8;
+          const remaining = Math.max(0, p.resourceHours - hoursWorked);
+          const pct = Math.round((hoursWorked / p.resourceHours) * 100);
+          resourceHtml = hoursWorked+'/'+p.resourceHours+'ч ('+pct+'%)';
+          resourceStatus = pct >= 90 ? '🔴 ЗАМЕНА' : pct >= 70 ? '⚠️ Скоро' : '✅ OK';
+        } else if (p.resourceSeasons) {
+          resourceHtml = p.resourceSeasons+' сезонов';
+          resourceStatus = '✅ OK';
+        }
+        return '<tr style="'+(critical?'background:rgba(255,85,85,.05)':low?'background:rgba(255,216,77,.05)':'')+'">'+
+          '<td style="font-weight:600">'+p.name+'</td>'+
+          '<td style="font-size:11px;color:var(--text3);">'+(CAT_PART_LABELS[p.category]||p.category)+'</td>'+
+          '<td style="font-family:JetBrains Mono,monospace;font-weight:700;color:'+(critical?'var(--red)':low?'var(--yellow)':'var(--accent)')+';">'+p.qty+' '+(p.unit||'шт')+'</td>'+
+          '<td style="font-size:11px;">'+(p.unit||'шт')+'</td>'+
+          '<td style="font-size:11px;color:var(--text3);">'+(p.minStock||'—')+'</td>'+
+          '<td style="font-size:11px;">'+resourceHtml+'</td>'+
+          '<td style="font-size:11px;color:var(--text3);">'+(p.installed||'—')+'</td>'+
+          '<td style="font-size:11px;">'+resourceStatus+'</td>'+
+          '<td>'+(critical?'<span class="badge badge-red">❌ МАЛО</span>':low?'<span class="badge badge-yellow">⚠️ Мало</span>':'<span class="badge badge-green">✅ OK</span>')+'</td>'+
+          '<td><button class="btn btn-secondary btn-xs" onclick="openWarehousePartModal(\''+p.id+'\')">✏️</button></td>'+
+          '</tr>';
+      }).join('')
+    : '<tr><td colspan="10" style="text-align:center;color:var(--text3);padding:20px;">Нет запчастей на складе. Нажмите + Приход.</td></tr>';
+
+  document.getElementById('wh-history-tbody').innerHTML = (S.warehouse.history||[]).slice(0,50).map(h =>
+    '<tr>'+
+    '<td style="font-family:JetBrains Mono,monospace;font-size:11px;">'+h.date+'</td>'+
+    '<td style="font-size:11px;">'+(h.type==='chemical'?'💊':'🔧')+'</td>'+
+    '<td style="font-weight:600">'+h.name+'</td>'+
+    '<td>'+(h.operation==='in'?'📥 Приход':'📤 Списание')+'</td>'+
+    '<td style="font-family:JetBrains Mono,monospace;">'+h.qty+' '+(h.unit||'')+'</td>'+
+    '<td style="font-size:11px;">'+(h.price?h.price+' лей':'—')+'</td>'+
+    '<td style="font-weight:600;color:var(--accent);">'+(h.total?h.total+' лей':'—')+'</td>'+
+    '<td style="font-size:11px;color:var(--text3);">'+(h.supplier||h.parcelName||'—')+'</td>'+
+    '</tr>'
+  ).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:20px;">История пуста</td></tr>';
+}
+
+function openWarehouseModalForChemical(catId) {
+  openWarehouseModal();
+  setTimeout(() => {
+    document.getElementById('wh-chemical-id').value = catId;
+    onWhChemicalSelect();
+  }, 100);
+}
+
+function openWarehousePartModal(partId) {
+  openWarehouseModal();
+  switchWhModalTab('part');
+  const part = S.warehouse?.parts?.find(p => p.id === partId);
+  if (!part) return;
+  setTimeout(() => {
+    document.getElementById('wh-part-name').value = part.name || '';
+    document.getElementById('wh-part-category').value = part.category || 'other';
+    document.getElementById('wh-part-price').value = part.price || '';
+    document.getElementById('wh-part-supplier').value = part.supplier || '';
+    document.getElementById('wh-part-min-stock').value = part.minStock || '';
+    document.getElementById('wh-part-resource-hours').value = part.resourceHours || '';
+    document.getElementById('wh-part-resource-seasons').value = part.resourceSeasons || '';
+    document.getElementById('wh-part-installed').value = part.installed || '';
+    document.getElementById('wh-part-worked').value = part.worked || '';
+    document.getElementById('wh-part-note').value = part.note || '';
+  }, 100);
+}
   // ── Import/Export ─────────────────────────────────────────────────────────
 function exportData() {
   const data=JSON.stringify(S,null,2);
