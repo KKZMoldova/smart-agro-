@@ -1654,16 +1654,7 @@ async function syncFromServer() {
         ...(a.values || {}),
       }));
     }
-    // Catalog
-    const cRes = await VAPI.getCatalog();
-    if (cRes?.data?.length) {
-      const builtinIds = DEFAULT_STATE.catalog.map(c=>c.id);
-      const serverOnly = cRes.data
-        .filter(c => !builtinIds.includes(c.id))
-        .map(c => ({ id: c.id, name: c.name, type: c.type,
-          activeSubstance: c.active_substance, dose: c.dose, whi: c.whi, note: c.note }));
-      S.catalog = [...DEFAULT_STATE.catalog, ...serverOnly];
-    }
+    // Catalog — не перезаписывать из старого API, используем /api/state/vegetable
     // Update localStorage
     localStorage.setItem(STORAGE_KEY, JSON.stringify(S));
     console.log('[Veg] Synced from server');
