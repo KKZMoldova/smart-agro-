@@ -974,10 +974,12 @@ body[data-readonly="true"] .parcel-card { cursor: default; pointer-events: none;
 
 <!-- Catalog Modal -->
 <div class="modal-overlay" id="modal-catalog">
-  <div class="modal">
+  <div class="modal" style="max-width:680px;width:96%;">
     <h2>📦 Препарат</h2>
-    <div class="form-grid">
-      <div class="ff"><label>Название</label><input type="text" id="c-name" placeholder="Ридомил Голд"></div>
+
+    <div style="font-family:'Unbounded',sans-serif;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🌿 Агрономические данные</div>
+    <div class="form-grid" style="margin-bottom:14px;">
+      <div class="ff"><label>Торговое название *</label><input type="text" id="c-name" placeholder="Alto Super 330 EC"></div>
       <div class="ff"><label>Тип</label>
         <select id="c-type">
           <option value="fungicide">Фунгицид</option>
@@ -986,16 +988,52 @@ body[data-readonly="true"] .parcel-card { cursor: default; pointer-events: none;
           <option value="fertilizer">Удобрение</option>
           <option value="acaricide">Акарицид</option>
           <option value="surfactant">ПАВ</option>
+          <option value="other">Другое</option>
         </select>
       </div>
-      <div class="ff full"><label>Действующее вещество</label><input type="text" id="c-ai" placeholder="мефеноксам + манкоцеб"></div>
-      <div class="ff"><label>Доза (л/га или кг/га)</label><input type="text" id="c-dose" placeholder="2.5 кг/га"></div>
-      <div class="ff"><label>Срок ожидания (дней)</label><input type="number" id="c-whi" placeholder="7"></div>
-      <div class="ff full"><label>Культуры применения</label><input type="text" id="c-crops" placeholder="томаты, картофель, огурцы"></div>
-      <div class="ff full"><label>Против болезней/вредителей</label><input type="text" id="c-targets" placeholder="фитофтора, альтернариоз"></div>
+      <div class="ff full"><label>Действующее вещество</label><input type="text" id="c-ai" placeholder="ципроконазол"></div>
+      <div class="ff"><label>Доза (л/га или кг/га)</label><input type="text" id="c-dose" placeholder="0.3 л/га"></div>
+      <div class="ff"><label>Срок ожидания (дней)</label><input type="number" id="c-whi" placeholder="28"></div>
+      <div class="ff full"><label>Культуры применения</label><input type="text" id="c-crops" placeholder="горошек, кукуруза"></div>
+      <div class="ff full"><label>Против болезней/вредителей</label><input type="text" id="c-targets" placeholder="альтернариоз, мучнистая роса"></div>
     </div>
+
+    <div style="font-family:'Unbounded',sans-serif;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">💰 Учёт и закупка</div>
+    <div class="form-grid" style="margin-bottom:14px;">
+      <div class="ff"><label>Бухгалтерское название</label><input type="text" id="c-buh-name" placeholder="Скор 250 ЕС"></div>
+      <div class="ff"><label>Статус препарата</label>
+        <select id="c-legal">
+          <option value="legal">✅ Разрешён в Молдове</option>
+          <option value="illegal">⛔ Не зарегистрирован</option>
+        </select>
+      </div>
+      <div class="ff"><label>Тип оплаты</label>
+        <select id="c-payment">
+          <option value="official">💳 Безнал (официально)</option>
+          <option value="cash">💵 Наличка</option>
+        </select>
+      </div>
+      <div class="ff"><label>В бух учёте</label>
+        <select id="c-in-buh">
+          <option value="yes">✅ Да — отражать</option>
+          <option value="no">❌ Нет — не отражать</option>
+        </select>
+      </div>
+      <div class="ff"><label>Цена закупки (лей/л или кг)</label><input type="number" id="c-price" placeholder="450" step="0.01"></div>
+      <div class="ff"><label>Поставщик</label><input type="text" id="c-supplier" placeholder="ООО АгроХим"></div>
+      <div class="ff"><label>Единица измерения</label>
+        <select id="c-unit">
+          <option value="l">Литр (л)</option>
+          <option value="kg">Килограмм (кг)</option>
+          <option value="pcs">Штука (шт)</option>
+        </select>
+      </div>
+      <div class="ff"><label>Мин. запас на складе</label><input type="number" id="c-min-stock" placeholder="5" step="0.1"></div>
+    </div>
+
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-catalog')">Отмена</button>
+      <button class="btn btn-danger btn-sm" id="c-delete-btn" style="display:none;margin-right:auto;" onclick="deleteCatalogItem()">Удалить</button>
       <button class="btn btn-primary" onclick="saveCatalogItem()">Сохранить</button>
     </div>
   </div>
