@@ -4360,33 +4360,35 @@ function renderTreatments(){
     grouped.forEach(t=>{if(!byDateOnly[t.date])byDateOnly[t.date]=[];byDateOnly[t.date].push(t);});
     const ge=document.getElementById('treatment-grouped');
     if(!treatments.length){ge.innerHTML=`<div style="text-align:center;color:var(--text3);padding:30px;">Обработок нет. Нажмите + Обработка.</div>`;return;}
-    ge.innerHTML=Object.keys(byDate).sort().reverse().map(date=>{
-      const day=byDate[date];
-      const total=day.flatMap(t=>t.products||[]).length;
+    ge.innerHTML=Object.keys(byDateOnly).sort().reverse().map(date=>{
+      const day=byDateOnly[date];
       const hasWhi=day.some(t=>t.whiDate&&t.whiDate>today());
+      const totalHa=day.reduce((s,t)=>s+(t.parcels||[]).reduce((ss,p)=>ss+(p.ha||0),0),0);
       return `<div style="margin-bottom:16px;">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-          <div style="font-family:'Unbounded',sans-serif;font-size:11px;font-weight:700;color:var(--text2);">📅 ${date?.slice(0,10)||date}</div>
-          <span style="font-size:10px;padding:2px 8px;border-radius:10px;background:var(--surface2);color:var(--text3);">${day.length} обработок · ${total} препаратов</span>
+          <div style="font-family:'Unbounded',sans-serif;font-size:11px;font-weight:700;color:var(--text2);">📅 ${date}</div>
+          <span style="font-size:10px;padding:2px 8px;border-radius:10px;background:var(--surface2);color:var(--text3);">${day.length} смесей · ${totalHa.toFixed(1)} га</span>
           ${hasWhi?`<span class="badge badge-red">⏳ WHI</span>`:''}
         </div>
         ${day.map(t=>{
           const ow=t.whiDate&&t.whiDate>today();
+          const parcelsHa=(t.parcels||[]).reduce((s,p)=>s+(p.ha||0),0);
           return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;${ow?'border-left:3px solid var(--red);':''}">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:6px;margin-bottom:8px;">
               <div>
-                <span style="font-size:12px;font-weight:700;">${t.parcelName || t.variety || '—'}</span>
-                <span style="font-size:11px;color:var(--text3);"> · ${t.cropName||''}${t.variety?' · '+t.variety:''}</span>
-                <span style="font-size:10px;margin-left:6px;">${MI[t.method]||''} ${t.volume||300}л/га</span>
+                <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px;">
+                  ${(t.parcels||[]).map(p=>`<span style="padding:2px 8px;border-radius:6px;background:rgba(107,221,107,.12);color:var(--accent);font-size:11px;font-weight:600;">${p.name}${p.ha?' ('+p.ha+'га)':''}</span>`).join('')}
+                </div>
+                <span style="font-size:10px;color:var(--text3);">${MI[t.method]||''} ${t.volume||300}л/га · ${parcelsHa.toFixed(1)} га всего</span>
               </div>
               <div style="display:flex;gap:5px;align-items:center;">
                 <span style="font-size:10px;color:var(--accent);">${t.phaseName||'—'} · GDD ${t.gdd||0}</span>
                 <button class="btn btn-secondary btn-xs" onclick="openTreatmentModal('${t.id}')">✏️ Изм</button>
-                <button class="btn btn-danger btn-xs" onclick="deleteTreatment('${t.id}')">✕</button>
+                <button class="btn btn-danger btn-xs" onclick="deleteRelatedTreatments('${t.id}')">✕</button>
               </div>
             </div>
             <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;">
-              ${(t.products||[{name:t.product,type:t.type,dose:t.dose}]).map(p=>{
+              ${(t.products||[]).map(p=>{
                 const rg=RESISTANCE_GROUPS[p.name];
                 return `<div style="padding:4px 9px;border-radius:7px;background:${TC[p.type]||'var(--surface2)'}18;border:1px solid ${TC[p.type]||'var(--border)'}44;">
                   <div style="font-size:11px;font-weight:600;color:${TC[p.type]||'var(--text)'};">${p.name}</div>
