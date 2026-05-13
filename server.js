@@ -150,7 +150,14 @@ app.get('/api/state/orchard', async (req, res) => {
     res.json({ ok: true, data: r.rows[0].value });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
-
+// Test Telegram
+app.get('/api/test-telegram', async (req, res) => {
+  try {
+    await sendTelegram(TELEGRAM_GROUP_ID, 
+      '🌿 <b>Smart Agro</b> — тест уведомлений ✅\nСистема работает!');
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
 app.get('/map', (req, res) =>
   res.sendFile(path.join(__dirname, 'public', 'map.html')));
 
