@@ -5468,8 +5468,78 @@ function openTaskClose(id) {
 }
 
 async function saveTaskClose() {
-  const id
-  // ── Import/Export ─────────────────────────────────────────────────────────
+  const id = document.getElementById('task-close-id').value;
+  const name = document.getElementById('task-close-name').value.trim()||'Агроном';
+  const note = document.getElementById('task-close-note').value.trim();
+  await updateTaskStatus(id,'closed',{closed_by_name:name,problem_note:note||undefined});
+  closeModal('modal-task-close');
+}
+
+async function saveTaskProb() {
+  const id = document.getElementById('task-prob-id').value;
+  const note = document.getElementById('task-prob-txt').value.trim();
+  if(!note){alert('Опишите проблему');return;}
+  await updateTaskStatus(id,'problem',{problem_note:note});
+  closeModal('modal-task-prob');
+}
+
+async function openTaskEng(id) {
+  const t = _tasks.find(x=>x.id===id);
+  if(!t) return;
+  if(!_taskStaff.length) _taskStaff = await fetch('/api/staff').then(r=>r.json());
+  const allEquip = await fetch('/api/equipment').then(r=>r.json());
+  const attach = await fetch('/api/attachments').then(r=>r.json());
+  const attachArr = Array.isArray(attach)?attach:(attach.data||[]);
+  document.getElementById('task-eng-id').value = id;
+  const chems = t.chemicals?(typeof t.chemicals==='string'?JSON.parse(t.chemicals):t.chemicals):[];
+  document.getElementById('task-eng-info').innerHTML = `
+    <div style="font-weight:700;margin-bottom:4px;">${t.work_type_name||'Работа'}</div>
+    <div style="font-size:12px;color:var(--text2);">🌱 ${t.parcel_name||'—'}${t.total_ha?' · '+t.total_ha+' га':''}</div>
+    <div style="font-size:12px;color:var(--text2);">👤 ${t.created_by_name||'—'} · ${t.assigned_to_name||'—'}</div>
+    ${chems.length?`<div style="font-size:11px;color:var(--text3);margin-top:4px;">💊 ${chems.map(c=>c.name+(c.dose_actual?' '+c.dose_actual:'')).join(', ')}</div>`:''}`;
+  document.getElementById('task-eng-equip').innerHTML = '<option value="">— не выбрана —</option>'+allEquip.map(e=>`<option value="${e.id}" data-name="${e.name}">${e.name}${e.status!=='free'?' ⚠️':''}</option>`).join('');
+  document.getElementById('task-eng-attach').innerHTML = '<option value="">— не выбрано —</option>'+attachArr.map(a=>`<option value="${a.id}" data-name="${a.name}">${a.name}</option>`).join('');
+  document.getElementById('task-eng-mechanic').innerHTML = '<option value="">— не назначен —</option>'+_taskStaff.map(s=>`<option value="${s.id}" data-name="${s.name}">${s.name}</option>`).join('');
+  document.getElementById('task-eng-speed').value = '';
+  document.getElementById('task-eng-note').value = '';
+  openModal('modal-task-eng');
+}
+
+async function saveTaskEng() {
+  const id = document.getElementById('task-eng-id').value;
+  const meSel = document.getElementById('task-eng-mechanic');
+  const meId = meSel.value;
+  const meName = meSel.options[meSel.selectedIndex]?.dataset?.name || meSel.options[meSel.selectedIndex]?.textContent;
+  if(!meId){alert('Выберите механизатора');return;}
+  const eqSel = document.getElementById('task-eng-equip');
+  const eqId = eqSel.value;
+  const eqName = eqSel.options[eqSel.selectedIndex]?.dataset?.name || '';
+  const atSel = document.getElementById('task-eng-attach');
+  const atName = atSel.options[atSel.selectedIndex]?.dataset?.name || '';
+  await updateTaskStatus(id,'assigned',{
+    equipment_id:eqId, equipment_name:eqName,
+    attachment:atName,
+    mechanic_id:meId, mechanic_name:meName,
+    speed_kmh:parseFloat(document.getElementById('task-eng-speed').value)||null,
+    note:document.getElementById('task-eng-note').value.trim(),
+  });
+  closeModal('modal-task-eng');
+}
+
+async function openTaskDone(id) {
+  document.getElementById('task-done-id').value = id;
+  document.getElementById('task-done-note').value = '';
+  openModal('modal-task-done');
+}
+
+async function saveTaskDone() {
+  const id = document.getElementById('task-done-id').value;
+  const note = document.getElementById('task-done-note').value.trim();
+  await updateTaskStatus(id,'done',{closed_by_name:'Механизатор',problem_note:note||undefined});
+  closeModal('modal-task-done');
+}
+
+// ── Import/Export ─────────────────────────────────────────────────────────
 function exportData() {
   const data=JSON.stringify(S,null,2);
   const a=document.createElement('a');a.href='data:application/json,'+encodeURIComponent(data);
