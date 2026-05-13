@@ -4870,7 +4870,7 @@ if (p.resourceHours && p.installed) {
           '<td style="font-size:11px;color:var(--text3);">'+(p.minStock||'—')+'</td>'+
           '<td style="font-size:11px;">'+resourceHtml+'</td>'+
           '<td style="font-size:11px;color:var(--text3);">'+(p.installed||'—')+'</td>'+
-          '<td style="font-size:11px;">'+resourceStatus+'</td>'+
+          '<td style="font-size:11px;color:'+(pct>=90?'var(--red)':pct>=70?'var(--yellow)':'var(--accent)')+';">'+resourceStatus+'</td>'+
           '<td>'+(critical?'<span class="badge badge-red">❌ МАЛО</span>':low?'<span class="badge badge-yellow">⚠️ Мало</span>':'<span class="badge badge-green">✅ OK</span>')+'</td>'+
           '<td><button class="btn btn-secondary btn-xs" onclick="openWarehousePartModal(\''+p.id+'\')">✏️</button></td>'+
           '</tr>';
