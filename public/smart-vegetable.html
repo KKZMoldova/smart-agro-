@@ -4198,8 +4198,8 @@ function saveTreatment(){
   else S.treatments.push(entry);
   S.treatments.sort((a,b)=>b.date.localeCompare(a.date));
   save();
-  // Автосписание со склада
-  if (S.warehouse?.chemicals?.length) {
+  // Автосписание со склада (только новые обработки)
+  if (!_editTreatId && S.warehouse?.chemicals?.length) {
     products.forEach(p => {
       const stock = S.warehouse.chemicals.find(c => c.name.toLowerCase() === p.name.toLowerCase());
       if (stock && p.dose) {
