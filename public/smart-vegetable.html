@@ -4851,18 +4851,17 @@ function renderWarehouse() {
         const low = p.minStock && p.qty <= p.minStock;
         const critical = p.minStock && p.qty <= p.minStock * 0.5;
         let resourceHtml = '—';
-        let resourceStatus = '';
-        if (p.resourceHours && p.installed) {
-          const daysWorked = Math.round((new Date(today()) - new Date(p.installed)) / 86400000);
-          const hoursWorked = p.worked || 0;
-          const remaining = Math.max(0, p.resourceHours - hoursWorked);
-          const pct = Math.round((hoursWorked / p.resourceHours) * 100);
-          resourceHtml = hoursWorked+'/'+p.resourceHours+'ч ('+pct+'%)';
-          resourceStatus = pct >= 90 ? '🔴 ЗАМЕНА' : pct >= 70 ? '⚠️ Скоро' : '✅ OK';
-        } else if (p.resourceSeasons) {
-          resourceHtml = p.resourceSeasons+' сезонов';
-          resourceStatus = '✅ OK';
-        }
+let resourceStatus = '—';
+let pct = 0;
+if (p.resourceHours && p.installed) {
+  const hoursWorked = p.worked || 0;
+  pct = Math.round((hoursWorked / p.resourceHours) * 100);
+  resourceHtml = hoursWorked+'/'+p.resourceHours+'ч ('+pct+'%)';
+  resourceStatus = pct >= 90 ? '🔴 ЗАМЕНА' : pct >= 70 ? '⚠️ Скоро' : '✅ OK';
+} else if (p.resourceSeasons) {
+  resourceHtml = p.resourceSeasons+' сезонов';
+  resourceStatus = '✅ OK';
+}
         return '<tr style="'+(critical?'background:rgba(255,85,85,.05)':low?'background:rgba(255,216,77,.05)':'')+'">'+
           '<td style="font-weight:600">'+p.name+'</td>'+
           '<td style="font-size:11px;color:var(--text3);">'+(CAT_PART_LABELS[p.category]||p.category)+'</td>'+
