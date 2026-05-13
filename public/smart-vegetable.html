@@ -1002,7 +1002,10 @@ body[data-readonly="true"] .parcel-card { cursor: default; pointer-events: none;
     <h2 id="t-modal-title">💊 Новая обработка</h2>
     <div class="form-grid" style="margin-bottom:12px;">
       <div class="ff"><label>Дата обработки</label><input type="date" id="t-date"></div>
-      <div class="ff"><label>Участок</label><select id="t-parcel" onchange="onTreatParcelChange()"></select></div>
+      <div class="ff full"><label>Участок(и)</label>
+  <div id="t-parcel-list" style="display:flex;flex-wrap:wrap;gap:6px;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;min-height:38px;cursor:pointer;" onclick="toggleParcelDropdown()"></div>
+  <div id="t-parcel-dropdown" style="display:none;position:absolute;z-index:100;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px;max-height:200px;overflow-y:auto;width:300px;box-shadow:0 4px 20px rgba(0,0,0,.3);"></div>
+</div>
       <div class="ff"><label>Метод внесения</label>
         <select id="t-method">
           <option value="foliar">🌿 Листовое опрыскивание</option>
