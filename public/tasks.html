@@ -583,7 +583,41 @@ async function saveAgro(){
     due_date:document.getElementById('f-due').value||null,
   };
   const r=await fetch('/api/tasks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-  if(r.ok){closeAgro();toast('Задание создано! Уведомление отправлено ✈️');load();}
+  if(r.ok){
+    // Автосписание со склада при обработке пестицидами
+    const wtName = gsel('f-wt').name?.toLowerCase() || '';
+    if(addedChems.length && (wtName.includes('обработка') || wtName.includes('пестицид') || wtName.includes('опрыскив'))) {
+      fetch('/api/state/vegetable').then(r=>r.json()).then(d => {
+        const state = d.data || {};
+        const warehouse = state.warehouse || { chemicals: [], parts: [], history: [] };
+        const date = document.getElementById('f-due').value || new Date().toISOString().slice(0,10);
+        addedChems.forEach(c => {
+          const stock = warehouse.chemicals?.find(x => x.name.toLowerCase() === c.name.toLowerCase());
+          if (!stock) return;
+          const doseNum = parseFloat(c.dose_actual) || 0;
+          if (!doseNum) return;
+          const ha = selectedParcels.reduce((s,p) => s + (p.ha||0), 0) || 1;
+          const spent = Math.round(doseNum * ha * 1000) / 1000;
+          stock.qty = Math.round(Math.max(0, stock.qty - spent) * 1000) / 1000;
+          if (!warehouse.history) warehouse.history = [];
+          warehouse.history.unshift({
+            id: Date.now()+'_'+Math.random().toString(36).slice(2,6),
+            date, type: 'chemical', name: c.name,
+            operation: 'out', qty: spent, unit: stock.unit||'л',
+            price: stock.price||0, total: Math.round(spent*(stock.price||0)),
+            parcelName: selectedParcels.map(p=>p.name).join(', '),
+            note: 'Обработка (журнал работ)'
+          });
+        });
+        fetch('/api/state/vegetable', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ warehouse })
+        }).then(() => console.log('[Warehouse] Списание выполнено'));
+      });
+    }
+    closeAgro();toast('Задание создано! Уведомление отправлено ✈️');load();
+  }
   else{const e=await r.json();alert('Ошибка: '+e.error);}
 }
 
