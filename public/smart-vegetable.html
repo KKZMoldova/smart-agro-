@@ -4198,6 +4198,33 @@ function saveTreatment(){
   else S.treatments.push(entry);
   S.treatments.sort((a,b)=>b.date.localeCompare(a.date));
   save();
+  // Автосписание со склада
+  if (S.warehouse?.chemicals?.length) {
+    products.forEach(p => {
+      const stock = S.warehouse.chemicals.find(c => c.name.toLowerCase() === p.name.toLowerCase());
+      if (stock && p.dose) {
+        const ha = parcel?.ha || 1;
+        const doseNum = parseFloat(p.dose) || 0;
+        if (doseNum > 0) {
+          const spent = Math.round(doseNum * ha * 1000) / 1000;
+          stock.qty = Math.round(Math.max(0, stock.qty - spent) * 1000) / 1000;
+          S.warehouse.history.unshift({
+            id: uid(), date, type: 'chemical', name: p.name,
+            operation: 'out', qty: spent, unit: stock.unit||'л',
+            price: stock.price||0, total: Math.round(spent * (stock.price||0)),
+            parcelName: parcel?.name||'—', note: 'Обработка'
+          });
+        }
+      }
+    });
+    if (_vServerAvailable) {
+      fetch('/api/state/vegetable', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ warehouse: S.warehouse })
+      }).catch(e => console.warn('Warehouse sync failed:', e));
+    }
+  }
   if (_vServerAvailable) {
     fetch('/api/state/vegetable', {
       method: 'POST',
