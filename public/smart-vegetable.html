@@ -4070,9 +4070,17 @@ function openTreatmentModal(treatId) {
   document.getElementById('t-compat-warning').style.display='none';
   document.getElementById('t-rotation-warning').style.display='none';
   document.getElementById('t-tank-order').style.display='none';
-  const psel=document.getElementById('t-parcel');
-  psel.innerHTML='<option value="">— выбрать —</option>';
-  S.parcels.forEach(p=>{const c=getCropById(p.cropId);psel.innerHTML+=`<option value="${p.id}" ${t?.parcelId===p.id?'selected':''}>${p.name}${c?' · '+c.emoji:''}</option>`;});
+  _selectedParcels = t?.parcelId ? [t.parcelId] : [];
+  const dd = document.getElementById('t-parcel-dropdown');
+  dd.innerHTML = S.parcels.map(p => {
+    const c = getCropById(p.cropId);
+    const sel = _selectedParcels.includes(p.id);
+    return `<div style="padding:6px 10px;border-radius:6px;cursor:pointer;background:${sel?'rgba(107,221,107,.15)':'transparent'};display:flex;align-items:center;gap:8px;" onclick="toggleParcelSelect('${p.id}')" id="parcel-opt-${p.id}">
+      <span style="color:${sel?'var(--accent)':'var(--text3)'};">${sel?'✅':'⬜'}</span>
+      <span>${p.name}${c?' · '+c.emoji:''}</span>
+    </div>`;
+  }).join('');
+  renderParcelList();
   const csel=document.getElementById('t-copy-from');
   csel.innerHTML='<option value="">— скопировать из предыдущей —</option>';
   [...S.treatments].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,15).forEach(tr=>{
