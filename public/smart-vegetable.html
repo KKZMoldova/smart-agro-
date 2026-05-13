@@ -4182,7 +4182,39 @@ function copyFromTreatment(){
   if(t.parcelId) document.getElementById('t-parcel').value=t.parcelId;
   renderTreatProductRows();
 }
+function toggleParcelDropdown() {
+  const dd = document.getElementById('t-parcel-dropdown');
+  dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+}
 
+function toggleParcelSelect(id) {
+  if (_selectedParcels.includes(id)) {
+    _selectedParcels = _selectedParcels.filter(p => p !== id);
+  } else {
+    _selectedParcels.push(id);
+  }
+  S.parcels.forEach(p => {
+    const el = document.getElementById('parcel-opt-'+p.id);
+    if (!el) return;
+    const sel = _selectedParcels.includes(p.id);
+    el.style.background = sel ? 'rgba(107,221,107,.15)' : 'transparent';
+    el.querySelectorAll('span')[0].style.color = sel ? 'var(--accent)' : 'var(--text3)';
+    el.querySelectorAll('span')[0].textContent = sel ? '✅' : '⬜';
+  });
+  renderParcelList();
+}
+
+function renderParcelList() {
+  const el = document.getElementById('t-parcel-list');
+  if (!_selectedParcels.length) {
+    el.innerHTML = '<span style="color:var(--text3);font-size:12px;">— нажмите чтобы выбрать участки —</span>';
+    return;
+  }
+  el.innerHTML = _selectedParcels.map(id => {
+    const p = S.parcels.find(x => x.id === id);
+    return p ? '<span style="padding:3px 8px;border-radius:6px;background:rgba(107,221,107,.15);color:var(--accent);font-size:11px;">'+p.name+'</span>' : '';
+  }).join('');
+}
 function saveTreatment(){
   const date=document.getElementById('t-date').value;
   const parcelId=document.getElementById('t-parcel').value;
