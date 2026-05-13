@@ -4508,42 +4508,6 @@ function showBuhReport() {
   el.style.display = 'block';
 }
 
-function showBuhReport() {
-  const el = document.getElementById('catalog-report');
-  const items = S.catalog.filter(c => c.inBuh === 'yes' && c.buhName);
-  // Группировать по бухгалтерскому названию
-  const grouped = {};
-  items.forEach(c => {
-    const key = c.buhName;
-    if (!grouped[key]) grouped[key] = [];
-    grouped[key].push(c);
-  });
-  let html = `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;">
-    <div style="padding:12px 16px;background:var(--surface2);display:flex;justify-content:space-between;align-items:center;">
-      <div style="font-family:'Unbounded',sans-serif;font-size:12px;font-weight:700;color:var(--blue);">📋 Бухгалтерский отчёт</div>
-      <button class="btn btn-secondary btn-sm" onclick="document.getElementById('catalog-report').style.display='none'">✕</button>
-    </div>
-    <table class="data-table">
-      <thead><tr>
-        <th>Бух. название</th><th>Торговое название</th><th>Тип</th><th>Цена</th><th>Поставщик</th>
-      </tr></thead>
-      <tbody>
-        ${Object.entries(grouped).map(([buhName, preps]) =>
-          preps.map((c, i) => `<tr>
-            <td style="font-weight:600;">${i===0?buhName:''}</td>
-            <td style="color:var(--text2);">${c.name}</td>
-            <td style="font-size:11px;">${c.type||'—'}</td>
-            <td style="font-weight:600;color:var(--accent);">${c.price?c.price+' лей/'+(c.unit||'л'):'—'}</td>
-            <td style="font-size:11px;color:var(--text3);">${c.supplier||'—'}</td>
-          </tr>`).join('')
-        ).join('')}
-      </tbody>
-    </table>
-    ${!items.length?'<div style="padding:20px;text-align:center;color:var(--text3);">Нет препаратов с бухгалтерским названием</div>':''}
-  </div>`;
-  el.innerHTML = html;
-  el.style.display = 'block';
-}
 
 // ── Import/Export ─────────────────────────────────────────────────────────
 function exportData() {
