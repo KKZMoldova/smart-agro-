@@ -4581,9 +4581,6 @@ function showBuhReport() {
 
 // ═══ WAREHOUSE ═══════════════════════════════════════════════════════════
 let _whTab = 'chemicals';
-
-if (!S.warehouse) S.warehouse = { chemicals: [], parts: [], history: [] };
-
 function showWarehouseTab(tab) {
   _whTab = tab;
   ['chemicals','parts','history'].forEach(t => {
