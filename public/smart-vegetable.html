@@ -4432,31 +4432,35 @@ function saveCatalogItem() {
 function showMgmtReport() {
   const el = document.getElementById('catalog-report');
   const items = S.catalog;
-  let html = `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;">
-    <div style="padding:12px 16px;background:var(--surface2);display:flex;justify-content:space-between;align-items:center;">
-      <div style="font-family:'Unbounded',sans-serif;font-size:12px;font-weight:700;color:var(--accent);">📊 Управленческий отчёт — все препараты</div>
-      <button class="btn btn-secondary btn-sm" onclick="document.getElementById('catalog-report').style.display='none'">✕</button>
-    </div>
-    <table class="data-table">
-      <thead><tr>
-        <th>Торговое название</th><th>Бух. название</th><th>Тип</th>
-        <th>Статус</th><th>Оплата</th><th>Цена</th><th>Поставщик</th><th>В бухгалтерии</th>
-      </tr></thead>
-      <tbody>
-        ${items.map(c=>`<tr>
-          <td style="font-weight:600;">${c.name}</td>
-          <td style="color:var(--text2);">${c.buhName||'—'}</td>
-          <td style="font-size:11px;">${c.type||'—'}</td>
-          <td>${c.legal==='illegal'?'<span style="color:var(--red);">⛔ Не рег.</span>':'<span style="color:var(--accent);">✅ Разрешён</span>'}</td>
-          <td>${c.payment==='cash'?'💵 Наличка':'💳 Безнал'}</td>
-          <td style="font-weight:600;color:var(--accent);">${c.price?c.price+' лей/'+(c.unit||'л'):'—'}</td>
-          <td style="font-size:11px;color:var(--text3);">${c.supplier||'—'}</td>
-          <td>${c.inBuh==='yes'?'✅ Да':'❌ Нет'}</td>
-        </tr>`).join('')}
-      </tbody>
-    </table>
-  </div>`;
-  el.innerHTML = html;
+  const TYPE_LABELS={fungicide:'Фунгицид',insecticide:'Инсектицид',herbicide:'Гербицид',fertilizer:'Удобрение',acaricide:'Акарицид',surfactant:'ПАВ',other:'Другое'};
+  let rows = items.map(c => {
+    const legal = c.legal==='illegal' ? '⛔ Не рег.' : '✅ Разрешён';
+    const payment = c.payment==='cash' ? '💵 Наличка' : '💳 Безнал';
+    const price = c.price ? c.price+' лей/'+(c.unit||'л') : '—';
+    const inBuh = c.inBuh==='yes' ? '✅ Да' : '❌ Нет';
+    return '<tr><td style="font-weight:600;">'+c.name+'</td><td>'+(c.buhName||'—')+'</td><td>'+(TYPE_LABELS[c.type]||c.type)+'</td><td>'+legal+'</td><td>'+payment+'</td><td style="font-weight:600;color:var(--accent);">'+price+'</td><td style="font-size:11px;color:var(--text3);">'+(c.supplier||'—')+'</td><td>'+inBuh+'</td></tr>';
+  }).join('');
+  el.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;"><div style="padding:12px 16px;background:var(--surface2);display:flex;justify-content:space-between;align-items:center;"><div style="font-family:Unbounded,sans-serif;font-size:12px;font-weight:700;color:var(--accent);">📊 Управленческий отчёт</div><button class="btn btn-secondary btn-sm" onclick="document.getElementById(\'catalog-report\').style.display=\'none\'">✕</button></div><table class="data-table"><thead><tr><th>Торговое название</th><th>Бух. название</th><th>Тип</th><th>Статус</th><th>Оплата</th><th>Цена</th><th>Поставщик</th><th>В бухгалтерии</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+  el.style.display = 'block';
+}
+
+function showBuhReport() {
+  const el = document.getElementById('catalog-report');
+  const items = S.catalog.filter(c => c.inBuh === 'yes' && c.buhName);
+  const grouped = {};
+  items.forEach(c => {
+    if (!grouped[c.buhName]) grouped[c.buhName] = [];
+    grouped[c.buhName].push(c);
+  });
+  let rows = '';
+  Object.entries(grouped).forEach(([buhName, preps]) => {
+    preps.forEach((c, i) => {
+      const price = c.price ? c.price+' лей/'+(c.unit||'л') : '—';
+      rows += '<tr><td style="font-weight:600;">'+(i===0?buhName:'')+'</td><td style="color:var(--text2);">'+c.name+'</td><td style="font-size:11px;">'+(c.type||'—')+'</td><td style="font-weight:600;color:var(--accent);">'+price+'</td><td style="font-size:11px;color:var(--text3);">'+(c.supplier||'—')+'</td></tr>';
+    });
+  });
+  if (!rows) rows = '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px;">Нет препаратов с бухгалтерским названием</td></tr>';
+  el.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;"><div style="padding:12px 16px;background:var(--surface2);display:flex;justify-content:space-between;align-items:center;"><div style="font-family:Unbounded,sans-serif;font-size:12px;font-weight:700;color:var(--blue);">📋 Бухгалтерский отчёт</div><button class="btn btn-secondary btn-sm" onclick="document.getElementById(\'catalog-report\').style.display=\'none\'">✕</button></div><table class="data-table"><thead><tr><th>Бух. название</th><th>Торговое название</th><th>Тип</th><th>Цена</th><th>Поставщик</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
   el.style.display = 'block';
 }
 
