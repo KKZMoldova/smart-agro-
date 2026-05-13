@@ -822,7 +822,15 @@ body[data-readonly="true"] .parcel-card { cursor: default; pointer-events: none;
     </select>
   </div>
 
-<!-- ═══ SETTINGS ═══ -->
+<table class="data-table">
+    <thead><tr>
+      <th>Торговое название</th><th>Бух. название</th><th>Тип</th>
+      <th>Доза</th><th>WHI</th><th>Цена</th><th>Статус</th><th></th>
+    </tr></thead>
+    <tbody id="catalog-tbody"></tbody>
+  </table>
+</div>
+  <!-- ═══ SETTINGS ═══ -->
 <div class="panel" id="panel-settings">
   <div class="section-hdr"><h2>⚙️ Настройки</h2></div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:600px;">
