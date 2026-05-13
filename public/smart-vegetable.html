@@ -4411,7 +4411,96 @@ function renderCatalog() {
   if(typeFilter) items=items.filter(c=>c.type===typeFilter);
   const TYPE_LABELS={fungicide:'Фунгицид',insecticide:'Инсектицид',herbicide:'Гербицид',fertilizer:'Удобрение',acaricide:'Акарицид'};
   const TYPE_COLORS={fungicide:'var(--teal)',insecticide:'var(--orange)',herbicide:'var(--yellow)',fertilizer:'var(--accent)',acaricide:'var(--purple)'};
+  function renderCatalog() {
+  const typeFilter=document.getElementById('cat-type-filter').value;
+  let items=S.catalog;
+  if(typeFilter) items=items.filter(c=>c.type===typeFilter);
+  const TYPE_LABELS={fungicide:'Фунгицид',insecticide:'Инсектицид',herbicide:'Гербицид',fertilizer:'Удобрение',acaricide:'Акарицид',surfactant:'ПАВ',other:'Другое'};
+  const TYPE_COLORS={fungicide:'var(--teal)',insecticide:'var(--orange)',herbicide:'var(--yellow)',fertilizer:'var(--accent)',acaricide:'var(--purple)',surfactant:'var(--blue)',other:'var(--text3)'};
+  const isOwner = _currentRole === 'owner' || _currentRole === 'agronomist' || _currentRole === 'operator';
   document.getElementById('catalog-tbody').innerHTML=items.map(c=>`<tr>
+    <td style="font-weight:600;">
+      ${c.name}
+      ${c.legal==='illegal'?'<span style="font-size:9px;padding:1px 5px;border-radius:6px;background:rgba(255,85,85,.15);color:var(--red);margin-left:4px;">⛔ Не рег.</span>':''}
+      ${c.payment==='cash'?'<span style="font-size:9px;padding:1px 5px;border-radius:6px;background:rgba(255,216,77,.1);color:var(--yellow);margin-left:4px;">💵 Нал.</span>':''}
+    </td>
+    <td><span style="font-size:10px;padding:2px 7px;border-radius:8px;background:${TYPE_COLORS[c.type]||'var(--text3)'}22;color:${TYPE_COLORS[c.type]||'var(--text3)'};">${TYPE_LABELS[c.type]||c.type}</span></td>
+    <td style="font-size:11px;color:var(--text2);font-style:italic;">${c.ai||'—'}</td>
+    <td style="font-size:11px;">${c.dose||'—'}</td>
+    <td style="font-size:11px;color:${c.whi>14?'var(--orange)':'var(--text)'};">${c.whi?c.whi+' дн':'—'}</td>
+    <td style="font-size:10px;color:var(--text3);">${c.crops||'—'}</td>
+    ${isOwner?`<td style="font-size:10px;color:var(--text3);">${c.price?c.price+' лей/'+( c.unit||'л'):'—'}</td>`:'<td>—</td>'}
+    <td><button class="btn btn-secondary btn-xs" onclick="openCatalogModal('${c.id}')">✏️</button></td>
+  </tr>`).join('');
+}
+
+function showMgmtReport() {
+  const el = document.getElementById('catalog-report');
+  const items = S.catalog;
+  let html = `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;">
+    <div style="padding:12px 16px;background:var(--surface2);display:flex;justify-content:space-between;align-items:center;">
+      <div style="font-family:'Unbounded',sans-serif;font-size:12px;font-weight:700;color:var(--accent);">📊 Управленческий отчёт — все препараты</div>
+      <button class="btn btn-secondary btn-sm" onclick="document.getElementById('catalog-report').style.display='none'">✕</button>
+    </div>
+    <table class="data-table">
+      <thead><tr>
+        <th>Торговое название</th><th>Бух. название</th><th>Тип</th>
+        <th>Статус</th><th>Оплата</th><th>Цена</th><th>Поставщик</th><th>В бухгалтерии</th>
+      </tr></thead>
+      <tbody>
+        ${items.map(c=>`<tr>
+          <td style="font-weight:600;">${c.name}</td>
+          <td style="color:var(--text2);">${c.buhName||'—'}</td>
+          <td style="font-size:11px;">${c.type||'—'}</td>
+          <td>${c.legal==='illegal'?'<span style="color:var(--red);">⛔ Не рег.</span>':'<span style="color:var(--accent);">✅ Разрешён</span>'}</td>
+          <td>${c.payment==='cash'?'💵 Наличка':'💳 Безнал'}</td>
+          <td style="font-weight:600;color:var(--accent);">${c.price?c.price+' лей/'+(c.unit||'л'):'—'}</td>
+          <td style="font-size:11px;color:var(--text3);">${c.supplier||'—'}</td>
+          <td>${c.inBuh==='yes'?'✅ Да':'❌ Нет'}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+  </div>`;
+  el.innerHTML = html;
+  el.style.display = 'block';
+}
+
+function showBuhReport() {
+  const el = document.getElementById('catalog-report');
+  const items = S.catalog.filter(c => c.inBuh === 'yes' && c.buhName);
+  // Группировать по бухгалтерскому названию
+  const grouped = {};
+  items.forEach(c => {
+    const key = c.buhName;
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(c);
+  });
+  let html = `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;">
+    <div style="padding:12px 16px;background:var(--surface2);display:flex;justify-content:space-between;align-items:center;">
+      <div style="font-family:'Unbounded',sans-serif;font-size:12px;font-weight:700;color:var(--blue);">📋 Бухгалтерский отчёт</div>
+      <button class="btn btn-secondary btn-sm" onclick="document.getElementById('catalog-report').style.display='none'">✕</button>
+    </div>
+    <table class="data-table">
+      <thead><tr>
+        <th>Бух. название</th><th>Торговое название</th><th>Тип</th><th>Цена</th><th>Поставщик</th>
+      </tr></thead>
+      <tbody>
+        ${Object.entries(grouped).map(([buhName, preps]) =>
+          preps.map((c, i) => `<tr>
+            <td style="font-weight:600;">${i===0?buhName:''}</td>
+            <td style="color:var(--text2);">${c.name}</td>
+            <td style="font-size:11px;">${c.type||'—'}</td>
+            <td style="font-weight:600;color:var(--accent);">${c.price?c.price+' лей/'+(c.unit||'л'):'—'}</td>
+            <td style="font-size:11px;color:var(--text3);">${c.supplier||'—'}</td>
+          </tr>`).join('')
+        ).join('')}
+      </tbody>
+    </table>
+    ${!items.length?'<div style="padding:20px;text-align:center;color:var(--text3);">Нет препаратов с бухгалтерским названием</div>':''}
+  </div>`;
+  el.innerHTML = html;
+  el.style.display = 'block';
+}
     <td style="font-weight:600;">${c.name}</td>
     <td><span style="font-size:10px;padding:2px 7px;border-radius:8px;background:${TYPE_COLORS[c.type]||'var(--text3)'}22;color:${TYPE_COLORS[c.type]||'var(--text3)'};">${TYPE_LABELS[c.type]||c.type}</span></td>
     <td style="font-size:11px;color:var(--text2);font-style:italic;">${c.ai||'—'}</td>
