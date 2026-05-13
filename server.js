@@ -121,7 +121,7 @@ app.get('/api/state/vegetable', async (req, res) => {
 // Full state POST for Vegetable (fields, equipment, parcels)
 app.post('/api/state/vegetable', async (req, res) => {
   try {
-    const { fields, equipment, parcels, treatments } = req.body;
+    const { fields, equipment, parcels, treatments, catalog } = req.body;
     const r = await db.query(`SELECT value FROM settings WHERE key='vegetable_full_state'`);
     let state = {};
     if (r.rows.length) {
@@ -131,6 +131,7 @@ app.post('/api/state/vegetable', async (req, res) => {
     if (equipment !== undefined) state.equipment = equipment;
     if (parcels !== undefined) state.parcels = parcels;
     if (treatments !== undefined) state.treatments = treatments;
+    if (catalog !== undefined) state.catalog = catalog;
     await db.query(
       `INSERT INTO settings (key,value) VALUES ('vegetable_full_state',$1)
        ON CONFLICT (key) DO UPDATE SET value=$1, updated_at=NOW()`,
