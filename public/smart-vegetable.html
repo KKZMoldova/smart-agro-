@@ -4854,7 +4854,7 @@ function renderWarehouse() {
         let resourceStatus = '';
         if (p.resourceHours && p.installed) {
           const daysWorked = Math.round((new Date(today()) - new Date(p.installed)) / 86400000);
-          const hoursWorked = p.worked || daysWorked * 8;
+          const hoursWorked = p.worked || 0;
           const remaining = Math.max(0, p.resourceHours - hoursWorked);
           const pct = Math.round((hoursWorked / p.resourceHours) * 100);
           resourceHtml = hoursWorked+'/'+p.resourceHours+'ч ('+pct+'%)';
