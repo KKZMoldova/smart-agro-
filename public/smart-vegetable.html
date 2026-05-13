@@ -886,6 +886,26 @@ body[data-readonly="true"] .parcel-card { cursor: default; pointer-events: none;
     </table>
   </div>
 </div>
+  <!-- ═══ TASKS ═══ -->
+<div class="panel" id="panel-tasks">
+  <div class="section-hdr">
+    <h2>📋 Журнал работ</h2>
+    <button class="btn btn-primary" onclick="openNewTask()">+ Новое задание</button>
+  </div>
+  <!-- Filters -->
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;">
+    <button class="sort-btn active" id="tf-all" onclick="filterTasks('all',this)">Все <span id="tc-all">0</span></button>
+    <button class="sort-btn" id="tf-new" onclick="filterTasks('new',this)">Новые <span id="tc-new">0</span></button>
+    <button class="sort-btn" id="tf-assigned" onclick="filterTasks('assigned',this)">Назначено <span id="tc-assigned">0</span></button>
+    <button class="sort-btn" id="tf-accepted" onclick="filterTasks('accepted',this)">Принято <span id="tc-accepted">0</span></button>
+    <button class="sort-btn" id="tf-in_progress" onclick="filterTasks('in_progress',this)">В работе <span id="tc-in_progress">0</span></button>
+    <button class="sort-btn" id="tf-done" onclick="filterTasks('done',this)">Выполнено <span id="tc-done">0</span></button>
+    <button class="sort-btn" id="tf-problem" onclick="filterTasks('problem',this)">Проблемы <span id="tc-problem">0</span></button>
+    <button class="sort-btn" id="tf-closed" onclick="filterTasks('closed',this)">Закрыто <span id="tc-closed">0</span></button>
+  </div>
+  <!-- Task list -->
+  <div id="tasks-list"></div>
+</div>
   <!-- ═══ SETTINGS ═══ -->
 <div class="panel" id="panel-settings">
   <div class="section-hdr"><h2>⚙️ Настройки</h2></div>
