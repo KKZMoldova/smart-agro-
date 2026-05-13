@@ -4419,6 +4419,10 @@ function saveCatalogItem() {
   const typeFilter=document.getElementById('cat-type-filter').value;
   let items=S.catalog;
   if(typeFilter) items=items.filter(c=>c.type===typeFilter);
+   const legalFilter=document.getElementById('cat-legal-filter').value;
+  const paymentFilter=document.getElementById('cat-payment-filter').value;
+  if(legalFilter) items=items.filter(c=>c.legal===legalFilter);
+  if(paymentFilter) items=items.filter(c=>c.payment===paymentFilter); 
   const TYPE_LABELS={fungicide:'Фунгицид',insecticide:'Инсектицид',herbicide:'Гербицид',fertilizer:'Удобрение',acaricide:'Акарицид',surfactant:'ПАВ',other:'Другое'};
   const TYPE_COLORS={fungicide:'var(--teal)',insecticide:'var(--orange)',herbicide:'var(--yellow)',fertilizer:'var(--accent)',acaricide:'var(--purple)',surfactant:'var(--blue)',other:'var(--text3)'};
   const isOwner = _currentRole === 'owner' || _currentRole === 'agronomist' || _currentRole === 'operator';
