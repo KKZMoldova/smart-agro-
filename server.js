@@ -181,6 +181,81 @@ cron.schedule('0 6 * * *', async () => {
   try { await syncFieldClimate(); console.log('[CRON] Weather sync OK'); }
   catch(err) { console.error('[CRON] Weather sync FAILED:', err.message); }
 });
+// Утренняя рассылка алертов в 7:00
+cron.schedule('0 7 * * *', async () => {
+  try {
+    const stateRes = await db.query(`SELECT value FROM settings WHERE key='vegetable_full_state'`);
+    if (!stateRes.rows.length) return;
+    const state = typeof stateRes.rows[0].value === 'string'
+      ? JSON.parse(stateRes.rows[0].value)
+      : stateRes.rows[0].value;
+    const weatherRes = await db.query(`SELECT * FROM weather ORDER BY date DESC LIMIT 3`);
+    const weather = weatherRes.rows;
+    if (!weather.length) return;
+
+    const latest = weather[0];
+    const tmax = parseFloat(latest.tmax) || 20;
+    const tmin = parseFloat(latest.tmin) || 10;
+    const hum = parseFloat(latest.humidity) || 50;
+    const lw = parseFloat(latest.leaf_wet) || 0;
+    const date = latest.date?.toString().slice(0,10);
+
+    // Проверить Smith Period
+    const smithActive = weather.length >= 2 &&
+      weather.slice(0,2).every(w => parseFloat(w.tmax) >= 10 && parseFloat(w.humidity) >= 80);
+
+    const parcels = state.parcels || [];
+    let alerts = [];
+
+    // Smith Period
+    if (smithActive) {
+      alerts.push('🟤 <b>SMITH PERIOD АКТИВЕН</b> — немедленная обработка томата и картофеля от фитофторы!');
+    }
+
+    // Пероноспороз гороха
+    const tavg = (tmax + tmin) / 2;
+    if (tavg >= 5 && tavg <= 20 && lw >= 4) {
+      const peaParcels = parcels.filter(p => p.cropId === 'pea').map(p => p.name).join(', ');
+      if (peaParcels) {
+        alerts.push(`💜 <b>Пероноспороз гороха — КРИТИЧНО</b>\nT°ср ${tavg.toFixed(1)}°C + лист мокрый ${lw}ч\nУчастки: ${peaParcels}\nОбработка: Ридомил Голд или Акробат ДО дождя`);
+      }
+    }
+
+    // Аскохитоз гороха
+    if (hum > 75 && lw >= 3 && tavg >= 12) {
+      const peaParcels = parcels.filter(p => p.cropId === 'pea').map(p => p.name).join(', ');
+      if (peaParcels) {
+        alerts.push(`🟤 <b>Аскохитоз гороха</b>\nRH ${hum}% + лист ${lw}ч\nУчастки: ${peaParcels}\nОбработка: Хорус или Свитч`);
+      }
+    }
+
+    // Заморозок
+    if (tmin <= 2) {
+      alerts.push(`❄️ <b>ЗАМОРОЗОК</b> — T°мин ${tmin}°C\nПроверить все участки! Укрытие агроволокном.`);
+    }
+
+    // Тепловой стресс горошка
+    if (tmax >= 26) {
+      const peaParcels = parcels.filter(p => p.cropId === 'pea').map(p => p.name).join(', ');
+      if (peaParcels) {
+        alerts.push(`🌡️ <b>Тепловой стресс гороха</b> — T°макс ${tmax}°C\nГорошек перестаёт завязывать бобы!\nУчастки: ${peaParcels}\nСрочный полив!`);
+      }
+    }
+
+    if (alerts.length === 0) {
+      await sendTelegram(TELEGRAM_GROUP_ID,
+        `✅ <b>Smart Agro · ${date}</b>\n\nДоброе утро! Критических алертов нет.\nT°мин ${tmin}°C / T°макс ${tmax}°C · RH ${hum}%`
+      );
+    } else {
+      const msg = `🌿 <b>Smart Agro · Утренний отчёт · ${date}</b>\n\n` +
+        `🌡 T°мин ${tmin}°C / T°макс ${tmax}°C · RH ${hum}% · Лист ${lw}ч\n\n` +
+        `⚠️ <b>АЛЕРТЫ (${alerts.length}):</b>\n\n` +
+        alerts.join('\n\n');
+      await sendTelegram(TELEGRAM_GROUP_ID, msg);
+    }
+    console.log('[CRON] Morning alerts sent:', alerts.length);
+  } catch(e) { console.error('[CRON] Morning alerts error:', e.message); }
+});
 setTimeout(() => {
   if (!process.env.FIELDCLIMATE_PUBLIC_KEY_ORCHARD && !process.env.FIELDCLIMATE_PUBLIC_KEY_VEG) {
     console.log('[CRON] FieldClimate keys not set — skipping');
