@@ -5674,9 +5674,9 @@ function showWarehouseSnapshot(type='chemicals') {
       const critical=p.minStock&&p.qty<=p.minStock*0.5;
       const status=critical?'🔴':low?'🟡':'🟢';
       let resource='—';
-      if(p.resourceHours&&p.worked!=null){
-        const pct=Math.round((p.worked/p.resourceHours)*100);
-        resource=p.worked+'/'+p.resourceHours+'ч ('+pct+'%)';
+     if(p.resourceHours){
+        const pct=Math.round(((p.worked||0)/p.resourceHours)*100);
+        resource=(p.worked||0)+'/'+p.resourceHours+'ч ('+pct+'%)';
       } else if(p.resourceSeasons) resource=p.resourceSeasons+' сезонов';
       return '<tr style="'+(critical?'background:rgba(255,85,85,.05)':low?'background:rgba(255,216,77,.05)':'')+'">'+
         '<td style="font-weight:600;">'+p.name+'</td>'+
