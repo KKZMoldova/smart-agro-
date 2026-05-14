@@ -5080,11 +5080,13 @@ function saveWarehouseItem() {
     stock.payment = payment;
 
     // Add to history
-    S.warehouse.history.unshift({
-      id: uid(), date, type: 'chemical', name: cat.name,
-      operation: 'in', qty, unit, price, total: Math.round(qty * price),
-      supplier, payment, note
-    });
+   S.warehouse.history.unshift({
+        id: uid(), date, type: 'chemical', name: cat.name,
+        operation: 'in', qty, unit,
+        priceOrig: priceRaw, currencyOrig: priceCurrency, rateUsed,
+        price, total: Math.round(qty * price * 10000) / 10000,
+        supplier, payment, note
+      });
 
   } else {
     const name = document.getElementById('wh-part-name').value.trim();
