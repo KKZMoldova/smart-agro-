@@ -5651,13 +5651,32 @@ function formatPrice(price) {
   return parseFloat(price).toFixed(4) + ' ' + getCurrencySymbol();
 }
 function renderCurrencySymbol() {
-  // Обновить все отображения валюты на странице
-  document.querySelectorAll('.currency-symbol').forEach(el => {
-    el.textContent = getCurrencySymbol();
-  });
-  // Обновить select если открыт
+  const cur = getCurrency();
   const sel = document.getElementById('set-currency');
-  if(sel) sel.value = getCurrency();
+  if(sel) sel.value = cur;
+  document.querySelectorAll('.currency-symbol').forEach(el => el.textContent = getCurrencySymbol());
+
+  const h = {
+    MDL: { eur:'1 EUR = ? MDL', usd:'1 USD = ? MDL', ron:'1 RON = ? MDL', rub:'1 РУБ = ? MDL' },
+    EUR: { eur:null, usd:'1 USD = ? EUR', ron:'1 RON = ? EUR', rub:'1 РУБ = ? EUR' },
+    USD: { eur:'1 EUR = ? USD', usd:null, ron:'1 RON = ? USD', rub:'1 РУБ = ? USD' },
+    RON: { eur:'1 EUR = ? RON', usd:'1 USD = ? RON', ron:null, rub:'1 РУБ = ? RON' },
+    RUB: { eur:'1 EUR = ? РУБ', usd:'1 USD = ? РУБ', ron:'1 RON = ? РУБ', rub:null }
+  }[cur] || { eur:'1 EUR = ? MDL', usd:'1 USD = ? MDL', ron:'1 RON = ? MDL', rub:'1 РУБ = ? MDL' };
+
+  ['eur','usd','ron','rub'].forEach(key => {
+    const block = document.getElementById('rate-'+key+'-block');
+    const hint = document.getElementById('rate-'+key+'-hint');
+    if(!block) return;
+    if(h[key] === null) {
+      block.style.display = 'none';
+    } else {
+      block.style.display = '';
+      const labels = {eur:'Курс EUR → '+cur, usd:'Курс USD → '+cur, ron:'Курс RON → '+cur, rub:'Курс РУБ → '+cur};
+      block.querySelector('label').textContent = labels[key];
+      if(hint) hint.textContent = h[key];
+    }
+  });
 }
 
 
