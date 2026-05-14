@@ -5136,7 +5136,7 @@ function saveWarehouseItem() {
     // Update or create part stock
     let part = S.warehouse.parts.find(p => p.name.toLowerCase() === name.toLowerCase());
     if (!part) {
-      part = { id: uid(), name, category, unit, qty: 0, minStock, price, supplier, resourceHours, resourceSeasons, installed, worked, note };
+      part = { id: uid(), name, category, unit, qty: 0, installedQty: 0, minStock, price, supplier, resourceHours, resourceSeasons, installed, worked, note };
       S.warehouse.parts.push(part);
     }
     part.qty += qty;
