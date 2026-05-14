@@ -5601,7 +5601,18 @@ async function saveTaskDone() {
   closeModal('modal-task-done');
 }
 
-// ── Import/Export ─────────────────────────────────────────────────────────
+function saveSettings() {
+  save();
+  fetch('/api/state/vegetable', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ settings: S.settings })
+  }).then(() => {
+    const btn = document.querySelector('[onclick="saveSettings()"]');
+    if(btn) { btn.textContent = '✅ Сохранено!'; setTimeout(()=>btn.textContent='💾 Сохранить настройки', 2000); }
+  });
+}
+  // ── Import/Export ─────────────────────────────────────────────────────────
 function exportData() {
   const data=JSON.stringify(S,null,2);
   const a=document.createElement('a');a.href='data:application/json,'+encodeURIComponent(data);
