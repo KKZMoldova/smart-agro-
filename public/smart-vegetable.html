@@ -5123,11 +5123,16 @@ function saveWarehouseItem() {
     part.worked = worked || part.worked;
 
     // Add to history
-    S.warehouse.history.unshift({
-      id: uid(), date, type: 'part', name,
-      operation: 'in', qty, unit, price, total: Math.round(qty * price),
-      supplier, note
-    });
+   const priceRawPart = parseFloat(document.getElementById('wh-part-price').value) || 0;
+      const priceCurrencyPart = document.getElementById('wh-part-price-currency').value;
+      const rateUsedPart = getRate(priceCurrencyPart);
+      S.warehouse.history.unshift({
+        id: uid(), date, type: 'part', name,
+        operation: 'in', qty, unit,
+        priceOrig: priceRawPart, currencyOrig: priceCurrencyPart, rateUsed: rateUsedPart,
+        price, total: Math.round(qty * price * 10000) / 10000,
+        supplier, note
+      });
   }
 
   save();
