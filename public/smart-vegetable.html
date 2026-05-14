@@ -5624,6 +5624,14 @@ function saveSettings() {
     if(btn) { btn.textContent = '✅ Сохранено!'; setTimeout(()=>btn.textContent='💾 Сохранить настройки', 2000); }
   });
 }
+  function updateCatalogPriceConverted() {
+  const priceRaw = parseFloat(document.getElementById('c-price').value) || 0;
+  const currency = document.getElementById('c-price-currency').value;
+  const el = document.getElementById('c-price-converted');
+  if(!priceRaw || currency === getCurrency()) { el.textContent = ''; return; }
+  const converted = convertPrice(priceRaw, currency);
+  el.textContent = `= ${converted.toFixed(4)} ${getCurrencySymbol()}`;
+}
   // ── Import/Export ─────────────────────────────────────────────────────────
 function exportData() {
   const data=JSON.stringify(S,null,2);
