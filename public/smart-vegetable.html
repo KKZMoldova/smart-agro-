@@ -5664,17 +5664,22 @@ function getCurrencySymbol() {
 }
 function getRate(fromCurrency) {
   if(!fromCurrency || fromCurrency === getCurrency()) return 1;
-  const rates = {
-    EUR: S.settings?.rateEUR || 19.5,
-    USD: S.settings?.rateUSD || 17.8,
-    RON: S.settings?.rateRON || 3.9,
-    RUB: S.settings?.rateRUB || 0.19,
-    MDL: 1
+  const cur = getCurrency();
+  // Курсы введены как: 1 fromCurrency = X workingCurrency
+  // Например если рабочая валюта RUB и курс EUR=21 — значит 1 EUR = 21 RUB
+  const rateKey = {
+    'EUR': 'rateEUR',
+    'USD': 'rateUSD',
+    'RON': 'rateRON',
+    'RUB': 'rateRUB',
   };
-  // Конвертация из fromCurrency в рабочую валюту
-  const fromMDL = rates[fromCurrency] || 1;
-  const toMDL = rates[getCurrency()] || 1;
-  return fromMDL / toMDL;
+  // Прямой курс: fromCurrency → рабочая валюта
+  const key = rateKey[fromCurrency];
+  if(key && S.settings?.[key]) return S.settings[key];
+  // Обратный курс: рабочая валюта → fromCurrency
+  const reverseKey = rateKey[cur];
+  if(reverseKey && S.settings?.[reverseKey]) return 1 / S.settings[reverseKey];
+  return 1;
 }
 function convertPrice(price, fromCurrency) {
   if(!price) return 0;
