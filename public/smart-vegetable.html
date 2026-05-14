@@ -5635,6 +5635,7 @@ function saveSettings() {
   const converted = convertPrice(priceRaw, currency);
   el.textContent = `= ${converted.toFixed(4)} ${getCurrencySymbol()}`;
 }
+  <button class="btn btn-secondary" onclick="showWarehouseSnapshot()">👁 Остатки</button>
   // ── Import/Export ─────────────────────────────────────────────────────────
 function exportData() {
   const data=JSON.stringify(S,null,2);
