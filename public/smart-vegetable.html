@@ -5139,7 +5139,9 @@ function saveWarehouseItem() {
       part = { id: uid(), name, category, unit, qty: 0, installedQty: 0, minStock, price, supplier, resourceHours, resourceSeasons, installed, worked, note };
       S.warehouse.parts.push(part);
     }
-    part.qty += qty;
+  part.qty += qty;
+const installedQty = parseFloat(document.getElementById('wh-part-installed-qty').value) || 0;
+part.installedQty = installedQty;
     part.price = price || part.price;
     part.supplier = supplier || part.supplier;
     part.minStock = minStock || part.minStock;
