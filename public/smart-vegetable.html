@@ -5225,7 +5225,9 @@ if (p.resourceHours && p.installed) {
     '<td style="font-weight:600">'+h.name+'</td>'+
     '<td>'+(h.operation==='in'?'📥 Приход':'📤 Списание')+'</td>'+
     '<td style="font-family:JetBrains Mono,monospace;">'+h.qty+' '+(h.unit||'')+'</td>'+
-    '<td style="font-size:11px;">'+(h.price?formatPrice(h.price):'—')+'</td>'+
+    '<td style="font-size:11px;">'+(h.priceOrig&&h.currencyOrig&&h.currencyOrig!==getCurrency()?
+      h.priceOrig.toFixed(4)+' '+h.currencyOrig+' × '+h.rateUsed.toFixed(4)+' = '+formatPrice(h.price):
+      (h.price?formatPrice(h.price):'—'))+'</td>'+
     '<td style="font-weight:600;color:var(--accent);">'+(h.total?formatPrice(h.total):'—')+'</td>'+
     '<td style="font-size:11px;color:var(--text3);">'+(h.supplier||h.parcelName||'—')+'</td>'+
     '</tr>'
