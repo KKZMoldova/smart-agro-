@@ -5169,7 +5169,7 @@ function renderWarehouse() {
           <td style="font-family:'JetBrains Mono',monospace;font-weight:700;color:${critical?'var(--red)':low?'var(--yellow)':'var(--accent)'};">${c.qty} ${c.unit||'л'}</td>
           <td style="font-size:11px;color:var(--text3);">${c.unit||'л'}</td>
           <td style="font-size:11px;color:var(--text3);">${c.minStock||'—'} ${c.unit||'л'}</td>
-          <td style="font-size:11px;">${c.price?c.price+' лей':'—'}</td>
+          <td style="font-size:11px;">${c.price?formatPrice(c.price):'—'}</td>
           <td style="font-size:11px;color:var(--text3);">${c.supplier||'—'}</td>
           <td>${critical?'<span class="badge badge-red">❌ МАЛО</span>':low?'<span class="badge badge-yellow">⚠️ Мало</span>':'<span class="badge badge-green">✅ OK</span>'}</td>
           <td><button class="btn btn-primary btn-xs" onclick="openWarehouseModalForChemical('${c.catId}')">+ Приход</button></td>
