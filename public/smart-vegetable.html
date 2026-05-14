@@ -5610,7 +5610,16 @@ function importData(event) {
   reader.onload=e=>{try{Object.assign(S,JSON.parse(e.target.result));save();renderParcels();}catch(err){alert('Ошибка импорта: '+err.message);}};
   reader.readAsText(file);
 }
-function saveSetting(key,val) { S.settings[key]=val; S[key]=val; save(); }
+function saveSetting(key,val) {
+  S.settings[key]=val; S[key]=val; save();
+  if (_vServerAvailable) {
+    fetch('/api/state/vegetable', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ settings: S.settings })
+    }).catch(e => console.warn('Settings sync failed:', e));
+  }
+}
 
 function getCurrency() { return S.settings?.currency || S.currency || 'MDL'; }
 function getCurrencySymbol() {
