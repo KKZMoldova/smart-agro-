@@ -937,10 +937,10 @@ body[data-readonly="true"] .parcel-card { cursor: default; pointer-events: none;
         <option value="RUB">РУБ — Рубли</option>
       </select>
     </div>
-    <div class="ff"><label>Курс EUR → MDL</label><input type="number" id="set-rate-eur" step="0.0001" placeholder="19.5000" oninput="saveSetting('rateEUR',parseFloat(this.value))"></div>
-    <div class="ff"><label>Курс USD → MDL</label><input type="number" id="set-rate-usd" step="0.0001" placeholder="17.8000" oninput="saveSetting('rateUSD',parseFloat(this.value))"></div>
-    <div class="ff"><label>Курс RON → MDL</label><input type="number" id="set-rate-ron" step="0.0001" placeholder="3.9000" oninput="saveSetting('rateRON',parseFloat(this.value))"></div>
-    <div class="ff"><label>Курс Рубли → MDL</label><input type="number" id="set-rate-rub" step="0.0001" placeholder="0.1900" oninput="saveSetting('rateRUB',parseFloat(this.value))"></div>
+    <div class="ff"><label>Курс EUR → MDL</label><input type="text" id="set-rate-eur" placeholder="19.5000" oninput="this.value=this.value.replace(',','.');saveSetting('rateEUR',parseFloat(this.value))"></div>
+<div class="ff"><label>Курс USD → MDL</label><input type="text" id="set-rate-usd" placeholder="17.8000" oninput="this.value=this.value.replace(',','.');saveSetting('rateUSD',parseFloat(this.value))"></div>
+<div class="ff"><label>Курс RON → MDL</label><input type="text" id="set-rate-ron" placeholder="3.9000" oninput="this.value=this.value.replace(',','.');saveSetting('rateRON',parseFloat(this.value))"></div>
+<div class="ff"><label>Курс Рубли → MDL</label><input type="text" id="set-rate-rub" placeholder="0.1900" oninput="this.value=this.value.replace(',','.');saveSetting('rateRUB',parseFloat(this.value))"></div>
   </div>
   <div style="margin-top:24px;display:flex;gap:8px;">
     <button class="btn btn-secondary" onclick="exportData()">📤 Экспорт данных</button>
