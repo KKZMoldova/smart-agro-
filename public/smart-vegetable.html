@@ -5055,7 +5055,9 @@ function saveWarehouseItem() {
     if (!catId || !cat) { alert('Выберите препарат'); return; }
     const qty = parseFloat(document.getElementById('wh-qty').value) || 0;
     if (!qty) { alert('Введите количество'); return; }
-    const price = parseFloat(document.getElementById('wh-price').value) || 0;
+    const priceRaw = parseFloat(document.getElementById('wh-price').value) || 0;
+    const priceCurrency = document.getElementById('wh-price-currency').value;
+    const price = Math.round(convertPrice(priceRaw, priceCurrency) * 10000) / 10000;
     const unit = document.getElementById('wh-unit').value;
     const supplier = document.getElementById('wh-supplier').value.trim();
     const minStock = parseFloat(document.getElementById('wh-min-stock').value) || 0;
