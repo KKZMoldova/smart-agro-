@@ -5155,7 +5155,7 @@ function renderWarehouse() {
       <div class="kpi-val" style="color:${lowChemicals||lowParts?'var(--red)':'var(--accent)'};">${lowChemicals+lowParts}</div>
       <div class="kpi-lbl">Мало на складе</div>
     </div>
-    <div class="kpi-card"><div class="kpi-val" style="color:var(--accent);">${Math.round(totalValue).toLocaleString()}</div><div class="kpi-lbl">Стоимость склада (лей)</div></div>`;
+    <div class="kpi-val" style="color:var(--accent);">${totalValue.toFixed(4)}</div><div class="kpi-lbl">Стоимость склада (${getCurrencySymbol()})</div>
 
   // Chemicals table
   const CAT_COLORS={fungicide:'var(--teal)',insecticide:'var(--orange)',herbicide:'var(--yellow)',fertilizer:'var(--accent)',acaricide:'var(--purple)',surfactant:'var(--blue)',microelement:'var(--teal)',other:'var(--text3)'};
