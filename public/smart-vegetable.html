@@ -5057,6 +5057,7 @@ function saveWarehouseItem() {
     if (!qty) { alert('Введите количество'); return; }
     const priceRaw = parseFloat(document.getElementById('wh-price').value) || 0;
     const priceCurrency = document.getElementById('wh-price-currency').value;
+    const rateUsed = getRate(priceCurrency);
     const price = Math.round(convertPrice(priceRaw, priceCurrency) * 10000) / 10000;
     const unit = document.getElementById('wh-unit').value;
     const supplier = document.getElementById('wh-supplier').value.trim();
