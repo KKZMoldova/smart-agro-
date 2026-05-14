@@ -5566,6 +5566,43 @@ function importData(event) {
 }
 function saveSetting(key,val) { S.settings[key]=val; S[key]=val; save(); }
 
+function getCurrency() { return S.settings?.currency || S.currency || 'MDL'; }
+function getCurrencySymbol() {
+  const map = {MDL:'лей',EUR:'€',USD:'$',RON:'RON',RUB:'руб'};
+  return map[getCurrency()] || 'лей';
+}
+function getRate(fromCurrency) {
+  if(!fromCurrency || fromCurrency === getCurrency()) return 1;
+  const rates = {
+    EUR: S.settings?.rateEUR || 19.5,
+    USD: S.settings?.rateUSD || 17.8,
+    RON: S.settings?.rateRON || 3.9,
+    RUB: S.settings?.rateRUB || 0.19,
+    MDL: 1
+  };
+  // Конвертация из fromCurrency в рабочую валюту
+  const fromMDL = rates[fromCurrency] || 1;
+  const toMDL = rates[getCurrency()] || 1;
+  return fromMDL / toMDL;
+}
+function convertPrice(price, fromCurrency) {
+  if(!price) return 0;
+  return Math.round(parseFloat(price) * getRate(fromCurrency) * 10000) / 10000;
+}
+function formatPrice(price) {
+  if(!price && price !== 0) return '—';
+  return parseFloat(price).toFixed(4) + ' ' + getCurrencySymbol();
+}
+function renderCurrencySymbol() {
+  // Обновить все отображения валюты на странице
+  document.querySelectorAll('.currency-symbol').forEach(el => {
+    el.textContent = getCurrencySymbol();
+  });
+  // Обновить select если открыт
+  const sel = document.getElementById('set-currency');
+  if(sel) sel.value = getCurrency();
+}
+
 
 // ─── ROLE SYSTEM ──────────────────────────────────────────────────────────
 const ROLES = {
