@@ -5636,7 +5636,6 @@ function saveSettings() {
   const converted = convertPrice(priceRaw, currency);
   el.textContent = `= ${converted.toFixed(4)} ${getCurrencySymbol()}`;
 }
-  <button class="btn btn-secondary" onclick="showWarehouseSnapshot()">👁 Остатки</button>
 function showWarehouseSnapshot() {
   if (!S.warehouse?.chemicals?.length) { alert('Склад пуст'); return; }
   const chemicals = S.warehouse.chemicals;
