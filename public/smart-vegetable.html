@@ -5706,7 +5706,8 @@ function renderCurrencySymbol() {
       block.style.display = 'none';
     } else {
       block.style.display = '';
-      const labels = {eur:'Курс EUR → '+cur, usd:'Курс USD → '+cur, ron:'Курс RON → '+cur, rub:'Курс РУБ → '+cur};
+      const curName = getCurrencySymbol();
+const labels = {eur:'Курс EUR → '+curName, usd:'Курс USD → '+curName, ron:'Курс RON → '+curName, rub:'Курс РУБ → '+curName};
       block.querySelector('label').textContent = labels[key];
       if(hint) hint.textContent = h[key];
     }
