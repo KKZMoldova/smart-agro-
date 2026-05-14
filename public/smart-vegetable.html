@@ -929,6 +929,19 @@ body[data-readonly="true"] .parcel-card { cursor: default; pointer-events: none;
     <div class="ff full"><label>Название хозяйства</label><input type="text" id="set-farm-name" placeholder="ООО Агро" oninput="saveSetting('farmName',this.value)"></div>
     <div class="ff"><label>Регион</label><input type="text" id="set-region" placeholder="Молдова" oninput="saveSetting('region',this.value)"></div>
     <div class="ff"><label>Площадь всего (га)</label><input type="number" id="set-total-ha" oninput="saveSetting('totalHa',this.value)"></div>
+    <div class="ff"><label>Рабочая валюта</label>
+      <select id="set-currency" onchange="saveSetting('currency',this.value);renderCurrencySymbol()">
+        <option value="MDL">MDL — Молдавский лей</option>
+        <option value="EUR">EUR — Евро</option>
+        <option value="USD">USD — Доллар</option>
+        <option value="RON">RON — Румынский лей</option>
+        <option value="RUB">РУБ — Рубли</option>
+      </select>
+    </div>
+    <div class="ff"><label>Курс EUR → MDL</label><input type="number" id="set-rate-eur" step="0.0001" placeholder="19.5000" oninput="saveSetting('rateEUR',parseFloat(this.value))"></div>
+    <div class="ff"><label>Курс USD → MDL</label><input type="number" id="set-rate-usd" step="0.0001" placeholder="17.8000" oninput="saveSetting('rateUSD',parseFloat(this.value))"></div>
+    <div class="ff"><label>Курс RON → MDL</label><input type="number" id="set-rate-ron" step="0.0001" placeholder="3.9000" oninput="saveSetting('rateRON',parseFloat(this.value))"></div>
+    <div class="ff"><label>Курс Рубли → MDL</label><input type="number" id="set-rate-rub" step="0.0001" placeholder="0.1900" oninput="saveSetting('rateRUB',parseFloat(this.value))"></div>
   </div>
   <div style="margin-top:24px;display:flex;gap:8px;">
     <button class="btn btn-secondary" onclick="exportData()">📤 Экспорт данных</button>
