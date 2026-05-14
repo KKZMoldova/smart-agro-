@@ -1270,7 +1270,18 @@ body[data-readonly="true"] .parcel-card { cursor: default; pointer-events: none;
             <option value="kg">Кг</option>
           </select>
         </div>
-        <div class="ff"><label>Цена за единицу (лей)</label><input type="number" id="wh-part-price" step="0.01" placeholder="50"></div>
+        <div class="ff"><label>Цена за единицу</label>
+  <div style="display:flex;gap:6px;">
+    <input type="number" id="wh-part-price" step="0.0001" placeholder="50.0000" style="flex:1;">
+    <select id="wh-part-price-currency" style="width:90px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:7px 6px;color:var(--text);font-size:12px;">
+      <option value="MDL">MDL</option>
+      <option value="EUR">EUR</option>
+      <option value="USD">USD</option>
+      <option value="RON">RON</option>
+      <option value="RUB">РУБ</option>
+    </select>
+  </div>
+</div>
         <div class="ff"><label>Поставщик</label><input type="text" id="wh-part-supplier" placeholder="ООО Агротех"></div>
         <div class="ff"><label>Мин. запас</label><input type="number" id="wh-part-min-stock" step="1" placeholder="5"></div>
         <div class="ff"><label>Ресурс (часов)</label><input type="number" id="wh-part-resource-hours" step="1" placeholder="500"></div>
