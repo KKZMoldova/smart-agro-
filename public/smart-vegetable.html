@@ -5684,7 +5684,7 @@ function showWarehouseSnapshot(type='chemicals') {
       return '<tr style="'+(critical?'background:rgba(255,85,85,.05)':low?'background:rgba(255,216,77,.05)':'')+'">'+
         '<td style="font-weight:600;">'+p.name+'</td>'+
         '<td style="color:var(--text3);font-size:11px;">'+(CAT[p.category]||p.category)+'</td>'+
-        '<td style="font-family:JetBrains Mono,monospace;font-weight:700;color:'+(critical?'var(--red)':low?'var(--yellow)':'var(--accent)')+';">'+p.qty+' '+(p.unit||'шт')+'</td>'+
+        '<td style="font-family:JetBrains Mono,monospace;font-weight:700;color:'+(critical?'var(--red)':low?'var(--yellow)':'var(--accent)')+';">'+(p.qty-(p.installedQty||0))+' '+(p.unit||'шт')+(p.installedQty?'<br><span style="font-size:10px;color:var(--text3);">установлено: '+p.installedQty+'</span>':'')+'</td>'+
         '<td style="font-size:11px;color:var(--text3);">'+(p.minStock?'мин: '+p.minStock:'—')+'</td>'+
         '<td style="font-size:11px;">'+resource+'</td>'+
         '<td style="font-size:11px;">'+(p.installed||'—')+'</td>'+
