@@ -4935,7 +4935,7 @@ function showMgmtReport() {
   let rows = items.map(c => {
     const legal = c.legal==='illegal' ? '⛔ Не рег.' : '✅ Разрешён';
     const payment = c.payment==='cash' ? '💵 Наличка' : '💳 Безнал';
-    const price = c.price ? c.price+' лей/'+(c.unit||'л') : '—';
+    const price = c.price ? formatPrice(c.price)+'/'+(c.unit||'л') : '—';
     const inBuh = c.inBuh==='yes' ? '✅ Да' : '❌ Нет';
     return '<tr><td style="font-weight:600">'+c.name+'</td><td>'+(c.buhName||'—')+'</td><td>'+(TYPE_LABELS[c.type]||c.type)+'</td><td>'+legal+'</td><td>'+payment+'</td><td>'+price+'</td><td>'+(c.supplier||'—')+'</td><td>'+inBuh+'</td></tr>';
   }).join('');
