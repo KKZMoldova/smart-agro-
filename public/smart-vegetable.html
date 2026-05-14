@@ -945,6 +945,7 @@ body[data-readonly="true"] .parcel-card { cursor: default; pointer-events: none;
 </div>
   </div>
   <div style="margin-top:24px;display:flex;gap:8px;">
+    <button class="btn btn-primary" onclick="saveSettings()">💾 Сохранить настройки</button>
     <button class="btn btn-secondary" onclick="exportData()">📤 Экспорт данных</button>
     <button class="btn btn-danger" onclick="if(confirm('Удалить все данные?')){localStorage.removeItem('sveg_v1');location.reload();}">🗑️ Сбросить данные</button>
   </div>
