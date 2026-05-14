@@ -5093,7 +5093,9 @@ function saveWarehouseItem() {
     const date = document.getElementById('wh-part-date').value;
     const category = document.getElementById('wh-part-category').value;
     const unit = document.getElementById('wh-part-unit').value;
-    const price = parseFloat(document.getElementById('wh-part-price').value) || 0;
+    const priceRaw = parseFloat(document.getElementById('wh-part-price').value) || 0;
+    const priceCurrency = document.getElementById('wh-part-price-currency').value;
+    const price = Math.round(convertPrice(priceRaw, priceCurrency) * 10000) / 10000;
     const supplier = document.getElementById('wh-part-supplier').value.trim();
     const minStock = parseFloat(document.getElementById('wh-part-min-stock').value) || 0;
     const resourceHours = parseFloat(document.getElementById('wh-part-resource-hours').value) || null;
