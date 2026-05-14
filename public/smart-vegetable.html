@@ -6272,6 +6272,19 @@ console.log('[DEBUG] after merge:', S.treatments.length);
         if (d.vegAnalyses?.length) S.vegAnalyses = d.vegAnalyses;
         if (d.catalog !== undefined && d.catalog?.length) S.catalog = d.catalog;
         if (d.settings)            S.settings    = d.settings;
+  // Восстановить валюту
+  setTimeout(() => {
+    const sel = document.getElementById('set-currency');
+    if(sel) sel.value = S.settings?.currency || 'MDL';
+    const rateEUR = document.getElementById('set-rate-eur');
+    const rateUSD = document.getElementById('set-rate-usd');
+    const rateRON = document.getElementById('set-rate-ron');
+    const rateRUB = document.getElementById('set-rate-rub');
+    if(rateEUR) rateEUR.value = S.settings?.rateEUR || '';
+    if(rateUSD) rateUSD.value = S.settings?.rateUSD || '';
+    if(rateRON) rateRON.value = S.settings?.rateRON || '';
+    if(rateRUB) rateRUB.value = S.settings?.rateRUB || '';
+  }, 500);
        if (d.fields?.length)      S.fields      = d.fields;
         if (d.equipment?.length)   S.equipment   = d.equipment; if (d.farmName)            S.farmName    = d.farmName;
         if (d.warehouse)           S.warehouse   = d.warehouse;
