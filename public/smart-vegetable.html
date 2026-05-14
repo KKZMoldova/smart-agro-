@@ -937,10 +937,12 @@ body[data-readonly="true"] .parcel-card { cursor: default; pointer-events: none;
         <option value="RUB">РУБ — Рубли</option>
       </select>
     </div>
-    <div class="ff"><label>Курс EUR → MDL</label><input type="text" id="set-rate-eur" placeholder="19.5000" oninput="this.value=this.value.replace(',','.');saveSetting('rateEUR',parseFloat(this.value))"></div>
-<div class="ff"><label>Курс USD → MDL</label><input type="text" id="set-rate-usd" placeholder="17.8000" oninput="this.value=this.value.replace(',','.');saveSetting('rateUSD',parseFloat(this.value))"></div>
-<div class="ff"><label>Курс RON → MDL</label><input type="text" id="set-rate-ron" placeholder="3.9000" oninput="this.value=this.value.replace(',','.');saveSetting('rateRON',parseFloat(this.value))"></div>
-<div class="ff"><label>Курс Рубли → MDL</label><input type="text" id="set-rate-rub" placeholder="0.1900" oninput="this.value=this.value.replace(',','.');saveSetting('rateRUB',parseFloat(this.value))"></div>
+    <div id="currency-rates-block">
+  <div class="ff" id="rate-eur-block"><label>Курс EUR</label><input type="text" id="set-rate-eur" placeholder="19.5000" oninput="this.value=this.value.replace(',','.');saveSetting('rateEUR',parseFloat(this.value))"><div id="rate-eur-hint" style="font-size:10px;color:var(--text3);margin-top:2px;"></div></div>
+  <div class="ff" id="rate-usd-block"><label>Курс USD</label><input type="text" id="set-rate-usd" placeholder="17.8000" oninput="this.value=this.value.replace(',','.');saveSetting('rateUSD',parseFloat(this.value))"><div id="rate-usd-hint" style="font-size:10px;color:var(--text3);margin-top:2px;"></div></div>
+  <div class="ff" id="rate-ron-block"><label>Курс RON</label><input type="text" id="set-rate-ron" placeholder="3.9000" oninput="this.value=this.value.replace(',','.');saveSetting('rateRON',parseFloat(this.value))"><div id="rate-ron-hint" style="font-size:10px;color:var(--text3);margin-top:2px;"></div></div>
+  <div class="ff" id="rate-rub-block"><label>Курс РУБ</label><input type="text" id="set-rate-rub" placeholder="0.1900" oninput="this.value=this.value.replace(',','.');saveSetting('rateRUB',parseFloat(this.value))"><div id="rate-rub-hint" style="font-size:10px;color:var(--text3);margin-top:2px;"></div></div>
+</div>
   </div>
   <div style="margin-top:24px;display:flex;gap:8px;">
     <button class="btn btn-secondary" onclick="exportData()">📤 Экспорт данных</button>
