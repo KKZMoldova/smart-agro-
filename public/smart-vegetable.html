@@ -937,6 +937,28 @@ body[data-readonly="true"] .parcel-card { cursor: default; pointer-events: none;
       <button class="btn btn-danger btn-sm" id="van-delete-btn" style="display:none;margin-right:auto;" onclick="deleteVegAnalysis()">Удалить</button>
       <button class="btn btn-primary" onclick="saveVegAnalysis()">Сохранить</button>
     </div>
+
+    <!-- PDF секция — показывается после сохранения -->
+    <div id="van-pdf-section" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+      <div style="font-family:'Unbounded',sans-serif;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">📄 PDF-документы лаборатории</div>
+
+      <!-- Загрузка PDF -->
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center;">
+        <label style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:rgba(85,170,255,.1);border:1px dashed rgba(85,170,255,.4);border-radius:8px;cursor:pointer;font-size:11px;color:var(--blue);font-family:'Inter',sans-serif;text-transform:none;letter-spacing:0;">
+          📂 Выбрать PDF
+          <input type="file" id="van-pdf-input" accept=".pdf" multiple style="display:none" onchange="uploadAnalysisPdfs(event)">
+        </label>
+        <button class="btn btn-secondary btn-sm" onclick="parseAnalysisPdfWithAI()" id="van-parse-btn" style="display:none;">
+          🤖 Считать данные из PDF (AI)
+        </button>
+      </div>
+
+      <!-- Статус парсинга -->
+      <div id="van-parse-status" style="display:none;padding:10px 14px;border-radius:8px;font-size:11px;margin-bottom:10px;"></div>
+
+      <!-- Список прикреплённых PDF -->
+      <div id="van-pdf-list" style="display:flex;flex-direction:column;gap:6px;"></div>
+    </div>
   </div>
 </div>
 
@@ -6946,6 +6968,20 @@ function openVegAnalysisModal(type, editId) {
   ['pH','OM','NO3','P','K','Ca','Mg','B'].forEach(f=>{const el=document.getElementById('vso-'+f);if(el)el.value=ex?.type==='soil'?ex[f]??'':'';});
   ['pH','EC','TDS','Fe','Mn','B','Cl','Na'].forEach(f=>{const el=document.getElementById('vwa-'+f);if(el)el.value=ex?.type==='water'?ex[f]??'':'';});
   switchVanTab(t);
+
+  // PDF секция — только при редактировании существующего анализа
+  const pdfSection = document.getElementById('van-pdf-section');
+  const parseBtn = document.getElementById('van-parse-btn');
+  const pdfList = document.getElementById('van-pdf-list');
+  const parseStatus = document.getElementById('van-parse-status');
+  pdfSection.style.display = ex ? 'block' : 'none';
+  parseStatus.style.display = 'none';
+  pdfList.innerHTML = '';
+  if (ex) {
+    // Загрузить список PDF для этого анализа
+    loadAnalysisPdfs(ex.id);
+  }
+
   openModal('modal-veg-analysis');
 }
 
@@ -6975,7 +7011,18 @@ function saveVegAnalysis() {
   if(!S.vegAnalyses) S.vegAnalyses=[];
   if(_vegAnEditId){const i=S.vegAnalyses.findIndex(a=>a.id===_vegAnEditId);if(i>=0)S.vegAnalyses[i]=e;else S.vegAnalyses.push(e);}
   else S.vegAnalyses.push(e);
-  save(); closeModal('modal-veg-analysis'); renderVegAnalyses();
+  _vegAnEditId = e.id; // set for PDF upload
+  save();
+  renderVegAnalyses();
+  // Показать PDF секцию после сохранения
+  const pdfSection = document.getElementById('van-pdf-section');
+  if (pdfSection) {
+    pdfSection.style.display = 'block';
+    loadAnalysisPdfs(e.id);
+  }
+  // Показать уведомление что сохранено
+  const btn = document.querySelector('#modal-veg-analysis .btn-primary');
+  if (btn) { btn.textContent = '✅ Сохранено!'; setTimeout(()=>btn.textContent='Сохранить', 2000); }
 }
 
 function generateVegRecs(analyses) {
@@ -7130,6 +7177,7 @@ function renderVegAnalyses() {
           <div style="font-size:11px;font-family:'Unbounded',sans-serif;color:var(--text2);">${an.date}</div>
           ${parcel?`<div style="font-size:10px;color:${crop?'var(--accent)':'var(--text3)'};">${parcel.name}${crop?' · '+crop.emoji:''}</div>`:'<div style="font-size:10px;color:var(--text3);">Все участки</div>'}
           ${an.lab?`<div style="font-size:10px;color:var(--text3);">${an.lab}</div>`:''}
+          ${an.pdfCount?`<div style="font-size:10px;color:var(--blue);margin-top:2px;">📄 ${an.pdfCount} PDF</div>`:''}
         </div>
       </div>
       <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:6px;">${LABELS[an.type]||'Анализ'}</div>
@@ -8701,6 +8749,199 @@ function exportWarehouseCSV() {
   const csv = rows.map(r=>r.join(';')).join('\n');
   const a = document.createElement('a'); a.href = 'data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
   a.download = 'sklad_'+today()+'.csv'; a.click();
+}
+
+// ═══ PDF АНАЛИЗЫ ══════════════════════════════════════════════════════════
+
+// Загрузить список PDF для анализа
+async function loadAnalysisPdfs(analysisId) {
+  const listEl = document.getElementById('van-pdf-list');
+  const parseBtn = document.getElementById('van-parse-btn');
+  if (!listEl) return;
+  try {
+    const r = await fetch(`/api/analyses/${analysisId}/pdfs`);
+    if (!r.ok) { listEl.innerHTML = '<div style="font-size:11px;color:var(--text3);">Сервер недоступен</div>'; return; }
+    const data = await r.json();
+    const files = data.files || [];
+    if (parseBtn) parseBtn.style.display = files.length ? 'flex' : 'none';
+    if (!files.length) {
+      listEl.innerHTML = '<div style="font-size:11px;color:var(--text3);padding:8px;">PDF не прикреплены</div>';
+      return;
+    }
+    listEl.innerHTML = files.map(f => `
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;">
+        <span style="font-size:18px;">📄</span>
+        <div style="flex:1;">
+          <div style="font-size:12px;font-weight:600;">${f.filename}</div>
+          <div style="font-size:10px;color:var(--text3);">${(f.size/1024).toFixed(0)} KB · ${f.uploaded_at?.slice(0,10)||''}</div>
+        </div>
+        <a href="/api/analyses/${analysisId}/pdfs/${f.id}/download" target="_blank"
+          style="padding:5px 10px;border-radius:6px;background:rgba(85,170,255,.15);color:var(--blue);font-size:11px;text-decoration:none;white-space:nowrap;">
+          📥 Скачать
+        </a>
+        <button onclick="deleteAnalysisPdf('${analysisId}','${f.id}')"
+          style="padding:4px 8px;border:none;border-radius:6px;background:rgba(255,85,85,.15);color:var(--red);font-size:11px;cursor:pointer;">✕</button>
+      </div>`).join('');
+  } catch(e) {
+    listEl.innerHTML = '<div style="font-size:11px;color:var(--text3);">Ошибка загрузки списка</div>';
+  }
+}
+
+// Загрузить PDF файлы на сервер
+async function uploadAnalysisPdfs(event) {
+  const files = event.target.files;
+  if (!files.length || !_vegAnEditId) return;
+  const statusEl = document.getElementById('van-parse-status');
+  statusEl.style.display = 'block';
+  statusEl.style.background = 'rgba(85,170,255,.08)';
+  statusEl.style.border = '1px solid rgba(85,170,255,.3)';
+  statusEl.style.color = 'var(--blue)';
+
+  let uploaded = 0;
+  for (const file of files) {
+    if (file.size > 5 * 1024 * 1024) {
+      statusEl.style.background = 'rgba(255,85,85,.08)';
+      statusEl.style.border = '1px solid rgba(255,85,85,.3)';
+      statusEl.style.color = 'var(--red)';
+      statusEl.textContent = `❌ Файл ${file.name} больше 5MB — пропущен`;
+      continue;
+    }
+    statusEl.textContent = `⏳ Загрузка ${file.name}...`;
+    try {
+      const formData = new FormData();
+      formData.append('pdf', file);
+      const r = await fetch(`/api/analyses/${_vegAnEditId}/pdfs`, {
+        method: 'POST', body: formData
+      });
+      if (!r.ok) throw new Error(await r.text());
+      uploaded++;
+    } catch(e) {
+      statusEl.style.background = 'rgba(255,85,85,.08)';
+      statusEl.style.color = 'var(--red)';
+      statusEl.textContent = `❌ Ошибка: ${e.message}`;
+    }
+  }
+  if (uploaded > 0) {
+    statusEl.style.background = 'rgba(107,221,107,.08)';
+    statusEl.style.border = '1px solid rgba(107,221,107,.3)';
+    statusEl.style.color = 'var(--accent)';
+    statusEl.textContent = `✅ Загружено ${uploaded} файл(ов)`;
+    await loadAnalysisPdfs(_vegAnEditId);
+    // Обновить счётчик PDF в анализе
+    const an = (S.vegAnalyses||[]).find(a=>a.id===_vegAnEditId);
+    if (an) { an.pdfCount = (an.pdfCount||0) + uploaded; save(); renderVegAnalyses(); }
+  }
+  event.target.value = '';
+}
+
+// Удалить PDF
+async function deleteAnalysisPdf(analysisId, fileId) {
+  if (!confirm('Удалить PDF?')) return;
+  try {
+    await fetch(`/api/analyses/${analysisId}/pdfs/${fileId}`, { method: 'DELETE' });
+    await loadAnalysisPdfs(analysisId);
+    // Обновить счётчик
+    const an = (S.vegAnalyses||[]).find(a=>a.id===analysisId);
+    if (an && an.pdfCount > 0) { an.pdfCount--; save(); renderVegAnalyses(); }
+  } catch(e) { alert('Ошибка удаления: ' + e.message); }
+}
+
+// Парсинг PDF через Claude AI
+async function parseAnalysisPdfWithAI() {
+  if (!_vegAnEditId) return;
+  const statusEl = document.getElementById('van-parse-status');
+  const parseBtn = document.getElementById('van-parse-btn');
+  statusEl.style.display = 'block';
+  statusEl.style.background = 'rgba(204,136,255,.08)';
+  statusEl.style.border = '1px solid rgba(204,136,255,.3)';
+  statusEl.style.color = 'var(--purple)';
+  statusEl.textContent = '🤖 Получаю список PDF...';
+  parseBtn.disabled = true;
+
+  try {
+    // Получить список файлов
+    const listR = await fetch(`/api/analyses/${_vegAnEditId}/pdfs`);
+    const listData = await listR.json();
+    const files = listData.files || [];
+    if (!files.length) { statusEl.textContent = '❌ Нет PDF для анализа'; parseBtn.disabled = false; return; }
+
+    // Скачать первый PDF как base64
+    statusEl.textContent = `🤖 Читаю PDF: ${files[0].filename}...`;
+    const pdfR = await fetch(`/api/analyses/${_vegAnEditId}/pdfs/${files[0].id}/base64`);
+    const pdfData = await pdfR.json();
+    if (!pdfData.base64) throw new Error('Не удалось получить PDF');
+
+    // Определить тип анализа
+    const anType = document.getElementById('van-type').value || 'leaf';
+    const typeLabel = anType==='leaf' ? 'листьев' : anType==='soil' ? 'почвы' : 'воды';
+
+    // Отправить в Claude API
+    statusEl.textContent = '🤖 Claude AI анализирует PDF...';
+    const prompt = `Это лабораторный анализ ${typeLabel}. Извлеки все числовые показатели из таблицы результатов.
+
+Верни ТОЛЬКО JSON объект без комментариев, вот так:
+${anType==='leaf' ? '{"N":2.5,"P":0.35,"K":3.1,"Ca":1.8,"Mg":0.45,"S":0.2,"Fe":120,"Mn":85,"Zn":45,"B":35,"Cu":12,"Mo":0.5}' :
+  anType==='soil' ? '{"pH":6.5,"OM":3.2,"NO3":25,"P":120,"K":180,"Ca":1500,"Mg":200,"B":1.2}' :
+                    '{"pH":7.1,"EC":0.8,"TDS":450,"Fe":0.1,"Mn":0.05,"B":0.2,"Cl":80,"Na":30}'}
+
+Если какого-то показателя нет в документе — не включай его в JSON.
+Используй те же единицы что в документе (%, мг/кг, ppm, мг/л и т.д.).
+Только JSON, без объяснений.`;
+
+    const apiResp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdfData.base64 }},
+            { type: 'text', text: prompt }
+          ]
+        }]
+      })
+    });
+
+    if (!apiResp.ok) throw new Error('Claude API error: ' + apiResp.status);
+    const apiData = await apiResp.json();
+    const rawText = apiData.content?.find(b=>b.type==='text')?.text || '';
+    const cleanJson = rawText.replace(/```json|```/g,'').trim();
+    const parsed = JSON.parse(cleanJson);
+
+    // Заполнить поля формы
+    let filled = 0;
+    if (anType === 'leaf') {
+      Object.entries(parsed).forEach(([k,v]) => {
+        const el = document.getElementById('van-'+k);
+        if (el && v !== null && v !== undefined) { el.value = v; filled++; }
+      });
+    } else if (anType === 'soil') {
+      Object.entries(parsed).forEach(([k,v]) => {
+        const el = document.getElementById('vso-'+k);
+        if (el && v !== null && v !== undefined) { el.value = v; filled++; }
+      });
+    } else {
+      Object.entries(parsed).forEach(([k,v]) => {
+        const el = document.getElementById('vwa-'+k);
+        if (el && v !== null && v !== undefined) { el.value = v; filled++; }
+      });
+    }
+
+    statusEl.style.background = 'rgba(107,221,107,.08)';
+    statusEl.style.border = '1px solid rgba(107,221,107,.3)';
+    statusEl.style.color = 'var(--accent)';
+    statusEl.innerHTML = `✅ AI заполнил <strong>${filled}</strong> показателей из PDF.<br>
+      <span style="font-size:10px;color:var(--text3);">Проверьте значения и нажмите Сохранить.</span>`;
+
+  } catch(e) {
+    statusEl.style.background = 'rgba(255,85,85,.08)';
+    statusEl.style.border = '1px solid rgba(255,85,85,.3)';
+    statusEl.style.color = 'var(--red)';
+    statusEl.textContent = `❌ Ошибка парсинга: ${e.message}`;
+  }
+  parseBtn.disabled = false;
 }
 
 // ═══ СПРАВОЧНИК СОРТОВ ════════════════════════════════════════════════════
