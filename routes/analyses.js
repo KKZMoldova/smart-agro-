@@ -1,8 +1,6 @@
-
 const router = require('express').Router();
 const db     = require('../db');
 
-// ── Названия параметров ───────────────────────────────────────
 const PARAM_NAMES = {
   pH:    'Кислотность (pH)',
   humus: 'Гумус',
@@ -22,14 +20,12 @@ const PARAM_NAMES = {
   Na:    'Натрий/SAR',
 };
 
-// ── Приоритет отклонения ──────────────────────────────────────
 function calcPriority(pct) {
   if (pct >= 50) return 'critical';
   if (pct >= 20) return 'high';
   return 'medium';
 }
 
-// ── Движок рекомендаций FAO ───────────────────────────────────
 function generateRecommendations(results, norms) {
   const recs = [];
   for (const norm of norms) {
@@ -126,7 +122,7 @@ router.get('/norms/:type/:culture', async (req, res) => {
   }
 });
 
-// ── POST /api/analyses/claude-proxy ──────────────────────────
+// ── POST /api/analyses/claude-proxy ───────────────────────────
 router.post('/claude-proxy', async (req, res) => {
   const KEY = process.env.ANTHROPIC_API_KEY;
   if (!KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY не настроен' });
@@ -147,8 +143,6 @@ router.post('/claude-proxy', async (req, res) => {
 
 // ── GET /api/analyses/:id ─────────────────────────────────────
 router.get('/:id', async (req, res) => {
-// ── GET /api/analyses/:id ─────────────────────────────────────
-router.get('/:id', async (req, res) => {
   try {
     const r = await db.query(
       'SELECT * FROM public.analyses WHERE id = $1',
@@ -166,7 +160,6 @@ router.post('/', async (req, res) => {
   try {
     const v = req.body;
 
-    // Совместимость: старый формат использовал v.values и v.date
     const results = v.results || v.values || {};
     const type    = v.type;
     const date    = v.analysis_date || v.date;
@@ -175,7 +168,6 @@ router.post('/', async (req, res) => {
     if (!type || !date)
       return res.status(400).json({ ok: false, error: 'type и date обязательны' });
 
-    // Генерируем рекомендации FAO
     const cult = type === 'water' ? 'all' : (culture || 'tomato');
     const normsRes = await db.query(
       `SELECT * FROM public.fao_norms WHERE analysis_type = $1 AND culture = $2`,
@@ -183,7 +175,6 @@ router.post('/', async (req, res) => {
     );
     const recs = generateRecommendations(results, normsRes.rows);
 
-    // id: используем переданный или генерируем новый
     const id = v.id || `AN-${Date.now()}`;
 
     await db.query(`
@@ -207,9 +198,7 @@ router.post('/', async (req, res) => {
         notes           = $13,
         updated_at      = NOW()
     `, [
-      id,
-      type,
-      date,
+      id, type, date,
       v.parcelId    || v.parcel_id    || null,
       v.parcelName  || v.parcel_name  || null,
       v.lab         || v.lab_name     || null,
@@ -297,7 +286,6 @@ router.delete('/:id', async (req, res) => {
 });
 
 // ── POST /api/analyses/:id/recalculate ────────────────────────
-// Пересчитать рекомендации без изменения данных
 router.post('/:id/recalculate', async (req, res) => {
   try {
     const r = await db.query('SELECT * FROM public.analyses WHERE id = $1', [req.params.id]);
@@ -322,22 +310,5 @@ router.post('/:id/recalculate', async (req, res) => {
     res.status(500).json({ ok: false, error: e.message });
   }
 });
-// ── POST /api/analyses/claude-proxy ──────────────────────────
-router.post('/claude-proxy', async (req, res) => {
-  const KEY = process.env.ANTHROPIC_API_KEY;
-  if (!KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY не настроен' });
-  try {
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': KEY,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify(req.body),
-    });
-    const data = await r.json();
-    res.status(r.ok ? 200 : r.status).json(data);
-  } catch(e) { res.status(500).json({ error: e.message }); }
-});
+
 module.exports = router;
