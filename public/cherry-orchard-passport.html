@@ -866,11 +866,19 @@ body[data-readonly="true"] .parcel-card { cursor: default; pointer-events: none;
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       <button class="btn btn-secondary" onclick="showWarehouseTab('chemicals')">💊 Препараты</button>
       <button class="btn btn-secondary" onclick="showWarehouseTab('parts')">🔧 Запчасти</button>
-     <button class="btn btn-primary" id="btn-add-warehouse" onclick="openWarehouseModal()">+ Приход</button>
-      <button class="btn btn-secondary" onclick="showWarehouseSnapshot('chemicals')">👁 Препараты</button>
-<button class="btn btn-secondary" onclick="showWarehouseSnapshot('parts')">🔧 Запчасти</button>
-    </div> 
+      <button class="btn btn-secondary" onclick="showWarehouseTab('seeds')">🌱 Семена</button>
+      <button class="btn btn-secondary" onclick="showConsumptionReport()">📊 Расход</button>
+      <button class="btn btn-secondary" onclick="showInventory()">🗂️ Инвентаризация</button>
+      <button class="btn btn-secondary" onclick="exportWarehouseCSV()">📤 Экспорт</button>
+      <button class="btn btn-primary" id="btn-add-warehouse" onclick="openWarehouseModal()">+ Приход</button>
+    </div>
   </div>
+
+  <!-- Отчёт расхода -->
+  <div id="wh-consumption-report" style="display:none;margin-bottom:16px;"></div>
+
+  <!-- Инвентаризация -->
+  <div id="wh-inventory" style="display:none;margin-bottom:16px;"></div>
 
  <div id="warehouse-snapshot" style="display:none;"></div>
   <!-- KPIs -->
@@ -4705,6 +4713,34 @@ function saveTreatment(){
     note:document.getElementById('t-note').value.trim(),
     maxWhi,whiDate,
   };
+
+  // ── 1. ПЕРЕСЧЁТ СКЛАДА ПРИ РЕДАКТИРОВАНИИ ────────────────────────────
+  if (_editTreatId && S.warehouse?.chemicals?.length) {
+    const oldTreat = S.treatments.find(t => t.id === _editTreatId);
+    if (oldTreat) {
+      // Вернуть старые списания
+      const oldParcel = S.parcels.find(p => p.id === oldTreat.parcelId);
+      const oldHa = parseFloat(oldParcel?.ha) || 1;
+      (oldTreat.products || []).forEach(p => {
+        if (!p.dose) return;
+        const stock = S.warehouse.chemicals.find(c =>
+          c.catId === p.catId ||
+          c.name.toLowerCase() === p.name.toLowerCase()
+        );
+        if (stock) {
+          const doseNum = parseFloat(p.dose) || 0;
+          const returned = Math.round(doseNum * oldHa * 1000) / 1000;
+          stock.qty = Math.round((stock.qty + returned) * 1000) / 1000;
+          // Удалить старую запись из истории
+          S.warehouse.history = S.warehouse.history.filter(h =>
+            !(h.operation === 'out' && h.name.toLowerCase() === p.name.toLowerCase() &&
+              h.note?.includes('Обработка') && Math.abs(h.qty - returned) < 0.01)
+          );
+        }
+      });
+    }
+  }
+
   if(_editTreatId){
     const idx=S.treatments.findIndex(t=>t.id===_editTreatId);
     if(idx>=0)S.treatments[idx]=entry;
@@ -4722,18 +4758,23 @@ function saveTreatment(){
   }
   S.treatments.sort((a,b)=>b.date.localeCompare(a.date));
   save();
-  // Автосписание со склада (только новые обработки)
-  if (!_editTreatId && S.warehouse?.chemicals?.length) {
-    // Суммарная площадь ВСЕХ выбранных участков
-    const totalHaAll = _selectedParcels.reduce((sum, pid) => {
+
+  // ── Списание со склада (новая ИЛИ исправленная обработка) ─────────────
+  if (S.warehouse?.chemicals?.length) {
+    const parcelsForSpend = _editTreatId ? [parcelId] : _selectedParcels;
+    const totalHaAll = parcelsForSpend.reduce((sum, pid) => {
       const pc = S.parcels.find(p=>p.id===pid);
       return sum + (parseFloat(pc?.ha)||0);
     }, 0) || 1;
-    const parcelNamesAll = _selectedParcels.map(pid => S.parcels.find(p=>p.id===pid)?.name||'—').join(', ');
+    const parcelNamesAll = parcelsForSpend.map(pid => S.parcels.find(p=>p.id===pid)?.name||'—').join(', ');
 
     products.forEach(p => {
-      const stock = S.warehouse.chemicals.find(c => c.name.toLowerCase() === p.name.toLowerCase());
-      if (stock && p.dose) {
+      if (!p.dose) return;
+      const stock = S.warehouse.chemicals.find(c =>
+        c.catId === p.catId ||
+        c.name.toLowerCase() === p.name.toLowerCase()
+      );
+      if (stock) {
         const doseNum = parseFloat(p.dose) || 0;
         if (doseNum > 0) {
           const spent = Math.round(doseNum * totalHaAll * 1000) / 1000;
@@ -4741,8 +4782,9 @@ function saveTreatment(){
           S.warehouse.history.unshift({
             id: uid(), date, type: 'chemical', name: p.name,
             operation: 'out', qty: spent, unit: stock.unit||'л',
-            price: stock.price||0, total: Math.round(spent * (stock.price||0)),
-            parcelName: parcelNamesAll, note: 'Обработка ('+totalHaAll.toFixed(1)+' га)'
+            price: stock.price||0, total: Math.round(spent*(stock.price||0)),
+            parcelName: parcelNamesAll,
+            note: (_editTreatId?'[Ред] ':'')+'Обработка ('+totalHaAll.toFixed(1)+' га)'
           });
         }
       }
@@ -4755,6 +4797,7 @@ function saveTreatment(){
       }).catch(e => console.warn('Warehouse sync failed:', e));
     }
   }
+
   if (_vServerAvailable) {
     fetch('/api/state/vegetable', {
       method: 'POST',
@@ -8121,6 +8164,219 @@ function exportWorkplan() {
   a.href = 'data:text/csv;charset=utf-8,\uFEFF' + encodeURIComponent(csv);
   a.download = 'plan_rabot_'+today()+'.csv';
   a.click();
+}
+
+// ═══ ОТЧЁТ РАСХОДА ПРЕПАРАТОВ ═════════════════════════════════════════════
+function showConsumptionReport() {
+  const el = document.getElementById('wh-consumption-report');
+  const inv = document.getElementById('wh-inventory');
+  if (el.style.display !== 'none') { el.style.display = 'none'; return; }
+  inv.style.display = 'none';
+
+  const today_str = new Date().toISOString().slice(0,10);
+  const month_ago = new Date(new Date().setDate(new Date().getDate()-30)).toISOString().slice(0,10);
+
+  // Собрать расход из истории склада
+  const history = (S.warehouse?.history || []).filter(h => h.operation === 'out' && h.type === 'chemical');
+
+  // Сгруппировать по препарату
+  const byName = {};
+  history.forEach(h => {
+    if (!byName[h.name]) byName[h.name] = { name: h.name, total: 0, cost: 0, entries: [] };
+    byName[h.name].total += h.qty || 0;
+    byName[h.name].cost += h.total || 0;
+    byName[h.name].entries.push(h);
+  });
+
+  const items = Object.values(byName).sort((a,b) => b.cost - a.cost);
+  const grandTotal = items.reduce((s,i) => s+i.cost, 0);
+
+  // Сгруппировать по участкам
+  const byParcel = {};
+  history.forEach(h => {
+    const key = h.parcelName || '—';
+    if (!byParcel[key]) byParcel[key] = { name: key, cost: 0, qty: 0 };
+    byParcel[key].cost += h.total || 0;
+    byParcel[key].qty += h.qty || 0;
+  });
+
+  el.innerHTML = `
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;">
+    <div style="padding:12px 16px;background:var(--surface2);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+      <div style="font-family:'Unbounded',sans-serif;font-size:11px;font-weight:700;">📊 Расход препаратов — весь сезон</div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <div style="text-align:center;">
+          <div style="font-family:'Unbounded',sans-serif;font-size:15px;font-weight:700;color:var(--accent);">${formatPrice(grandTotal)}</div>
+          <div style="font-size:9px;color:var(--text3);">Итого стоимость</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-family:'Unbounded',sans-serif;font-size:15px;font-weight:700;color:var(--blue);">${items.length}</div>
+          <div style="font-size:9px;color:var(--text3);">Препаратов</div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="exportConsumptionCSV()">📤 CSV</button>
+        <button class="btn btn-secondary btn-sm" onclick="document.getElementById('wh-consumption-report').style.display='none'">✕</button>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);">
+      <!-- По препаратам -->
+      <div style="background:var(--surface);padding:12px;">
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">По препаратам</div>
+        <table class="data-table" style="font-size:11px;">
+          <thead><tr><th>Препарат</th><th>Кол-во</th><th>Сумма</th></tr></thead>
+          <tbody>
+            ${items.map(i => {
+              const wh = (S.warehouse?.chemicals||[]).find(w=>w.name.toLowerCase()===i.name.toLowerCase());
+              const unit = wh?.unit || 'л';
+              return `<tr>
+                <td style="font-weight:500;">${i.name}</td>
+                <td style="font-family:'JetBrains Mono',monospace;">${i.total.toFixed(2)} ${unit}</td>
+                <td style="font-family:'JetBrains Mono',monospace;color:var(--accent);">${formatPrice(i.cost)}</td>
+              </tr>`;
+            }).join('')}
+            <tr style="background:var(--surface2);font-weight:700;">
+              <td>ИТОГО</td><td>—</td>
+              <td style="font-family:'JetBrains Mono',monospace;color:var(--accent);">${formatPrice(grandTotal)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- По участкам -->
+      <div style="background:var(--surface);padding:12px;">
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">По участкам</div>
+        <table class="data-table" style="font-size:11px;">
+          <thead><tr><th>Участок</th><th>Сумма</th></tr></thead>
+          <tbody>
+            ${Object.values(byParcel).sort((a,b)=>b.cost-a.cost).map(p => `<tr>
+              <td>${p.name}</td>
+              <td style="font-family:'JetBrains Mono',monospace;color:var(--accent);">${formatPrice(p.cost)}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>`;
+  el.style.display = 'block';
+}
+
+function exportConsumptionCSV() {
+  const history = (S.warehouse?.history || []).filter(h => h.operation === 'out' && h.type === 'chemical');
+  const rows = [['Дата','Препарат','Кол-во','Ед.','Цена','Сумма','Участок','Примечание']];
+  history.forEach(h => rows.push([h.date, h.name, h.qty, h.unit||'л', h.price||0, h.total||0, h.parcelName||'—', h.note||'']));
+  const csv = rows.map(r=>r.join(';')).join('\n');
+  const a = document.createElement('a'); a.href = 'data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
+  a.download = 'rashod_preparatov_'+today()+'.csv'; a.click();
+}
+
+// ═══ ИНВЕНТАРИЗАЦИЯ ════════════════════════════════════════════════════════
+function showInventory() {
+  const el = document.getElementById('wh-inventory');
+  const rep = document.getElementById('wh-consumption-report');
+  if (el.style.display !== 'none') { el.style.display = 'none'; return; }
+  rep.style.display = 'none';
+
+  const chemicals = S.warehouse?.chemicals || [];
+  const parts = S.warehouse?.parts || [];
+  const seeds = S.warehouse?.seeds || [];
+
+  const totalValue = chemicals.reduce((s,c) => s + (c.qty||0)*(c.price||0), 0)
+    + parts.reduce((s,p) => s + (p.qty||0)*(p.price||0), 0)
+    + seeds.reduce((s,s2) => s + (s2.qty||0)*(s2.price||0), 0);
+
+  const lowStock = chemicals.filter(c => c.minStock && c.qty <= c.minStock).length;
+  const zeroStock = chemicals.filter(c => c.qty <= 0).length;
+
+  el.innerHTML = `
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;">
+    <div style="padding:12px 16px;background:var(--surface2);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+      <div style="font-family:'Unbounded',sans-serif;font-size:11px;font-weight:700;">🗂️ Инвентаризация склада</div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <div style="text-align:center;">
+          <div style="font-family:'Unbounded',sans-serif;font-size:15px;font-weight:700;color:var(--accent);">${formatPrice(totalValue)}</div>
+          <div style="font-size:9px;color:var(--text3);">Стоимость склада</div>
+        </div>
+        ${lowStock?`<div style="text-align:center;">
+          <div style="font-size:15px;font-weight:700;color:var(--yellow);">${lowStock}</div>
+          <div style="font-size:9px;color:var(--text3);">Мало на складе</div>
+        </div>`:''}
+        ${zeroStock?`<div style="text-align:center;">
+          <div style="font-size:15px;font-weight:700;color:var(--red);">${zeroStock}</div>
+          <div style="font-size:9px;color:var(--text3);">Нулевой остаток</div>
+        </div>`:''}
+        <button class="btn btn-secondary btn-sm" onclick="exportWarehouseCSV()">📤 CSV</button>
+        <button class="btn btn-secondary btn-sm" onclick="document.getElementById('wh-inventory').style.display='none'">✕</button>
+      </div>
+    </div>
+
+    <!-- Препараты -->
+    <div style="padding:12px 16px;">
+      <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">💊 Препараты (${chemicals.length})</div>
+      <table class="data-table" style="font-size:11px;margin-bottom:16px;">
+        <thead><tr><th>Препарат</th><th>Тип</th><th>Остаток</th><th>Ед.</th><th>Мин.запас</th><th>Цена</th><th>Стоимость</th><th>Статус</th></tr></thead>
+        <tbody>
+          ${chemicals.map(c => {
+            const isLow = c.minStock && c.qty <= c.minStock;
+            const isZero = c.qty <= 0;
+            const status = isZero ? '🔴 Нет' : isLow ? '🟡 Мало' : '🟢 OK';
+            const statusColor = isZero ? 'var(--red)' : isLow ? 'var(--yellow)' : 'var(--accent)';
+            const TYPE_LABELS = {fungicide:'Фунг',insecticide:'Инсект',herbicide:'Герб',fertilizer:'Удобр',acaricide:'Акар',surfactant:'ПАВ',other:'Др'};
+            return `<tr style="${isZero?'opacity:0.5':''}">
+              <td style="font-weight:500;">${c.name}</td>
+              <td style="font-size:10px;color:var(--text3);">${TYPE_LABELS[c.type]||c.type||'—'}</td>
+              <td style="font-family:'JetBrains Mono',monospace;font-weight:700;color:${statusColor};">${c.qty}</td>
+              <td>${c.unit||'л'}</td>
+              <td style="font-family:'JetBrains Mono',monospace;color:var(--text3);">${c.minStock||'—'}</td>
+              <td style="font-family:'JetBrains Mono',monospace;">${c.price?formatPrice(c.price):'—'}</td>
+              <td style="font-family:'JetBrains Mono',monospace;color:var(--accent);">${c.price?formatPrice(c.qty*c.price):'—'}</td>
+              <td style="color:${statusColor};">${status}</td>
+            </tr>`;
+          }).join('')}
+          <tr style="background:var(--surface2);font-weight:700;">
+            <td colspan="6">ИТОГО препараты</td>
+            <td style="font-family:'JetBrains Mono',monospace;color:var(--accent);">${formatPrice(chemicals.reduce((s,c)=>s+(c.qty||0)*(c.price||0),0))}</td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Семена -->
+      ${seeds.length ? `
+      <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🌱 Семена (${seeds.length})</div>
+      <table class="data-table" style="font-size:11px;margin-bottom:16px;">
+        <thead><tr><th>Сорт</th><th>Культура</th><th>Остаток</th><th>Ед.</th><th>Цена</th><th>Стоимость</th></tr></thead>
+        <tbody>
+          ${seeds.map(s => {
+            const crop = getCropById(s.cropId);
+            return `<tr>
+              <td style="font-weight:500;">${s.variety||'—'}</td>
+              <td>${crop?crop.emoji+' '+crop.name:'—'}</td>
+              <td style="font-family:'JetBrains Mono',monospace;color:var(--accent);">${s.qty}</td>
+              <td>${s.unit||'кг'}</td>
+              <td style="font-family:'JetBrains Mono',monospace;">${s.price?formatPrice(s.price):'—'}</td>
+              <td style="font-family:'JetBrains Mono',monospace;color:var(--accent);">${s.price?formatPrice(s.qty*s.price):'—'}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>` : ''}
+    </div>
+  </div>`;
+  el.style.display = 'block';
+}
+
+// ═══ ЭКСПОРТ СКЛАДА CSV ════════════════════════════════════════════════════
+function exportWarehouseCSV() {
+  const chemicals = S.warehouse?.chemicals || [];
+  const parts = S.warehouse?.parts || [];
+  const seeds = S.warehouse?.seeds || [];
+  const TYPE_LABELS = {fungicide:'Фунгицид',insecticide:'Инсектицид',herbicide:'Гербицид',fertilizer:'Удобрение',acaricide:'Акарицид',surfactant:'ПАВ',other:'Другое'};
+  const rows = [['Тип','Название','Категория','Остаток','Ед.','Мин.запас','Цена','Стоимость','Поставщик']];
+  chemicals.forEach(c => rows.push(['Препарат', c.name, TYPE_LABELS[c.type]||c.type||'—', c.qty, c.unit||'л', c.minStock||'—', c.price||0, (c.qty||0)*(c.price||0), c.supplier||'—']));
+  parts.forEach(p => rows.push(['Запчасть', p.name, p.category||'—', p.qty, p.unit||'шт', p.minStock||'—', p.price||0, (p.qty||0)*(p.price||0), p.supplier||'—']));
+  seeds.forEach(s => { const crop=getCropById(s.cropId); rows.push(['Семена', s.variety||'—', crop?.name||'—', s.qty, s.unit||'кг', s.minStock||'—', s.price||0, (s.qty||0)*(s.price||0), s.supplier||'—']); });
+  const csv = rows.map(r=>r.join(';')).join('\n');
+  const a = document.createElement('a'); a.href = 'data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
+  a.download = 'sklad_'+today()+'.csv'; a.click();
 }
 
 async function startApp() {
