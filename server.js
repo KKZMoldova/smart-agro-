@@ -4,17 +4,6 @@ const cron    = require('node-cron');
 const path    = require('path');
 const fs      = require('fs');
 const db      = require('./db');
-const multer  = require('multer');
-
-// Multer — хранить в памяти, затем в PostgreSQL
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype === 'application/pdf') cb(null, true);
-    else cb(new Error('Только PDF файлы'));
-  }
-});
 
 // Telegram
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN || '8694496744:AAEIfRwHFrau8tgZyQcMRt2k1tUiHYjgCHs';
@@ -100,16 +89,17 @@ app.get('/api/analyses/:id/pdfs', async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// POST /api/analyses/:id/pdfs — загрузить PDF
-app.post('/api/analyses/:id/pdfs', upload.single('pdf'), async (req, res) => {
+// POST /api/analyses/:id/pdfs — загрузить PDF (multipart без multer)
+app.post('/api/analyses/:id/pdfs', express.raw({ type: 'application/pdf', limit: '5mb' }), async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ error: 'PDF файл не получен' });
+    const filename = decodeURIComponent(req.headers['x-filename'] || 'document.pdf');
+    const data = req.body;
+    if (!data || !data.length) return res.status(400).json({ error: 'PDF данные не получены' });
     const r = await db.query(
       `INSERT INTO analysis_files (analysis_id, filename, mimetype, size, data)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING id, filename, size, uploaded_at`,
-      [req.params.id, req.file.originalname, req.file.mimetype,
-       req.file.size, req.file.buffer]
+      [req.params.id, filename, 'application/pdf', data.length, data]
     );
     res.json({ ok: true, file: r.rows[0] });
   } catch(e) { res.status(500).json({ error: e.message }); }
