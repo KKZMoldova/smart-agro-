@@ -950,7 +950,7 @@ body[data-readonly="true"] .parcel-card { cursor: default; pointer-events: none;
       <thead><tr>
         <th>Участок</th><th>Поле</th><th>Культура</th><th>Сорт</th>
         <th>Дата посева</th><th>Площадь га</th><th>Семена со склада</th>
-        <th>Норма кг/га</th><th>Итого кг</th><th>Фаза</th><th>GDD</th><th>До уборки</th><th></th>
+        <th>Норма кг/га</th><th>Итого кг</th><th>Фаза</th><th>GDD</th><th>До уборки</th><th>План т/га</th><th>План т</th><th>Факт т/га</th><th>Факт т</th><th></th>
       </tr></thead>
       <tbody id="sow-tbody"></tbody>
     </table>
@@ -1118,6 +1118,8 @@ body[data-readonly="true"] .parcel-card { cursor: default; pointer-events: none;
     <option value="">— не привязан —</option>
   </select>
 </div>
+<div class="ff"><label>Плановая урожайность (т/га)</label><input type="number" id="p-yield-plan" step="0.1" placeholder="напр. 8.0"></div>
+<div class="ff"><label>Фактическая урожайность (т/га)</label><input type="number" id="p-yield-fact" step="0.1" placeholder="после уборки"></div>
 <div class="ff full"><label>Примечание</label><input type="text" id="p-note" placeholder="Капельное орошение, теплица..."></div>
     </div>
     <div class="modal-footer">
@@ -2958,6 +2960,8 @@ function openParcelModal(parcelId) {
   document.getElementById('p-density').value = p?.density||'';
   document.getElementById('p-soil').value    = p?.soil||'loam';
   document.getElementById('p-note').value    = p?.note||'';
+  document.getElementById('p-yield-plan').value = p?.yieldPlan||'';
+  document.getElementById('p-yield-fact').value = p?.yieldFact||'';
   // Капельная лента
   document.getElementById('p-emitter-flow').value = p?.emitterFlow || '';
   document.getElementById('p-emitter-spacing').value = p?.emitterSpacing || '';
@@ -3060,6 +3064,8 @@ function saveParcel() {
     density: parseFloat(document.getElementById('p-density').value)||0,
     soil: document.getElementById('p-soil').value,
     note: document.getElementById('p-note').value.trim(),
+    yieldPlan: parseFloat(document.getElementById('p-yield-plan').value)||null,
+    yieldFact: parseFloat(document.getElementById('p-yield-fact').value)||null,
     fieldId: document.getElementById('p-field').value || null,
     irrigMethod: document.getElementById('p-irrig-method').value || 'none',
 equipmentId: document.getElementById('p-equipment-id').value || null,
@@ -6659,16 +6665,16 @@ function renderSowing() {
   const totalHa = S.parcels.reduce((s,p) => s + parseFloat(p.ha||0), 0);
   const sownParcels = S.parcels.filter(p => p.sowingDate).length;
   const totalSeeds = S.sowingRecords.reduce((s,r) => s + (r.totalKg||0), 0);
-  const seedsValue = S.sowingRecords.reduce((s,r) => {
-    const seed = S.warehouse?.seeds?.find(x=>x.id===r.seedStockId);
-    return s + (r.totalKg||0) * (seed?.price||0);
-  }, 0);
+  const totalYieldPlan = S.parcels.reduce((s,p) => s + (p.yieldPlan&&p.ha ? p.yieldPlan*p.ha : 0), 0);
+  const totalYieldFact = S.parcels.reduce((s,p) => s + (p.yieldFact&&p.ha ? p.yieldFact*p.ha : 0), 0);
   document.getElementById('sowing-kpis').innerHTML = `
     <div class="kpi-card"><div class="kpi-val">${S.parcels.length}</div><div class="kpi-lbl">Всего участков</div></div>
     <div class="kpi-card"><div class="kpi-val" style="color:var(--accent);">${sownParcels}</div><div class="kpi-lbl">Засеяно</div></div>
     <div class="kpi-card"><div class="kpi-val" style="color:var(--text3);">${S.parcels.length-sownParcels}</div><div class="kpi-lbl">Не засеяно</div></div>
     <div class="kpi-card"><div class="kpi-val">${totalHa.toFixed(1)}</div><div class="kpi-lbl">Всего га</div></div>
-    <div class="kpi-card"><div class="kpi-val" style="color:var(--blue);">${totalSeeds.toFixed(0)}</div><div class="kpi-lbl">Семян списано (кг/п.е.)</div></div>`;
+    <div class="kpi-card"><div class="kpi-val" style="color:var(--blue);">${totalSeeds.toFixed(0)}</div><div class="kpi-lbl">Семян списано (кг/п.е.)</div></div>
+    <div class="kpi-card"><div class="kpi-val" style="color:var(--blue);">${totalYieldPlan.toFixed(1)}</div><div class="kpi-lbl">План урожай (т)</div></div>
+    <div class="kpi-card"><div class="kpi-val" style="color:var(--accent);">${totalYieldFact>0?totalYieldFact.toFixed(1):'—'}</div><div class="kpi-lbl">Факт урожай (т)</div></div>`;
 
   const cropFilter = cf?.value || '';
   let parcels = S.parcels.filter(p => !cropFilter || p.cropId === cropFilter);
@@ -6751,6 +6757,20 @@ function renderSowing() {
           Посев не записан
         </div>` : ''}
 
+        <!-- Урожайность -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;">
+          <div style="padding:6px 10px;background:var(--surface2);border-radius:8px;">
+            <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;">📊 План т/га</div>
+            <div style="font-size:13px;font-weight:700;color:var(--blue);">${parcel.yieldPlan||'—'}</div>
+            ${parcel.yieldPlan&&parcel.ha?`<div style="font-size:10px;color:var(--text3);">= ${(parcel.yieldPlan*parcel.ha).toFixed(1)} т</div>`:''}
+          </div>
+          <div style="padding:6px 10px;background:var(--surface2);border-radius:8px;">
+            <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;">✅ Факт т/га</div>
+            <div style="font-size:13px;font-weight:700;color:${parcel.yieldFact?'var(--accent)':'var(--text3)'};">${parcel.yieldFact||'—'}</div>
+            ${parcel.yieldFact&&parcel.ha?`<div style="font-size:10px;color:var(--text3);">= ${(parcel.yieldFact*parcel.ha).toFixed(1)} т</div>`:''}
+          </div>
+        </div>
+
         <!-- Кнопка -->
         <button class="btn btn-secondary btn-sm" style="width:100%;" onclick="openSowingModal('${parcel.id}')">
           ${sowRec ? '✏️ Редактировать посев' : '+ Записать посев'}
@@ -6801,6 +6821,10 @@ function renderSowing() {
         <td style="font-size:11px;color:${daysToHarvest<=7?'var(--accent)':daysToHarvest<=14?'var(--yellow)':'var(--text3)'};">
           ${daysToHarvest!=='—'?(daysToHarvest<=7?'🌾 ':'')+daysToHarvest+' дн':'—'}
         </td>
+        <td style="font-family:'JetBrains Mono',monospace;color:var(--blue);font-weight:600;">${parcel.yieldPlan||'—'}</td>
+        <td style="font-family:'JetBrains Mono',monospace;color:var(--blue);">${parcel.yieldPlan&&parcel.ha?(parcel.yieldPlan*parcel.ha).toFixed(1)+' т':'—'}</td>
+        <td style="font-family:'JetBrains Mono',monospace;color:var(--accent);font-weight:600;">${parcel.yieldFact||'—'}</td>
+        <td style="font-family:'JetBrains Mono',monospace;color:var(--accent);">${parcel.yieldFact&&parcel.ha?(parcel.yieldFact*parcel.ha).toFixed(1)+' т':'—'}</td>
         <td><button class="btn btn-secondary btn-xs" onclick="openSowingModal('${parcel.id}')">✏️</button></td>
       </tr>`;
     }).join('');
@@ -6999,7 +7023,7 @@ function deleteSowingRecord() {
 }
 
 function exportSowing() {
-  const rows = [['Участок','Поле','Культура','Сорт','Дата посева','Площадь га','Семена','Норма','Итого','Метод','Глубина','Примечание']];
+  const rows = [['Участок','Поле','Культура','Сорт','Дата посева','Площадь га','Семена','Норма','Итого','Метод','Глубина','План т/га','План т','Факт т/га','Факт т','Примечание']];
   S.parcels.forEach(parcel => {
     const crop = getCropById(parcel.cropId);
     const field = (S.fields||[]).find(f=>f.id===parcel.fieldId);
@@ -7013,7 +7037,12 @@ function exportSowing() {
       sowRec?sowRec.rate+' '+(sowRec.rateUnit||'кг/га'):'—',
       sowRec?sowRec.totalKg.toFixed(1):'—',
       sowRec?METH[sowRec.method]||sowRec.method:'—',
-      sowRec?.depth||'—', sowRec?.note||'—'
+      sowRec?.depth||'—',
+      parcel.yieldPlan||'—',
+      parcel.yieldPlan&&parcel.ha?(parcel.yieldPlan*parcel.ha).toFixed(1):'—',
+      parcel.yieldFact||'—',
+      parcel.yieldFact&&parcel.ha?(parcel.yieldFact*parcel.ha).toFixed(1):'—',
+      sowRec?.note||'—'
     ]);
   });
   const csv = rows.map(r=>r.join(';')).join('\n');
