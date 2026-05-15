@@ -229,6 +229,7 @@ body[data-readonly="true"] .parcel-card { cursor: default; pointer-events: none;
   <div class="tab" onclick="showTab('gdd')">📈 GDD / ФАЗЫ</div>
   <div class="tab" onclick="showTab('diseases')">🦠 БОЛЕЗНИ</div>
   <div class="tab" onclick="showTab('irrigation')">💧 ИРРИГАЦИЯ</div>
+  <div class="tab" onclick="showTab('varieties')">🌱 СОРТА</div>
   <div class="tab" onclick="showTab('fields')">🌍 ПОЛЯ</div>
   <div class="tab" onclick="showTab('equipment')">💧 ТЕХНИКА ИРРИГАЦИИ</div>
   <div class="tab" onclick="showTab('treatments')">💊 ОБРАБОТКИ</div>
@@ -354,6 +355,130 @@ body[data-readonly="true"] .parcel-card { cursor: default; pointer-events: none;
     <tbody id="gdd-tbody"></tbody>
   </table>
 </div>
+<!-- ═══ VARIETIES ═══ -->
+<div class="panel" id="panel-varieties">
+  <div class="section-hdr">
+    <h2>🌱 Справочник сортов и гибридов</h2>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn btn-secondary" onclick="exportVarietiesCSV()">📤 Экспорт CSV</button>
+      <button class="btn btn-primary" onclick="openVarietyModal()">+ Сорт / Гибрид</button>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="card-grid" id="varieties-kpis" style="grid-template-columns:repeat(auto-fill,minmax(160px,1fr));margin-bottom:20px;"></div>
+
+  <!-- Crop filter tabs -->
+  <div id="var-crop-tabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;"></div>
+
+  <!-- Varieties grid -->
+  <div id="varieties-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;"></div>
+</div>
+
+<!-- Variety Modal -->
+<div class="modal-overlay" id="modal-variety">
+  <div class="modal" style="max-width:640px;width:96%;max-height:92vh;overflow-y:auto;">
+    <h2 id="var-modal-title">🌱 Новый сорт / Гибрид</h2>
+
+    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:'Unbounded',sans-serif;margin-bottom:8px;">🌿 Основная информация</div>
+    <div class="form-grid" style="margin-bottom:14px;">
+      <div class="ff"><label>Культура *</label>
+        <select id="var-crop" onchange="onVarCropChange()">
+          <option value="">— выбрать —</option>
+          <option value="pea">🫛 Горошек зелёный</option>
+          <option value="sweet_corn">🌽 Кукуруза сладкая</option>
+          <option value="tomato">🍅 Томат</option>
+          <option value="cucumber">🥒 Огурец</option>
+          <option value="pepper">🫑 Перец сладкий</option>
+          <option value="onion">🧅 Лук репчатый</option>
+          <option value="potato">🥔 Картофель</option>
+          <option value="eggplant">🍆 Баклажан</option>
+          <option value="zucchini">🥬 Кабачок</option>
+        </select>
+      </div>
+      <div class="ff"><label>Название сорта / Гибрида *</label>
+        <input type="text" id="var-name" placeholder="Авенчур F1">
+      </div>
+      <div class="ff"><label>Тип</label>
+        <select id="var-type">
+          <option value="hybrid">🧬 Гибрид (F1)</option>
+          <option value="variety">🌾 Сорт</option>
+          <option value="own">🌱 Собственный</option>
+        </select>
+      </div>
+      <div class="ff"><label>Назначение</label>
+        <select id="var-purpose">
+          <option value="processing">🏭 Консервный / Переработка</option>
+          <option value="fresh">🛒 Свежий рынок</option>
+          <option value="universal">⚡ Универсальный</option>
+          <option value="storage">🏪 Хранение</option>
+        </select>
+      </div>
+      <div class="ff"><label>Поставщик семян</label>
+        <input type="text" id="var-supplier" placeholder="Syngenta, Rijk Zwaan...">
+      </div>
+      <div class="ff"><label>Страна оригинатора</label>
+        <input type="text" id="var-origin" placeholder="Нидерланды">
+      </div>
+    </div>
+
+    <!-- GDD / TDU -->
+    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:'Unbounded',sans-serif;margin-bottom:8px;">📈 GDD / TDU параметры</div>
+    <div id="var-gdd-hint" style="padding:8px 12px;background:rgba(85,170,255,.06);border:1px solid rgba(85,170,255,.2);border-radius:8px;font-size:11px;color:var(--text2);margin-bottom:10px;line-height:1.6;display:none;"></div>
+    <div class="form-grid" style="margin-bottom:14px;">
+      <div class="ff" id="var-tdu-wrap">
+        <label id="var-gdd-label">GDD до уборки</label>
+        <input type="number" id="var-gdd" placeholder="напр. 750" min="1">
+        <div style="font-size:10px;color:var(--text3);margin-top:3px;" id="var-gdd-sub">От производителя семян</div>
+      </div>
+      <div class="ff" id="var-window-wrap">
+        <label id="var-window-label">Окно уборки ±</label>
+        <input type="number" id="var-window" placeholder="15" min="1" max="50">
+        <div style="font-size:10px;color:var(--text3);margin-top:3px;" id="var-window-sub">±TDU или ±GDD</div>
+      </div>
+      <div class="ff"><label>Базовая температура (°C)</label>
+        <input type="number" id="var-base-temp" placeholder="4.5" step="0.5">
+        <div style="font-size:10px;color:var(--text3);margin-top:3px;">Оставить пустым = стандарт культуры</div>
+      </div>
+      <div class="ff"><label>Вегетационный период (дней)</label>
+        <input type="number" id="var-days" placeholder="60" min="1">
+        <div style="font-size:10px;color:var(--text3);margin-top:3px;">Справочно от производителя</div>
+      </div>
+    </div>
+
+    <!-- Агрономия -->
+    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:'Unbounded',sans-serif;margin-bottom:8px;">🌾 Агрономия</div>
+    <div class="form-grid" style="margin-bottom:14px;">
+      <div class="ff"><label>Норма высева</label>
+        <input type="number" id="var-rate" step="0.01" placeholder="180">
+      </div>
+      <div class="ff"><label>Единица нормы</label>
+        <select id="var-rate-unit">
+          <option value="kg/ha">кг/га</option>
+          <option value="pe/ha">п.е./га</option>
+          <option value="bag/ha">мешок/га</option>
+          <option value="seeds/ha">семян/га</option>
+        </select>
+      </div>
+      <div class="ff"><label>Плановая урожайность (т/га)</label>
+        <input type="number" id="var-yield" step="0.1" placeholder="8.0">
+      </div>
+      <div class="ff"><label>Плотность посева (тыс.раст/га)</label>
+        <input type="number" id="var-density" step="0.1" placeholder="50">
+      </div>
+      <div class="ff full"><label>Комментарий агронома</label>
+        <textarea id="var-note" rows="3" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:12px;" placeholder="Особенности сорта, рекомендации по возделыванию..."></textarea>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-variety')">Отмена</button>
+      <button class="btn btn-danger btn-sm" id="var-delete-btn" style="display:none;margin-right:auto;" onclick="deleteVariety()">Удалить</button>
+      <button class="btn btn-primary" onclick="saveVariety()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ FIELDS ═══ -->
 <div class="panel" id="panel-fields">
   <div class="section-hdr">
@@ -1111,7 +1236,12 @@ body[data-readonly="true"] .parcel-card { cursor: default; pointer-events: none;
           <option value="">— выбрать —</option>
         </select>
       </div>
-      <div class="ff"><label>Сорт</label><input type="text" id="p-variety" placeholder="Название сорта"></div>
+      <div class="ff"><label>Сорт / Гибрид</label>
+        <select id="p-variety-id" onchange="onParcelVarietyChange()">
+          <option value="">— выбрать из справочника —</option>
+        </select>
+        <input type="text" id="p-variety" placeholder="или ввести вручную" style="margin-top:6px;">
+      </div>
       <div class="ff"><label>Дата посева/посадки</label><input type="date" id="p-sowing"></div>
       <div class="ff"><label>Плотность (тыс.раст/га)</label><input type="number" id="p-density" step="0.1" placeholder="50"></div>
       <div class="ff" id="p-harvest-gdd-wrap" style="display:none;">
@@ -2072,7 +2202,76 @@ const DEFAULT_STATE = {
      dose:'1 кг/га', whi:7, crops:'томат, огурец, лук, перец', targets:'Серая гниль, шейковая гниль'},
   ],
   fields: [],
-equipment: [],
+  equipment: [],
+  varieties: [
+    // ── ГОРОШЕК ЗЕЛЁНЫЙ ──────────────────────────────────────────────────
+    {id:'var_pea_01', cropId:'pea', name:'Авенчур', type:'hybrid', purpose:'processing',
+     supplier:'Syngenta', origin:'Нидерланды',
+     gdd:750, tduTarget:110, tduWindow:12, baseTemp:4.5, days:62,
+     rate:180, rateUnit:'kg/ha', yield:6.5, density:900,
+     note:'Ранний. Высокий выход зерна. Устойчив к мучнистой росе. Рекомендован для первых сроков посева.'},
+    {id:'var_pea_02', cropId:'pea', name:'Телефон', type:'variety', purpose:'processing',
+     supplier:'Местный', origin:'Молдова',
+     gdd:750, tduTarget:120, tduWindow:15, baseTemp:4.5, days:68,
+     rate:200, rateUnit:'kg/ha', yield:6.0, density:850,
+     note:'Проверенный сорт. Среднеспелый. Хорошее качество зерна для консервации.'},
+    {id:'var_pea_03', cropId:'pea', name:'Вегетта', type:'hybrid', purpose:'processing',
+     supplier:'Rijk Zwaan', origin:'Нидерланды',
+     gdd:750, tduTarget:115, tduWindow:12, baseTemp:4.5, days:65,
+     rate:185, rateUnit:'kg/ha', yield:7.0, density:900,
+     note:'Среднеранний. Отличный Brix. Устойчив к фузариозу. Рекомендован для консервного завода.'},
+    {id:'var_pea_04', cropId:'pea', name:'Профи', type:'hybrid', purpose:'processing',
+     supplier:'Nunhems', origin:'Германия',
+     gdd:750, tduTarget:118, tduWindow:13, baseTemp:4.5, days:66,
+     rate:180, rateUnit:'kg/ha', yield:7.2, density:920,
+     note:'Высокоурожайный. Устойчив к вирусу мозаики гороха. Хорошая лёжкость после уборки.'},
+    {id:'var_pea_05', cropId:'pea', name:'Орлан', type:'hybrid', purpose:'processing',
+     supplier:'Clause', origin:'Франция',
+     gdd:750, tduTarget:112, tduWindow:12, baseTemp:4.5, days:63,
+     rate:190, rateUnit:'kg/ha', yield:6.8, density:900,
+     note:'Ранний. Отличная равномерность созревания. Удобен для механизированной уборки.'},
+    {id:'var_pea_06', cropId:'pea', name:'Ранний зелёный', type:'variety', purpose:'fresh',
+     supplier:'Местный', origin:'Молдова',
+     gdd:700, tduTarget:105, tduWindow:10, baseTemp:4.5, days:58,
+     rate:200, rateUnit:'kg/ha', yield:5.5, density:880,
+     note:'Очень ранний. Преимущественно свежий рынок. Нежное зерно.'},
+    {id:'var_pea_07', cropId:'pea', name:'Финал', type:'hybrid', purpose:'processing',
+     supplier:'HM Clause', origin:'Франция',
+     gdd:760, tduTarget:122, tduWindow:14, baseTemp:4.5, days:70,
+     rate:185, rateUnit:'kg/ha', yield:7.5, density:910,
+     note:'Среднеспелый. Высокий урожай. Устойчив к стрессу от жары. Рекомендован для поздних сроков.'},
+    {id:'var_pea_08', cropId:'pea', name:'Виконт', type:'hybrid', purpose:'processing',
+     supplier:'Bejo', origin:'Нидерланды',
+     gdd:750, tduTarget:116, tduWindow:13, baseTemp:4.5, days:65,
+     rate:180, rateUnit:'kg/ha', yield:6.9, density:900,
+     note:'Стабильный. Устойчив к полеганию. Хороший вкус консервированного продукта.'},
+    {id:'var_pea_09', cropId:'pea', name:'Камберлэнд', type:'hybrid', purpose:'processing',
+     supplier:'Syngenta', origin:'Нидерланды',
+     gdd:755, tduTarget:117, tduWindow:13, baseTemp:4.5, days:66,
+     rate:182, rateUnit:'kg/ha', yield:7.1, density:905,
+     note:'Среднеранний. Устойчив к аскохитозу. Широко применяется на консервных заводах Молдовы.'},
+    {id:'var_pea_10', cropId:'pea', name:'Мерлин', type:'hybrid', purpose:'processing',
+     supplier:'Limagrain', origin:'Франция',
+     gdd:745, tduTarget:113, tduWindow:12, baseTemp:4.5, days:64,
+     rate:188, rateUnit:'kg/ha', yield:6.7, density:895,
+     note:'Ранний. Хорошая устойчивость к пероноспорозу. Отличная технологичность уборки.'},
+    // ── КУКУРУЗА СЛАДКАЯ ─────────────────────────────────────────────────
+    {id:'var_corn_01', cropId:'sweet_corn', name:'Добрыня', type:'hybrid', purpose:'processing',
+     supplier:'Местный', origin:'Украина',
+     gdd:1350, tduTarget:null, tduWindow:null, baseTemp:10, days:75,
+     rate:20, rateUnit:'kg/ha', yield:12.0, density:65,
+     note:'Среднеранний. Высокий Brix. Рекомендован для консервирования.'},
+    {id:'var_corn_02', cropId:'sweet_corn', name:'Спирит F1', type:'hybrid', purpose:'processing',
+     supplier:'Syngenta', origin:'США',
+     gdd:1380, tduTarget:null, tduWindow:null, baseTemp:10, days:78,
+     rate:18, rateUnit:'kg/ha', yield:14.0, density:70,
+     note:'Высокоурожайный. Brix 18-22. Устойчив к гельминтоспориозу.'},
+    {id:'var_corn_03', cropId:'sweet_corn', name:'Бостон F1', type:'hybrid', purpose:'fresh',
+     supplier:'Rijk Zwaan', origin:'Нидерланды',
+     gdd:1320, tduTarget:null, tduWindow:null, baseTemp:10, days:72,
+     rate:20, rateUnit:'kg/ha', yield:13.0, density:68,
+     note:'Ранний. Свежий рынок и переработка. Отличный вкус.'},
+  ],
   settings:{},
 };
 
@@ -2159,6 +2358,7 @@ function load() {
       S.vegAnalyses = d.vegAnalyses||[];
       S.catalog = d.catalog||DEFAULT_STATE.catalog;
       S.equipment = d.equipment||[];
+      S.varieties = d.varieties?.length ? d.varieties : DEFAULT_STATE.varieties;
       S.settings = d.settings||{};
       S.sowingRecords = d.sowingRecords||[];
     } catch(e){ console.error('Load error',e); }
@@ -2321,7 +2521,26 @@ function getParcelPhase(parcel) {
   return crop.phases.find(ph => gdd >= ph.gddFrom && gdd < ph.gddTo) || crop.phases[crop.phases.length-1];
 }
 
-// Smith Period check (Late Blight trigger)
+// Get effective harvest GDD/TDU for parcel: varietyCatalog → parcel.harvestGdd → crop default
+function getParcelHarvestGdd(parcel) {
+  const crop = getCropById(parcel.cropId);
+  if (!crop) return 0;
+  const v = (S.varieties||[]).find(x=>x.id===parcel.varietyId);
+  if (v) {
+    if (crop.id==='pea') return v.tduTarget || parcel.harvestGdd || crop.tduTarget || 115;
+    return v.gdd || parcel.harvestGdd || crop.gddToHarvest || 0;
+  }
+  return parcel.harvestGdd || (crop.id==='pea' ? (crop.tduTarget||115) : (crop.gddToHarvest||0));
+}
+
+function getParcelTduWindow(parcel) {
+  const crop = getCropById(parcel.cropId);
+  const v = (S.varieties||[]).find(x=>x.id===parcel.varietyId);
+  if (v?.tduWindow) return v.tduWindow;
+  return parcel.tduWindow || crop?.tduWindow || 15;
+}
+
+
 function checkSmithPeriod() {
   if (S.weather.length < 2) return false;
   const recent = [...S.weather].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,2);
@@ -2731,8 +2950,8 @@ function runAlertsForParcel(parcel) {
 
   // ── ГОРОШЕК ЗЕЛЁНЫЙ — TDU модель ─────────────────────────────────────
   if (crop.id==='pea') {
-    const tduTarget = parcel.harvestGdd || crop.tduTarget || 115;
-    const tduWindow = parcel.tduWindow || crop.tduWindow || 15;
+    const tduTarget = getParcelHarvestGdd(parcel);
+    const tduWindow = getParcelTduWindow(parcel);
     const tdu = Math.max(0, gdd - 540);
     const tduDaysLeft = tdu > 0 && avgDailyGdd > 0 ? Math.round((tduTarget - tdu) / avgDailyGdd) : null;
     const inWindow = tdu >= tduTarget - tduWindow && tdu <= tduTarget + tduWindow;
@@ -3028,14 +3247,16 @@ function showTab(id) {
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('panel-'+id).classList.add('active');
-  const tabs = ['parcels','weather','gdd','diseases','irrigation','fields','equipment','treatments','analyses','catalog','warehouse','sowing','workplan','tasks','settings'];
+  const tabs = ['parcels','weather','gdd','diseases','irrigation','varieties','fields','equipment','treatments','analyses','catalog','warehouse','sowing','workplan','tasks','settings'];
   const idx = tabs.indexOf(id);
   document.querySelectorAll('.tab')[idx].classList.add('active');
   const renders = {
     parcels:renderParcels, weather:renderWeather, gdd:renderGdd,
     diseases:renderDiseases, irrigation:renderIrrigation,
     treatments:renderTreatments, catalog:renderCatalog,
-    analyses:renderVegAnalyses, fields:renderFields, equipment:renderEquipment, warehouse:renderWarehouse, sowing:renderSowing, workplan:renderWorkplan, tasks:renderTasks
+    analyses:renderVegAnalyses, fields:renderFields, equipment:renderEquipment,
+    warehouse:renderWarehouse, sowing:renderSowing, workplan:renderWorkplan,
+    tasks:renderTasks, varieties:renderVarieties
   };
   if (renders[id]) renders[id]();
 }
@@ -3058,6 +3279,31 @@ function openParcelModal(parcelId) {
   document.getElementById('p-note').value    = p?.note||'';
   document.getElementById('p-yield-plan').value = p?.yieldPlan||'';
   document.getElementById('p-yield-fact').value = p?.yieldFact||'';
+
+  // Populate variety select — will be re-populated when crop changes
+  const vsel = document.getElementById('p-variety-id');
+  vsel.innerHTML = '<option value="">— выбрать из справочника —</option>';
+  (S.varieties||[]).filter(v=>!p?.cropId||v.cropId===p.cropId).forEach(v=>{
+    const PURPOSE = {processing:'🏭',fresh:'🛒',universal:'⚡',storage:'🏪'};
+    vsel.innerHTML += `<option value="${v.id}" ${p?.varietyId===v.id?'selected':''}>${PURPOSE[v.purpose]||''} ${v.name}${v.days?' · '+v.days+'д':''}${v.tduTarget?' · TDU'+v.tduTarget:v.gdd?' · GDD'+v.gdd:''}</option>`;
+  });
+  vsel.value = p?.varietyId || '';
+
+  // Function to fill variety params when selected
+  window.onParcelVarietyChange = () => {
+    const vid = document.getElementById('p-variety-id').value;
+    const v = (S.varieties||[]).find(x=>x.id===vid);
+    if (!v) return;
+    document.getElementById('p-variety').value = v.name;
+    if (v.tduTarget) {
+      document.getElementById('p-harvest-gdd').value = v.tduTarget;
+      document.getElementById('p-tdu-window').value  = v.tduWindow || 15;
+    } else if (v.gdd) {
+      document.getElementById('p-harvest-gdd').value = v.gdd;
+    }
+    if (v.rate) document.getElementById('p-density').value = v.density || '';
+    if (v.yield) document.getElementById('p-yield-plan').value = v.yield || '';
+  };
   // Капельная лента
   document.getElementById('p-emitter-flow').value = p?.emitterFlow || '';
   document.getElementById('p-emitter-spacing').value = p?.emitterSpacing || '';
@@ -3113,7 +3359,7 @@ function openParcelModal(parcelId) {
     sel.appendChild(og);
   });
 
-  // Show/hide harvest GDD fields
+  // Show/hide harvest GDD fields + refresh variety list
   const updateHarvestFields = () => {
     const cid = sel.value;
     const crop = getCropById(cid);
@@ -3129,6 +3375,15 @@ function openParcelModal(parcelId) {
         : `GDD от производителя (напр. ${crop.gddToHarvest})`;
       const lbl = document.querySelector('#p-harvest-gdd-wrap label');
       if (lbl) lbl.textContent = isPea ? 'TDU уборки (от производителя)' : 'GDD уборки (от производителя)';
+    }
+    // Refresh variety select for chosen crop
+    const vsel2 = document.getElementById('p-variety-id');
+    if (vsel2) {
+      vsel2.innerHTML = '<option value="">— выбрать из справочника —</option>';
+      const PURPOSE = {processing:'🏭',fresh:'🛒',universal:'⚡',storage:'🏪'};
+      (S.varieties||[]).filter(v=>!cid||v.cropId===cid).forEach(v=>{
+        vsel2.innerHTML += `<option value="${v.id}">${PURPOSE[v.purpose]||''} ${v.name}${v.days?' · '+v.days+'д':''}${v.tduTarget?' · TDU'+v.tduTarget:v.gdd?' · GDD'+v.gdd:''}</option>`;
+      });
     }
   };
 
@@ -3155,6 +3410,7 @@ function saveParcel() {
   const parcel = {
     id: _editParcelId || uid(),
     name, ha, cropId,
+    varietyId: document.getElementById('p-variety-id').value || null,
     variety: document.getElementById('p-variety').value.trim(),
     sowingDate,
     density: parseFloat(document.getElementById('p-density').value)||0,
@@ -3886,8 +4142,8 @@ function renderGdd() {
   // TDU for pea — special KPI
   let tduKpi = '';
   if (crop.id === 'pea') {
-    const tduTarget = parcel.harvestGdd || crop.tduTarget || 115;
-    const tduWindow = parcel.tduWindow || crop.tduWindow || 15;
+    const tduTarget = getParcelHarvestGdd(parcel);
+    const tduWindow = getParcelTduWindow(parcel);
     const tdu = Math.max(0, gdd - 540);
     const tduDaysLeft = avgDailyGdd > 0 && tdu < tduTarget ? Math.round((tduTarget - tdu) / avgDailyGdd) : 0;
     const inWindow = tdu >= tduTarget - tduWindow && tdu <= tduTarget + tduWindow;
@@ -6278,7 +6534,7 @@ const ROLES = {
     pinKey:'pin_owner',
     defaultPin:'1111',
     color:'#fbbf24',
-    tabs:['parcels','weather','gdd','diseases','irrigation','treatments','catalog','settings'],
+    tabs:['parcels','weather','gdd','diseases','irrigation','treatments','catalog','varieties','settings'],
     canEdit: true,
     canDelete: true,
     canSettings: true,
@@ -6289,7 +6545,7 @@ const ROLES = {
     pinKey:'pin_agronomist',
     defaultPin:'2222',
     color:'#4ade80',
-    tabs:['parcels','weather','gdd','diseases','irrigation','treatments','catalog'],
+    tabs:['parcels','weather','gdd','diseases','irrigation','treatments','catalog','varieties'],
     canEdit: true,
     canDelete: false,
     canSettings: false,
@@ -7137,7 +7393,9 @@ function onSowParcelChange() {
   const crop = getCropById(parcel?.cropId);
 
   document.getElementById('sow-crop-display').textContent = crop ? crop.emoji+' '+crop.name : '—';
-  document.getElementById('sow-variety-display').textContent = parcel?.variety || '—';
+  // Show variety from catalog if linked, else from parcel text
+  const parcelVariety = (S.varieties||[]).find(v=>v.id===parcel?.varietyId);
+  document.getElementById('sow-variety-display').textContent = parcelVariety?.name || parcel?.variety || '—';
   document.getElementById('sow-ha-display').textContent = parcel ? parcel.ha+' га' : '—';
 
   // Set sowing date from parcel if available
@@ -8445,6 +8703,254 @@ function exportWarehouseCSV() {
   a.download = 'sklad_'+today()+'.csv'; a.click();
 }
 
+// ═══ СПРАВОЧНИК СОРТОВ ════════════════════════════════════════════════════
+let _editVarietyId = null;
+let _varCropFilter = 'all';
+
+const CROP_NAMES_VAR = {
+  pea:'🫛 Горошек', sweet_corn:'🌽 Кукуруза', tomato:'🍅 Томат',
+  cucumber:'🥒 Огурец', pepper:'🫑 Перец', onion:'🧅 Лук',
+  potato:'🥔 Картофель', eggplant:'🍆 Баклажан', zucchini:'🥬 Кабачок'
+};
+const PURPOSE_LABELS = {processing:'🏭 Переработка', fresh:'🛒 Свежий рынок', universal:'⚡ Универсальный', storage:'🏪 Хранение'};
+const VAR_TYPE_LABELS = {hybrid:'🧬 Гибрид F1', variety:'🌾 Сорт', own:'🌱 Собственный'};
+const RATE_UNIT_LABELS = {'kg/ha':'кг/га','pe/ha':'п.е./га','bag/ha':'мешок/га','seeds/ha':'семян/га'};
+
+function onVarCropChange() {
+  const cropId = document.getElementById('var-crop').value;
+  const crop = getCropById(cropId);
+  const isPea = cropId === 'pea';
+  const hint = document.getElementById('var-gdd-hint');
+  const label = document.getElementById('var-gdd-label');
+  const sub = document.getElementById('var-gdd-sub');
+  const wLabel = document.getElementById('var-window-label');
+  const wSub = document.getElementById('var-window-sub');
+  if (crop) {
+    hint.style.display = 'block';
+    if (isPea) {
+      hint.innerHTML = `🫛 <strong>Горошек — TDU модель</strong><br>TDU (Thermal Development Units) = ΣTср − 4.5°C от посева. Технологическая зрелость при TDU 100–130. Окно уборки ±10–15 TDU (≈ 2–4 дня).`;
+      label.textContent = 'TDU до уборки (цель)';
+      sub.textContent = 'Например: 110–125 в зависимости от сорта';
+      wLabel.textContent = 'Окно уборки ±TDU';
+      wSub.textContent = '±10 = ~2дн, ±15 = ~3дн, ±20 = ~4дн';
+    } else {
+      hint.innerHTML = `📈 <strong>${crop.name} — GDD модель</strong><br>База: ${crop.baseTemp}°C. Стандарт уборки: ${crop.gddToHarvest} GDD. Укажите значение от производителя семян если отличается.`;
+      label.textContent = 'GDD до уборки';
+      sub.textContent = `Стандарт культуры: ${crop.gddToHarvest} GDD`;
+      wLabel.textContent = 'Окно уборки ±GDD';
+      wSub.textContent = 'Допустимый диапазон от цели';
+    }
+    document.getElementById('var-base-temp').placeholder = crop.baseTemp;
+  } else {
+    hint.style.display = 'none';
+  }
+}
+
+function openVarietyModal(varId) {
+  _editVarietyId = varId || null;
+  const v = varId ? (S.varieties||[]).find(x=>x.id===varId) : null;
+  document.getElementById('var-modal-title').textContent = v ? '✏️ Редактировать сорт' : '🌱 Новый сорт / Гибрид';
+  document.getElementById('var-delete-btn').style.display = v ? 'block' : 'none';
+  document.getElementById('var-crop').value     = v?.cropId || '';
+  document.getElementById('var-name').value     = v?.name || '';
+  document.getElementById('var-type').value     = v?.type || 'hybrid';
+  document.getElementById('var-purpose').value  = v?.purpose || 'processing';
+  document.getElementById('var-supplier').value = v?.supplier || '';
+  document.getElementById('var-origin').value   = v?.origin || '';
+  document.getElementById('var-gdd').value      = v?.tduTarget || v?.gdd || '';
+  document.getElementById('var-window').value   = v?.tduWindow || '';
+  document.getElementById('var-base-temp').value= v?.baseTemp || '';
+  document.getElementById('var-days').value     = v?.days || '';
+  document.getElementById('var-rate').value     = v?.rate || '';
+  document.getElementById('var-rate-unit').value= v?.rateUnit || 'kg/ha';
+  document.getElementById('var-yield').value    = v?.yield || '';
+  document.getElementById('var-density').value  = v?.density || '';
+  document.getElementById('var-note').value     = v?.note || '';
+  onVarCropChange();
+  openModal('modal-variety');
+}
+
+function saveVariety() {
+  const cropId = document.getElementById('var-crop').value;
+  const name   = document.getElementById('var-name').value.trim();
+  if (!cropId) { alert('Выберите культуру'); return; }
+  if (!name)   { alert('Введите название сорта'); return; }
+  const isPea = cropId === 'pea';
+  const gddVal = parseFloat(document.getElementById('var-gdd').value) || null;
+  const v = {
+    id: _editVarietyId || uid(),
+    cropId, name,
+    type:     document.getElementById('var-type').value,
+    purpose:  document.getElementById('var-purpose').value,
+    supplier: document.getElementById('var-supplier').value.trim(),
+    origin:   document.getElementById('var-origin').value.trim(),
+    tduTarget: isPea ? gddVal : null,
+    tduWindow: isPea ? (parseFloat(document.getElementById('var-window').value)||null) : null,
+    gdd:       !isPea ? gddVal : null,
+    baseTemp:  parseFloat(document.getElementById('var-base-temp').value) || null,
+    days:      parseInt(document.getElementById('var-days').value) || null,
+    rate:      parseFloat(document.getElementById('var-rate').value) || null,
+    rateUnit:  document.getElementById('var-rate-unit').value,
+    yield:     parseFloat(document.getElementById('var-yield').value) || null,
+    density:   parseFloat(document.getElementById('var-density').value) || null,
+    note:      document.getElementById('var-note').value.trim(),
+  };
+  if (!S.varieties) S.varieties = [];
+  if (_editVarietyId) {
+    const idx = S.varieties.findIndex(x=>x.id===_editVarietyId);
+    if (idx>=0) S.varieties[idx] = v; else S.varieties.push(v);
+  } else {
+    S.varieties.push(v);
+  }
+  save();
+  if (_vServerAvailable) {
+    fetch('/api/state/vegetable', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ varieties: S.varieties })
+    }).catch(e=>console.warn('Varieties sync failed:',e));
+  }
+  closeModal('modal-variety');
+  renderVarieties();
+}
+
+function deleteVariety() {
+  if (!_editVarietyId || !confirm('Удалить сорт? Участки с этим сортом сохранятся.')) return;
+  S.varieties = (S.varieties||[]).filter(v=>v.id!==_editVarietyId);
+  save();
+  closeModal('modal-variety');
+  renderVarieties();
+}
+
+function renderVarieties() {
+  if (!S.varieties) S.varieties = [...DEFAULT_STATE.varieties];
+  const varieties = S.varieties;
+
+  // KPIs
+  const crops = [...new Set(varieties.map(v=>v.cropId))];
+  const forProcessing = varieties.filter(v=>v.purpose==='processing').length;
+  document.getElementById('varieties-kpis').innerHTML = `
+    <div class="kpi-card"><div class="kpi-val">${varieties.length}</div><div class="kpi-lbl">Сортов / Гибридов</div></div>
+    <div class="kpi-card"><div class="kpi-val">${crops.length}</div><div class="kpi-lbl">Культур</div></div>
+    <div class="kpi-card"><div class="kpi-val" style="color:var(--accent);">${forProcessing}</div><div class="kpi-lbl">Для переработки</div></div>
+    <div class="kpi-card"><div class="kpi-val" style="color:var(--blue);">${varieties.filter(v=>v.type==='hybrid').length}</div><div class="kpi-lbl">Гибридов F1</div></div>`;
+
+  // Crop filter tabs
+  const tabsEl = document.getElementById('var-crop-tabs');
+  tabsEl.innerHTML = `<div class="crop-tab ${_varCropFilter==='all'?'active':''}" onclick="filterVarietiesCrop('all')">🌿 Все культуры (${varieties.length})</div>`;
+  crops.forEach(cid => {
+    const cnt = varieties.filter(v=>v.cropId===cid).length;
+    const isActive = _varCropFilter === cid;
+    tabsEl.innerHTML += `<div class="crop-tab ${isActive?'active':''}" onclick="filterVarietiesCrop('${cid}')">${CROP_NAMES_VAR[cid]||cid} (${cnt})</div>`;
+  });
+
+  // Filter
+  const filtered = _varCropFilter==='all' ? varieties : varieties.filter(v=>v.cropId===_varCropFilter);
+
+  // Group by crop
+  const byCrop = {};
+  filtered.forEach(v => {
+    if (!byCrop[v.cropId]) byCrop[v.cropId] = [];
+    byCrop[v.cropId].push(v);
+  });
+
+  const grid = document.getElementById('varieties-grid');
+  if (!filtered.length) {
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text3);">
+      <div style="font-size:48px;margin-bottom:12px;">🌱</div>
+      <div>Нет сортов. Нажмите + Сорт / Гибрид</div>
+    </div>`;
+    return;
+  }
+
+  let html = '';
+  Object.entries(byCrop).forEach(([cropId, vars]) => {
+    const crop = getCropById(cropId);
+    // Crop header
+    html += `<div style="grid-column:1/-1;display:flex;align-items:center;gap:10px;padding:10px 14px;
+      background:var(--surface2);border-radius:10px;border:1px solid var(--border);margin-bottom:4px;">
+      <span style="font-size:22px;">${crop?.emoji||'🌱'}</span>
+      <div>
+        <div style="font-size:13px;font-weight:700;">${CROP_NAMES_VAR[cropId]||cropId}</div>
+        <div style="font-size:11px;color:var(--text3);">${vars.length} сортов/гибридов · База ${crop?.baseTemp||'—'}°C</div>
+      </div>
+      <button class="btn btn-secondary btn-sm" style="margin-left:auto;" onclick="openVarietyModal();document.getElementById('var-crop').value='${cropId}';onVarCropChange()">+ Добавить</button>
+    </div>`;
+
+    // Variety cards
+    vars.forEach(v => {
+      // How many parcels use this variety
+      const usedIn = (S.parcels||[]).filter(p=>p.varietyId===v.id || p.variety?.toLowerCase()===v.name.toLowerCase());
+      const usedHa = usedIn.reduce((s,p)=>s+(p.ha||0),0);
+
+      const isPea = cropId === 'pea';
+      const gddDisplay = isPea
+        ? (v.tduTarget ? `TDU ${v.tduTarget}${v.tduWindow?' ± '+v.tduWindow:''}` : '—')
+        : (v.gdd ? `GDD ${v.gdd}` : (crop?.gddToHarvest ? `GDD ${crop.gddToHarvest} (стандарт)` : '—'));
+
+      html += `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;cursor:pointer;transition:all .2s;border-left:4px solid ${v.purpose==='processing'?'var(--accent)':v.purpose==='fresh'?'var(--blue)':'var(--text3)'};"
+        onclick="openVarietyModal('${v.id}')">
+
+        <!-- Название -->
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+          <div>
+            <div style="font-size:14px;font-weight:700;">${v.name}</div>
+            <div style="font-size:10px;color:var(--text3);">${VAR_TYPE_LABELS[v.type]||v.type}${v.origin?' · '+v.origin:''}</div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
+            <span style="font-size:9px;padding:2px 8px;border-radius:8px;background:${v.purpose==='processing'?'rgba(107,221,107,.15)':'rgba(85,170,255,.15)'};color:${v.purpose==='processing'?'var(--accent)':'var(--blue)'};">${PURPOSE_LABELS[v.purpose]||v.purpose}</span>
+            ${v.supplier?`<span style="font-size:9px;color:var(--text3);">${v.supplier}</span>`:''}
+          </div>
+        </div>
+
+        <!-- GDD/TDU -->
+        <div style="padding:6px 10px;background:${isPea?'rgba(107,221,107,.08)':'rgba(85,170,255,.08)'};border-radius:8px;margin-bottom:8px;">
+          <div style="font-size:11px;font-weight:700;color:${isPea?'var(--accent)':'var(--blue)'};">${gddDisplay}</div>
+          ${v.days?`<div style="font-size:10px;color:var(--text3);">Вегетация: ~${v.days} дней</div>`:''}
+        </div>
+
+        <!-- Параметры -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:11px;color:var(--text2);margin-bottom:8px;">
+          ${v.rate?`<div>📦 Норма: <strong>${v.rate} ${RATE_UNIT_LABELS[v.rateUnit]||v.rateUnit}</strong></div>`:''}
+          ${v.yield?`<div>🌾 Урожай: <strong>${v.yield} т/га</strong></div>`:''}
+          ${v.density?`<div>🌱 Густота: <strong>${v.density} тыс/га</strong></div>`:''}
+        </div>
+
+        <!-- Использование -->
+        ${usedIn.length ? `<div style="padding:5px 8px;background:rgba(107,221,107,.06);border:1px solid rgba(107,221,107,.15);border-radius:6px;font-size:11px;color:var(--accent);margin-bottom:6px;">
+          📍 Посеян: ${usedIn.map(p=>p.name).join(', ')} · ${usedHa.toFixed(1)} га
+        </div>` : `<div style="font-size:10px;color:var(--text3);margin-bottom:6px;">Не используется в этом сезоне</div>`}
+
+        <!-- Примечание -->
+        ${v.note?`<div style="font-size:10px;color:var(--text3);line-height:1.4;border-top:1px solid var(--border);padding-top:6px;">${v.note}</div>`:''}
+      </div>`;
+    });
+  });
+
+  grid.innerHTML = html;
+}
+
+function filterVarietiesCrop(cropId) {
+  _varCropFilter = cropId;
+  renderVarieties();
+}
+
+function exportVarietiesCSV() {
+  const rows = [['Культура','Сорт/Гибрид','Тип','Назначение','TDU/GDD','±Окно','Дней','Норма','Ед.','Урожай т/га','Поставщик','Страна','Комментарий']];
+  (S.varieties||[]).forEach(v => {
+    rows.push([
+      CROP_NAMES_VAR[v.cropId]||v.cropId, v.name,
+      VAR_TYPE_LABELS[v.type]||v.type, PURPOSE_LABELS[v.purpose]||v.purpose,
+      v.tduTarget||v.gdd||'—', v.tduWindow||'—',
+      v.days||'—', v.rate||'—', RATE_UNIT_LABELS[v.rateUnit]||v.rateUnit||'—',
+      v.yield||'—', v.supplier||'—', v.origin||'—', v.note||'—'
+    ]);
+  });
+  const csv = rows.map(r=>r.join(';')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
+  a.download = 'sorta_'+today()+'.csv'; a.click();
+}
+
 async function startApp() {
   load();           // instant from localStorage
   await checkVServer();
@@ -8488,6 +8994,7 @@ console.log('[DEBUG] after merge:', S.treatments.length);
         if (d.equipment?.length)   S.equipment   = d.equipment; if (d.farmName)            S.farmName    = d.farmName;
         if (d.warehouse)           S.warehouse   = d.warehouse;
         if (d.sowingRecords)       S.sowingRecords = d.sowingRecords;
+        if (d.varieties?.length)   S.varieties   = d.varieties;
         if (d.region)              S.region      = d.region;
         localStorage.setItem(STORAGE_KEY, JSON.stringify(S));
         console.log('[Veg] Loaded', S.parcels.length, 'parcels from server');
