@@ -4667,19 +4667,25 @@ function saveTreatment(){
   save();
   // Автосписание со склада (только новые обработки)
   if (!_editTreatId && S.warehouse?.chemicals?.length) {
+    // Суммарная площадь ВСЕХ выбранных участков
+    const totalHaAll = _selectedParcels.reduce((sum, pid) => {
+      const pc = S.parcels.find(p=>p.id===pid);
+      return sum + (parseFloat(pc?.ha)||0);
+    }, 0) || 1;
+    const parcelNamesAll = _selectedParcels.map(pid => S.parcels.find(p=>p.id===pid)?.name||'—').join(', ');
+
     products.forEach(p => {
       const stock = S.warehouse.chemicals.find(c => c.name.toLowerCase() === p.name.toLowerCase());
       if (stock && p.dose) {
-        const ha = parcel?.ha || 1;
         const doseNum = parseFloat(p.dose) || 0;
         if (doseNum > 0) {
-          const spent = Math.round(doseNum * ha * 1000) / 1000;
+          const spent = Math.round(doseNum * totalHaAll * 1000) / 1000;
           stock.qty = Math.round(Math.max(0, stock.qty - spent) * 1000) / 1000;
           S.warehouse.history.unshift({
             id: uid(), date, type: 'chemical', name: p.name,
             operation: 'out', qty: spent, unit: stock.unit||'л',
             price: stock.price||0, total: Math.round(spent * (stock.price||0)),
-            parcelName: parcel?.name||'—', note: 'Обработка'
+            parcelName: parcelNamesAll, note: 'Обработка ('+totalHaAll.toFixed(1)+' га)'
           });
         }
       }
