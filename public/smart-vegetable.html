@@ -256,8 +256,14 @@ body[data-readonly="true"] .parcel-card { cursor: default; pointer-events: none;
   <!-- Summary KPIs -->
   <div class="card-grid" id="parcel-kpis"></div>
 
+  <!-- Weather forecast strip -->
+  <div id="forecast-strip" style="margin-bottom:16px;"></div>
+
   <!-- Alert banner -->
   <div id="alert-banner" style="margin-bottom:16px;"></div>
+
+  <!-- Smart recommendations -->
+  <div id="smart-recs" style="margin-bottom:16px;"></div>
 
   <!-- Parcels grid header with sort -->
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
@@ -3352,6 +3358,8 @@ function renderParcels() {
   }
 
   document.getElementById('alert-banner').innerHTML = bannerHtml;
+  // Рекомендации на основе прогноза
+  renderSmartRecs();
   // Parcel cards — sorted
   const sortedParcels = getSortedParcels();
   grid.innerHTML = sortedParcels.map((parcel, idx) => {
@@ -7236,6 +7244,349 @@ function exportTreatmentCost() {
   a.click();
 }
 
+// ═══ ПРОГНОЗ ПОГОДЫ (Open-Meteo) + УМНЫЕ РЕКОМЕНДАЦИИ ═══════════════════
+const FORECAST_LAT = 48.0167;
+const FORECAST_LON = 28.7000;
+let _forecast = null; // кэш прогноза
+
+async function fetchForecast() {
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${FORECAST_LAT}&longitude=${FORECAST_LON}` +
+      `&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,` +
+      `relativehumidity_2m_max,relativehumidity_2m_min,precipitation_probability_max,` +
+      `weathercode&timezone=Europe%2FChisinau&forecast_days=7`;
+    const r = await fetch(url, { signal: AbortSignal.timeout(6000) });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    _forecast = data.daily;
+    return _forecast;
+  } catch(e) {
+    console.warn('[Forecast] Failed:', e.message);
+    return null;
+  }
+}
+
+// WMO weather codes → иконка + описание
+function wmoIcon(code) {
+  if (code === 0) return { icon:'☀️', label:'Ясно' };
+  if (code <= 2) return { icon:'🌤️', label:'Малооблачно' };
+  if (code === 3) return { icon:'☁️', label:'Пасмурно' };
+  if (code <= 49) return { icon:'🌫️', label:'Туман' };
+  if (code <= 57) return { icon:'🌧️', label:'Морось' };
+  if (code <= 67) return { icon:'🌧️', label:'Дождь' };
+  if (code <= 77) return { icon:'❄️', label:'Снег' };
+  if (code <= 82) return { icon:'🌦️', label:'Ливень' };
+  if (code <= 99) return { icon:'⛈️', label:'Гроза' };
+  return { icon:'🌡️', label:'—' };
+}
+
+function renderForecastStrip() {
+  const el = document.getElementById('forecast-strip');
+  if (!el) return;
+
+  if (!_forecast) {
+    el.innerHTML = `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;
+      background:var(--surface);border:1px solid var(--border);border-radius:10px;
+      font-size:11px;color:var(--text3);">
+      <span>🌡️</span>
+      <span>Загрузка прогноза погоды...</span>
+      <button class="btn btn-secondary btn-sm" onclick="loadForecastAndRender()">🔄 Загрузить</button>
+    </div>`;
+    return;
+  }
+
+  const days = _forecast.time || [];
+  const dayNames = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+
+  // Найти лучшее окно для опрыскивания (нет дождя, ветер < 5 м/с)
+  let sprayWindow = [];
+  days.forEach((date, i) => {
+    const rain = _forecast.precipitation_sum[i] || 0;
+    const wind = _forecast.windspeed_10m_max[i] || 0;
+    const tmax = _forecast.temperature_2m_max[i] || 0;
+    const tmin = _forecast.temperature_2m_min[i] || 0;
+    const hum = _forecast.relativehumidity_2m_max[i] || 0;
+    const rainProb = _forecast.precipitation_probability_max[i] || 0;
+    const good = rain < 1 && wind < 6 && tmax > 8 && tmax < 30 && rainProb < 30;
+    if (good) sprayWindow.push(date);
+  });
+
+  // Smith Period прогноз
+  let smithForecast = [];
+  days.forEach((date, i) => {
+    const tmin = _forecast.temperature_2m_min[i] || 0;
+    const tmax = _forecast.temperature_2m_max[i] || 0;
+    const hum = _forecast.relativehumidity_2m_max[i] || 0;
+    if (tmin >= 10 && hum >= 80) smithForecast.push(date);
+  });
+
+  // Frost forecast
+  let frostDays = [];
+  days.forEach((date, i) => {
+    if ((_forecast.temperature_2m_min[i] || 0) <= 2) frostDays.push(date);
+  });
+
+  const html = `
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;">
+
+    <!-- Заголовок -->
+    <div style="padding:10px 16px;background:var(--surface2);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+      <div style="font-family:'Unbounded',sans-serif;font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:1px;">
+        🌡️ Прогноз погоды · Каменка · 7 дней
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        ${sprayWindow.length > 0 ? `<span style="font-size:10px;padding:2px 10px;border-radius:10px;background:rgba(107,221,107,.15);color:var(--accent);">💊 Окно опрыскивания: ${sprayWindow.slice(0,3).map(d=>d.slice(5)).join(', ')}</span>` : '<span style="font-size:10px;padding:2px 10px;border-radius:10px;background:rgba(255,153,68,.15);color:var(--orange);">⚠️ Нет хорошего окна для опрыскивания</span>'}
+        <button class="btn btn-secondary btn-sm" onclick="loadForecastAndRender()" title="Обновить прогноз">🔄</button>
+      </div>
+    </div>
+
+    <!-- 7 дней -->
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--border);">
+      ${days.map((date, i) => {
+        const d = new Date(date);
+        const dayName = dayNames[d.getDay()];
+        const isToday = date === new Date().toISOString().slice(0,10);
+        const tmax = _forecast.temperature_2m_max[i];
+        const tmin = _forecast.temperature_2m_min[i];
+        const rain = _forecast.precipitation_sum[i] || 0;
+        const wind = _forecast.windspeed_10m_max[i] || 0;
+        const hum = _forecast.relativehumidity_2m_max[i] || 0;
+        const rainProb = _forecast.precipitation_probability_max[i] || 0;
+        const code = _forecast.weathercode[i] || 0;
+        const w = wmoIcon(code);
+        const isFrost = tmin <= 2;
+        const isHeat = tmax >= 32;
+        const isSmith = tmin >= 10 && hum >= 80;
+        const isGoodSpray = rain < 1 && wind < 6 && tmax > 8 && tmax < 30 && rainProb < 30;
+        const bgColor = isToday ? 'var(--surface3)' : 'var(--surface)';
+        return `<div style="padding:10px 8px;background:${bgColor};text-align:center;position:relative;">
+          ${isToday?`<div style="position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent);"></div>`:''}
+          <div style="font-size:9px;color:${isToday?'var(--accent)':'var(--text3)'};font-weight:${isToday?'700':'400'};margin-bottom:3px;">${isToday?'СЕГОДНЯ':dayName} ${date.slice(5)}</div>
+          <div style="font-size:22px;margin-bottom:3px;">${w.icon}</div>
+          <div style="font-size:10px;color:var(--text3);margin-bottom:5px;">${w.label}</div>
+          <div style="margin-bottom:4px;">
+            <span style="font-size:13px;font-weight:700;color:${isHeat?'var(--red)':'var(--text)'};">${tmax}°</span>
+            <span style="font-size:11px;color:${isFrost?'var(--blue)':'var(--text3)'};">&nbsp;${tmin}°</span>
+          </div>
+          ${rain > 0 ? `<div style="font-size:10px;color:var(--blue);">💧 ${rain.toFixed(1)}мм</div>` : '<div style="font-size:10px;color:var(--text3);">—</div>'}
+          <div style="font-size:9px;color:var(--text3);margin-top:2px;">💨${wind}м/с 💦${hum}%</div>
+          ${rainProb > 30 ? `<div style="font-size:9px;color:var(--blue);margin-top:2px;">☔${rainProb}%</div>` : ''}
+          <!-- Индикаторы -->
+          <div style="margin-top:5px;display:flex;gap:2px;justify-content:center;flex-wrap:wrap;">
+            ${isGoodSpray?`<span title="Хорошее окно для опрыскивания" style="font-size:9px;padding:1px 5px;border-radius:6px;background:rgba(107,221,107,.2);color:var(--accent);">💊</span>`:''}
+            ${isSmith?`<span title="Smith Period — риск фитофторы" style="font-size:9px;padding:1px 5px;border-radius:6px;background:rgba(255,85,85,.2);color:var(--red);">🟤</span>`:''}
+            ${isFrost?`<span title="Риск заморозка" style="font-size:9px;padding:1px 5px;border-radius:6px;background:rgba(100,180,255,.2);color:#60a5fa;">❄️</span>`:''}
+            ${isHeat?`<span title="Тепловой стресс" style="font-size:9px;padding:1px 5px;border-radius:6px;background:rgba(255,85,85,.2);color:var(--red);">🔥</span>`:''}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+
+    <!-- Легенда -->
+    <div style="padding:6px 14px;background:var(--surface2);display:flex;gap:12px;flex-wrap:wrap;font-size:10px;color:var(--text3);">
+      <span>💊 Окно опрыскивания</span>
+      <span>🟤 Smith Period (фитофтора)</span>
+      <span>❄️ Заморозок</span>
+      <span>🔥 Тепловой стресс</span>
+    </div>
+  </div>`;
+
+  el.innerHTML = html;
+}
+
+async function loadForecastAndRender() {
+  const el = document.getElementById('forecast-strip');
+  if (el) el.innerHTML = `<div style="padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:10px;font-size:11px;color:var(--text3);">⏳ Загрузка прогноза...</div>`;
+  await fetchForecast();
+  renderForecastStrip();
+  renderSmartRecs();
+}
+
+// ═══ УМНЫЕ РЕКОМЕНДАЦИИ ═══════════════════════════════════════════════════
+function renderSmartRecs() {
+  const el = document.getElementById('smart-recs');
+  if (!el || !S.parcels.length) return;
+
+  const recs = [];
+  const forecast = _forecast;
+  const today_str = new Date().toISOString().slice(0,10);
+
+  S.parcels.forEach(parcel => {
+    const crop = getCropById(parcel.cropId);
+    if (!crop) return;
+    const phase = getParcelPhase(parcel);
+    const gdd = Math.round(calcParcelGdd(parcel));
+    const daysFromSowing = S.weather.filter(w=>w.date>=(normalizeDate(parcel.sowingDate)||'1900-01-01')).length;
+    const avgDailyGdd = daysFromSowing > 0 ? gdd/daysFromSowing : 1;
+
+    // ── 1. WHI — срок ожидания истекает ──────────────────────────────
+    const lastTreatments = S.treatments
+      .filter(t => t.parcelId === parcel.id && t.whiDate)
+      .sort((a,b) => b.date.localeCompare(a.date));
+    const activeWhi = lastTreatments.filter(t => t.whiDate > today_str);
+    if (activeWhi.length) {
+      const latest = activeWhi[0];
+      const daysLeft = Math.ceil((new Date(latest.whiDate) - new Date(today_str)) / 86400000);
+      recs.push({
+        level: daysLeft <= 3 ? 'critical' : 'watch',
+        parcel: parcel.name, crop: crop.emoji,
+        icon: '⏳',
+        title: `WHI истекает через ${daysLeft} дн — ${latest.whiDate}`,
+        body: `Последняя обработка: ${latest.date}. Срок ожидания не истёк — нельзя собирать урожай.`,
+        action: daysLeft <= 3 ? 'Убрать урожай только после ' + latest.whiDate : 'Контролировать дату снятия запрета'
+      });
+    }
+
+    // ── 2. Давно не было обработки ────────────────────────────────────
+    const lastTreat = S.treatments.filter(t=>t.parcelId===parcel.id).sort((a,b)=>b.date.localeCompare(a.date))[0];
+    if (lastTreat) {
+      const daysSince = Math.floor((new Date(today_str) - new Date(lastTreat.date)) / 86400000);
+      // Для фунгицидов интервал 10-14 дней критичен
+      if (daysSince >= 12 && phase && !['Уборка','Перезревание'].includes(phase.name)) {
+        recs.push({
+          level: daysSince >= 18 ? 'critical' : 'spray',
+          parcel: parcel.name, crop: crop.emoji,
+          icon: '💊',
+          title: `${daysSince} дней без обработки`,
+          body: `Последняя обработка: ${lastTreat.date}. Фаза: ${phase.name}. При длительном перерыве растёт риск болезней.`,
+          action: 'Проверить раздел 🦠 Болезни — есть ли активные риски. Рассмотреть профилактическую обработку.'
+        });
+      }
+    }
+
+    // ── 3. Прогноз: оптимальное окно для опрыскивания ────────────────
+    if (forecast && lastTreat) {
+      const daysSinceTreat = Math.floor((new Date(today_str) - new Date(lastTreat.date)) / 86400000);
+      if (daysSinceTreat >= 7) {
+        const goodDays = (forecast.time || []).filter((date, i) => {
+          const rain = forecast.precipitation_sum[i] || 0;
+          const wind = forecast.windspeed_10m_max[i] || 0;
+          const tmax = forecast.temperature_2m_max[i] || 0;
+          const rainProb = forecast.precipitation_probability_max[i] || 0;
+          return rain < 1 && wind < 6 && tmax > 8 && tmax < 30 && rainProb < 30;
+        });
+        if (goodDays.length > 0 && phase && !['Уборка','Перезревание'].includes(phase.name)) {
+          recs.push({
+            level: 'watch',
+            parcel: parcel.name, crop: crop.emoji,
+            icon: '🌤️',
+            title: `Окно для опрыскивания: ${goodDays[0].slice(5)}${goodDays[1]?' и '+goodDays[1].slice(5):''}`,
+            body: `${daysSinceTreat} дн с последней обработки. Прогноз: ${goodDays.length} дн без дождя и сильного ветра.`,
+            action: `Запланировать обработку на ${goodDays[0]}. Проверить наличие препаратов на складе.`
+          });
+        }
+      }
+    }
+
+    // ── 4. Прогноз Smith Period ───────────────────────────────────────
+    if (forecast && (crop.id === 'tomato' || crop.id === 'potato')) {
+      const smithDays = (forecast.time || []).filter((date, i) => {
+        const tmin = forecast.temperature_2m_min[i] || 0;
+        const hum = forecast.relativehumidity_2m_max[i] || 0;
+        return tmin >= 10 && hum >= 80;
+      });
+      if (smithDays.length >= 2) {
+        recs.push({
+          level: 'critical',
+          parcel: parcel.name, crop: crop.emoji,
+          icon: '🟤',
+          title: `Smith Period ожидается ${smithDays[0].slice(5)}–${smithDays[smithDays.length-1].slice(5)}`,
+          body: `${smithDays.length} дней с T≥10°C и RH≥80% в прогнозе. Условия для Phytophthora infestans.`,
+          action: 'Обработать ДО начала Smith Period: Ридомил Голд, Инфинито или Превикур. Профилактика важнее лечения!'
+        });
+      }
+    }
+
+    // ── 5. Прогноз заморозка ─────────────────────────────────────────
+    if (forecast) {
+      const frostDays = (forecast.time || []).filter((date, i) =>
+        (forecast.temperature_2m_min[i] || 0) <= 2
+      );
+      if (frostDays.length) {
+        const tmin = Math.min(...frostDays.map((d,i) => forecast.temperature_2m_min[(forecast.time||[]).indexOf(d)] || 0));
+        recs.push({
+          level: tmin <= 0 ? 'critical' : 'spray',
+          parcel: parcel.name, crop: crop.emoji,
+          icon: '❄️',
+          title: `Заморозок в прогнозе: ${frostDays[0].slice(5)}, T°мин ${tmin}°C`,
+          body: `${crop.name} может пострадать. Фаза: ${phase?.name||'—'}.`,
+          action: 'Подготовить укрытие или систему дождевания. Проверить участок утром после заморозка.'
+        });
+      }
+    }
+
+    // ── 6. Приближение уборки ────────────────────────────────────────
+    const harvestGdd = parcel.harvestGdd || crop.gddToHarvest || 0;
+    const remainGdd = Math.max(0, harvestGdd - gdd);
+    const daysToHarvest = avgDailyGdd > 0 ? Math.round(remainGdd / avgDailyGdd) : null;
+    if (daysToHarvest !== null && daysToHarvest <= 10 && daysToHarvest > 0) {
+      recs.push({
+        level: daysToHarvest <= 5 ? 'critical' : 'watch',
+        parcel: parcel.name, crop: crop.emoji,
+        icon: '🌾',
+        title: `До уборки ~${daysToHarvest} дней`,
+        body: `GDD накоплено: ${gdd} / ${harvestGdd}. Фаза: ${phase?.name||'—'}.`,
+        action: 'Подготовить технику. Проверить WHI всех обработок. Согласовать приёмку с заводом.'
+      });
+    }
+
+    // ── 7. Нет обработок вообще ──────────────────────────────────────
+    if (!lastTreat && gdd > 100 && phase && !['Уборка','Посев','Посадка'].includes(phase.name)) {
+      recs.push({
+        level: 'watch',
+        parcel: parcel.name, crop: crop.emoji,
+        icon: '📋',
+        title: `Нет записей об обработках`,
+        body: `Участок ${parcel.name} — ни одной обработки не записано. Фаза: ${phase.name}, GDD ${gdd}.`,
+        action: 'Добавить обработки в раздел 💊 Обработки. Проверить риски болезней.'
+      });
+    }
+  });
+
+  if (!recs.length) {
+    el.innerHTML = '';
+    return;
+  }
+
+  // Сортировка: critical → spray → watch
+  const order = {critical:0, spray:1, watch:2};
+  recs.sort((a,b) => (order[a.level]||9) - (order[b.level]||9));
+
+  const LEVEL_COLOR = {critical:'var(--red)', spray:'var(--orange)', watch:'var(--yellow)'};
+  const LEVEL_BG = {critical:'rgba(255,85,85,.08)', spray:'rgba(255,153,68,.08)', watch:'rgba(255,216,77,.06)'};
+  const LEVEL_LABEL = {critical:'❗ Срочно', spray:'⚠️ Важно', watch:'📌 Внимание'};
+
+  el.innerHTML = `
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;">
+    <div style="padding:10px 16px;background:var(--surface2);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+      <div style="font-family:'Unbounded',sans-serif;font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:1px;">
+        📋 Умные рекомендации · ${recs.length} пунктов
+      </div>
+      <div style="display:flex;gap:6px;">
+        <span style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(255,85,85,.15);color:var(--red);">${recs.filter(r=>r.level==='critical').length} срочно</span>
+        <span style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(255,153,68,.15);color:var(--orange);">${recs.filter(r=>r.level==='spray').length} важно</span>
+      </div>
+    </div>
+    ${recs.map(r => `
+    <div style="padding:12px 16px;border-top:1px solid var(--border);background:${LEVEL_BG[r.level]||''};">
+      <div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap;">
+        <span style="font-size:20px;flex-shrink:0;">${r.icon}</span>
+        <div style="flex:1;min-width:200px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap;">
+            <span style="font-size:9px;padding:1px 7px;border-radius:8px;background:${LEVEL_COLOR[r.level]}22;color:${LEVEL_COLOR[r.level]};font-weight:700;">${LEVEL_LABEL[r.level]||r.level}</span>
+            <span style="font-size:11px;padding:1px 7px;border-radius:8px;background:var(--surface2);color:var(--text2);">${r.crop} ${r.parcel}</span>
+          </div>
+          <div style="font-size:12px;font-weight:700;color:${LEVEL_COLOR[r.level]};margin-bottom:4px;">${r.title}</div>
+          <div style="font-size:11px;color:var(--text2);margin-bottom:6px;">${r.body}</div>
+          <div style="padding:6px 10px;background:rgba(136,255,170,.06);border:1px solid rgba(136,255,170,.15);border-radius:6px;font-size:11px;color:var(--accent2);">
+            ✅ ${r.action}
+          </div>
+        </div>
+      </div>
+    </div>`).join('')}
+  </div>`;
+}
+
 async function startApp() {
   load();           // instant from localStorage
   await checkVServer();
@@ -7290,7 +7641,9 @@ console.log('[DEBUG] after merge:', S.treatments.length);
 
  await syncFromServer();
   initRoleSystem(); // show login screen AFTER data loaded
-  renderParcels();  // render with server data 
+  renderParcels();  // render with server data
+  // Загрузить прогноз погоды в фоне
+  loadForecastAndRender(); 
 }
 // ═══ EQUIPMENT / СПРАВОЧНИК ТЕХНИКИ ═══════════════════════════════════════
 let _editEquipmentId = null;
