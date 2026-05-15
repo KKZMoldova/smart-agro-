@@ -7801,12 +7801,19 @@ async function fetchForecast() {
   try {
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${FORECAST_LAT}&longitude=${FORECAST_LON}` +
   `&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,` +
-  `precipitation_probability_max,weathercode,relativehumidity_2m_max` +
+  `precipitation_probability_max,weathercode,precipitation_hours` +
   `&timezone=Europe%2FChisinau&forecast_days=7`;
     const r = await fetch(url, { signal: AbortSignal.timeout(6000) });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const data = await r.json();
     _forecast = data.daily;
+    // Добавляем влажность из реальной метеостанции (последние данные)
+    if (_forecast && S.weather?.length) {
+      const recentHum = S.weather.slice(0, 7).map(w => parseFloat(w.humidity)||60);
+      _forecast.relativehumidity_2m_max = _forecast.time.map((_, i) => recentHum[i] || recentHum[0] || 60);
+    } else if (_forecast) {
+      _forecast.relativehumidity_2m_max = _forecast.time.map(() => 60);
+    }
     return _forecast;
   } catch(e) {
     console.warn('[Forecast] Failed:', e.message);
@@ -8879,7 +8886,7 @@ async function parseAnalysisPdfWithAI() {
     const anType = document.getElementById('van-type').value || 'leaf';
     const typeLabel = anType==='leaf' ? 'листьев' : anType==='soil' ? 'почвы' : 'воды';
 
-    // Отправить в Claude API
+    // Отправить через прокси на сервере (обходит CORS)
     statusEl.textContent = '🤖 Claude AI анализирует PDF...';
     const prompt = `Это лабораторный анализ ${typeLabel}. Извлеки все числовые показатели из таблицы результатов.
 
@@ -8892,7 +8899,7 @@ ${anType==='leaf' ? '{"N":2.5,"P":0.35,"K":3.1,"Ca":1.8,"Mg":0.45,"S":0.2,"Fe":1
 Используй те же единицы что в документе (%, мг/кг, ppm, мг/л и т.д.).
 Только JSON, без объяснений.`;
 
-    const apiResp = await fetch('https://api.anthropic.com/v1/messages', {
+    const apiResp = await fetch('/api/claude-proxy', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
