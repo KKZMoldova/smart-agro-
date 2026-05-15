@@ -5313,15 +5313,18 @@ function renderWarehouse() {
   const chemicals = S.warehouse.chemicals || [];
   const parts = S.warehouse.parts || [];
 
+ const seeds = S.warehouse.seeds || [];
   // KPIs
   const lowChemicals = chemicals.filter(c => c.qty <= c.minStock).length;
   const lowParts = parts.filter(p => p.qty <= p.minStock).length;
+  const lowSeeds = seeds.filter(s => s.minStock && s.qty <= s.minStock).length;
   const totalValue = chemicals.reduce((s,c) => s + (c.qty * (c.price||0)), 0);
   document.getElementById('warehouse-kpis').innerHTML = `
     <div class="kpi-card"><div class="kpi-val">${chemicals.length}</div><div class="kpi-lbl">Препаратов</div></div>
     <div class="kpi-card"><div class="kpi-val">${parts.length}</div><div class="kpi-lbl">Запчастей</div></div>
-    <div class="kpi-card" style="${lowChemicals||lowParts?'background:rgba(255,85,85,.08);border-color:rgba(255,85,85,.3)':''}">
-      <div class="kpi-val" style="color:${lowChemicals||lowParts?'var(--red)':'var(--accent)'};">${lowChemicals+lowParts}</div>
+    <div class="kpi-card"><div class="kpi-val" style="color:var(--accent);">${seeds.length}</div><div class="kpi-lbl">Семян</div></div>
+    <div class="kpi-card" style="${lowChemicals||lowParts||lowSeeds?'background:rgba(255,85,85,.08);border-color:rgba(255,85,85,.3)':''}">
+      <div class="kpi-val" style="color:${lowChemicals||lowParts||lowSeeds?'var(--red)':'var(--accent)'};">${lowChemicals+lowParts+lowSeeds}</div>
       <div class="kpi-lbl">Мало на складе</div>
     </div>
     <div class="kpi-card"><div class="kpi-val" style="color:var(--accent);">${totalValue.toFixed(4)}</div><div class="kpi-lbl">Стоимость склада (${getCurrencySymbol()})</div></div>`;
