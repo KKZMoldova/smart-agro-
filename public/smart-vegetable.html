@@ -237,6 +237,7 @@ body[data-readonly="true"] .parcel-card { cursor: default; pointer-events: none;
   <div class="tab" onclick="showTab('settings')">⚙️ НАСТРОЙКИ</div>
   <div class="tab" onclick="showTab('warehouse')">🏪 СКЛАД</div>
   <div class="tab" onclick="showTab('sowing')">🌱 ПОСЕВНАЯ</div>
+  <div class="tab" onclick="showTab('workplan')">📅 ПЛАН РАБОТ</div>
   <div class="tab" onclick="showTab('tasks')">📋 ЖУРНАЛ РАБОТ</div>
   <a class="tab" href="/map" style="text-decoration:none;">🗺 КАРТА</a>
 </div>
@@ -1010,6 +1011,32 @@ body[data-readonly="true"] .parcel-card { cursor: default; pointer-events: none;
       <button class="btn btn-primary" onclick="saveSowingRecord()">Сохранить + списать</button>
     </div>
   </div>
+</div>
+
+  <!-- ═══ ПЛАН РАБОТ ═══ -->
+<div class="panel" id="panel-workplan">
+  <div class="section-hdr">
+    <h2>📅 План работ</h2>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn btn-secondary" onclick="exportWorkplan()">📊 Экспорт CSV</button>
+      <button class="btn btn-secondary" onclick="loadForecastAndRenderWorkplan()">🔄 Прогноз</button>
+    </div>
+  </div>
+
+  <!-- View toggle -->
+  <div style="display:flex;gap:6px;margin-bottom:16px;">
+    <button class="sort-btn active" id="wp-view-week" onclick="setWpView('week')">📅 7 дней</button>
+    <button class="sort-btn" id="wp-view-season" onclick="setWpView('season')">🌱 Сезон</button>
+  </div>
+
+  <!-- KPIs -->
+  <div class="card-grid" id="wp-kpis" style="grid-template-columns:repeat(auto-fill,minmax(160px,1fr));margin-bottom:20px;"></div>
+
+  <!-- Week view -->
+  <div id="wp-week-view"></div>
+
+  <!-- Season view -->
+  <div id="wp-season-view" style="display:none;"></div>
 </div>
 
   <!-- ═══ TASKS ═══ -->
@@ -2942,14 +2969,14 @@ function showTab(id) {
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('panel-'+id).classList.add('active');
-  const tabs = ['parcels','weather','gdd','diseases','irrigation','fields','equipment','treatments','analyses','catalog','warehouse','sowing','tasks','settings'];
+  const tabs = ['parcels','weather','gdd','diseases','irrigation','fields','equipment','treatments','analyses','catalog','warehouse','sowing','workplan','tasks','settings'];
   const idx = tabs.indexOf(id);
   document.querySelectorAll('.tab')[idx].classList.add('active');
   const renders = {
     parcels:renderParcels, weather:renderWeather, gdd:renderGdd,
     diseases:renderDiseases, irrigation:renderIrrigation,
     treatments:renderTreatments, catalog:renderCatalog,
-    analyses:renderVegAnalyses, fields:renderFields, equipment:renderEquipment, warehouse:renderWarehouse, sowing:renderSowing, tasks:renderTasks
+    analyses:renderVegAnalyses, fields:renderFields, equipment:renderEquipment, warehouse:renderWarehouse, sowing:renderSowing, workplan:renderWorkplan, tasks:renderTasks
   };
   if (renders[id]) renders[id]();
 }
@@ -7585,6 +7612,401 @@ function renderSmartRecs() {
       </div>
     </div>`).join('')}
   </div>`;
+}
+
+// ═══ ПЛАН РАБОТ ═══════════════════════════════════════════════════════════
+let _wpView = 'week';
+
+function setWpView(v) {
+  _wpView = v;
+  ['week','season'].forEach(x => {
+    document.getElementById('wp-view-'+x)?.classList.toggle('active', x===v);
+    const el = document.getElementById('wp-'+x+'-view');
+    if (el) el.style.display = x===v ? '' : 'none';
+  });
+  renderWorkplan();
+}
+
+async function loadForecastAndRenderWorkplan() {
+  await fetchForecast();
+  renderWorkplan();
+}
+
+function renderWorkplan() {
+  if (_wpView === 'week') renderWpWeek();
+  else renderWpSeason();
+}
+
+// ── Генерация задач на 7 дней ─────────────────────────────────────────────
+function generateWeekTasks() {
+  const tasks = [];
+  const today_str = new Date().toISOString().slice(0,10);
+  const forecast = _forecast;
+
+  // Хорошие дни для опрыскивания из прогноза
+  const sprayDays = new Set();
+  if (forecast) {
+    (forecast.time||[]).forEach((date, i) => {
+      const rain = forecast.precipitation_sum[i] || 0;
+      const wind = forecast.windspeed_10m_max[i] || 0;
+      const tmax = forecast.temperature_2m_max[i] || 0;
+      const rainProb = forecast.precipitation_probability_max[i] || 0;
+      if (rain < 1 && wind < 6 && tmax > 8 && tmax < 30 && rainProb < 30) sprayDays.add(date);
+    });
+  }
+
+  S.parcels.forEach(parcel => {
+    const crop = getCropById(parcel.cropId);
+    if (!crop) return;
+    const phase = getParcelPhase(parcel);
+    const gdd = Math.round(calcParcelGdd(parcel));
+    const daysFromSowing = S.weather.filter(w=>w.date>=(normalizeDate(parcel.sowingDate)||'1900-01-01')).length;
+    const avgDailyGdd = daysFromSowing > 0 ? gdd/daysFromSowing : 1;
+    const harvestGdd = parcel.harvestGdd || crop.gddToHarvest || 0;
+    const daysToHarvest = avgDailyGdd > 0 ? Math.round(Math.max(0, harvestGdd - gdd) / avgDailyGdd) : null;
+
+    // Последняя обработка
+    const lastTreat = S.treatments.filter(t=>t.parcelId===parcel.id).sort((a,b)=>b.date.localeCompare(a.date))[0];
+    const daysSinceTreat = lastTreat ? Math.floor((new Date(today_str) - new Date(lastTreat.date)) / 86400000) : 999;
+
+    // --- WHI истекает в ближайшие 7 дней ---
+    S.treatments.filter(t=>t.parcelId===parcel.id && t.whiDate).forEach(t => {
+      const d = new Date(t.whiDate);
+      const diff = Math.ceil((d - new Date(today_str)) / 86400000);
+      if (diff >= 0 && diff <= 7) {
+        tasks.push({
+          date: t.whiDate,
+          priority: diff <= 2 ? 1 : 2,
+          type: 'whi',
+          icon: '⏳',
+          parcel: parcel.name, crop: crop.emoji,
+          title: `Снятие WHI — ${parcel.name}`,
+          body: `Истекает срок ожидания после ${lastTreat?.products?.map(p=>p.name).join(', ')||'обработки'}. После ${t.whiDate} можно собирать урожай.`,
+          color: 'var(--yellow)'
+        });
+      }
+    });
+
+    // --- Нужна обработка (>10 дней) + есть хорошее окно ---
+    if (daysSinceTreat >= 10 && phase && !['Уборка','Перезревание'].includes(phase.name)) {
+      const nextSprayDay = [...sprayDays].sort()[0];
+      if (nextSprayDay) {
+        tasks.push({
+          date: nextSprayDay,
+          priority: daysSinceTreat >= 16 ? 1 : 2,
+          type: 'spray',
+          icon: '💊',
+          parcel: parcel.name, crop: crop.emoji,
+          title: `Обработка — ${parcel.name}`,
+          body: `${daysSinceTreat} дней без обработки. Фаза: ${phase.name}. Погода: ✅ без дождя, ветер < 6 м/с.`,
+          color: 'var(--orange)'
+        });
+      }
+    }
+
+    // --- Приближение уборки ---
+    if (daysToHarvest !== null && daysToHarvest <= 7 && daysToHarvest >= 0) {
+      // Дата уборки
+      const harvestDate = new Date();
+      harvestDate.setDate(harvestDate.getDate() + daysToHarvest);
+      const harvestStr = harvestDate.toISOString().slice(0,10);
+      tasks.push({
+        date: harvestStr,
+        priority: daysToHarvest <= 3 ? 0 : 1,
+        type: 'harvest',
+        icon: '🌾',
+        parcel: parcel.name, crop: crop.emoji,
+        title: `Уборка — ${parcel.name}`,
+        body: `~${daysToHarvest} дней до уборки. GDD ${gdd}/${harvestGdd}. Фаза: ${phase?.name||'—'}. Подготовить технику и уведомить завод.`,
+        color: 'var(--accent)'
+      });
+    }
+
+    // --- Полив нужен (ETc > RAW/интервал) ---
+    const etc = calcParcelEtc(parcel);
+    if (etc && etc.etc > 0) {
+      const soil = parcel.soil || 'loam';
+      const raw = Math.round((SOIL_FC[soil]-SOIL_WP[soil])*0.35*crop.rootDepth*10);
+      const interval = Math.round(raw / etc.etc);
+      const lastIrr = S.irrigations.filter(i=>i.parcelId===parcel.id).sort((a,b)=>b.date.localeCompare(a.date))[0];
+      const daysSinceIrr = lastIrr ? Math.floor((new Date(today_str) - new Date(lastIrr.date)) / 86400000) : 999;
+      if (daysSinceIrr >= interval - 1) {
+        tasks.push({
+          date: today_str,
+          priority: daysSinceIrr >= interval + 2 ? 1 : 2,
+          type: 'irrigation',
+          icon: '💧',
+          parcel: parcel.name, crop: crop.emoji,
+          title: `Полив — ${parcel.name}`,
+          body: `ETc ${etc.etc} мм/день. Интервал полива ~${interval} дн. Прошло ${daysSinceIrr === 999 ? 'неизвестно' : daysSinceIrr+' дн'} с последнего полива.`,
+          color: 'var(--blue)'
+        });
+      }
+    }
+
+    // --- Smith Period прогноз → упредительная обработка ---
+    if (forecast && (crop.id==='tomato'||crop.id==='potato')) {
+      const smithDays = (forecast.time||[]).filter((date,i) =>
+        (forecast.temperature_2m_min[i]||0)>=10 && (forecast.relativehumidity_2m_max[i]||0)>=80
+      );
+      if (smithDays.length >= 2) {
+        const beforeSmith = new Date(smithDays[0]);
+        beforeSmith.setDate(beforeSmith.getDate() - 1);
+        const beforeStr = beforeSmith.toISOString().slice(0,10);
+        tasks.push({
+          date: beforeStr >= today_str ? beforeStr : today_str,
+          priority: 0,
+          type: 'smith',
+          icon: '🟤',
+          parcel: parcel.name, crop: crop.emoji,
+          title: `Фитофтора — обработать ДО ${smithDays[0].slice(5)}`,
+          body: `Smith Period ожидается с ${smithDays[0].slice(5)}. Обработать упреждающе: Ридомил Голд, Инфинито или Превикур.`,
+          color: 'var(--red)'
+        });
+      }
+    }
+
+    // --- Заморозок в прогнозе ---
+    if (forecast) {
+      const frostDay = (forecast.time||[]).find((date,i) => (forecast.temperature_2m_min[i]||0) <= 2);
+      if (frostDay) {
+        const tmin = forecast.temperature_2m_min[(forecast.time||[]).indexOf(frostDay)];
+        tasks.push({
+          date: frostDay,
+          priority: tmin <= 0 ? 0 : 1,
+          type: 'frost',
+          icon: '❄️',
+          parcel: parcel.name, crop: crop.emoji,
+          title: `Заморозок ${frostDay.slice(5)} — защитить ${parcel.name}`,
+          body: `T°мин ${tmin}°C. Подготовить укрытие или систему дождевания. ${crop.name} уязвим при T<${crop.id==='pea'?'-1':crop.id==='onion'?'-5':'4'}°C.`,
+          color: '#60a5fa'
+        });
+      }
+    }
+  });
+
+  // Полив для всех участков
+  return tasks.sort((a,b) => {
+    if (a.date !== b.date) return a.date.localeCompare(b.date);
+    return (a.priority||9) - (b.priority||9);
+  });
+}
+
+function renderWpWeek() {
+  const today_str = new Date().toISOString().slice(0,10);
+  const tasks = generateWeekTasks();
+  const forecast = _forecast;
+
+  // KPIs
+  const urgent = tasks.filter(t=>t.priority===0).length;
+  const important = tasks.filter(t=>t.priority===1).length;
+  document.getElementById('wp-kpis').innerHTML = `
+    <div class="kpi-card" style="${urgent?'background:rgba(255,85,85,.08);border-color:rgba(255,85,85,.3);':''}">
+      <div class="kpi-val" style="color:${urgent?'var(--red)':'var(--accent)'};">${urgent}</div>
+      <div class="kpi-lbl">Срочно</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-val" style="color:var(--orange);">${important}</div>
+      <div class="kpi-lbl">Важно</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-val">${tasks.length}</div>
+      <div class="kpi-lbl">Всего задач</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-val" style="color:var(--blue);">${forecast?'✅':'—'}</div>
+      <div class="kpi-lbl">Прогноз погоды</div>
+    </div>`;
+
+  if (!tasks.length && !S.parcels.length) {
+    document.getElementById('wp-week-view').innerHTML = `<div style="text-align:center;color:var(--text3);padding:40px;">Добавьте участки чтобы видеть план работ</div>`;
+    return;
+  }
+
+  // Сгруппировать по дням
+  const byDay = {};
+  // Добавить 7 дней вперёд
+  for (let i=0; i<7; i++) {
+    const d = new Date(); d.setDate(d.getDate()+i);
+    const ds = d.toISOString().slice(0,10);
+    if (!byDay[ds]) byDay[ds] = [];
+  }
+  tasks.forEach(t => { if (!byDay[t.date]) byDay[t.date]=[]; byDay[t.date].push(t); });
+
+  const dayNames = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
+  const PRIORITY_LABEL = ['❗ Срочно','⚠️ Важно','📌 Запланировано'];
+
+  let html = '';
+  Object.keys(byDay).sort().forEach(date => {
+    const d = new Date(date);
+    const dayName = dayNames[d.getDay()];
+    const isToday = date === today_str;
+    const isTomorrow = date === new Date(new Date().setDate(new Date().getDate()+1)).toISOString().slice(0,10);
+    const dayLabel = isToday ? 'СЕГОДНЯ' : isTomorrow ? 'ЗАВТРА' : dayName;
+    const dayTasks = byDay[date];
+
+    // Погода на этот день
+    let weatherHtml = '';
+    if (forecast) {
+      const fi = (forecast.time||[]).indexOf(date);
+      if (fi >= 0) {
+        const tmax = forecast.temperature_2m_max[fi];
+        const tmin = forecast.temperature_2m_min[fi];
+        const rain = forecast.precipitation_sum[fi]||0;
+        const wind = forecast.windspeed_10m_max[fi]||0;
+        const code = forecast.weathercode[fi]||0;
+        const w = wmoIcon(code);
+        const isSprayGood = rain<1 && wind<6 && tmax>8 && tmax<30;
+        weatherHtml = `<div style="display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text3);">
+          <span>${w.icon}</span>
+          <span>${tmax}°/${tmin}°C</span>
+          ${rain>0?`<span style="color:var(--blue);">💧${rain.toFixed(1)}мм</span>`:''}
+          <span>💨${wind}м/с</span>
+          ${isSprayGood?`<span style="color:var(--accent);">✅ опрыскивание</span>`:`<span style="color:var(--text3);">❌ опрыскивание</span>`}
+        </div>`;
+      }
+    }
+
+    html += `<div style="margin-bottom:16px;">
+      <!-- День -->
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;padding:8px 14px;
+        background:${isToday?'var(--surface3)':'var(--surface2)'};border-radius:10px;
+        border-left:3px solid ${isToday?'var(--accent)':'var(--border)'};">
+        <div>
+          <div style="font-family:'Unbounded',sans-serif;font-size:11px;font-weight:700;color:${isToday?'var(--accent)':'var(--text2)'};">
+            ${dayLabel} · ${date.slice(5).split('-').reverse().join('.')}
+          </div>
+          ${weatherHtml}
+        </div>
+        <div style="margin-left:auto;display:flex;gap:4px;">
+          ${dayTasks.filter(t=>t.priority===0).length?`<span class="badge badge-red">${dayTasks.filter(t=>t.priority===0).length} срочно</span>`:''}
+          ${dayTasks.filter(t=>t.priority===1).length?`<span class="badge badge-orange">${dayTasks.filter(t=>t.priority===1).length} важно</span>`:''}
+          ${!dayTasks.length?`<span style="font-size:10px;color:var(--text3);">нет задач</span>`:''}
+        </div>
+      </div>
+
+      <!-- Задачи дня -->
+      ${dayTasks.length ? dayTasks.map(t => `
+      <div style="display:flex;gap:12px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);
+        border-radius:8px;margin-bottom:6px;border-left:3px solid ${t.color||'var(--border)'};">
+        <div style="font-size:20px;flex-shrink:0;">${t.icon}</div>
+        <div style="flex:1;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap;">
+            <span style="font-size:12px;font-weight:700;color:${t.color||'var(--text)'};">${t.title}</span>
+            <span style="font-size:10px;padding:1px 7px;border-radius:8px;background:var(--surface2);color:var(--text3);">${t.crop} ${t.parcel}</span>
+            <span style="font-size:9px;padding:1px 6px;border-radius:6px;background:${t.color||'var(--surface2)'}22;color:${t.color||'var(--text3)'};">${PRIORITY_LABEL[t.priority]||'📌'}</span>
+          </div>
+          <div style="font-size:11px;color:var(--text2);">${t.body}</div>
+        </div>
+      </div>`).join('') : ''}
+    </div>`;
+  });
+
+  document.getElementById('wp-week-view').innerHTML = html ||
+    `<div style="text-align:center;color:var(--accent);padding:30px;">✅ На эту неделю задач нет</div>`;
+}
+
+// ── Сезонный план ─────────────────────────────────────────────────────────
+function renderWpSeason() {
+  if (!S.parcels.length) {
+    document.getElementById('wp-season-view').innerHTML = `<div style="text-align:center;color:var(--text3);padding:40px;">Нет участков</div>`;
+    return;
+  }
+
+  const today_str = new Date().toISOString().slice(0,10);
+
+  let html = `
+  <div style="overflow-x:auto;">
+  <table class="data-table">
+    <thead><tr>
+      <th>Участок</th><th>Культура / Сорт</th><th>Посев</th><th>Фаза</th>
+      <th>GDD</th><th>До уборки</th><th>Последняя обработка</th><th>WHI до</th>
+      <th>Полив</th><th>План т</th><th>Факт т</th><th>Статус</th>
+    </tr></thead>
+    <tbody>`;
+
+  S.parcels.forEach(parcel => {
+    const crop = getCropById(parcel.cropId);
+    const phase = getParcelPhase(parcel);
+    const gdd = Math.round(calcParcelGdd(parcel));
+    const daysFromSowing = S.weather.filter(w=>w.date>=(normalizeDate(parcel.sowingDate)||'1900-01-01')).length;
+    const avgDailyGdd = daysFromSowing > 0 ? gdd/daysFromSowing : 1;
+    const harvestGdd = parcel.harvestGdd || crop?.gddToHarvest || 0;
+    const daysToHarvest = avgDailyGdd > 0 && harvestGdd ? Math.round(Math.max(0,harvestGdd-gdd)/avgDailyGdd) : null;
+
+    const lastTreat = S.treatments.filter(t=>t.parcelId===parcel.id).sort((a,b)=>b.date.localeCompare(a.date))[0];
+    const activeWhi = S.treatments.filter(t=>t.parcelId===parcel.id&&t.whiDate&&t.whiDate>today_str).sort((a,b)=>b.whiDate.localeCompare(a.whiDate))[0];
+    const lastIrr = S.irrigations.filter(i=>i.parcelId===parcel.id).sort((a,b)=>b.date.localeCompare(a.date))[0];
+    const daysSinceIrr = lastIrr ? Math.floor((new Date(today_str)-new Date(lastIrr.date))/86400000) : null;
+
+    const etc = calcParcelEtc(parcel);
+    const soil = parcel.soil||'loam';
+    const irrigInterval = etc && crop ? Math.round(((SOIL_FC[soil]||0.25)-(SOIL_WP[soil]||0.10))*0.35*crop.rootDepth*10/etc.etc) : null;
+    const irrigOverdue = irrigInterval && daysSinceIrr !== null && daysSinceIrr >= irrigInterval;
+
+    // Статус
+    let status = '✅ Норма';
+    let statusColor = 'var(--accent)';
+    if (!parcel.sowingDate) { status='⚠️ Не засеян'; statusColor='var(--yellow)'; }
+    else if (daysToHarvest !== null && daysToHarvest <= 5) { status='🌾 Уборка!'; statusColor='var(--accent)'; }
+    else if (activeWhi) { status='⏳ WHI'; statusColor='var(--yellow)'; }
+    else if (irrigOverdue) { status='💧 Полив!'; statusColor='var(--blue)'; }
+
+    html += `<tr>
+      <td style="font-weight:600;">${parcel.name}</td>
+      <td style="font-size:11px;">${crop?crop.emoji+' '+crop.name+(parcel.variety?' · '+parcel.variety:''):'—'}</td>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:11px;">${normalizeDate(parcel.sowingDate)||'—'}</td>
+      <td><span style="font-size:10px;padding:2px 7px;border-radius:8px;background:${phase?phase.color+'22':'var(--surface2)'};color:${phase?.color||'var(--text3)'};">${phase?.name||'—'}</span></td>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--accent);">${gdd}${harvestGdd?' / '+harvestGdd:''}</td>
+      <td style="font-size:11px;color:${daysToHarvest<=7?'var(--accent)':daysToHarvest<=14?'var(--yellow)':'var(--text3)'};">
+        ${daysToHarvest!==null?(daysToHarvest<=7?'🌾 ':'')+daysToHarvest+' дн':'—'}
+      </td>
+      <td style="font-size:11px;color:var(--text3);">${lastTreat?lastTreat.date:'—'}</td>
+      <td style="font-size:11px;color:${activeWhi?'var(--yellow)':'var(--text3)'};">${activeWhi?activeWhi.whiDate:'✅'}</td>
+      <td style="font-size:11px;color:${irrigOverdue?'var(--red)':daysSinceIrr!==null?'var(--text2)':'var(--text3)'};">
+        ${daysSinceIrr!==null?daysSinceIrr+' дн назад':'—'}${irrigInterval?' / '+irrigInterval+' дн':''}
+      </td>
+      <td style="font-family:'JetBrains Mono',monospace;color:var(--blue);">${parcel.yieldPlan&&parcel.ha?(parcel.yieldPlan*parcel.ha).toFixed(1)+' т':'—'}</td>
+      <td style="font-family:'JetBrains Mono',monospace;color:var(--accent);">${parcel.yieldFact&&parcel.ha?(parcel.yieldFact*parcel.ha).toFixed(1)+' т':'—'}</td>
+      <td><span style="font-size:10px;padding:2px 8px;border-radius:8px;color:${statusColor};background:${statusColor}22;">${status}</span></td>
+    </tr>`;
+  });
+
+  html += `</tbody></table></div>`;
+  document.getElementById('wp-season-view').innerHTML = html;
+
+  // KPIs для сезона
+  const readyHarvest = S.parcels.filter(p => {
+    const crop = getCropById(p.cropId);
+    const gdd = Math.round(calcParcelGdd(p));
+    const harvestGdd = p.harvestGdd || crop?.gddToHarvest || 0;
+    const days = S.weather.filter(w=>w.date>=(normalizeDate(p.sowingDate)||'1900-01-01')).length;
+    const avg = days > 0 ? gdd/days : 1;
+    const dth = avg > 0 && harvestGdd ? Math.round(Math.max(0,harvestGdd-gdd)/avg) : null;
+    return dth !== null && dth <= 7;
+  }).length;
+  const totalPlanT = S.parcels.reduce((s,p)=>s+(p.yieldPlan&&p.ha?p.yieldPlan*p.ha:0),0);
+  const totalFactT = S.parcels.reduce((s,p)=>s+(p.yieldFact&&p.ha?p.yieldFact*p.ha:0),0);
+  document.getElementById('wp-kpis').innerHTML = `
+    <div class="kpi-card" style="${readyHarvest?'background:rgba(107,221,107,.1);border-color:rgba(107,221,107,.4);':''}">
+      <div class="kpi-val" style="color:${readyHarvest?'var(--accent)':'var(--text3)'};">${readyHarvest}</div>
+      <div class="kpi-lbl">К уборке (7 дн)</div>
+    </div>
+    <div class="kpi-card"><div class="kpi-val">${S.parcels.filter(p=>p.sowingDate).length}/${S.parcels.length}</div><div class="kpi-lbl">Засеяно</div></div>
+    <div class="kpi-card"><div class="kpi-val" style="color:var(--blue);">${totalPlanT.toFixed(1)} т</div><div class="kpi-lbl">План урожай</div></div>
+    <div class="kpi-card"><div class="kpi-val" style="color:var(--accent);">${totalFactT>0?totalFactT.toFixed(1)+' т':'—'}</div><div class="kpi-lbl">Факт урожай</div></div>`;
+}
+
+function exportWorkplan() {
+  const tasks = generateWeekTasks();
+  const rows = [['Дата','Приоритет','Тип','Участок','Культура','Задача','Описание']];
+  const PRIO = ['Срочно','Важно','Запланировано'];
+  tasks.forEach(t => rows.push([t.date, PRIO[t.priority]||'—', t.type, t.parcel, t.crop, t.title, t.body]));
+  const csv = rows.map(r=>r.join(';')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,\uFEFF' + encodeURIComponent(csv);
+  a.download = 'plan_rabot_'+today()+'.csv';
+  a.click();
 }
 
 async function startApp() {
