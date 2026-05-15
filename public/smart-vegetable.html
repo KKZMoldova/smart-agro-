@@ -2302,10 +2302,14 @@ function calcParcelGdd(parcel) {
   const crop = getCropById(parcel.cropId);
   if (!crop) return 0;
   const base = crop.baseTemp;
-  const startDate = normalizeDate(parcel.sowingDate) || '1900-01-01';
+  // Приоритет: дата из журнала посева → дата в участке
+  const sowRecord = (S.sowingRecords || []).find(r => r.parcelId === parcel.id);
+  const rawDate = sowRecord?.date || parcel.sowingDate;
+  const startDate = normalizeDate(rawDate);
+  if (!startDate || startDate === '1900-01-01') return 0;
   const sorted = [...S.weather]
-    .filter(w => w.date >= startDate)
-    .sort((a,b)=>a.date.localeCompare(b.date));
+    .filter(w => (normalizeDate(w.date) || w.date) >= startDate)
+    .sort((a,b) => (normalizeDate(a.date)||a.date).localeCompare(normalizeDate(b.date)||b.date));
   return sorted.reduce((sum,w) => sum + calcDailyGdd(w.tmin, w.tmax, base), 0);
 }
 
@@ -2578,7 +2582,9 @@ function runAlertsForParcel(parcel) {
   if (!crop || !latest) return alerts;
   const gdd = calcParcelGdd(parcel);
   const phase = getParcelPhase(parcel);
-  const daysFromSowing = S.weather.filter(w=>w.date>=(normalizeDate(parcel.sowingDate)||'1900-01-01')).length;
+  const _sowRec = (S.sowingRecords || []).find(r => r.parcelId === parcel.id);
+  const _sowDate = normalizeDate(_sowRec?.date || parcel.sowingDate) || '1900-01-01';
+  const daysFromSowing = S.weather.filter(w => (normalizeDate(w.date)||w.date) >= _sowDate).length;
   const avgDailyGdd = daysFromSowing > 0 ? gdd/daysFromSowing : 1;
   const tmax = parseFloat(latest.tmax)||20;
   const tmin = parseFloat(latest.tmin)||10;
@@ -3455,8 +3461,9 @@ function renderParcels() {
     const harvestGdd = parcel.harvestGdd || cropObj?.gddToHarvest || 0;
     const remainGdd = Math.max(0, harvestGdd - gdd);
     const avgDailyGdd = (() => {
-      const sow = normalizeDate(parcel.sowingDate)||'1900-01-01';
-      const days = S.weather.filter(w=>w.date>=sow).length;
+      const _pSowRec = (S.sowingRecords||[]).find(r=>r.parcelId===parcel.id);
+      const sow = normalizeDate(_pSowRec?.date || parcel.sowingDate) || '1900-01-01';
+      const days = S.weather.filter(w=>(normalizeDate(w.date)||w.date)>=sow).length;
       return days > 0 ? gdd/days : 0;
     })();
     const daysToHarvest = avgDailyGdd > 0 ? Math.round(remainGdd/avgDailyGdd) : null;
@@ -3839,8 +3846,10 @@ function renderGdd() {
   const phase = getParcelPhase(parcel);
   const alerts = runAlertsForParcel(parcel);
   const etc = calcParcelEtc(parcel);
-  const sowNorm = normalizeDate(parcel.sowingDate) || '1900-01-01';
-  const weatherAfterSowing = S.weather.filter(w => w.date >= sowNorm);
+  // Приоритет: дата из журнала посева → дата в участке
+  const _gddSowRec = (S.sowingRecords || []).find(r => r.parcelId === parcel.id);
+  const sowNorm = normalizeDate(_gddSowRec?.date || parcel.sowingDate) || '1900-01-01';
+  const weatherAfterSowing = S.weather.filter(w => (normalizeDate(w.date)||w.date) >= sowNorm);
   // KPIs
   const daysFromSowing = weatherAfterSowing.length;
   const remainingGdd = Math.max(0, (parcel.harvestGdd||crop.gddToHarvest) - gdd);
@@ -3948,11 +3957,11 @@ function renderGdd() {
       </div>`).join('')
     : `<div style="padding:10px 16px;background:rgba(107,221,107,.06);border:1px solid rgba(107,221,107,.2);border-radius:8px;font-size:12px;color:var(--accent);">✅ Нет алертов для ${parcel.name} · ${today()}</div>`;
   // GDD table
-  const sorted=[...S.weather].sort((a,b)=>a.date.localeCompare(b.date));
+  const sorted=[...S.weather].sort((a,b)=>(normalizeDate(a.date)||a.date).localeCompare(normalizeDate(b.date)||b.date));
   let cumGdd=0;
   const gddSeries=[];
   sorted.forEach(w=>{
-    if(w.date < sowNorm) return;
+    if((normalizeDate(w.date)||w.date) < sowNorm) return;
     const d=calcDailyGdd(w.tmin,w.tmax,crop.baseTemp);
     cumGdd+=d;
     const ph=crop.phases.find(p=>cumGdd>=p.gddFrom&&cumGdd<p.gddTo);
@@ -5097,12 +5106,14 @@ function onVegCalibDateChange(phaseIdx, parcelId) {
   const crop = getCropById(parcel?.cropId);
   if (!crop) return;
   const base = crop.baseTemp || 10;
-  const sowNorm = normalizeDate(parcel.sowingDate) || '1900-01-01';
-  const sorted = [...S.weather].sort((a,b)=>a.date.localeCompare(b.date));
+  const _calibSowRec = (S.sowingRecords || []).find(r => r.parcelId === parcelId);
+  const sowNorm = normalizeDate(_calibSowRec?.date || parcel.sowingDate) || '1900-01-01';
+  const sorted = [...S.weather].sort((a,b)=>(normalizeDate(a.date)||a.date).localeCompare(normalizeDate(b.date)||b.date));
   let cumGdd = 0;
   for (const w of sorted) {
-    if (w.date < sowNorm) continue;
-    if (w.date > dateVal) break;
+    const wd = normalizeDate(w.date) || w.date;
+    if (wd < sowNorm) continue;
+    if (wd > dateVal) break;
     cumGdd += Math.max(0, ((parseFloat(w.tmax)||0)+(parseFloat(w.tmin)||0))/2 - base);
   }
   cumGdd = Math.round(cumGdd * 10) / 10;
@@ -5117,7 +5128,8 @@ function saveCalibration() {
   if (!parcel || !crop) return;
 
   const base = crop.baseTemp || 10;
-  const sowNorm = normalizeDate(parcel.sowingDate) || '1900-01-01';
+  const _savCalibSowRec = (S.sowingRecords || []).find(r => r.parcelId === pid);
+  const sowNorm = normalizeDate(_savCalibSowRec?.date || parcel.sowingDate) || '1900-01-01';
   const phases = crop.phases;
   const stdGdds = phases.map(ph => ph.gddFrom);
   const calibratedGdds = [...stdGdds];
@@ -5128,11 +5140,12 @@ function saveCalibration() {
     const dateVal = document.getElementById(`calib-date-${idx}`)?.value;
     const note    = document.getElementById(`calib-note-${idx}`)?.value || '';
     if (dateVal) {
-      const sorted = [...S.weather].sort((a,b)=>a.date.localeCompare(b.date));
+      const sorted = [...S.weather].sort((a,b)=>(normalizeDate(a.date)||a.date).localeCompare(normalizeDate(b.date)||b.date));
       let cumGdd = 0;
       for (const w of sorted) {
-        if (w.date < sowNorm) continue;
-        if (w.date > dateVal) break;
+        const wd = normalizeDate(w.date) || w.date;
+        if (wd < sowNorm) continue;
+        if (wd > dateVal) break;
         cumGdd += Math.max(0, ((parseFloat(w.tmax)||0)+(parseFloat(w.tmin)||0))/2 - base);
       }
       cumGdd = Math.round(cumGdd * 10) / 10;
@@ -6935,22 +6948,23 @@ function renderSowing() {
       const crop = getCropById(parcel.cropId);
       const phase = getParcelPhase(parcel);
       const gdd = Math.round(calcParcelGdd(parcel));
-      const daysFromSowing = S.weather.filter(w=>w.date>=(normalizeDate(parcel.sowingDate)||'1900-01-01')).length;
+      // Найти запись посева
+      const sowRec = S.sowingRecords.find(r=>r.parcelId===parcel.id);
+      const _sowD = normalizeDate(sowRec?.date || parcel.sowingDate) || '1900-01-01';
+      const daysFromSowing = S.weather.filter(w=>(normalizeDate(w.date)||w.date)>=_sowD).length;
       const avgDailyGdd = daysFromSowing > 0 ? gdd/daysFromSowing : 0;
       const harvestGdd = parcel.harvestGdd || crop?.gddToHarvest || 0;
       const remainGdd = Math.max(0, harvestGdd - gdd);
       const daysToHarvest = avgDailyGdd > 0 ? Math.round(remainGdd/avgDailyGdd) : null;
       const field = (S.fields||[]).find(f=>f.id===parcel.fieldId);
 
-      // Найти запись посева
-      const sowRec = S.sowingRecords.find(r=>r.parcelId===parcel.id);
       // Найти семена на складе
       const seed = sowRec ? S.warehouse?.seeds?.find(s=>s.id===sowRec.seedStockId) : null;
       // Проверить остаток семян
-      const sowDate = normalizeDate(parcel.sowingDate) || '—';
+      const sowDate = normalizeDate(sowRec?.date || parcel.sowingDate) || '—';
 
-      const statusColor = !parcel.sowingDate ? 'var(--text3)' : gdd > harvestGdd*0.9 ? 'var(--accent)' : phase ? phase.color : 'var(--text2)';
-      const hasSowing = !!parcel.sowingDate;
+      const statusColor = !(sowRec?.date || parcel.sowingDate) ? 'var(--text3)' : gdd > harvestGdd*0.9 ? 'var(--accent)' : phase ? phase.color : 'var(--text2)';
+      const hasSowing = !!(sowRec?.date || parcel.sowingDate);
 
       return `<div style="background:var(--surface);border:1px solid ${hasSowing?'rgba(107,221,107,.25)':'var(--border)'};border-radius:12px;padding:16px;border-left:4px solid ${statusColor};">
         <!-- Заголовок -->
@@ -7031,8 +7045,9 @@ function renderSowing() {
       const phase = getParcelPhase(parcel);
       const gdd = Math.round(calcParcelGdd(parcel));
       const avgDailyGdd = (() => {
-        const sow = normalizeDate(parcel.sowingDate)||'1900-01-01';
-        const days = S.weather.filter(w=>w.date>=sow).length;
+        const _tSowRec = (S.sowingRecords||[]).find(r=>r.parcelId===parcel.id);
+        const sow = normalizeDate(_tSowRec?.date || parcel.sowingDate) || '1900-01-01';
+        const days = S.weather.filter(w=>(normalizeDate(w.date)||w.date)>=sow).length;
         return days > 0 ? gdd/days : 0;
       })();
       const harvestGdd = parcel.harvestGdd || crop?.gddToHarvest || 0;
@@ -7643,7 +7658,9 @@ function renderSmartRecs() {
     if (!crop) return;
     const phase = getParcelPhase(parcel);
     const gdd = Math.round(calcParcelGdd(parcel));
-    const daysFromSowing = S.weather.filter(w=>w.date>=(normalizeDate(parcel.sowingDate)||'1900-01-01')).length;
+    const _smRec = (S.sowingRecords||[]).find(r=>r.parcelId===parcel.id);
+    const _smSow = normalizeDate(_smRec?.date || parcel.sowingDate) || '1900-01-01';
+    const daysFromSowing = S.weather.filter(w=>(normalizeDate(w.date)||w.date)>=_smSow).length;
     const avgDailyGdd = daysFromSowing > 0 ? gdd/daysFromSowing : 1;
 
     // ── 1. WHI — срок ожидания истекает ──────────────────────────────
@@ -7860,7 +7877,9 @@ function generateWeekTasks() {
     if (!crop) return;
     const phase = getParcelPhase(parcel);
     const gdd = Math.round(calcParcelGdd(parcel));
-    const daysFromSowing = S.weather.filter(w=>w.date>=(normalizeDate(parcel.sowingDate)||'1900-01-01')).length;
+    const _wkSowRec = (S.sowingRecords||[]).find(r=>r.parcelId===parcel.id);
+    const _wkSow = normalizeDate(_wkSowRec?.date || parcel.sowingDate) || '1900-01-01';
+    const daysFromSowing = S.weather.filter(w=>(normalizeDate(w.date)||w.date)>=_wkSow).length;
     const avgDailyGdd = daysFromSowing > 0 ? gdd/daysFromSowing : 1;
     const harvestGdd = parcel.harvestGdd || crop.gddToHarvest || 0;
     const daysToHarvest = avgDailyGdd > 0 ? Math.round(Math.max(0, harvestGdd - gdd) / avgDailyGdd) : null;
@@ -8129,7 +8148,9 @@ function renderWpSeason() {
     const crop = getCropById(parcel.cropId);
     const phase = getParcelPhase(parcel);
     const gdd = Math.round(calcParcelGdd(parcel));
-    const daysFromSowing = S.weather.filter(w=>w.date>=(normalizeDate(parcel.sowingDate)||'1900-01-01')).length;
+    const _wpSowRec = (S.sowingRecords||[]).find(r=>r.parcelId===parcel.id);
+    const _wpSow = normalizeDate(_wpSowRec?.date || parcel.sowingDate) || '1900-01-01';
+    const daysFromSowing = S.weather.filter(w=>(normalizeDate(w.date)||w.date)>=_wpSow).length;
     const avgDailyGdd = daysFromSowing > 0 ? gdd/daysFromSowing : 1;
     const harvestGdd = parcel.harvestGdd || crop?.gddToHarvest || 0;
     const daysToHarvest = avgDailyGdd > 0 && harvestGdd ? Math.round(Math.max(0,harvestGdd-gdd)/avgDailyGdd) : null;
@@ -8180,7 +8201,9 @@ function renderWpSeason() {
     const crop = getCropById(p.cropId);
     const gdd = Math.round(calcParcelGdd(p));
     const harvestGdd = p.harvestGdd || crop?.gddToHarvest || 0;
-    const days = S.weather.filter(w=>w.date>=(normalizeDate(p.sowingDate)||'1900-01-01')).length;
+    const _rpSowRec = (S.sowingRecords||[]).find(r=>r.parcelId===p.id);
+    const _rpSow = normalizeDate(_rpSowRec?.date || p.sowingDate) || '1900-01-01';
+    const days = S.weather.filter(w=>(normalizeDate(w.date)||w.date)>=_rpSow).length;
     const avg = days > 0 ? gdd/days : 1;
     const dth = avg > 0 && harvestGdd ? Math.round(Math.max(0,harvestGdd-gdd)/avg) : null;
     return dth !== null && dth <= 7;
