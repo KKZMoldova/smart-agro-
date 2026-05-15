@@ -4,7 +4,7 @@
   "description": "Smart Orchard & Smart Vegetable — Agricultural Management System",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
+    "start": "node server.js --version || node server.js"
     "dev": "nodemon server.js"
   },
   "engines": {
