@@ -5172,6 +5172,130 @@ part.installedQty = installedQty;
       });
   }
 
+ function saveWarehouseItem() {
+  if (!S.warehouse) S.warehouse = { chemicals: [], parts: [], seeds: [], history: [] };
+  if (!S.warehouse.seeds) S.warehouse.seeds = [];
+  const type = document.getElementById('wh-modal-type').value;
+
+  if (type === 'chemical') {
+    const catId = document.getElementById('wh-chemical-id').value;
+    const cat = S.catalog.find(c => c.id === catId);
+    if (!catId || !cat) { alert('Выберите препарат'); return; }
+    const qty = parseFloat(document.getElementById('wh-qty').value) || 0;
+    if (!qty) { alert('Введите количество'); return; }
+    const priceRaw = parseFloat(document.getElementById('wh-price').value) || 0;
+    const priceCurrency = document.getElementById('wh-price-currency').value;
+    const rateUsed = getRate(priceCurrency);
+    const price = Math.round(convertPrice(priceRaw, priceCurrency) * 10000) / 10000;
+    const unit = document.getElementById('wh-unit').value;
+    const supplier = document.getElementById('wh-supplier').value.trim();
+    const minStock = parseFloat(document.getElementById('wh-min-stock').value) || 0;
+    const payment = document.getElementById('wh-payment').value;
+    const note = document.getElementById('wh-note').value.trim();
+    const date = document.getElementById('wh-date').value;
+    let stock = S.warehouse.chemicals.find(c => c.catId === catId);
+    if (!stock) {
+      stock = { id: uid(), catId, name: cat.name, type: cat.type, unit, qty: 0, minStock, price, supplier, payment };
+      S.warehouse.chemicals.push(stock);
+    }
+    stock.qty = Math.round((stock.qty + qty) * 1000) / 1000;
+    stock.price = price || stock.price;
+    stock.supplier = supplier || stock.supplier;
+    stock.minStock = minStock || stock.minStock;
+    stock.unit = unit;
+    stock.payment = payment;
+    S.warehouse.history.unshift({
+      id: uid(), date, type: 'chemical', name: cat.name,
+      operation: 'in', qty, unit,
+      priceOrig: priceRaw, currencyOrig: priceCurrency, rateUsed,
+      price, total: Math.round(qty * price * 10000) / 10000,
+      supplier, payment, note
+    });
+
+  } else if (type === 'part') {
+    const name = document.getElementById('wh-part-name').value.trim();
+    if (!name) { alert('Введите название запчасти'); return; }
+    const qty = parseFloat(document.getElementById('wh-part-qty').value) || 0;
+    if (!qty) { alert('Введите количество'); return; }
+    const date = document.getElementById('wh-part-date').value;
+    const category = document.getElementById('wh-part-category').value;
+    const unit = document.getElementById('wh-part-unit').value;
+    const priceRaw = parseFloat(document.getElementById('wh-part-price').value) || 0;
+    const priceCurrency = document.getElementById('wh-part-price-currency').value;
+    const price = Math.round(convertPrice(priceRaw, priceCurrency) * 10000) / 10000;
+    const supplier = document.getElementById('wh-part-supplier').value.trim();
+    const minStock = parseFloat(document.getElementById('wh-part-min-stock').value) || 0;
+    const resourceHours = parseFloat(document.getElementById('wh-part-resource-hours').value) || null;
+    const resourceSeasons = parseFloat(document.getElementById('wh-part-resource-seasons').value) || null;
+    const installed = document.getElementById('wh-part-installed').value || null;
+    const worked = parseFloat(document.getElementById('wh-part-worked').value) || 0;
+    const note = document.getElementById('wh-part-note').value.trim();
+    let part = S.warehouse.parts.find(p => p.name.toLowerCase() === name.toLowerCase());
+    if (!part) {
+      part = { id: uid(), name, category, unit, qty: 0, installedQty: 0, minStock, price, supplier, resourceHours, resourceSeasons, installed, worked, note };
+      S.warehouse.parts.push(part);
+    }
+    part.qty += qty;
+    const installedQty = parseFloat(document.getElementById('wh-part-installed-qty').value) || 0;
+    part.installedQty = installedQty;
+    part.price = price || part.price;
+    part.supplier = supplier || part.supplier;
+    part.minStock = minStock || part.minStock;
+    part.resourceHours = resourceHours || part.resourceHours;
+    part.resourceSeasons = resourceSeasons || part.resourceSeasons;
+    if (installed) part.installed = installed;
+    part.worked = worked || part.worked;
+    const priceRawPart = parseFloat(document.getElementById('wh-part-price').value) || 0;
+    const priceCurrencyPart = document.getElementById('wh-part-price-currency').value;
+    const rateUsedPart = getRate(priceCurrencyPart);
+    S.warehouse.history.unshift({
+      id: uid(), date, type: 'part', name,
+      operation: 'in', qty, unit,
+      priceOrig: priceRawPart, currencyOrig: priceCurrencyPart, rateUsed: rateUsedPart,
+      price, total: Math.round(qty * price * 10000) / 10000,
+      supplier, note
+    });
+
+  } else if (type === 'seed') {
+    const cropId = document.getElementById('wh-seed-crop').value;
+    const variety = document.getElementById('wh-seed-variety').value.trim();
+    if (!variety) { alert('Введите сорт/гибрид'); return; }
+    const qty = parseFloat(document.getElementById('wh-seed-qty').value) || 0;
+    if (!qty) { alert('Введите количество'); return; }
+    const date = document.getElementById('wh-seed-date').value;
+    const seedType = document.getElementById('wh-seed-type').value;
+    const unit = document.getElementById('wh-seed-unit').value;
+    const rate = parseFloat(document.getElementById('wh-seed-rate').value) || null;
+    const rateUnit = document.getElementById('wh-seed-rate-unit').value;
+    const priceRaw = parseFloat(document.getElementById('wh-seed-price').value) || 0;
+    const priceCurrency = document.getElementById('wh-seed-price-currency').value;
+    const price = Math.round(convertPrice(priceRaw, priceCurrency) * 10000) / 10000;
+    const supplier = document.getElementById('wh-seed-supplier').value.trim();
+    const minStock = parseFloat(document.getElementById('wh-seed-min-stock').value) || 0;
+    const year = parseInt(document.getElementById('wh-seed-year').value) || null;
+    const note = document.getElementById('wh-seed-note').value.trim();
+    const name = `${cropId}_${variety}`.toLowerCase().replace(/\s+/g,'_');
+    let seed = S.warehouse.seeds.find(s => s.cropId === cropId && s.variety.toLowerCase() === variety.toLowerCase());
+    if (!seed) {
+      seed = { id: uid(), cropId, variety, seedType, unit, qty: 0, minStock, price, supplier, rate, rateUnit, year, note };
+      S.warehouse.seeds.push(seed);
+    }
+    seed.qty = Math.round((seed.qty + qty) * 1000) / 1000;
+    seed.price = price || seed.price;
+    seed.supplier = supplier || seed.supplier;
+    seed.minStock = minStock || seed.minStock;
+    seed.rate = rate || seed.rate;
+    seed.rateUnit = rateUnit || seed.rateUnit;
+    S.warehouse.history.unshift({
+      id: uid(), date, type: 'seed',
+      name: `${cropId} · ${variety}`,
+      operation: 'in', qty, unit,
+      priceOrig: priceRaw, currencyOrig: priceCurrency, rateUsed: getRate(priceCurrency),
+      price, total: Math.round(qty * price * 10000) / 10000,
+      supplier, note
+    });
+  }
+
   save();
   if (_vServerAvailable) {
     fetch('/api/state/vegetable', {
