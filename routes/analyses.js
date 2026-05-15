@@ -1,6 +1,3 @@
-/ routes/analyses.js
-// Smart Agro · Блок 3: Анализы почвы, листа, воды
-// Сохранена старая логика + добавлен движок рекомендаций FAO
 
 const router = require('express').Router();
 const db     = require('../db');
