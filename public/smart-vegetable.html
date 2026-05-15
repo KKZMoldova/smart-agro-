@@ -8899,7 +8899,7 @@ ${anType==='leaf' ? '{"N":2.5,"P":0.35,"K":3.1,"Ca":1.8,"Mg":0.45,"S":0.2,"Fe":1
 Используй те же единицы что в документе (%, мг/кг, ppm, мг/л и т.д.).
 Только JSON, без объяснений.`;
 
-    const apiResp = await fetch('/api/claude-proxy', {
+    const apiResp = await fetch('/api/analyses/claude-proxy', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
