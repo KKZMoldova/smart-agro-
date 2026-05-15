@@ -661,10 +661,14 @@ body[data-readonly="true"] .parcel-card { cursor: default; pointer-events: none;
   <div class="section-hdr">
     <h2>💊 Журнал обработок</h2>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn btn-secondary" onclick="showTreatmentCost()">💰 Себестоимость</button>
       <button class="btn btn-secondary" onclick="exportTreatments()">📊 Экспорт CSV</button>
       <button class="btn btn-primary" onclick="openTreatmentModal()">+ Обработка</button>
     </div>
   </div>
+
+  <!-- Cost report -->
+  <div id="treatment-cost-report" style="display:none;margin-bottom:16px;"></div>
 
   <!-- Summary stats -->
   <div id="treatment-stats" style="margin-bottom:16px;"></div>
@@ -7049,6 +7053,186 @@ function exportSowing() {
   const a = document.createElement('a');
   a.href = 'data:text/csv;charset=utf-8,\uFEFF' + encodeURIComponent(csv);
   a.download = 'posevnaya_'+today()+'.csv';
+  a.click();
+}
+
+// ═══ СЕБЕСТОИМОСТЬ ОБРАБОТОК ══════════════════════════════════════════════
+function showTreatmentCost() {
+  const el = document.getElementById('treatment-cost-report');
+  if (el.style.display !== 'none') { el.style.display = 'none'; return; }
+
+  if (!S.treatments.length) {
+    el.innerHTML = '<div style="padding:12px 16px;background:var(--surface2);border-radius:10px;font-size:12px;color:var(--text3);">Нет обработок для расчёта</div>';
+    el.style.display = 'block';
+    return;
+  }
+
+  // Собрать данные по участкам
+  const byParcel = {};
+  S.treatments.forEach(t => {
+    const pid = t.parcelId || 'unknown';
+    if (!byParcel[pid]) byParcel[pid] = {
+      parcelName: t.parcelName || '—',
+      ha: S.parcels.find(p=>p.id===pid)?.ha || 0,
+      cropId: t.cropId,
+      treatments: [],
+      totalCost: 0,
+    };
+    // Считать стоимость каждого препарата
+    let treatCost = 0;
+    const products = (t.products || []).map(p => {
+      const catItem = S.catalog.find(c => c.id === p.catId || c.name.toLowerCase() === p.name?.toLowerCase());
+      const stockItem = S.warehouse?.chemicals?.find(c => c.catId === catItem?.id || c.name.toLowerCase() === p.name?.toLowerCase());
+      const price = stockItem?.price || catItem?.price || 0;
+      const doseNum = parseFloat(p.dose) || 0;
+      const ha = S.parcels.find(x=>x.id===pid)?.ha || 1;
+      const cost = Math.round(price * doseNum * ha * 10000) / 10000;
+      treatCost += cost;
+      return { name: p.name, dose: p.dose, price, cost, ha };
+    });
+    byParcel[pid].treatments.push({ ...t, products, treatCost });
+    byParcel[pid].totalCost += treatCost;
+  });
+
+  // Итого по всем
+  const grandTotal = Object.values(byParcel).reduce((s,p) => s + p.totalCost, 0);
+  const totalHa = Object.values(byParcel).reduce((s,p) => s + (p.ha||0), 0);
+
+  const TYPE_COLORS = {fungicide:'var(--teal)',insecticide:'var(--orange)',herbicide:'var(--yellow)',fertilizer:'var(--accent)',acaricide:'var(--purple)',other:'var(--text3)'};
+  const TYPE_LABELS = {fungicide:'Фунг',insecticide:'Инсект',herbicide:'Герб',fertilizer:'Удобр',acaricide:'Акар',other:'Др'};
+
+  let html = `
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;">
+    <div style="padding:12px 16px;background:var(--surface2);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+      <div style="font-family:'Unbounded',sans-serif;font-size:12px;font-weight:700;color:var(--accent);">💰 Себестоимость обработок</div>
+      <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;">
+        <div style="text-align:center;">
+          <div style="font-family:'Unbounded',sans-serif;font-size:16px;font-weight:700;color:var(--accent);">${formatPrice(grandTotal)}</div>
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;">Итого все участки</div>
+        </div>
+        ${totalHa>0?`<div style="text-align:center;">
+          <div style="font-family:'Unbounded',sans-serif;font-size:16px;font-weight:700;color:var(--blue);">${formatPrice(grandTotal/totalHa)}</div>
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;">На гектар</div>
+        </div>`:''}
+        <button class="btn btn-secondary btn-sm" onclick="exportTreatmentCost()">📊 Экспорт</button>
+        <button class="btn btn-secondary btn-sm" onclick="document.getElementById('treatment-cost-report').style.display='none'">✕</button>
+      </div>
+    </div>
+
+    <!-- Сводная таблица по участкам -->
+    <div style="overflow-x:auto;">
+    <table class="data-table">
+      <thead><tr>
+        <th>Участок</th><th>Культура</th><th>Га</th>
+        <th>Обработок</th><th>Итого ${getCurrencySymbol()}</th><th>${getCurrencySymbol()}/га</th>
+        <th>Фунг</th><th>Инсект</th><th>Удобр</th><th>Прочее</th>
+      </tr></thead>
+      <tbody>
+        ${Object.entries(byParcel).map(([pid, data]) => {
+          const crop = getCropById(data.cropId);
+          // По типам
+          const byType = {};
+          data.treatments.forEach(t => {
+            (t.products||[]).forEach(p => {
+              const cat = S.catalog.find(c=>c.name.toLowerCase()===p.name?.toLowerCase());
+              const type = cat?.type || p.type || 'other';
+              const cost = p.cost || 0;
+              byType[type] = (byType[type]||0) + cost;
+            });
+          });
+          const perHa = data.ha > 0 ? data.totalCost / data.ha : 0;
+          return `<tr>
+            <td style="font-weight:600;">${data.parcelName}</td>
+            <td style="font-size:11px;">${crop?crop.emoji+' '+crop.name:'—'}</td>
+            <td style="font-family:'JetBrains Mono',monospace;">${data.ha}</td>
+            <td style="font-family:'JetBrains Mono',monospace;">${data.treatments.length}</td>
+            <td style="font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--accent);">${formatPrice(data.totalCost)}</td>
+            <td style="font-family:'JetBrains Mono',monospace;color:var(--blue);">${formatPrice(perHa)}</td>
+            <td style="font-size:11px;color:var(--teal);">${byType.fungicide?formatPrice(byType.fungicide):'—'}</td>
+            <td style="font-size:11px;color:var(--orange);">${byType.insecticide?formatPrice(byType.insecticide):'—'}</td>
+            <td style="font-size:11px;color:var(--accent);">${byType.fertilizer?formatPrice(byType.fertilizer):'—'}</td>
+            <td style="font-size:11px;color:var(--text3);">${(byType.herbicide||0)+(byType.acaricide||0)+(byType.other||0)>0?formatPrice((byType.herbicide||0)+(byType.acaricide||0)+(byType.other||0)):'—'}</td>
+          </tr>`;
+        }).join('')}
+        <tr style="background:var(--surface2);font-weight:700;">
+          <td colspan="4" style="color:var(--text2);">ИТОГО</td>
+          <td style="font-family:'JetBrains Mono',monospace;color:var(--accent);">${formatPrice(grandTotal)}</td>
+          <td style="font-family:'JetBrains Mono',monospace;color:var(--blue);">${totalHa>0?formatPrice(grandTotal/totalHa):'—'}</td>
+          <td colspan="4"></td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+
+    <!-- Детализация по участкам -->
+    <div style="padding:16px;">
+      <div style="font-family:'Unbounded',sans-serif;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:2px;margin-bottom:12px;">Детализация по обработкам</div>
+      ${Object.entries(byParcel).map(([pid, data]) => `
+      <div style="margin-bottom:16px;background:var(--surface2);border-radius:10px;overflow:hidden;">
+        <div style="padding:10px 14px;background:var(--surface3);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+          <div style="font-size:13px;font-weight:700;">${data.parcelName} <span style="font-size:10px;color:var(--text3);">${data.ha} га</span></div>
+          <div style="font-family:'Unbounded',sans-serif;font-size:14px;font-weight:700;color:var(--accent);">${formatPrice(data.totalCost)}</div>
+        </div>
+        <table class="data-table" style="font-size:11px;">
+          <thead><tr>
+            <th>Дата</th><th>Препарат</th><th>Тип</th><th>Доза</th><th>Цена/${getCurrencySymbol()}</th><th>Га</th><th>Сумма</th>
+          </tr></thead>
+          <tbody>
+            ${data.treatments.map(t => t.products.map((p,i) => {
+              const cat = S.catalog.find(c=>c.name.toLowerCase()===p.name?.toLowerCase());
+              const type = cat?.type || p.type || 'other';
+              return `<tr>
+                ${i===0?`<td rowspan="${t.products.length}" style="font-family:'JetBrains Mono',monospace;vertical-align:middle;">${t.date}</td>`:''}
+                <td style="font-weight:500;">${p.name||'—'}</td>
+                <td><span style="font-size:9px;padding:1px 6px;border-radius:8px;background:${TYPE_COLORS[type]||'var(--surface3)'}22;color:${TYPE_COLORS[type]||'var(--text3)'};">${TYPE_LABELS[type]||type}</span></td>
+                <td style="color:var(--text2);">${p.dose||'—'}</td>
+                <td style="color:var(--text3);">${p.price?formatPrice(p.price)+'/'+((cat?.unit)||'л'):'нет цены'}</td>
+                <td style="font-family:'JetBrains Mono',monospace;">${p.ha||data.ha}</td>
+                <td style="font-family:'JetBrains Mono',monospace;font-weight:700;color:${p.cost>0?'var(--accent)':'var(--text3)'};">${p.cost>0?formatPrice(p.cost):'—'}</td>
+              </tr>`;
+            }).join('')).join('')}
+            <tr style="background:var(--surface3);">
+              <td colspan="6" style="font-weight:700;color:var(--text2);">Итого ${data.treatments.length} обработок</td>
+              <td style="font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--accent);">${formatPrice(data.totalCost)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>`).join('')}
+    </div>
+
+    ${grandTotal===0?`<div style="padding:12px 16px;background:rgba(255,216,77,.08);border-top:1px solid var(--border);font-size:11px;color:var(--yellow);">
+      ⚠️ Цены не найдены — добавьте цены в 📦 Справочник препаратов или 🏪 Склад
+    </div>`:''}
+  </div>`;
+
+  el.innerHTML = html;
+  el.style.display = 'block';
+  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function exportTreatmentCost() {
+  const rows = [['Участок','Га','Культура','Дата','Препарат','Тип','Доза','Цена/'+getCurrencySymbol(),'Га','Сумма '+getCurrencySymbol()]];
+  S.treatments.forEach(t => {
+    const parcel = S.parcels.find(p=>p.id===t.parcelId);
+    const crop = getCropById(parcel?.cropId);
+    (t.products||[]).forEach(p => {
+      const catItem = S.catalog.find(c=>c.name.toLowerCase()===p.name?.toLowerCase());
+      const stockItem = S.warehouse?.chemicals?.find(c=>c.name.toLowerCase()===p.name?.toLowerCase());
+      const price = stockItem?.price || catItem?.price || 0;
+      const doseNum = parseFloat(p.dose) || 0;
+      const ha = parcel?.ha || 1;
+      const cost = Math.round(price * doseNum * ha * 10000) / 10000;
+      rows.push([
+        t.parcelName||'—', ha, crop?.name||'—', t.date,
+        p.name||'—', catItem?.type||'—', p.dose||'—',
+        price||'—', ha, cost||'—'
+      ]);
+    });
+  });
+  const csv = rows.map(r=>r.join(';')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,\uFEFF' + encodeURIComponent(csv);
+  a.download = 'sebestoimost_obrabotok_'+today()+'.csv';
   a.click();
 }
 
