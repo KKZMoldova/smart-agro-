@@ -2216,16 +2216,24 @@ function save() {
 async function _saveToServer() {
   try {
     // Save analyses
+    async function _saveToServer() {
+  try {
     for (const a of (S.vegAnalyses || [])) {
-      const values = {};
+      const results = {};
       ['N','P','K','Ca','Mg','S','Fe','Mn','Zn','B','Cu','Mo',
-       'pH','OM','NO3','EC','TDS','Cl','Na','TDS'].forEach(f => {
-        if (a[f] !== undefined) values[f] = a[f];
+       'pH','OM','NO3','EC','TDS','Cl','Na'].forEach(f => {
+        if (a[f] !== undefined) results[f] = a[f];
       });
       await VAPI.saveAnalysis({
-        id: String(a.id), type: a.type || 'leaf', date: a.date,
-        parcel_id: a.parcelId || null, parcel_name: '',
-        lab: a.lab || '', values, note: a.note || '',
+        id: String(a.id),
+        type: a.type || 'leaf',
+        analysis_date: a.date,
+        parcel_id: a.parcelId || null,
+        parcel_name: a.parcel_name || '',
+        lab_name: a.lab || '',
+        culture: a.culture || null,
+        results,
+        notes: a.note || '',
       });
     }
   } catch(e) { console.warn('[Veg] Save to server error:', e.message); }
