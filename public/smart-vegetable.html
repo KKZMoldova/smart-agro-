@@ -5393,6 +5393,30 @@ if (p.resourceHours && p.installed) {
       }).join('')
     : '<tr><td colspan="10" style="text-align:center;color:var(--text3);padding:20px;">Нет запчастей на складе. Нажмите + Приход.</td></tr>';
 
+ // Seeds table
+  const CROP_NAMES = {pea:'🫛 Горошек',sweet_corn:'🌽 Кукуруза',tomato:'🍅 Томат',
+    cucumber:'🥒 Огурец',pepper:'🫑 Перец',onion:'🧅 Лук',other:'Другое'};
+  const SEED_TYPE_LABELS = {purchased:'🛒 Покупные',own:'🌾 Собственные'};
+  const UNIT_LABELS = {kg:'кг',pe:'п.е.',bag:'мешок',dose:'доза'};
+  document.getElementById('wh-seeds-tbody').innerHTML = seeds.length
+    ? seeds.map(s => {
+        const low = s.minStock && s.qty <= s.minStock;
+        const critical = s.minStock && s.qty <= s.minStock * 0.5;
+        return `<tr style="${critical?'background:rgba(255,85,85,.05)':low?'background:rgba(255,216,77,.05)':''}">
+          <td style="font-weight:600;">${CROP_NAMES[s.cropId]||s.cropId}</td>
+          <td style="color:var(--accent);">${s.variety}</td>
+          <td style="font-size:11px;">${SEED_TYPE_LABELS[s.seedType]||s.seedType}</td>
+          <td style="font-family:'JetBrains Mono',monospace;font-weight:700;color:${critical?'var(--red)':low?'var(--yellow)':'var(--accent)'};">${s.qty} ${UNIT_LABELS[s.unit]||s.unit}</td>
+          <td style="font-size:11px;color:var(--text3);">${UNIT_LABELS[s.unit]||s.unit}</td>
+          <td style="font-size:11px;">${s.rate?s.rate+' '+s.rateUnit:'—'}</td>
+          <td style="font-size:11px;color:var(--text3);">${s.minStock||'—'}</td>
+          <td style="font-size:11px;">${s.price?formatPrice(s.price):'—'}</td>
+          <td style="font-size:11px;color:var(--text3);">${s.supplier||'—'}</td>
+          <td>${critical?'<span class="badge badge-red">❌ МАЛО</span>':low?'<span class="badge badge-yellow">⚠️ Мало</span>':'<span class="badge badge-green">✅ OK</span>'}</td>
+          <td><button class="btn btn-primary btn-xs" onclick="openWarehouseModalSeed('${s.id}')">+ Приход</button></td>
+        </tr>`;
+      }).join('')
+    : '<tr><td colspan="11" style="text-align:center;color:var(--text3);padding:20px;">Нет семян на складе. Нажмите + Приход → 🌱 Семена.</td></tr>';
   document.getElementById('wh-history-tbody').innerHTML = (S.warehouse.history||[]).slice(0,50).map(h =>
     '<tr>'+
     '<td style="font-family:JetBrains Mono,monospace;font-size:11px;">'+h.date+'</td>'+
