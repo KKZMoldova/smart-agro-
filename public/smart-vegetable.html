@@ -2213,8 +2213,6 @@ function save() {
   if (_vServerAvailable) _saveToServer();
 }
 
-async function _saveToServer() {
-  try {
     // Save analyses
     async function _saveToServer() {
   try {
@@ -2238,7 +2236,7 @@ async function _saveToServer() {
     }
   } catch(e) { console.warn('[Veg] Save to server error:', e.message); }
 }
-
+   
 // ─── HELPERS ──────────────────────────────────────────────────────────────
 function getCropById(id) { return CROPS.find(c=>c.id===id); }
 function getDiseaseById(id) { return DISEASES.find(d=>d.id===id); }
