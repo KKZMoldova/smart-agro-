@@ -5034,10 +5034,11 @@ function switchWhModalTab(type) {
   document.getElementById('wh-modal-type').value = type;
   document.getElementById('wh-modal-chemical').style.display = type==='chemical' ? '' : 'none';
   document.getElementById('wh-modal-part').style.display = type==='part' ? '' : 'none';
+  document.getElementById('wh-modal-seed').style.display = type==='seed' ? '' : 'none';
   document.getElementById('wh-modal-tab-chemical').classList.toggle('active', type==='chemical');
   document.getElementById('wh-modal-tab-part').classList.toggle('active', type==='part');
+  document.getElementById('wh-modal-tab-seed').classList.toggle('active', type==='seed');
 }
-
 function openWarehouseModal() {
   if (!S.warehouse) S.warehouse = { chemicals: [], parts: [], history: [] };
   document.getElementById('wh-modal-title').textContent = '📦 Приход товара';
