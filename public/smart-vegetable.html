@@ -5235,7 +5235,7 @@ if (p.resourceHours && p.installed) {
         return '<tr style="'+(critical?'background:rgba(255,85,85,.05)':low?'background:rgba(255,216,77,.05)':'')+'">'+
           '<td style="font-weight:600">'+p.name+'</td>'+
           '<td style="font-size:11px;color:var(--text3);">'+(CAT_PART_LABELS[p.category]||p.category)+'</td>'+
-          '<td style="font-family:JetBrains Mono,monospace;font-weight:700;color:'+(critical?'var(--red)':low?'var(--yellow)':'var(--accent)');"><div>'+(p.qty-(p.installedQty||0))+' '+(p.unit||'шт')+' <span style="font-size:10px;color:var(--text3);">свободно</span></div></td>'+
+          '<td style="font-family:JetBrains Mono,monospace;font-weight:700;color:'+(critical?'var(--red)':low?'var(--yellow)':'var(--accent)')+'"><div>'+(p.qty-(p.installedQty||0))+' '+(p.unit||'шт')+' <span style="font-size:10px;color:var(--text3);">свободно</span></div></td>'+
           '<td style="font-size:11px;">'+(p.unit||'шт')+'</td>'+
           '<td style="font-size:11px;color:var(--text3);">'+(p.minStock||'—')+'</td>'+
           '<td style="font-size:11px;">'+resourceHtml+'</td>'+
