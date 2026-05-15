@@ -5069,6 +5069,15 @@ function openWarehouseModal() {
   document.getElementById('wh-part-installed').value = '';
   document.getElementById('wh-part-worked').value = '';
   document.getElementById('wh-part-note').value = '';
+  document.getElementById('wh-seed-date').value = today();
+  document.getElementById('wh-seed-variety').value = '';
+  document.getElementById('wh-seed-qty').value = '';
+  document.getElementById('wh-seed-price').value = '';
+  document.getElementById('wh-seed-supplier').value = '';
+  document.getElementById('wh-seed-min-stock').value = '';
+  document.getElementById('wh-seed-rate').value = '';
+  document.getElementById('wh-seed-year').value = '';
+  document.getElementById('wh-seed-note').value = '';
   // Populate chemicals select
   const sel = document.getElementById('wh-chemical-id');
   sel.innerHTML = '<option value="">— выбрать из каталога —</option>';
