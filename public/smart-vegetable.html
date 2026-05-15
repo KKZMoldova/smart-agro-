@@ -5031,7 +5031,7 @@ let _whTab = 'chemicals';
   let _selectedParcels = [];
 function showWarehouseTab(tab) {
   _whTab = tab;
-  ['chemicals','parts','history'].forEach(t => {
+  ['chemicals','parts','seeds','history'].forEach(t => {
     const el = document.getElementById('wh-'+t);
     const btn = document.getElementById('wh-tab-'+t);
     if(el) el.style.display = t===tab ? '' : 'none';
