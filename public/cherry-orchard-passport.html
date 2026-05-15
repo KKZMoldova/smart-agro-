@@ -1351,10 +1351,12 @@ body[data-readonly="true"] .parcel-card { cursor: default; pointer-events: none;
     <div id="wh-modal-chemical">
       <div class="form-grid">
         <div class="ff"><label>Дата прихода</label><input type="date" id="wh-date"></div>
-        <div class="ff"><label>Препарат</label>
-          <select id="wh-chemical-id" onchange="onWhChemicalSelect()">
+        <div class="ff full"><label>Препарат</label>
+          <select id="wh-chemical-id" onchange="onWhChemicalSelect()" style="margin-bottom:6px;">
             <option value="">— выбрать из каталога —</option>
           </select>
+          <input type="text" id="wh-chemical-name" placeholder="или ввести название вручную (создастся в каталоге автоматически)"
+            oninput="if(this.value.trim())document.getElementById('wh-chemical-id').value=''">
         </div>
         <div class="ff"><label>Количество</label><input type="number" id="wh-qty" step="0.01" placeholder="10"></div>
         <div class="ff"><label>Единица</label>
@@ -5268,6 +5270,7 @@ function openWarehouseModal() {
   document.getElementById('wh-supplier').value = '';
   document.getElementById('wh-min-stock').value = '';
   document.getElementById('wh-note').value = '';
+  document.getElementById('wh-chemical-name').value = '';
   document.getElementById('wh-part-name').value = '';
   document.getElementById('wh-part-qty').value = '';
   document.getElementById('wh-part-price').value = '';
@@ -5301,6 +5304,7 @@ function onWhChemicalSelect() {
   const id = document.getElementById('wh-chemical-id').value;
   const item = S.catalog.find(c => c.id === id);
   if (!item) return;
+  document.getElementById('wh-chemical-name').value = item.name;
   if (item.price) document.getElementById('wh-price').value = item.price;
   if (item.supplier) document.getElementById('wh-supplier').value = item.supplier;
   if (item.unit) document.getElementById('wh-unit').value = item.unit;
@@ -5314,11 +5318,12 @@ function saveWarehouseItem() {
   const type = document.getElementById('wh-modal-type').value;
 
   if (type === 'chemical') {
-    const catId = document.getElementById('wh-chemical-id').value;
-    const cat = S.catalog.find(c => c.id === catId);
-    if (!catId || !cat) { alert('Выберите препарат'); return; }
+    let catId = document.getElementById('wh-chemical-id').value;
+    const manualName = document.getElementById('wh-chemical-name').value.trim();
+    if (!manualName) { alert('Введите название препарата'); return; }
     const qty = parseFloat(document.getElementById('wh-qty').value) || 0;
     if (!qty) { alert('Введите количество'); return; }
+
     const priceRaw = parseFloat(document.getElementById('wh-price').value) || 0;
     const priceCurrency = document.getElementById('wh-price-currency').value;
     const rateUsed = getRate(priceCurrency);
@@ -5329,6 +5334,27 @@ function saveWarehouseItem() {
     const payment = document.getElementById('wh-payment').value;
     const note = document.getElementById('wh-note').value.trim();
     const date = document.getElementById('wh-date').value;
+
+    // Найти или создать запись в каталоге
+    let cat = S.catalog.find(c => c.id === catId) ||
+              S.catalog.find(c => c.name.toLowerCase() === manualName.toLowerCase());
+    if (!cat) {
+      // Автоматически создать в каталоге
+      cat = {
+        id: uid(),
+        name: manualName,
+        type: 'other',
+        ai: '', dose: '', whi: 0, crops: '', targets: '',
+        buhName: manualName,
+        legal: 'legal', payment, inBuh: 'yes',
+        priceOrig: priceRaw, priceCurrency,
+        price, supplier, unit, minStock,
+      };
+      S.catalog.push(cat);
+      console.log('[Warehouse] Auto-created catalog entry:', manualName);
+    }
+    catId = cat.id;
+
     let stock = S.warehouse.chemicals.find(c => c.catId === catId);
     if (!stock) {
       stock = { id: uid(), catId, name: cat.name, type: cat.type, unit, qty: 0, minStock, price, supplier, payment };
