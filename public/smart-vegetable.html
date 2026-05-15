@@ -2178,16 +2178,27 @@ async function syncFromServer() {
   et0: d.et0, leafwet: d.leaf_wet,
 }));
     }
-    
+  
     // Analyses
-    const aRes = await VAPI.getAnalyses();
-    if (aRes?.data?.length) {
-      S.vegAnalyses = aRes.data.map(a => ({
-        id: a.id, type: a.type, date: a.date,
-        parcelId: a.parcel_id, lab: a.lab, note: a.note,
-        ...(a.values || {}),
-      }));
-    }
+const aRes = await VAPI.getAnalyses();
+if (aRes?.data?.length) {
+  S.vegAnalyses = aRes.data.map(a => {
+    const results = a.results
+      ? (typeof a.results === 'string' ? JSON.parse(a.results) : a.results)
+      : {};
+    return {
+      id: a.id, type: a.type,
+      date: a.analysis_date
+        ? (typeof a.analysis_date === 'string' ? a.analysis_date.slice(0,10) : new Date(a.analysis_date).toISOString().slice(0,10))
+        : (a.date || ''),
+      parcelId: a.parcel_id, parcel_name: a.parcel_name || '',
+      lab: a.lab_name || a.lab || '',
+      culture: a.culture || '',
+      note: a.notes || a.note || '',
+      ...results,
+    };
+  });
+}
     // Catalog — не перезаписывать из старого API, используем /api/state/vegetable
     // Update localStorage
     localStorage.setItem(STORAGE_KEY, JSON.stringify(S));
