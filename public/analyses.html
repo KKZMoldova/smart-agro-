@@ -15,8 +15,6 @@
 }
 *{margin:0;padding:0;box-sizing:border-box;}
 body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;}
-
-/* HEADER */
 .header{background:linear-gradient(135deg,#0d1a0d,#132013,#0d1a0d);border-bottom:1px solid var(--border);
   padding:0 24px;display:flex;align-items:center;height:56px;gap:12px;position:sticky;top:0;z-index:100;}
 .logo{font-family:'Unbounded',sans-serif;font-size:13px;font-weight:700;color:var(--accent2);letter-spacing:2px;}
@@ -28,8 +26,6 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-h
 .btn-g:hover{background:var(--accent2);}
 .btn-r{background:rgba(255,85,85,.15);color:var(--red);border-color:rgba(255,85,85,.3);}
 .btn-sm{padding:5px 10px;font-size:11px;}
-
-/* FILTERS */
 .filters{background:var(--surface);border-bottom:1px solid var(--border);
   padding:10px 24px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
 .ftab{padding:5px 14px;border-radius:20px;font-size:11px;font-weight:600;
@@ -39,26 +35,18 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-h
 .ftab:hover:not(.active){color:var(--text2);background:var(--surface2);}
 select.fsel{background:var(--surface2);border:1px solid var(--border);border-radius:8px;
   padding:6px 10px;color:var(--text);font-size:12px;font-family:'Inter',sans-serif;}
-
-/* MAIN */
 .main{padding:20px 24px;max-width:1200px;margin:0 auto;}
-
-/* STATS ROW */
 .stats-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:20px;}
 .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;
   padding:12px 14px;text-align:center;}
 .stat-val{font-family:'Unbounded',sans-serif;font-size:20px;font-weight:700;color:var(--accent);}
 .stat-lbl{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-top:3px;}
-
-/* RECS BLOCK */
 .recs-block{margin-bottom:20px;}
 .recs-header{background:var(--surface2);border-radius:10px 10px 0 0;padding:10px 16px;
   display:flex;align-items:center;gap:10px;border:1px solid var(--border);border-bottom:none;}
 .recs-title{font-family:'Unbounded',sans-serif;font-size:11px;font-weight:700;color:var(--text2);}
 .rec-item{padding:12px 16px;border:1px solid var(--border);border-top:none;background:var(--surface);}
 .rec-item:last-child{border-radius:0 0 10px 10px;}
-
-/* ANALYSES GRID */
 .an-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;}
 .an-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;
   padding:16px;cursor:pointer;transition:all .2s;border-left:3px solid var(--border);}
@@ -66,16 +54,12 @@ select.fsel{background:var(--surface2);border:1px solid var(--border);border-rad
 .an-card.type-leaf{border-left-color:var(--accent);}
 .an-card.type-soil{border-left-color:#8B6914;}
 .an-card.type-water{border-left-color:var(--blue);}
-
-/* COMPARISON TABLE */
 .comp-table{width:100%;border-collapse:collapse;font-size:12px;}
 .comp-table th{background:var(--surface2);color:var(--text3);font-size:9px;text-transform:uppercase;
   letter-spacing:1px;padding:8px 12px;text-align:left;border-bottom:1px solid var(--border);
   font-family:'Unbounded',sans-serif;}
 .comp-table td{padding:8px 12px;border-bottom:1px solid var(--border);vertical-align:middle;}
 .comp-table tr:hover td{background:var(--surface2);}
-
-/* MODAL */
 .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;
   align-items:center;justify-content:center;padding:16px;}
 .overlay.open{display:flex;}
@@ -96,21 +80,15 @@ input:focus,select:focus{outline:none;border-color:var(--accent);}
   letter-spacing:1px;margin:14px 0 8px;padding-bottom:5px;border-bottom:1px solid var(--border);}
 .mf{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;padding-top:14px;
   border-top:1px solid var(--border);}
-
-/* TYPE TABS in modal */
 .type-tabs{display:flex;gap:6px;margin-bottom:16px;}
 .type-tab{padding:7px 16px;border-radius:20px;cursor:pointer;font-size:11px;font-weight:600;
   border:1px solid var(--border);background:var(--surface2);color:var(--text3);transition:all .2s;
   font-family:'Unbounded',sans-serif;}
 .type-tab.active{background:var(--accent);color:#0a0f0a;border-color:var(--accent);}
-
-/* UPLOAD ZONE */
 .upload-zone{border:2px dashed var(--border);border-radius:10px;padding:24px;text-align:center;
   cursor:pointer;transition:all .2s;background:var(--surface2);margin-bottom:14px;}
 .upload-zone:hover{border-color:var(--accent);background:rgba(107,221,107,.05);}
 .upload-zone.dragover{border-color:var(--accent);background:rgba(107,221,107,.1);}
-
-/* VALUE ROW */
 .val-row{display:grid;grid-template-columns:120px 1fr 80px 80px;gap:8px;align-items:center;
   padding:5px 0;border-bottom:1px solid rgba(42,58,42,.5);font-size:12px;}
 .val-name{color:var(--text2);font-size:11px;}
@@ -118,8 +96,6 @@ input:focus,select:focus{outline:none;border-color:var(--accent);}
 .val-fill{height:100%;border-radius:3px;transition:width .4s;}
 .val-num{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;text-align:right;}
 .val-unit{font-size:10px;color:var(--text3);}
-
-/* BADGE */
 .badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:9px;
   font-weight:700;font-family:'Unbounded',sans-serif;}
 .b-green{background:rgba(107,221,107,.15);color:var(--accent);}
@@ -127,39 +103,23 @@ input:focus,select:focus{outline:none;border-color:var(--accent);}
 .b-yellow{background:rgba(255,216,77,.15);color:var(--yellow);}
 .b-blue{background:rgba(85,170,255,.15);color:var(--blue);}
 .b-gray{background:rgba(90,122,90,.15);color:var(--text3);}
-
-/* TOAST */
+.b-teal{background:rgba(68,221,204,.1);color:var(--teal);}
 .toast{position:fixed;bottom:20px;right:20px;background:#1a1a18;color:#fff;
   padding:9px 16px;border-radius:8px;font-size:13px;z-index:300;
   opacity:0;transition:all .2s;pointer-events:none;}
 .toast.show{opacity:1;}
-
-/* VIEW TOGGLE */
 .view-toggle{display:flex;gap:4px;}
 .vbtn{padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:none;
   color:var(--text3);cursor:pointer;font-size:11px;transition:all .2s;}
 .vbtn.active{background:var(--surface2);color:var(--text2);}
-
-/* EMPTY */
 .empty{text-align:center;padding:60px 20px;color:var(--text3);}
 .empty-icon{font-size:48px;margin-bottom:12px;}
-
-/* NORM INDICATOR */
-.norm-ok{color:var(--accent);}
-.norm-low{color:var(--red);}
-.norm-high{color:var(--yellow);}
-
-/* SCROLLBAR */
 ::-webkit-scrollbar{width:4px;height:4px;}
 ::-webkit-scrollbar-track{background:var(--surface);}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
-
-/* IMPORT RESULT */
 .import-result{background:rgba(107,221,107,.06);border:1px solid rgba(107,221,107,.2);
   border-radius:8px;padding:10px 14px;font-size:11px;color:var(--text2);margin-top:8px;display:none;}
 .import-result.error{background:rgba(255,85,85,.06);border-color:rgba(255,85,85,.2);color:var(--red);}
-
-/* COMPARE MODE */
 .compare-bar{background:var(--surface2);border:1px solid rgba(85,170,255,.3);
   border-radius:8px;padding:10px 16px;margin-bottom:16px;display:none;
   align-items:center;gap:12px;flex-wrap:wrap;}
@@ -184,6 +144,7 @@ input:focus,select:focus{outline:none;border-color:var(--accent);}
   <select class="fsel" id="parcel-filter" onchange="loadAnalyses()">
     <option value="">Все участки</option>
   </select>
+  <span class="badge b-teal" style="font-size:9px;padding:3px 9px;">Нормы: FAO</span>
   <div style="margin-left:auto;display:flex;gap:6px;align-items:center;">
     <div class="view-toggle">
       <button class="vbtn active" id="vbtn-cards" onclick="setView('cards',this)">⊞ Карточки</button>
@@ -194,30 +155,21 @@ input:focus,select:focus{outline:none;border-color:var(--accent);}
 </div>
 
 <div class="main">
-  <!-- Stats -->
   <div class="stats-row" id="stats-row"></div>
-
-  <!-- Compare bar -->
   <div class="compare-bar" id="compare-bar">
     <span style="font-size:12px;color:var(--blue);">⇄ Режим сравнения — выберите 2–4 анализа</span>
     <span id="compare-count" style="font-size:11px;color:var(--text3);">Выбрано: 0</span>
     <button class="btn btn-sm" onclick="renderCompare()" style="background:rgba(85,170,255,.15);color:var(--blue);border-color:rgba(85,170,255,.3);">Сравнить</button>
     <button class="btn btn-sm btn-r" onclick="clearCompare()">Очистить</button>
   </div>
-
-  <!-- Recommendations -->
   <div id="recs-block"></div>
-
-  <!-- Content -->
   <div id="content"></div>
 </div>
 
-<!-- MODAL: New/Edit Analysis -->
+<!-- MODAL -->
 <div class="overlay" id="modal-overlay">
 <div class="modal">
   <h2 id="modal-title">🔬 Новый анализ</h2>
-
-  <!-- Type tabs -->
   <div class="type-tabs">
     <div class="type-tab active" id="ttab-leaf"  onclick="switchTab('leaf')">🍃 Лист</div>
     <div class="type-tab"        id="ttab-soil"  onclick="switchTab('soil')">🌱 Почва</div>
@@ -226,7 +178,6 @@ input:focus,select:focus{outline:none;border-color:var(--accent);}
   <input type="hidden" id="edit-id">
   <input type="hidden" id="an-type" value="leaf">
 
-  <!-- Upload PDF/Excel -->
   <div class="upload-zone" id="upload-zone"
     onclick="document.getElementById('file-input').click()"
     ondragover="event.preventDefault();this.classList.add('dragover')"
@@ -239,12 +190,21 @@ input:focus,select:focus{outline:none;border-color:var(--accent);}
   </div>
   <div class="import-result" id="import-result"></div>
 
-  <!-- Base fields -->
   <div class="form-grid">
     <div class="ff"><label>Дата анализа</label><input type="date" id="an-date"></div>
     <div class="ff"><label>Лаборатория</label><input type="text" id="an-lab" placeholder="Название лаборатории"></div>
     <div class="ff"><label>Участок</label><select id="an-parcel"><option value="">— все участки —</option></select></div>
-    <div class="ff"><label>Культура (если нет участка)</label><input type="text" id="an-crop" placeholder="томат, пшеница, яблоня..."></div>
+    <div class="ff"><label>Культура</label>
+      <select id="an-culture">
+        <option value="tomato">Томат</option>
+        <option value="pepper">Перец</option>
+        <option value="cucumber">Огурец</option>
+        <option value="pea">Горох</option>
+        <option value="cherry">Вишня</option>
+        <option value="apple">Яблоня</option>
+      </select>
+    </div>
+    <div class="ff"><label>Источник воды (для воды)</label><input type="text" id="an-water-source" placeholder="Скважина №1, река..."></div>
     <div class="ff full"><label>Примечание</label><input type="text" id="an-note" placeholder="доп. информация, условия отбора..."></div>
   </div>
 
@@ -315,90 +275,117 @@ input:focus,select:focus{outline:none;border-color:var(--accent);}
 <div class="toast" id="toast"></div>
 
 <script>
-// ─── NORMS DATABASE ────────────────────────────────────────────────────────
+// ─── НОРМЫ ────────────────────────────────────────────────────────────────
 const LEAF_NORMS = {
-  N:  {min:2.0,  max:4.0,  unit:'%',    name:'Азот',       color:'#6bdd6b'},
-  P:  {min:0.20, max:0.50, unit:'%',    name:'Фосфор',     color:'#55aaff'},
-  K:  {min:2.0,  max:4.0,  unit:'%',    name:'Калий',      color:'#ff9944'},
-  Ca: {min:1.0,  max:3.0,  unit:'%',    name:'Кальций',    color:'#44ddcc'},
-  Mg: {min:0.25, max:0.75, unit:'%',    name:'Магний',     color:'#cc88ff'},
-  S:  {min:0.1,  max:0.5,  unit:'%',    name:'Сера',       color:'#ffd84d'},
-  Fe: {min:50,   max:200,  unit:'ppm',  name:'Железо',     color:'#cc8844'},
-  Mn: {min:50,   max:250,  unit:'ppm',  name:'Марганец',   color:'#88ffaa'},
-  Zn: {min:20,   max:100,  unit:'ppm',  name:'Цинк',       color:'#ff5555'},
-  B:  {min:25,   max:75,   unit:'ppm',  name:'Бор',        color:'#55aaff'},
-  Cu: {min:5,    max:30,   unit:'ppm',  name:'Медь',       color:'#cc8844'},
-  Mo: {min:0.1,  max:1.5,  unit:'ppm',  name:'Молибден',   color:'#cc88ff'},
+  N:{min:2.0,max:4.0,unit:'%',name:'Азот',color:'#6bdd6b'},
+  P:{min:0.20,max:0.50,unit:'%',name:'Фосфор',color:'#55aaff'},
+  K:{min:2.0,max:4.0,unit:'%',name:'Калий',color:'#ff9944'},
+  Ca:{min:1.0,max:3.0,unit:'%',name:'Кальций',color:'#44ddcc'},
+  Mg:{min:0.25,max:0.75,unit:'%',name:'Магний',color:'#cc88ff'},
+  S:{min:0.1,max:0.5,unit:'%',name:'Сера',color:'#ffd84d'},
+  Fe:{min:50,max:200,unit:'ppm',name:'Железо',color:'#cc8844'},
+  Mn:{min:50,max:250,unit:'ppm',name:'Марганец',color:'#88ffaa'},
+  Zn:{min:20,max:100,unit:'ppm',name:'Цинк',color:'#ff5555'},
+  B:{min:25,max:75,unit:'ppm',name:'Бор',color:'#55aaff'},
+  Cu:{min:5,max:30,unit:'ppm',name:'Медь',color:'#cc8844'},
+  Mo:{min:0.1,max:1.5,unit:'ppm',name:'Молибден',color:'#cc88ff'},
 };
 const SOIL_NORMS = {
-  pH:  {min:6.0, max:7.0, unit:'',      name:'pH',          color:'#6bdd6b'},
-  OM:  {min:2.0, max:5.0, unit:'%',     name:'Орг. вещество',color:'#cc8844'},
-  NO3: {min:15,  max:60,  unit:'мг/кг', name:'N-NO₃',       color:'#6bdd6b'},
-  P:   {min:60,  max:200, unit:'мг/кг', name:'P₂O₅',        color:'#55aaff'},
-  K:   {min:120, max:350, unit:'мг/кг', name:'K₂O',         color:'#ff9944'},
-  Ca:  {min:800, max:3000,unit:'мг/кг', name:'Кальций',     color:'#44ddcc'},
-  Mg:  {min:80,  max:400, unit:'мг/кг', name:'Магний',      color:'#cc88ff'},
-  B:   {min:0.5, max:2.0, unit:'мг/кг', name:'Бор',         color:'#55aaff'},
-  EC:  {min:0.1, max:1.5, unit:'мСм/см',name:'EC',          color:'#ffd84d'},
-  CEC: {min:15,  max:30,  unit:'мэкв',  name:'CEC',         color:'#88ffaa'},
+  pH:{min:6.0,max:7.0,unit:'',name:'pH',color:'#6bdd6b'},
+  OM:{min:2.0,max:5.0,unit:'%',name:'Орг. вещество',color:'#cc8844'},
+  NO3:{min:15,max:60,unit:'мг/кг',name:'N-NO₃',color:'#6bdd6b'},
+  P:{min:60,max:200,unit:'мг/кг',name:'P₂O₅',color:'#55aaff'},
+  K:{min:120,max:350,unit:'мг/кг',name:'K₂O',color:'#ff9944'},
+  Ca:{min:800,max:3000,unit:'мг/кг',name:'Кальций',color:'#44ddcc'},
+  Mg:{min:80,max:400,unit:'мг/кг',name:'Магний',color:'#cc88ff'},
+  B:{min:0.5,max:2.0,unit:'мг/кг',name:'Бор',color:'#55aaff'},
+  EC:{min:0.1,max:1.5,unit:'мСм/см',name:'EC',color:'#ffd84d'},
+  CEC:{min:15,max:30,unit:'мэкв',name:'CEC',color:'#88ffaa'},
 };
 const WATER_NORMS = {
-  pH:  {min:6.5, max:7.5, unit:'',      name:'pH',          color:'#6bdd6b'},
-  EC:  {min:0.1, max:1.5, unit:'мСм/см',name:'EC',          color:'#ffd84d'},
-  TDS: {min:0,   max:1000,unit:'мг/л',  name:'TDS',         color:'#55aaff'},
-  Fe:  {min:0,   max:0.3, unit:'мг/л',  name:'Железо',      color:'#cc8844'},
-  Mn:  {min:0,   max:0.1, unit:'мг/л',  name:'Марганец',    color:'#88ffaa'},
-  B:   {min:0,   max:0.5, unit:'мг/л',  name:'Бор',         color:'#55aaff'},
-  Cl:  {min:0,   max:150, unit:'мг/л',  name:'Хлориды',     color:'#ff5555'},
-  Na:  {min:0,   max:50,  unit:'мг/л',  name:'Натрий',      color:'#ff9944'},
-  Ca:  {min:40,  max:120, unit:'мг/л',  name:'Кальций',     color:'#44ddcc'},
-  Mg:  {min:10,  max:50,  unit:'мг/л',  name:'Магний',      color:'#cc88ff'},
+  pH:{min:6.5,max:7.5,unit:'',name:'pH',color:'#6bdd6b'},
+  EC:{min:0.1,max:1.5,unit:'мСм/см',name:'EC',color:'#ffd84d'},
+  TDS:{min:0,max:1000,unit:'мг/л',name:'TDS',color:'#55aaff'},
+  Fe:{min:0,max:0.3,unit:'мг/л',name:'Железо',color:'#cc8844'},
+  Mn:{min:0,max:0.1,unit:'мг/л',name:'Марганец',color:'#88ffaa'},
+  B:{min:0,max:0.5,unit:'мг/л',name:'Бор',color:'#55aaff'},
+  Cl:{min:0,max:150,unit:'мг/л',name:'Хлориды',color:'#ff5555'},
+  Na:{min:0,max:50,unit:'мг/л',name:'Натрий',color:'#ff9944'},
+  Ca:{min:40,max:120,unit:'мг/л',name:'Кальций',color:'#44ddcc'},
+  Mg:{min:10,max:50,unit:'мг/л',name:'Магний',color:'#cc88ff'},
 };
-
 const RECS = {
-  N:  {low:'Листовое: мочевина 0.5–1% (2–3 обработки). Капельно: Ca(NO₃)₂ или KNO₃ 3–5 кг/1000л.', high:'Снизить дозы N. Риск затяжной вегетации и снижения качества плодов.'},
-  P:  {low:'Листовое: МКФ 0.3–0.5%. Почва: суперфосфат 200–400 кг/га.', high:'Блокирует Zn и Fe. Проверить pH почвы.'},
-  K:  {low:'Листовое: KNO₃ 0.5–1% или MKP 0.5%. Почва: K₂SO₄ 150–300 кг/га.', high:'Блокирует Ca и Mg. Снизить K-удобрения.'},
-  Ca: {low:'Листовое: Ca(NO₃)₂ 0.5–1%. Кальбор до/после цветения. Отдельно от фосфата!', high:'Редко проблема.'},
-  Mg: {low:'Листовое: MgSO₄ 1–2%. Почва: нитрат магния 2–3 кг/1000л.', high:'Норма.'},
-  Fe: {low:'Листовое: хелат Fe-DTPA 0.1–0.2%. Капельно: Fe-DTPA 0.5–1 кг/1000л.', high:'Редко проблема.'},
-  Mn: {low:'Листовое: сульфат Mn 0.3–0.5%. Хелат Mn 0.1–0.2%.', high:'Кислая почва — pH поднять до 6.5+.'},
-  Zn: {low:'Листовое: хелат Zn 0.1–0.15%. ZnSO₄ 0.2–0.3%.', high:'Токсичность редко.'},
-  B:  {low:'Листовое: борная кислота 0.15–0.2% ДО и ПОСЛЕ цветения!', high:'Некроз краёв. Промывной полив.'},
-  pH: {low:'Кислая почва. Известкование CaCO₃ 2–5 т/га. Блокирует P, Ca, Mg.', high:'Щелочная. Сера 200–500 кг/га или гипс 1–2 т/га. Блокирует Fe, Mn, Zn.'},
-  NO3:{low:'Нитрат аммония 150–200 кг/га. Ca(NO₃)₂ через капельное.', high:'Снизить N-удобрения. Промывные поливы.'},
-  EC: {high:'Высокая солёность. Промывной полив +30% нормы. Стресс у растений.'},
+  N:{low:'Листовое: мочевина 0.5–1% (2–3 обработки). Капельно: Ca(NO₃)₂ или KNO₃ 3–5 кг/1000л.',high:'Снизить дозы N. Риск затяжной вегетации и снижения качества плодов.'},
+  P:{low:'Листовое: МКФ 0.3–0.5%. Почва: суперфосфат 200–400 кг/га.',high:'Блокирует Zn и Fe. Проверить pH почвы.'},
+  K:{low:'Листовое: KNO₃ 0.5–1% или MKP 0.5%. Почва: K₂SO₄ 150–300 кг/га.',high:'Блокирует Ca и Mg. Снизить K-удобрения.'},
+  Ca:{low:'Листовое: Ca(NO₃)₂ 0.5–1%. Кальбор до/после цветения. Отдельно от фосфата!',high:'Редко проблема.'},
+  Mg:{low:'Листовое: MgSO₄ 1–2%. Почва: нитрат магния 2–3 кг/1000л.',high:'Норма.'},
+  Fe:{low:'Листовое: хелат Fe-DTPA 0.1–0.2%. Капельно: Fe-DTPA 0.5–1 кг/1000л.',high:'Редко проблема.'},
+  Mn:{low:'Листовое: сульфат Mn 0.3–0.5%. Хелат Mn 0.1–0.2%.',high:'Кислая почва — pH поднять до 6.5+.'},
+  Zn:{low:'Листовое: хелат Zn 0.1–0.15%. ZnSO₄ 0.2–0.3%.',high:'Токсичность редко.'},
+  B:{low:'Листовое: борная кислота 0.15–0.2% ДО и ПОСЛЕ цветения!',high:'Некроз краёв. Промывной полив.'},
+  pH:{low:'Кислая почва. Известкование CaCO₃ 2–5 т/га. Блокирует P, Ca, Mg.',high:'Щелочная. Сера 200–500 кг/га или гипс 1–2 т/га. Блокирует Fe, Mn, Zn.'},
+  NO3:{low:'Нитрат аммония 150–200 кг/га. Ca(NO₃)₂ через капельное.',high:'Снизить N-удобрения. Промывные поливы.'},
+  EC:{high:'Высокая солёность. Промывной полив +30% нормы. Стресс у растений.'},
 };
 
-// ─── STATE ─────────────────────────────────────────────────────────────────
+// ─── STATE ────────────────────────────────────────────────────────────────
 let analyses = [];
 let parcels  = [];
 let typeFilter = 'all';
 let currentView = 'cards';
 let compareSet = new Set();
 
-// ─── HELPERS ───────────────────────────────────────────────────────────────
+// ─── HELPERS ──────────────────────────────────────────────────────────────
 function uid(){ return 'an'+Date.now()+Math.random().toString(36).slice(2,6); }
 function today(){ return new Date().toISOString().slice(0,10); }
 function toast(m){ const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2800); }
 function getNorms(type){ return type==='leaf'?LEAF_NORMS:type==='soil'?SOIL_NORMS:WATER_NORMS; }
 function normStatus(val,norm){
   if(val===undefined||val===null||val==='')return 'na';
-  const v=parseFloat(val);
-  if(isNaN(v))return 'na';
-  if(v<norm.min)return 'low';
-  if(v>norm.max)return 'high';
-  return 'ok';
+  const v=parseFloat(val);if(isNaN(v))return 'na';
+  if(v<norm.min)return 'low';if(v>norm.max)return 'high';return 'ok';
 }
 function statusColor(s){ return s==='ok'?'var(--accent)':s==='low'?'var(--red)':s==='high'?'var(--yellow)':'var(--text3)'; }
 function statusLabel(s){ return s==='ok'?'✅':s==='low'?'❌ Дефицит':s==='high'?'⚠️ Избыток':'—'; }
 
-// ─── API ───────────────────────────────────────────────────────────────────
+// ─── АДАПТЕР СЕРВЕР → ЛОКАЛЬНЫЙ ──────────────────────────────────────────
+// Сервер отдаёт: { id, type, analysis_date, parcel_name, lab_name, results:{} }
+// Локальный код ожидает: { id, type, date, parcel_id, parcel_name, lab, values:{} }
+function fromServer(a) {
+  const results = (() => {
+    if (!a.results) return {};
+    if (typeof a.results === 'string') { try { return JSON.parse(a.results); } catch { return {}; } }
+    return a.results;
+  })();
+  const serverRecs = (() => {
+    if (!a.recommendations) return [];
+    if (typeof a.recommendations === 'string') { try { return JSON.parse(a.recommendations); } catch { return []; } }
+    return Array.isArray(a.recommendations) ? a.recommendations : [];
+  })();
+  return {
+    id:          a.id,
+    type:        a.type,
+    date:        a.analysis_date
+                   ? (typeof a.analysis_date === 'string' ? a.analysis_date.slice(0,10) : new Date(a.analysis_date).toISOString().slice(0,10))
+                   : (a.date || today()),
+    parcel_id:   a.parcel_id   || null,
+    parcel_name: a.parcel_name || a.water_source || '',
+    lab:         a.lab_name    || a.lab || '',
+    culture:     a.culture     || '',
+    water_source:a.water_source|| '',
+    note:        a.notes       || a.note || '',
+    values:      results,
+    serverRecs,
+  };
+}
+
+// ─── API ──────────────────────────────────────────────────────────────────
 async function apiGet(url){ try{ const r=await fetch(url);return await r.json(); }catch(e){ return null; } }
 async function apiPost(url,body){ try{ const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});return await r.json(); }catch(e){ return null; } }
 async function apiDel(url){ try{ const r=await fetch(url,{method:'DELETE'});return r.ok; }catch(e){ return false; } }
 
-// ─── LOAD DATA ─────────────────────────────────────────────────────────────
+// ─── LOAD DATA ────────────────────────────────────────────────────────────
 async function loadParcels(){
   const r = await apiGet('/api/parcels');
   parcels = r?.data||r||[];
@@ -408,35 +395,35 @@ async function loadParcels(){
     if(!sel)return;
     const cur=sel.value;
     sel.innerHTML='<option value="">— все участки —</option>';
-    parcels.forEach(p=>sel.innerHTML+=`<option value="${p.id}" ${cur===p.id?'selected':''}>${p.name}</option>`);
+    parcels.forEach(p=>sel.innerHTML+=`<option value="${p.id}" ${cur===String(p.id)?'selected':''}>${p.name}</option>`);
   });
 }
 
 async function loadAnalyses(){
   const pf = document.getElementById('parcel-filter')?.value||'';
-  let url = '/api/analyses?';
+  let url = '/api/analyses?limit=200&';
   if(typeFilter!=='all') url+=`type=${typeFilter}&`;
   if(pf) url+=`parcel=${pf}&`;
   const r = await apiGet(url);
-  analyses = r?.data||[];
+  // Адаптируем данные с сервера в локальный формат
+  analyses = (r?.data||[]).map(fromServer);
   renderStats();
   renderRecs();
   renderContent();
 }
 
-// ─── STATS ─────────────────────────────────────────────────────────────────
+// ─── STATS ────────────────────────────────────────────────────────────────
 function renderStats(){
   const total = analyses.length;
   const leaf  = analyses.filter(a=>a.type==='leaf').length;
   const soil  = analyses.filter(a=>a.type==='soil').length;
   const water = analyses.filter(a=>a.type==='water').length;
-  // Count deficiencies
   let defCount=0;
   analyses.forEach(a=>{
     const norms=getNorms(a.type);
     const vals=a.values||{};
     Object.entries(norms).forEach(([k,n])=>{
-      if(vals[k]!==undefined) { const s=normStatus(vals[k],n); if(s==='low'||s==='high') defCount++; }
+      if(vals[k]!==undefined){const s=normStatus(vals[k],n);if(s==='low'||s==='high')defCount++;}
     });
   });
   document.getElementById('stats-row').innerHTML=`
@@ -450,27 +437,40 @@ function renderStats(){
     </div>`;
 }
 
-// ─── RECOMMENDATIONS ───────────────────────────────────────────────────────
+// ─── RECOMMENDATIONS ──────────────────────────────────────────────────────
 function renderRecs(){
   const recent = [...analyses].sort((a,b)=>b.date.localeCompare(a.date));
   const lastLeaf  = recent.find(a=>a.type==='leaf');
   const lastSoil  = recent.find(a=>a.type==='soil');
   const lastWater = recent.find(a=>a.type==='water');
   const items=[];
+
   [lastLeaf,lastSoil,lastWater].filter(Boolean).forEach(an=>{
-    const norms=getNorms(an.type);
-    const vals=an.values||{};
-    Object.entries(norms).forEach(([k,n])=>{
-      if(vals[k]===undefined)return;
-      const s=normStatus(vals[k],n);
-      if(s==='na'||s==='ok')return;
-      const rec=RECS[k];
-      const recText=rec?s==='low'?rec.low:rec.high:'';
-      items.push({type:an.type,key:k,name:n.name,val:vals[k],unit:n.unit,
-        norm:`${n.min}–${n.max}`,status:s,rec:recText,date:an.date,
-        parcel:parcels.find(p=>p.id===an.parcel_id)?.name||an.parcel_name||''});
-    });
+    // Приоритет: рекомендации с сервера (FAO по культуре)
+    if(an.serverRecs && an.serverRecs.length){
+      an.serverRecs.filter(r=>r.status!=='ok').forEach(r=>items.push({
+        type:an.type,key:r.parameter,name:r.name,
+        val:r.value,unit:r.unit||'',norm:`${r.min??''}–${r.max??''}`,
+        status:r.status,rec:r.recommendation||'',
+        date:an.date,parcel:an.parcel_name||'',
+      }));
+    } else {
+      // Фоллбэк: локальные нормы
+      const norms=getNorms(an.type);
+      const vals=an.values||{};
+      Object.entries(norms).forEach(([k,n])=>{
+        if(vals[k]===undefined)return;
+        const s=normStatus(vals[k],n);
+        if(s==='na'||s==='ok')return;
+        const rec=RECS[k];
+        const recText=rec?s==='low'?rec.low:rec.high:'';
+        items.push({type:an.type,key:k,name:n.name,val:vals[k],unit:n.unit,
+          norm:`${n.min}–${n.max}`,status:s,rec:recText,date:an.date,
+          parcel:parcels.find(p=>String(p.id)===String(an.parcel_id))?.name||an.parcel_name||''});
+      });
+    }
   });
+
   const el=document.getElementById('recs-block');
   if(!items.length){el.innerHTML='';return;}
   const typeIcon={leaf:'🍃',soil:'🌱',water:'💧'};
@@ -478,6 +478,7 @@ function renderRecs(){
     <div class="recs-header">
       <div class="recs-title">💊 Рекомендации по питанию</div>
       <span class="badge ${items.filter(i=>i.status==='low').length?'b-red':'b-yellow'}">${items.length} отклонений</span>
+      <span class="badge b-teal">FAO</span>
       <span style="font-size:10px;color:var(--text3);margin-left:4px;">на основе последних анализов</span>
     </div>
     ${items.map(it=>`<div class="rec-item">
@@ -488,14 +489,12 @@ function renderRecs(){
         <span class="badge ${it.status==='low'?'b-red':'b-yellow'}">${it.status==='low'?'❌ Дефицит':'⚠️ Избыток'}</span>
         ${it.parcel?`<span style="font-size:10px;color:var(--text3);">${it.parcel} · ${it.date}</span>`:''}
       </div>
-      ${it.rec?`<div style="font-size:11px;color:var(--text2);padding:7px 10px;background:rgba(107,221,107,.05);border:1px solid rgba(107,221,107,.15);border-radius:7px;">
-        💊 ${it.rec}
-      </div>`:''}
+      ${it.rec?`<div style="font-size:11px;color:var(--text2);padding:7px 10px;background:rgba(107,221,107,.05);border:1px solid rgba(107,221,107,.15);border-radius:7px;">💊 ${it.rec}</div>`:''}
     </div>`).join('')}
   </div>`;
 }
 
-// ─── RENDER CONTENT ────────────────────────────────────────────────────────
+// ─── RENDER CONTENT ───────────────────────────────────────────────────────
 function renderContent(){
   if(currentView==='cards') renderCards();
   else if(currentView==='table') renderTable();
@@ -516,9 +515,8 @@ function renderCards(){
     const defs=Object.entries(norms).filter(([k,n])=>vals[k]!==undefined&&normStatus(vals[k],n)==='low').length;
     const highs=Object.entries(norms).filter(([k,n])=>vals[k]!==undefined&&normStatus(vals[k],n)==='high').length;
     const total=Object.keys(vals).filter(k=>vals[k]!==undefined&&vals[k]!=='').length;
-    const parcel=parcels.find(p=>p.id===an.parcel_id)||{name:an.parcel_name||''};
+    const parcel=parcels.find(p=>String(p.id)===String(an.parcel_id))||{name:an.parcel_name||''};
     const inCompare=compareSet.has(an.id);
-    // Show top values
     const topVals=Object.entries(norms).filter(([k])=>vals[k]!==undefined&&vals[k]!=='').slice(0,6);
     return `<div class="an-card type-${an.type}" onclick="editAnalysis('${an.id}')"
       style="${inCompare?'border-color:var(--blue);background:rgba(85,170,255,.05);':''}">
@@ -527,6 +525,7 @@ function renderCards(){
           <div style="font-size:18px;">${typeIcon[an.type]}</div>
           <div style="font-size:13px;font-weight:700;color:var(--text2);margin-top:4px;">${typeLabel[an.type]}</div>
           ${parcel.name?`<div style="font-size:11px;color:var(--text3);">${parcel.name}</div>`:''}
+          ${an.culture?`<div style="font-size:10px;color:var(--text3);margin-top:1px;">${an.culture}</div>`:''}
         </div>
         <div style="text-align:right;">
           <div style="font-family:'Unbounded',sans-serif;font-size:11px;color:var(--text2);">${an.date}</div>
@@ -541,7 +540,7 @@ function renderCards(){
       ${topVals.map(([k,n])=>{
         const v=parseFloat(vals[k]);
         const s=normStatus(vals[k],n);
-        const pct=Math.min(100,Math.max(0,(v-0)/((n.max*1.5)-0)*100));
+        const pct=Math.min(100,Math.max(0,(v/(n.max*1.5))*100));
         const normPctMin=Math.min(100,(n.min/(n.max*1.5))*100);
         const normPctMax=Math.min(100,(n.max/(n.max*1.5))*100);
         return `<div class="val-row">
@@ -555,10 +554,6 @@ function renderCards(){
         </div>`;
       }).join('')}
       ${an.note?`<div style="font-size:10px;color:var(--text3);margin-top:8px;">📝 ${an.note}</div>`:''}
-      ${currentView==='compare'?`<button onclick="event.stopPropagation();toggleCompare('${an.id}')"
-        class="btn btn-sm" style="margin-top:8px;width:100%;${inCompare?'background:rgba(85,170,255,.2);color:var(--blue);border-color:var(--blue);':''}">
-        ${inCompare?'✓ Выбран для сравнения':'+ Добавить к сравнению'}
-      </button>`:''}
     </div>`;
   }).join('')}</div>`;
 }
@@ -572,7 +567,7 @@ function renderTable(){
   const typeIcon={leaf:'🍃',soil:'🌱',water:'💧'};
   el.innerHTML=`<table class="comp-table">
     <thead><tr>
-      <th>Тип</th><th>Дата</th><th>Участок</th><th>Лаборатория</th>
+      <th>Тип</th><th>Дата</th><th>Участок</th><th>Культура</th><th>Лаборатория</th>
       <th>Показателей</th><th>Дефицитов</th><th>Избытков</th><th>Статус</th><th></th>
     </tr></thead>
     <tbody>${analyses.map(an=>{
@@ -581,11 +576,12 @@ function renderTable(){
       const defs=Object.entries(norms).filter(([k,n])=>vals[k]!==undefined&&normStatus(vals[k],n)==='low').length;
       const highs=Object.entries(norms).filter(([k,n])=>vals[k]!==undefined&&normStatus(vals[k],n)==='high').length;
       const total=Object.keys(vals).filter(k=>norms[k]&&vals[k]!==undefined&&vals[k]!=='').length;
-      const parcel=parcels.find(p=>p.id===an.parcel_id)||{name:an.parcel_name||''};
+      const parcel=parcels.find(p=>String(p.id)===String(an.parcel_id))||{name:an.parcel_name||''};
       return `<tr>
         <td>${typeIcon[an.type]} ${an.type==='leaf'?'Лист':an.type==='soil'?'Почва':'Вода'}</td>
         <td style="font-family:'JetBrains Mono',monospace;font-size:11px;">${an.date}</td>
         <td style="font-weight:600;">${parcel.name||'—'}</td>
+        <td style="font-size:11px;color:var(--text3);">${an.culture||'—'}</td>
         <td style="font-size:11px;color:var(--text3);">${an.lab||'—'}</td>
         <td style="font-family:'JetBrains Mono',monospace;">${total}</td>
         <td><span ${defs?`class="badge b-red"`:''}>${defs||'—'}</span></td>
@@ -599,85 +595,73 @@ function renderTable(){
 
 function renderCompare(){
   const selected=analyses.filter(a=>compareSet.has(a.id));
-  const el=document.getElementById('content');
-  // First show cards with toggle buttons
   renderCards();
-  if(selected.length<2){
-    // Add compare toggle buttons to cards
-    document.querySelectorAll('.an-card').forEach((card,i)=>{
-      const an=analyses[i];
-      if(!an)return;
-      const inC=compareSet.has(an.id);
-      const btn=document.createElement('button');
-      btn.className='btn btn-sm';
-      btn.style.cssText=`margin-top:8px;width:100%;${inC?'background:rgba(85,170,255,.2);color:var(--blue);border-color:var(--blue);':''}`;
-      btn.textContent=inC?'✓ Выбран':'+ Сравнить';
-      btn.onclick=e=>{e.stopPropagation();toggleCompare(an.id);};
-      card.appendChild(btn);
-    });
-    return;
-  }
-  // Build comparison table
+  document.querySelectorAll('.an-card').forEach((card,i)=>{
+    const an=analyses[i];if(!an)return;
+    const inC=compareSet.has(an.id);
+    const btn=document.createElement('button');
+    btn.className='btn btn-sm';
+    btn.style.cssText=`margin-top:8px;width:100%;${inC?'background:rgba(85,170,255,.2);color:var(--blue);border-color:var(--blue);':''}`;
+    btn.textContent=inC?'✓ Выбран':'+ Сравнить';
+    btn.onclick=e=>{e.stopPropagation();toggleCompare(an.id);};
+    card.appendChild(btn);
+  });
+  if(selected.length<2)return;
   const allKeys=new Set();
   selected.forEach(an=>Object.keys(an.values||{}).forEach(k=>allKeys.add(k)));
   const typeIcon={leaf:'🍃',soil:'🌱',water:'💧'};
-  let html=`<div style="overflow-x:auto;margin-top:16px;">
-    <div style="font-family:'Unbounded',sans-serif;font-size:11px;color:var(--text2);margin-bottom:10px;">📊 Сравнение анализов</div>
+  document.getElementById('content').innerHTML+=`<div style="overflow-x:auto;margin-top:16px;">
+    <div style="font-family:'Unbounded',sans-serif;font-size:11px;color:var(--text2);margin-bottom:10px;">📊 Сравнение анализов <span class="badge b-teal">FAO</span></div>
     <table class="comp-table">
       <thead><tr>
-        <th>Показатель</th><th>Норма</th>
-        ${selected.map(an=>`<th>${typeIcon[an.type]} ${an.date}<br><span style="font-weight:400;color:var(--text3);">${parcels.find(p=>p.id===an.parcel_id)?.name||an.parcel_name||''}</span></th>`).join('')}
+        <th>Показатель</th><th>Норма FAO</th>
+        ${selected.map(an=>`<th>${typeIcon[an.type]} ${an.date}<br><span style="font-weight:400;color:var(--text3);">${parcels.find(p=>String(p.id)===String(an.parcel_id))?.name||an.parcel_name||''}</span></th>`).join('')}
       </tr></thead>
       <tbody>
         ${[...allKeys].map(k=>{
           const normsAll={...LEAF_NORMS,...SOIL_NORMS,...WATER_NORMS};
-          const n=normsAll[k];
-          if(!n)return '';
+          const n=normsAll[k];if(!n)return '';
           const vals=selected.map(an=>(an.values||{})[k]);
-          const hasData=vals.some(v=>v!==undefined&&v!=='');
-          if(!hasData)return '';
+          if(!vals.some(v=>v!==undefined&&v!==''))return '';
           return `<tr>
             <td style="font-weight:600;">${k} · ${n.name}</td>
             <td style="font-size:10px;color:var(--text3);">${n.min}–${n.max} ${n.unit}</td>
             ${vals.map(v=>{
               if(v===undefined||v==='')return '<td style="color:var(--text3);">—</td>';
               const s=normStatus(v,n);
-              return `<td style="font-weight:700;color:${statusColor(s)};">${v} <span style="font-size:10px;color:${statusColor(s)};">${statusLabel(s)}</span></td>`;
+              return `<td style="font-weight:700;color:${statusColor(s)};">${v} <span style="font-size:10px;">${statusLabel(s)}</span></td>`;
             }).join('')}
           </tr>`;
         }).join('')}
       </tbody>
     </table>
   </div>`;
-  el.innerHTML+=html;
 }
 
 function toggleCompare(id){
-  if(compareSet.has(id)) compareSet.delete(id);
-  else if(compareSet.size<4) compareSet.add(id);
+  if(compareSet.has(id))compareSet.delete(id);
+  else if(compareSet.size<4)compareSet.add(id);
   document.getElementById('compare-count').textContent=`Выбрано: ${compareSet.size}`;
   renderContent();
 }
-function clearCompare(){ compareSet.clear(); document.getElementById('compare-count').textContent='Выбрано: 0'; renderContent(); }
+function clearCompare(){ compareSet.clear();document.getElementById('compare-count').textContent='Выбрано: 0';renderContent(); }
 
-// ─── VIEW & FILTER ─────────────────────────────────────────────────────────
-function setTypeFilter(type, el){
+// ─── VIEW & FILTER ────────────────────────────────────────────────────────
+function setTypeFilter(type,el){
   typeFilter=type;
   document.querySelectorAll('.ftab').forEach(b=>b.classList.remove('active'));
   el.classList.add('active');
   loadAnalyses();
 }
-
-function setView(view, el){
+function setView(view,el){
   currentView=view;
   document.querySelectorAll('.vbtn').forEach(b=>b.classList.remove('active'));
   el.classList.add('active');
-  const cb=document.getElementById('compare-bar');
-  cb.classList.toggle('show',view==='compare');
+  document.getElementById('compare-bar').classList.toggle('show',view==='compare');
   renderContent();
 }
 
-// ─── MODAL ─────────────────────────────────────────────────────────────────
+// ─── MODAL ────────────────────────────────────────────────────────────────
 function openModal(){
   document.getElementById('modal-title').textContent='🔬 Новый анализ';
   document.getElementById('edit-id').value='';
@@ -685,16 +669,15 @@ function openModal(){
   document.getElementById('an-date').value=today();
   document.getElementById('an-lab').value='';
   document.getElementById('an-parcel').value='';
-  document.getElementById('an-crop').value='';
+  document.getElementById('an-culture').value='tomato';
+  document.getElementById('an-water-source').value='';
   document.getElementById('an-note').value='';
   document.getElementById('delete-btn').style.display='none';
   document.getElementById('import-result').style.display='none';
-  // Clear all fields
   clearAllFields();
   switchTab('leaf');
   document.getElementById('modal-overlay').classList.add('open');
 }
-
 function closeModal(){ document.getElementById('modal-overlay').classList.remove('open'); }
 
 function switchTab(type){
@@ -706,84 +689,69 @@ function switchTab(type){
 }
 
 function clearAllFields(){
-  // Leaf
-  ['N','P','K','Ca','Mg','S','Fe','Mn','Zn','B','Cu','Mo'].forEach(f=>{
-    const el=document.getElementById('lf-'+f);if(el)el.value='';
-  });
-  // Soil
-  ['pH','OM','NO3','P','K','Ca','Mg','B','EC','CEC'].forEach(f=>{
-    const el=document.getElementById('so-'+f);if(el)el.value='';
-  });
-  // Water
-  ['pH','EC','TDS','Fe','Mn','B','Cl','Na','Ca','Mg'].forEach(f=>{
-    const el=document.getElementById('wa-'+f);if(el)el.value='';
-  });
+  ['N','P','K','Ca','Mg','S','Fe','Mn','Zn','B','Cu','Mo'].forEach(f=>{const el=document.getElementById('lf-'+f);if(el)el.value='';});
+  ['pH','OM','NO3','P','K','Ca','Mg','B','EC','CEC'].forEach(f=>{const el=document.getElementById('so-'+f);if(el)el.value='';});
+  ['pH','EC','TDS','Fe','Mn','B','Cl','Na','Ca','Mg'].forEach(f=>{const el=document.getElementById('wa-'+f);if(el)el.value='';});
 }
 
 function editAnalysis(id){
-  const an=analyses.find(a=>a.id===id);
-  if(!an)return;
+  const an=analyses.find(a=>String(a.id)===String(id));if(!an)return;
   document.getElementById('modal-title').textContent='✏️ Редактировать анализ';
   document.getElementById('edit-id').value=id;
   document.getElementById('an-date').value=an.date;
   document.getElementById('an-lab').value=an.lab||'';
   document.getElementById('an-parcel').value=an.parcel_id||'';
-  document.getElementById('an-crop').value=an.values?.crop||'';
+  document.getElementById('an-culture').value=an.culture||'tomato';
+  document.getElementById('an-water-source').value=an.water_source||'';
   document.getElementById('an-note').value=an.note||'';
   document.getElementById('delete-btn').style.display='block';
   document.getElementById('import-result').style.display='none';
   clearAllFields();
   const vals=an.values||{};
-  if(an.type==='leaf'){
-    ['N','P','K','Ca','Mg','S','Fe','Mn','Zn','B','Cu','Mo'].forEach(f=>{
-      const el=document.getElementById('lf-'+f);if(el&&vals[f]!==undefined)el.value=vals[f];
-    });
-  } else if(an.type==='soil'){
-    ['pH','OM','NO3','P','K','Ca','Mg','B','EC','CEC'].forEach(f=>{
-      const el=document.getElementById('so-'+f);if(el&&vals[f]!==undefined)el.value=vals[f];
-    });
-  } else {
-    ['pH','EC','TDS','Fe','Mn','B','Cl','Na','Ca','Mg'].forEach(f=>{
-      const el=document.getElementById('wa-'+f);if(el&&vals[f]!==undefined)el.value=vals[f];
-    });
-  }
+  if(an.type==='leaf'){['N','P','K','Ca','Mg','S','Fe','Mn','Zn','B','Cu','Mo'].forEach(f=>{const el=document.getElementById('lf-'+f);if(el&&vals[f]!==undefined)el.value=vals[f];});}
+  else if(an.type==='soil'){['pH','OM','NO3','P','K','Ca','Mg','B','EC','CEC'].forEach(f=>{const el=document.getElementById('so-'+f);if(el&&vals[f]!==undefined)el.value=vals[f];});}
+  else{['pH','EC','TDS','Fe','Mn','B','Cl','Na','Ca','Mg'].forEach(f=>{const el=document.getElementById('wa-'+f);if(el&&vals[f]!==undefined)el.value=vals[f];});}
   switchTab(an.type);
   document.getElementById('modal-overlay').classList.add('open');
 }
 
+// ─── SAVE — адаптируем в серверный формат ────────────────────────────────
 async function saveAnalysis(){
   const type=document.getElementById('an-type').value;
   const date=document.getElementById('an-date').value;
   if(!date){alert('Введите дату');return;}
   const parcelId=document.getElementById('an-parcel').value;
-  const parcel=parcels.find(p=>p.id===parcelId);
-  const values={};
-  if(document.getElementById('an-crop').value) values.crop=document.getElementById('an-crop').value;
+  const parcel=parcels.find(p=>String(p.id)===String(parcelId));
+  const results={};
   if(type==='leaf'){
     ['N','P','K','Ca','Mg','S','Fe','Mn','Zn','B','Cu','Mo'].forEach(f=>{
-      const v=document.getElementById('lf-'+f)?.value;if(v!=='')values[f]=parseFloat(v);
+      const v=document.getElementById('lf-'+f)?.value;if(v!=='')results[f]=parseFloat(v);
     });
   } else if(type==='soil'){
     ['pH','OM','NO3','P','K','Ca','Mg','B','EC','CEC'].forEach(f=>{
-      const v=document.getElementById('so-'+f)?.value;if(v!=='')values[f]=parseFloat(v);
+      const v=document.getElementById('so-'+f)?.value;if(v!=='')results[f]=parseFloat(v);
     });
   } else {
     ['pH','EC','TDS','Fe','Mn','B','Cl','Na','Ca','Mg'].forEach(f=>{
-      const v=document.getElementById('wa-'+f)?.value;if(v!=='')values[f]=parseFloat(v);
+      const v=document.getElementById('wa-'+f)?.value;if(v!=='')results[f]=parseFloat(v);
     });
   }
+  // Отправляем в формате который ожидает новый API
   const body={
-    id:document.getElementById('edit-id').value||uid(),
-    type, date,
-    parcelId:parcelId||null,
-    parcelName:parcel?.name||'',
-    lab:document.getElementById('an-lab').value,
-    values,
-    note:document.getElementById('an-note').value,
+    id:           document.getElementById('edit-id').value || uid(),
+    type,
+    analysis_date: date,
+    parcel_id:    parcelId || null,
+    parcel_name:  parcel?.name || '',
+    lab_name:     document.getElementById('an-lab').value,
+    culture:      document.getElementById('an-culture').value || null,
+    water_source: document.getElementById('an-water-source').value || null,
+    results,
+    notes:        document.getElementById('an-note').value,
   };
   const r=await apiPost('/api/analyses',body);
   if(r?.ok){
-    closeModal(); toast('Анализ сохранён ✅'); loadAnalyses();
+    closeModal();toast('Анализ сохранён ✅');loadAnalyses();
   } else {
     alert('Ошибка сохранения: '+(r?.error||'нет ответа'));
   }
@@ -793,73 +761,45 @@ async function deleteAnalysis(){
   const id=document.getElementById('edit-id').value;
   if(!id||!confirm('Удалить анализ?'))return;
   await apiDel(`/api/analyses/${id}`);
-  closeModal(); toast('Анализ удалён'); loadAnalyses();
+  closeModal();toast('Анализ удалён');loadAnalyses();
 }
 
-// ─── FILE UPLOAD ───────────────────────────────────────────────────────────
+// ─── FILE UPLOAD ──────────────────────────────────────────────────────────
 function handleDrop(e){
   e.preventDefault();
   document.getElementById('upload-zone').classList.remove('dragover');
-  const file=e.dataTransfer.files[0];
-  if(file) processFile(file);
+  const file=e.dataTransfer.files[0];if(file)processFile(file);
 }
-
 function handleFileUpload(e){
-  const file=e.target.files[0];
-  if(file) processFile(file);
-  e.target.value='';
+  const file=e.target.files[0];if(file)processFile(file);e.target.value='';
 }
-
 function processFile(file){
   const res=document.getElementById('import-result');
-  res.className='import-result';
-  res.style.display='block';
-  res.textContent='Обработка файла...';
+  res.className='import-result';res.style.display='block';res.textContent='Обработка файла...';
   const ext=file.name.split('.').pop().toLowerCase();
-  if(ext==='csv'){
-    const reader=new FileReader();
-    reader.onload=e=>parseCsvAnalysis(e.target.result,file.name,res);
-    reader.readAsText(file,'utf-8');
-  } else if(ext==='xlsx'||ext==='xls'){
-    res.textContent='Excel файл получен. Введите данные вручную или скопируйте из файла.';
-    res.style.display='block';
-  } else if(ext==='pdf'){
-    res.textContent='PDF получен. Данные нужно ввести вручную — PDF анализы содержат сканы, которые сложно распознать автоматически. Используйте форму ниже.';
-    res.style.display='block';
-  } else {
-    res.className='import-result error';
-    res.textContent='Поддерживаемые форматы: PDF, XLS, XLSX, CSV';
-  }
+  if(ext==='csv'){const reader=new FileReader();reader.onload=e=>parseCsvAnalysis(e.target.result,file.name,res);reader.readAsText(file,'utf-8');}
+  else if(ext==='xlsx'||ext==='xls'){res.textContent='Excel файл получен. Введите данные вручную или скопируйте из файла.';}
+  else if(ext==='pdf'){res.textContent='PDF получен. Данные нужно ввести вручную — PDF анализы содержат сканы. Используйте форму ниже.';}
+  else{res.className='import-result error';res.textContent='Поддерживаемые форматы: PDF, XLS, XLSX, CSV';}
 }
-
-function parseCsvAnalysis(text, filename, resEl){
-  try {
+function parseCsvAnalysis(text,filename,resEl){
+  try{
     const lines=text.split(/\r?\n/).filter(l=>l.trim());
-    if(lines.length<2){ resEl.className='import-result error';resEl.textContent='CSV пустой';return; }
+    if(lines.length<2){resEl.className='import-result error';resEl.textContent='CSV пустой';return;}
     const sep=lines[0].includes(';')?';':',';
     const headers=lines[0].split(sep).map(h=>h.trim().toLowerCase());
-    const found=[];
-    // Map known column names to our keys
     const KEY_MAP={
-      'n':['n','азот','nitrogen','n %','азот %'],
-      'p':['p','фосфор','phosphorus','p %'],
-      'k':['k','калий','potassium','k %'],
-      'ca':['ca','кальций','calcium','ca %'],
-      'mg':['mg','магний','magnesium','mg %'],
-      'fe':['fe','железо','iron','fe ppm'],
-      'mn':['mn','марганец','manganese'],
-      'zn':['zn','цинк','zinc'],
-      'b':['b','бор','boron'],
-      'ph':['ph','кислотность'],
-      'ec':['ec','электропроводность'],
-      'no3':['no3','нитраты','nitrate'],
+      'n':['n','азот','nitrogen','n %'],'p':['p','фосфор','phosphorus'],
+      'k':['k','калий','potassium'],'ca':['ca','кальций','calcium'],
+      'mg':['mg','магний','magnesium'],'fe':['fe','железо','iron'],
+      'mn':['mn','марганец','manganese'],'zn':['zn','цинк','zinc'],
+      'b':['b','бор','boron'],'ph':['ph','кислотность'],
+      'ec':['ec','электропроводность'],'no3':['no3','нитраты','nitrate'],
     };
     const colIdx={};
     Object.entries(KEY_MAP).forEach(([key,aliases])=>{
-      const i=headers.findIndex(h=>aliases.some(a=>h.includes(a)));
-      if(i>=0) colIdx[key]=i;
+      const i=headers.findIndex(h=>aliases.some(a=>h.includes(a)));if(i>=0)colIdx[key]=i;
     });
-    // Parse first data row
     if(lines.length>=2){
       const vals=lines[1].split(sep);
       const type=document.getElementById('an-type').value;
@@ -867,26 +807,20 @@ function parseCsvAnalysis(text, filename, resEl){
       let imported=0;
       Object.entries(colIdx).forEach(([key,idx])=>{
         const el=document.getElementById(prefix+key.toUpperCase())||document.getElementById(prefix+key);
-        if(el&&vals[idx]){
-          const v=parseFloat(vals[idx].replace(',','.'));
-          if(!isNaN(v)){el.value=v;imported++;}
-        }
+        if(el&&vals[idx]){const v=parseFloat(vals[idx].replace(',','.'));if(!isNaN(v)){el.value=v;imported++;}}
       });
-      resEl.style.display='block';
-      resEl.textContent=`✅ Импортировано ${imported} показателей из ${filename}. Проверьте и сохраните.`;
-      found.push(imported);
+      resEl.textContent=imported
+        ?`✅ Импортировано ${imported} показателей из ${filename}. Проверьте и сохраните.`
+        :'Не удалось распознать колонки. Проверьте заголовки CSV.';
+      if(!imported)resEl.className='import-result error';
     }
-    if(!found.length||found[0]===0){
-      resEl.className='import-result error';
-      resEl.textContent='Не удалось распознать колонки. Проверьте заголовки CSV.';
-    }
-  } catch(e){
-    resEl.className='import-result error';
-    resEl.textContent='Ошибка: '+e.message;
-  }
+  }catch(e){resEl.className='import-result error';resEl.textContent='Ошибка: '+e.message;}
 }
 
-// ─── INIT ──────────────────────────────────────────────────────────────────
+// Закрыть по клику вне модала
+document.getElementById('modal-overlay').addEventListener('click',function(e){if(e.target===this)closeModal();});
+
+// ─── INIT ─────────────────────────────────────────────────────────────────
 async function init(){
   await loadParcels();
   await loadAnalyses();
