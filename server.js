@@ -4,6 +4,18 @@ const cron    = require('node-cron');
 const path    = require('path');
 const fs      = require('fs');
 const db      = require('./db');
+const multer  = require('multer');
+
+// Multer — хранить в памяти, затем в PostgreSQL
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'application/pdf') cb(null, true);
+    else cb(new Error('Только PDF файлы'));
+  }
+});
+
 // Telegram
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN || '8694496744:AAEIfRwHFrau8tgZyQcMRt2k1tUiHYjgCHs';
 const TELEGRAM_GROUP_ID = process.env.TELEGRAM_GROUP_ID || '-1003971153442';
@@ -21,6 +33,7 @@ async function sendTelegram(chatId, message) {
     });
   } catch(e) { console.error('[Telegram] Send error:', e.message); }
 }
+
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
@@ -31,6 +44,21 @@ async function migrate() {
   try {
     const sql = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
     await db.query(sql);
+
+    // Создать таблицу для PDF анализов если не существует
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS analysis_files (
+        id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        analysis_id TEXT NOT NULL,
+        filename    TEXT NOT NULL,
+        mimetype    TEXT NOT NULL DEFAULT 'application/pdf',
+        size        INTEGER NOT NULL,
+        data        BYTEA NOT NULL,
+        uploaded_at TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_analysis_files_analysis_id ON analysis_files(analysis_id);
+    `);
+
     console.log('[DB] Tables ready');
   } catch(e) { console.error('[DB] Migration error:', e.message); }
 }
@@ -55,6 +83,83 @@ app.get('/api/work-types',  async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 app.use('/api/tasks',       require('./routes/tasks'));
+
+// ═══ PDF ENDPOINTS ════════════════════════════════════════════════════════
+
+// GET /api/analyses/:id/pdfs — список PDF файлов для анализа
+app.get('/api/analyses/:id/pdfs', async (req, res) => {
+  try {
+    const r = await db.query(
+      `SELECT id, filename, mimetype, size, uploaded_at
+       FROM analysis_files
+       WHERE analysis_id = $1
+       ORDER BY uploaded_at DESC`,
+      [req.params.id]
+    );
+    res.json({ ok: true, files: r.rows });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/analyses/:id/pdfs — загрузить PDF
+app.post('/api/analyses/:id/pdfs', upload.single('pdf'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'PDF файл не получен' });
+    const r = await db.query(
+      `INSERT INTO analysis_files (analysis_id, filename, mimetype, size, data)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, filename, size, uploaded_at`,
+      [req.params.id, req.file.originalname, req.file.mimetype,
+       req.file.size, req.file.buffer]
+    );
+    res.json({ ok: true, file: r.rows[0] });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// GET /api/analyses/:id/pdfs/:fileId/download — скачать PDF
+app.get('/api/analyses/:id/pdfs/:fileId/download', async (req, res) => {
+  try {
+    const r = await db.query(
+      `SELECT filename, mimetype, data FROM analysis_files
+       WHERE id = $1 AND analysis_id = $2`,
+      [req.params.fileId, req.params.id]
+    );
+    if (!r.rows.length) return res.status(404).json({ error: 'Файл не найден' });
+    const file = r.rows[0];
+    res.set({
+      'Content-Type': file.mimetype,
+      'Content-Disposition': `attachment; filename="${encodeURIComponent(file.filename)}"`,
+    });
+    res.send(file.data);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// GET /api/analyses/:id/pdfs/:fileId/base64 — получить PDF как base64 для Claude API
+app.get('/api/analyses/:id/pdfs/:fileId/base64', async (req, res) => {
+  try {
+    const r = await db.query(
+      `SELECT filename, mimetype, data FROM analysis_files
+       WHERE id = $1 AND analysis_id = $2`,
+      [req.params.fileId, req.params.id]
+    );
+    if (!r.rows.length) return res.status(404).json({ error: 'Файл не найден' });
+    const file = r.rows[0];
+    const base64 = Buffer.from(file.data).toString('base64');
+    res.json({ ok: true, base64, filename: file.filename });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// DELETE /api/analyses/:id/pdfs/:fileId — удалить PDF
+app.delete('/api/analyses/:id/pdfs/:fileId', async (req, res) => {
+  try {
+    await db.query(
+      `DELETE FROM analysis_files WHERE id = $1 AND analysis_id = $2`,
+      [req.params.fileId, req.params.id]
+    );
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ═════════════════════════════════════════════════════════════════════════
 
 // Full state import for Orchard
 app.post('/api/import/orchard', async (req, res) => {
@@ -109,7 +214,9 @@ app.get('/api/fields/polygons', async (req, res) => {
     });
     res.json({ ok: true, data: polygons });
   } catch(e) { res.status(500).json({ error: e.message }); }
-});// Full state GET for Vegetable
+});
+
+// Full state GET for Vegetable
 app.get('/api/state/vegetable', async (req, res) => {
   try {
     const r = await db.query(`SELECT value FROM settings WHERE key='vegetable_full_state'`);
@@ -118,22 +225,25 @@ app.get('/api/state/vegetable', async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// Full state POST for Vegetable (fields, equipment, parcels)
+// Full state POST for Vegetable
 app.post('/api/state/vegetable', async (req, res) => {
   try {
-    const { fields, equipment, parcels, treatments, catalog, warehouse, settings } = req.body;
+    const { fields, equipment, parcels, treatments, catalog, warehouse, settings,
+            sowingRecords, varieties } = req.body;
     const r = await db.query(`SELECT value FROM settings WHERE key='vegetable_full_state'`);
     let state = {};
     if (r.rows.length) {
       state = typeof r.rows[0].value === 'string' ? JSON.parse(r.rows[0].value) : r.rows[0].value;
     }
-    if (fields !== undefined) state.fields = fields;
-    if (equipment !== undefined) state.equipment = equipment;
-    if (parcels !== undefined) state.parcels = parcels;
-    if (treatments !== undefined) state.treatments = treatments;
-    if (catalog !== undefined) state.catalog = catalog;
-    if (warehouse !== undefined) state.warehouse = warehouse;
-    if (settings !== undefined) state.settings = settings;
+    if (fields !== undefined)       state.fields       = fields;
+    if (equipment !== undefined)    state.equipment    = equipment;
+    if (parcels !== undefined)      state.parcels      = parcels;
+    if (treatments !== undefined)   state.treatments   = treatments;
+    if (catalog !== undefined)      state.catalog      = catalog;
+    if (warehouse !== undefined)    state.warehouse    = warehouse;
+    if (settings !== undefined)     state.settings     = settings;
+    if (sowingRecords !== undefined) state.sowingRecords = sowingRecords;
+    if (varieties !== undefined)    state.varieties    = varieties;
     await db.query(
       `INSERT INTO settings (key,value) VALUES ('vegetable_full_state',$1)
        ON CONFLICT (key) DO UPDATE SET value=$1, updated_at=NOW()`,
@@ -153,28 +263,21 @@ app.get('/api/state/orchard', async (req, res) => {
     res.json({ ok: true, data: r.rows[0].value });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
+
 // Test Telegram
 app.get('/api/test-telegram', async (req, res) => {
   try {
-    await sendTelegram(TELEGRAM_GROUP_ID, 
+    await sendTelegram(TELEGRAM_GROUP_ID,
       '🌿 <b>Smart Agro</b> — тест уведомлений ✅\nСистема работает!');
     res.json({ ok: true });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
+
 app.get('/map', (req, res) =>
   res.sendFile(path.join(__dirname, 'public', 'map.html')));
 
 app.get('/analyses', (req, res) =>
   res.sendFile(path.join(__dirname, 'public', 'analyses.html')));
-
-// Full state GET for Vegetable
-app.get('/api/state/vegetable', async (req, res) => {
-  try {
-    const r = await db.query(`SELECT value FROM settings WHERE key='vegetable_full_state'`);
-    if (!r.rows.length) return res.json({ ok: false });
-    res.json({ ok: true, data: r.rows[0].value });
-  } catch(e) { res.status(500).json({ error: e.message }); }
-});
 
 // Pages
 app.get('/vegetable', (req, res) =>
@@ -184,13 +287,14 @@ app.get('/orchard', (req, res) =>
 app.get('/', (req, res) =>
   res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
-// Cron: FieldClimate sync every hour
+// Cron: FieldClimate sync
 const fc = require('./cron/fieldclimate');
 const syncFieldClimate = fc.syncFieldClimate || fc;
 cron.schedule('5 1 * * *', async () => {
   try { await syncFieldClimate(); console.log('[CRON] Weather sync OK'); }
   catch(err) { console.error('[CRON] Weather sync FAILED:', err.message); }
 });
+
 // Утренняя рассылка алертов в 7:00
 cron.schedule('0 7 * * *', async () => {
   try {
@@ -210,19 +314,16 @@ cron.schedule('0 7 * * *', async () => {
     const lw = parseFloat(latest.leaf_wet) || 0;
     const date = latest.date?.toString().slice(0,10);
 
-    // Проверить Smith Period
     const smithActive = weather.length >= 2 &&
       weather.slice(0,2).every(w => parseFloat(w.tmax) >= 10 && parseFloat(w.humidity) >= 80);
 
     const parcels = state.parcels || [];
     let alerts = [];
 
-    // Smith Period
     if (smithActive) {
       alerts.push('🟤 <b>SMITH PERIOD АКТИВЕН</b> — немедленная обработка томата и картофеля от фитофторы!');
     }
 
-    // Пероноспороз гороха
     const tavg = (tmax + tmin) / 2;
     if (tavg >= 5 && tavg <= 20 && lw >= 4) {
       const peaParcels = parcels.filter(p => p.cropId === 'pea').map(p => p.name).join(', ');
@@ -231,7 +332,6 @@ cron.schedule('0 7 * * *', async () => {
       }
     }
 
-    // Аскохитоз гороха
     if (hum > 75 && lw >= 3 && tavg >= 12) {
       const peaParcels = parcels.filter(p => p.cropId === 'pea').map(p => p.name).join(', ');
       if (peaParcels) {
@@ -239,12 +339,10 @@ cron.schedule('0 7 * * *', async () => {
       }
     }
 
-    // Заморозок
     if (tmin <= 2) {
       alerts.push(`❄️ <b>ЗАМОРОЗОК</b> — T°мин ${tmin}°C\nПроверить все участки! Укрытие агроволокном.`);
     }
 
-    // Тепловой стресс горошка
     if (tmax >= 26) {
       const peaParcels = parcels.filter(p => p.cropId === 'pea').map(p => p.name).join(', ');
       if (peaParcels) {
@@ -266,6 +364,7 @@ cron.schedule('0 7 * * *', async () => {
     console.log('[CRON] Morning alerts sent:', alerts.length);
   } catch(e) { console.error('[CRON] Morning alerts error:', e.message); }
 });
+
 setTimeout(() => {
   if (!process.env.FIELDCLIMATE_PUBLIC_KEY_ORCHARD && !process.env.FIELDCLIMATE_PUBLIC_KEY_VEG) {
     console.log('[CRON] FieldClimate keys not set — skipping');
