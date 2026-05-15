@@ -8114,6 +8114,43 @@ console.log('[DEBUG] after merge:', S.treatments.length);
   }
 
  await syncFromServer();
+
+  // ── МИГРАЦИЯ: создать записи в каталоге для складских препаратов ──────
+  if (S.warehouse?.chemicals?.length) {
+    let migrated = 0;
+    S.warehouse.chemicals.forEach(wh => {
+      const inCatalog = S.catalog.find(c =>
+        c.id === wh.catId ||
+        c.name.toLowerCase() === wh.name.toLowerCase()
+      );
+      if (!inCatalog && wh.name) {
+        const newCat = {
+          id: wh.catId || uid(),
+          name: wh.name,
+          type: wh.type || 'other',
+          ai: '', dose: '', whi: 0, crops: '', targets: '',
+          buhName: wh.name,
+          legal: 'legal',
+          payment: wh.payment || 'official',
+          inBuh: 'yes',
+          price: wh.price || null,
+          supplier: wh.supplier || '',
+          unit: wh.unit || 'l',
+          minStock: wh.minStock || null,
+        };
+        S.catalog.push(newCat);
+        wh.catId = newCat.id; // привязать
+        migrated++;
+      } else if (inCatalog && !wh.catId) {
+        wh.catId = inCatalog.id; // привязать существующий
+      }
+    });
+    if (migrated > 0) {
+      save();
+      console.log(`[Migration] Created ${migrated} catalog entries from warehouse`);
+    }
+  }
+
   initRoleSystem(); // show login screen AFTER data loaded
   renderParcels();  // render with server data
   // Загрузить прогноз погоды в фоне
