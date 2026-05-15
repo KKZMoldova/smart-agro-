@@ -2205,7 +2205,33 @@ if (aRes?.data?.length) {
     console.log('[Veg] Synced from server');
   } catch(e) { console.warn('[Veg] Server sync error:', e.message); }
 }
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(S));
+  if (_vServerAvailable) _saveToServer();
+}
 
+async function _saveToServer() {
+  try {
+    for (const a of (S.vegAnalyses || [])) {
+      const results = {};
+      ['N','P','K','Ca','Mg','S','Fe','Mn','Zn','B','Cu','Mo',
+       'pH','OM','NO3','EC','TDS','Cl','Na'].forEach(f => {
+        if (a[f] !== undefined) results[f] = a[f];
+      });
+      await VAPI.saveAnalysis({
+        id: String(a.id),
+        type: a.type || 'leaf',
+        analysis_date: a.date,
+        parcel_id: a.parcelId || null,
+        parcel_name: a.parcel_name || '',
+        lab_name: a.lab || '',
+        culture: a.culture || null,
+        results,
+        notes: a.note || '',
+      });
+    }
+  } catch(e) { console.warn('[Veg] Save to server error:', e.message); }
+}
 function save() {
   // Always save localStorage
   localStorage.setItem(STORAGE_KEY, JSON.stringify(S));
