@@ -60,22 +60,7 @@ app.get('/api/work-types',  async (req, res) => {
   catch(e) { res.status(500).json({ error: e.message }); }
 });
 app.use('/api/tasks', require('./routes/tasks'));
-
-// ═══ CLAUDE AI PROXY ══════════════════════════════════════════════════════
-app.post('/api/claude-proxy', express.json({ limit: '20mb' }), async (req, res) => {
-  try {
-    const KEY = process.env.ANTHROPIC_API_KEY;
-    if (!KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY не настроен' });
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': KEY, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify(req.body),
-    });
-    const data = await r.json();
-    if (!r.ok) return res.status(r.status).json(data);
-    res.json(data);
-  } catch(e) { res.status(500).json({ error: e.message }); }
-});
+app.use('/api/ai',    require('./routes/ai'));
 
 // ═══ PDF ENDPOINTS ════════════════════════════════════════════════════════
 app.get('/api/analyses/:id/pdfs', async (req, res) => {
