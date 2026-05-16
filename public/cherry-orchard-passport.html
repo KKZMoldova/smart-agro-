@@ -9119,7 +9119,7 @@ function renderCrops() {
   const gddEl = document.getElementById('crops-gdd-status');
   const latest = S.weather[0];
   const allAlertsSummary = [];
-  gddEl.innerHTML = S.crops.map(crop=>{
+  if(gddEl) gddEl.innerHTML = S.crops.map(crop=>{
     const cropCells = Object.entries(S.cells).filter(([k,cd])=>(cd.cropId||'crop_cherry')===crop.id);
     if(!cropCells.length) return '';
     const bt = crop.baseTemp||5;
