@@ -505,9 +505,15 @@ tbody td{padding:10px 12px;vertical-align:middle;}
 
     <!-- AI Агроном-советник -->
     <div style="margin-bottom:20px;">
-      <div style="font-family:'Unbounded',sans-serif;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;">
+      <div style="font-family:'Unbounded',sans-serif;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">
         <span>🤖 AI Агроном-советник</span>
-        <button id="ai-advisor-btn" class="btn btn-primary btn-sm" onclick="runAIAdvisor()">✨ Получить рекомендации</button>
+        <div style="display:flex;gap:6px;">
+          <label id="ai-photo-label" class="btn btn-secondary btn-sm" style="cursor:pointer;margin:0;" title="Сфотографировать лист, плод или болезнь для AI диагностики">
+            📷 Фото-диагностика
+            <input type="file" id="ai-photo-input" accept="image/*" capture="environment" style="display:none;" onchange="runAIPhotoAnalysis(this)">
+          </label>
+          <button id="ai-advisor-btn" class="btn btn-primary btn-sm" onclick="runAIAdvisor()">✨ Получить рекомендации</button>
+        </div>
       </div>
       <div id="ai-advisor-result"></div>
     </div>
@@ -10125,6 +10131,139 @@ function renderStressAlerts(forecast) {
 }
 
 // ═══ AI АГРОНОМ-СОВЕТНИК ════════════════════════════════════════════════
+
+async function runAIPhotoAnalysis(input) {
+  const file = input.files[0];
+  if(!file) return;
+
+  const resultEl = document.getElementById('ai-advisor-result');
+  const label = document.getElementById('ai-photo-label');
+  label.style.opacity = '0.6';
+  label.style.pointerEvents = 'none';
+
+  // Превью фото
+  const reader = new FileReader();
+  reader.readAsDataURL(file);
+  reader.onload = async (e) => {
+    const base64 = e.target.result.split(',')[1];
+    const mediaType = file.type || 'image/jpeg';
+
+    resultEl.innerHTML = `
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:18px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+          <span style="font-size:20px;">📷</span>
+          <div>
+            <div style="font-size:13px;font-weight:700;">Фото-диагностика</div>
+            <div style="font-size:10px;color:var(--text3);">Анализирую изображение...</div>
+          </div>
+        </div>
+        <img src="${e.target.result}" style="max-width:100%;max-height:300px;border-radius:8px;margin-bottom:12px;object-fit:contain;">
+        <div style="text-align:center;color:var(--text3);font-size:12px;">⏳ AI анализирует фото...</div>
+      </div>`;
+
+    // Контекст хозяйства для точного диагноза
+    const gdd = getCurrentGdd(5);
+    const phase = getPhaseByGdd(S.varieties[0]?.id, gdd);
+    const cropNames = [...new Set(Object.values(S.cells).map(cd=>cd?.cropId||'crop_cherry'))]
+      .map(cid=>getCropById(cid)?.name).filter(Boolean).join(', ');
+    const today = S.weather[0];
+    const weatherCtx = today
+      ? `Погода: T${today.tmin}/${today.tmax}°C, влажность ${today.humidity||'?'}%, осадки ${today.precip||0}мм за последние дни.`
+      : '';
+
+    const prompt = `Ты опытный агроном-фитопатолог. Хозяйство: ${cropNames||'черешневый сад'}, Молдова, Каменка.
+GDD ${gdd}, фаза: ${phase?.name||'вегетация'}. ${weatherCtx}
+
+Проанализируй фото и ответь строго по структуре:
+
+🔍 ДИАГНОЗ: [название болезни/вредителя/дефицита или "Норма"]
+
+📊 УВЕРЕННОСТЬ: [Высокая / Средняя / Низкая]
+
+🧬 ПРИЗНАКИ: [что видно на фото — 2-3 предложения]
+
+⚠️ СТЕПЕНЬ ПОРАЖЕНИЯ: [Начальная / Средняя / Сильная / Норма]
+
+💊 РЕКОМЕНДАЦИЯ:
+- Препарат: [название и д.в.]
+- Доза: [л/га или кг/га]
+- Срок обработки: [когда и как]
+- Профилактика: [что делать далее]
+
+⏰ СРОЧНОСТЬ: [Немедленно / В течение 3 дней / Плановая / Не требуется]
+
+Если на фото не видно болезни или проблемы — напиши что растение здорово.`;
+
+    try {
+      const response = await fetch('/api/ai/advisor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-5',
+          max_tokens: 800,
+          messages: [{
+            role: 'user',
+            content: [
+              {
+                type: 'image',
+                source: { type: 'base64', media_type: mediaType, data: base64 }
+              },
+              { type: 'text', text: prompt }
+            ]
+          }]
+        })
+      });
+
+      const data = await response.json();
+      const text = data.content?.[0]?.text || data.error?.message || JSON.stringify(data);
+
+      // Форматируем ответ
+      const html = text
+        .replace(/^(🔍|📊|🧬|⚠️|💊|⏰)(.+)$/gm, '<div style="margin:10px 0 4px;font-weight:700;color:var(--text);">$1$2</div>')
+        .replace(/^- (.+)$/gm, '<div style="padding:2px 0 2px 12px;color:var(--text2);">• $1</div>')
+        .replace(/\n\n/g, '<br>')
+        .replace(/\n/g, '<br>');
+
+      // Цвет по срочности
+      const urgency = text.includes('Немедленно') ? 'var(--red)'
+        : text.includes('В течение 3') ? 'var(--orange)'
+        : text.includes('Плановая') ? 'var(--yellow)'
+        : 'var(--accent)';
+
+      resultEl.innerHTML = `
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:18px;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border);">
+            <span style="font-size:20px;">📷</span>
+            <div style="flex:1;">
+              <div style="font-size:13px;font-weight:700;">Фото-диагностика</div>
+              <div style="font-size:10px;color:var(--text3);">${file.name} · ${(file.size/1024).toFixed(0)}KB · ${new Date().toLocaleString('ru-RU')}</div>
+            </div>
+            <span style="padding:3px 10px;border-radius:10px;font-size:11px;font-weight:600;background:${urgency}22;color:${urgency};">
+              ${text.includes('Немедленно')?'🚨 Немедленно':text.includes('В течение 3')?'⚠️ 3 дня':text.includes('Плановая')?'📅 Плановая':'✅ OK'}
+            </span>
+          </div>
+          <img src="${e.target.result}" style="max-width:100%;max-height:250px;border-radius:8px;margin-bottom:14px;object-fit:contain;display:block;">
+          <div style="font-size:12px;line-height:1.7;color:var(--text2);">${html}</div>
+          <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;">
+            <label class="btn btn-secondary btn-sm" style="cursor:pointer;">
+              📷 Новое фото
+              <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="runAIPhotoAnalysis(this)">
+            </label>
+            <button class="btn btn-secondary btn-sm" onclick="runAIAdvisor()">✨ Общие рекомендации</button>
+          </div>
+        </div>`;
+
+    } catch(err) {
+      resultEl.innerHTML = `<div style="padding:14px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:10px;font-size:12px;color:var(--red);">
+        ❌ Ошибка анализа фото: ${err.message}
+      </div>`;
+    } finally {
+      label.style.opacity = '';
+      label.style.pointerEvents = '';
+      input.value = ''; // сбрасываем чтобы можно было загрузить то же фото
+    }
+  };
+}
 
 async function runAIAdvisor() {
   const btn = document.getElementById('ai-advisor-btn');
