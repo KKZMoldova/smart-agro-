@@ -10141,7 +10141,20 @@ async function runAIAdvisor() {
   try {
     // ── Собираем контекст ──────────────────────────────────────────────
     const today = S.weather[0];
-    const forecast = (_forecast || []).slice(0,7);
+    // Прогноз — конвертируем _forecast (объект daily) в массив дней
+    let forecastDays = [];
+    if(_forecast && _forecast.time) {
+      forecastDays = _forecast.time.map((date, i) => ({
+        date,
+        tmin: _forecast.temperature_2m_min?.[i],
+        tmax: _forecast.temperature_2m_max?.[i],
+        precipSum: _forecast.precipitation_sum?.[i] || 0,
+        precip: _forecast.precipitation_sum?.[i] || 0,
+        precipProb: _forecast.precipitation_probability_max?.[i] || 0,
+        wind: _forecast.windspeed_10m_max?.[i] || 0,
+      }));
+    }
+    const forecast = forecastDays.slice(0, 7);
 
     // Погода последние 7 дней
     const weatherSummary = S.weather.slice(0,7).map(w=>
@@ -10245,7 +10258,7 @@ ${stockAlert}
     });
 
     const data = await response.json();
-    const text = data.content?.[0]?.text || 'Нет ответа от AI';
+    const text = data.content?.[0]?.text || data.error?.message || JSON.stringify(data);
 
     // ── Рендер ответа ─────────────────────────────────────────────────
     // Конвертируем Markdown в HTML
