@@ -516,15 +516,37 @@ tbody td{padding:10px 12px;vertical-align:middle;}
   <!-- IRRIGATION -->
   <div class="panel" id="panel-irrigation">
     <div class="section-hdr">
-      <h2>💧 Ирригация · Датчики влажности</h2>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="btn btn-secondary" onclick="openSensorSetupModal()">⚙️ Настройка датчиков</button>
-        <button class="btn btn-secondary" onclick="document.getElementById('soil-import-input').click()">📂 Импорт из Excel</button>
+      <h2 id="irrig-panel-title">💧 Ирригация</h2>
+      <div id="irrig-actions-sensors" style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-secondary" onclick="openSensorSetupModal()">⚙️ Датчики</button>
+        <button class="btn btn-secondary" onclick="document.getElementById('soil-import-input').click()">📂 Импорт Excel</button>
         <input type="file" id="soil-import-input" accept=".xls,.xlsx,.csv" style="display:none" onchange="importSoilData(event)">
-        <button class="btn btn-primary" onclick="openSoilReadingModal()">+ Внести показания</button>
+        <button class="btn btn-primary" onclick="openSoilReadingModal()">+ Показания</button>
         <button class="btn btn-secondary" onclick="toggleIrrigScience()">📖 Нормы Sela</button>
       </div>
+      <div id="irrig-actions-zones" style="display:none;gap:8px;">
+        <button class="btn btn-primary" onclick="openIrrigZoneModal()">+ Зона полива</button>
+      </div>
+      <div id="irrig-actions-balance" style="display:none;gap:8px;">
+        <button class="btn btn-secondary" onclick="openSoilParamsModal()">⚙️ Параметры почвы</button>
+        <button class="btn btn-primary" onclick="calcWaterBalance()">🔄 Пересчитать</button>
+      </div>
+      <div id="irrig-actions-fertigation" style="display:none;gap:8px;">
+        <button class="btn btn-primary" onclick="openFertigationModal()">+ Программа</button>
+        <button class="btn btn-secondary" onclick="openWaterQualityModal()">💧 Анализ воды</button>
+      </div>
     </div>
+
+    <!-- Внутренние вкладки -->
+    <div style="display:flex;gap:4px;margin-bottom:18px;border-bottom:1px solid var(--border);">
+      <button id="isub-sensors"     onclick="switchIrrigSub('sensors')"     style="padding:7px 14px;border:none;border-bottom:2px solid var(--accent);background:transparent;color:var(--accent);font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;">📡 Датчики</button>
+      <button id="isub-zones"       onclick="switchIrrigSub('zones')"       style="padding:7px 14px;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--text3);font-size:12px;cursor:pointer;font-family:'Inter',sans-serif;">🗺 Зоны</button>
+      <button id="isub-balance"     onclick="switchIrrigSub('balance')"     style="padding:7px 14px;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--text3);font-size:12px;cursor:pointer;font-family:'Inter',sans-serif;">⚖️ Баланс воды</button>
+      <button id="isub-fertigation" onclick="switchIrrigSub('fertigation')" style="padding:7px 14px;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--text3);font-size:12px;cursor:pointer;font-family:'Inter',sans-serif;">🌱 Фертигация</button>
+    </div>
+
+    <!-- SUB: Датчики (прежнее содержимое) -->
+    <div id="isub-panel-sensors">
     <div id="soil-import-status" style="display:none;margin-bottom:14px;"></div>
 
     <!-- Sela Book Science Block (collapsible) -->
@@ -753,6 +775,31 @@ tbody td{padding:10px 12px;vertical-align:middle;}
       </table>
     </div>
   </div>
+  </div><!-- end isub-panel-sensors -->
+
+  <!-- SUB: Зоны полива -->
+  <div id="isub-panel-zones" style="display:none;">
+    <div id="irrig-zones-list"></div>
+  </div>
+
+  <!-- SUB: Water Balance -->
+  <div id="isub-panel-balance" style="display:none;">
+    <!-- Рекомендация дня -->
+    <div id="wb-recommendation" style="margin-bottom:16px;"></div>
+    <!-- Параметры почвы -->
+    <div id="wb-soil-params" style="margin-bottom:16px;"></div>
+    <!-- Баланс по зонам -->
+    <div id="wb-zones-balance" style="margin-bottom:16px;"></div>
+    <!-- График/таблица баланса -->
+    <div id="wb-log-table"></div>
+  </div>
+
+  <!-- SUB: Фертигация -->
+  <div id="isub-panel-fertigation" style="display:none;">
+    <div id="fertigation-content"></div>
+  </div>
+
+</div><!-- end panel-irrigation -->
 
     </div><!-- end wsub-panel-weather -->
 
@@ -2685,6 +2732,124 @@ tbody td{padding:10px 12px;vertical-align:middle;}
   </div>
 </div>
 
+<!-- MODAL: Зона полива -->
+<div class="modal-overlay" id="modal-irrig-zone">
+  <div class="modal" style="max-width:600px;width:96%;max-height:92vh;overflow-y:auto;">
+    <h2 id="iz-modal-title">🗺 Зона полива</h2>
+    <input type="hidden" id="iz-id">
+    <div class="form-grid">
+      <div class="ff full"><label>Название зоны</label><input type="text" id="iz-name" placeholder="Зона А — Черешня блок 1-3"></div>
+      <div class="ff"><label>Клетки сада</label>
+        <div id="iz-cell-list" style="max-height:120px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:6px;background:var(--surface2);font-size:11px;"></div>
+        <div id="iz-cell-tags" style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;"></div>
+      </div>
+      <div class="ff"><label>Клапан (ID / название)</label><input type="text" id="iz-valve" placeholder="V-01, Bermad 400E зона А"></div>
+      <div class="ff"><label>Насос</label><input type="text" id="iz-pump" placeholder="Grundfos CM5-6"></div>
+      <div class="ff"><label>Тип полива</label>
+        <select id="iz-type" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+          <option value="drip">💧 Капельный</option>
+          <option value="double_drip">💧💧 Двойная капельница</option>
+          <option value="microsprinkler">🌧 Микродождеватель</option>
+          <option value="sprinkler">🌧 Спринклер</option>
+          <option value="flood">🌊 Поверхностный</option>
+        </select>
+      </div>
+      <div class="ff"><label>Расход системы (м³/ч)</label><input type="number" id="iz-flow" step="0.1" placeholder="3.5"></div>
+      <div class="ff"><label>Рабочее давление (бар)</label><input type="number" id="iz-pressure" step="0.1" placeholder="1.5"></div>
+      <div class="ff"><label>Тип эмиттера</label><input type="text" id="iz-dripper-type" placeholder="Netafim 2л/ч inline"></div>
+      <div class="ff"><label>Расход эмиттера (л/ч)</label><input type="number" id="iz-dripper-flow" step="0.1" placeholder="2.0"></div>
+      <div class="ff"><label>Эмиттеров на дерево</label><input type="number" id="iz-drippers-per-tree" step="1" placeholder="2"></div>
+      <div class="ff"><label>Расстояние между эмиттерами (см)</label><input type="number" id="iz-emitter-spacing" step="1" placeholder="50"></div>
+      <div class="ff full"><label>Примечание</label><input type="text" id="iz-note" placeholder="Особенности зоны..."></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger btn-sm" id="iz-del-btn" style="display:none;margin-right:auto;" onclick="deleteIrrigZone()">🗑 Удалить</button>
+      <button class="btn btn-secondary" onclick="closeModal('modal-irrig-zone')">Отмена</button>
+      <button class="btn btn-primary" onclick="saveIrrigZone()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Параметры почвы -->
+<div class="modal-overlay" id="modal-soil-params">
+  <div class="modal" style="max-width:500px;width:96%;">
+    <h2>🌱 Параметры почвы (Water Balance)</h2>
+    <div class="form-grid">
+      <div class="ff"><label>Полевая влагоёмкость FC (%VWC)</label><input type="number" id="sp-fc" step="0.1" placeholder="32"></div>
+      <div class="ff"><label>Точка завядания PWP (%VWC)</label><input type="number" id="sp-pwp" step="0.1" placeholder="14"></div>
+      <div class="ff"><label>Глубина корней (см)</label><input type="number" id="sp-root" step="1" placeholder="60"></div>
+      <div class="ff"><label>Объёмная масса почвы (г/см³)</label><input type="number" id="sp-bulk" step="0.01" placeholder="1.35"></div>
+      <div class="ff"><label>Скорость инфильтрации (мм/ч)</label><input type="number" id="sp-infilt" step="1" placeholder="15"></div>
+      <div class="ff"><label>% увлажнённой площади</label><input type="number" id="sp-wetarea" step="1" placeholder="60"></div>
+    </div>
+    <div style="padding:10px 14px;background:var(--surface2);border-radius:8px;margin-top:12px;font-size:11px;color:var(--text3);">
+      <strong>TAW</strong> = (FC − PWP) × глубина корней × 10 мм/га · 
+      <strong>RAW</strong> = TAW × 0.35 (легкодоступная вода) · 
+      <strong>Интервал полива</strong> = RAW / ETc дней
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-soil-params')">Отмена</button>
+      <button class="btn btn-primary" onclick="saveSoilParams()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Программа фертигации -->
+<div class="modal-overlay" id="modal-fertigation">
+  <div class="modal" style="max-width:620px;width:96%;max-height:92vh;overflow-y:auto;">
+    <h2 id="fert-modal-title">🌱 Программа фертигации</h2>
+    <input type="hidden" id="fert-id">
+    <div class="form-grid" style="margin-bottom:12px;">
+      <div class="ff full"><label>Название программы</label><input type="text" id="fert-name" placeholder="Начало вегетации, N-boost, Созревание..."></div>
+      <div class="ff"><label>Фаза / период</label><input type="text" id="fert-phase" placeholder="После цветения, июнь-июль"></div>
+      <div class="ff"><label>Зона полива</label>
+        <select id="fert-zone" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);"></select>
+      </div>
+      <div class="ff"><label>Объём воды на цикл (м³/га)</label><input type="number" id="fert-water-vol" step="1" placeholder="28"></div>
+    </div>
+    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">💊 Питательные элементы (кг/га за цикл)</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;">
+      ${['N','P','K','Ca','Mg','S','Fe','Zn','B','Mn','Cu','Mo'].map(el=>`
+      <div class="ff"><label>${el}</label><input type="number" id="fert-${el.toLowerCase()}" step="0.01" placeholder="0" style="width:100%;padding:6px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);"></div>`).join('')}
+    </div>
+    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🧪 Удобрения (расчёт автоматически)</div>
+    <div id="fert-calc-result" style="padding:10px 14px;background:var(--surface2);border-radius:8px;font-size:11px;color:var(--text2);margin-bottom:12px;">Заполните элементы выше — покажем сколько удобрений вносить</div>
+    <div class="ff full" style="margin-bottom:0;"><label>Примечание</label><input type="text" id="fert-note" placeholder="Совместимость, особенности внесения..."></div>
+    <div class="modal-footer">
+      <button class="btn btn-danger btn-sm" id="fert-del-btn" style="display:none;margin-right:auto;" onclick="deleteFertProgram()">🗑</button>
+      <button class="btn btn-secondary" onclick="closeModal('modal-fertigation')">Отмена</button>
+      <button class="btn btn-primary" onclick="saveFertProgram()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Анализ воды -->
+<div class="modal-overlay" id="modal-water-quality">
+  <div class="modal" style="max-width:560px;width:96%;">
+    <h2>💧 Анализ воды для полива</h2>
+    <input type="hidden" id="wq-id">
+    <div class="form-grid">
+      <div class="ff"><label>Дата анализа</label><input type="date" id="wq-date"></div>
+      <div class="ff"><label>Источник воды</label><input type="text" id="wq-source" placeholder="Скважина, пруд, река..."></div>
+      <div class="ff"><label>pH</label><input type="number" id="wq-ph" step="0.1" placeholder="7.2"></div>
+      <div class="ff"><label>EC (mS/cm)</label><input type="number" id="wq-ec" step="0.01" placeholder="0.8"></div>
+      <div class="ff"><label>TDS (ppm)</label><input type="number" id="wq-tds" step="1" placeholder="512"></div>
+      <div class="ff"><label>HCO₃ (ppm)</label><input type="number" id="wq-hco3" step="1" placeholder="180"></div>
+      <div class="ff"><label>Cl (ppm)</label><input type="number" id="wq-cl" step="1" placeholder="45"></div>
+      <div class="ff"><label>Na (ppm)</label><input type="number" id="wq-na" step="1" placeholder="30"></div>
+      <div class="ff"><label>Ca (ppm)</label><input type="number" id="wq-ca" step="1" placeholder="60"></div>
+      <div class="ff"><label>Mg (ppm)</label><input type="number" id="wq-mg" step="1" placeholder="15"></div>
+      <div class="ff"><label>Fe (ppm)</label><input type="number" id="wq-fe" step="0.01" placeholder="0.1"></div>
+      <div class="ff"><label>Mn (ppm)</label><input type="number" id="wq-mn" step="0.01" placeholder="0.05"></div>
+    </div>
+    <div id="wq-risk-analysis" style="margin-top:12px;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-water-quality')">Отмена</button>
+      <button class="btn btn-primary" onclick="saveWaterQuality()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 // ===================== STATE =====================
@@ -2723,14 +2888,31 @@ let S = {
   cells:{}, treatments:[], analyses:[], diseases:[],
   // IRRIGATION — sensors and readings
   irrigation: {
-    method: 'percent',  // 'percent' | 'kpa' | 'cbar'
-    thresholds: { dry:15, low:25, ok:45, wet:55 },  // defaults for %VWC
-    sensors: [
-      // {id, name, brand, depth, cellKey, note}
-    ],
-    readings: [
-      // {id, date, time, sensorId, value, soilTemp, note}
-    ],
+    method: 'percent',
+    thresholds: { dry:15, low:25, ok:45, wet:55 },
+    sensors: [],
+    readings: [],
+    zones: [],
+    // zones: [{id, name, cellKeys[], valveId, pumpId, area, flowRate, pressure,
+    //   dripperType, dripperFlow, drippersPerTree, irrigType, note}]
+    waterBalance: {
+      // {date, balance, rainfall, irrigation, etc, drainage}[]
+      log: [],
+      soilParams: {
+        fc: 32,      // Field Capacity %VWC
+        pwp: 14,     // Permanent Wilting Point %VWC
+        rootDepth: 60, // cm
+        bulkDensity: 1.35,
+        infiltrationRate: 15, // mm/h
+        wetArea: 60, // % wetted area
+      },
+    },
+    fertigation: {
+      // программы фертигации
+      programs: [],
+      // анализы воды
+      waterQuality: [],
+    },
   },
   // ===== CHILL PORTIONS (Dynamic Model) =====
   chillPortions: {
@@ -3478,7 +3660,7 @@ function switchTab(tab,el){
   if(tab==='crops'){renderCrops(); switchCropsSub('overview');}
   if(tab==='chill'){renderChill();}
   if(tab==='weather'){renderWeather(); loadCherryForecast(); switchWeatherSub('weather');}
-  if(tab==='irrigation'){renderIrrigation();}
+  if(tab==='irrigation'){renderIrrigation(); switchIrrigSub('sensors');}
   if(tab==='gdd'){
     populateGddVarietySelect();
     renderGdd();
@@ -5878,6 +6060,515 @@ function calcDose(){
 }
 
 // ===================== SETTINGS =====================
+// ═══ ИРРИГАЦИЯ: ЗОНЫ / БАЛАНС / ФЕРТИГАЦИЯ ══════════════════════════════
+
+function switchIrrigSub(sub) {
+  const subs = ['sensors','zones','balance','fertigation'];
+  const colors = {sensors:'var(--accent)',zones:'var(--blue)',balance:'var(--teal)',fertigation:'var(--orange)'};
+  const titles = {sensors:'📡 Датчики влажности',zones:'🗺 Зоны полива',balance:'⚖️ Water Balance',fertigation:'🌱 Фертигация'};
+  subs.forEach(s => {
+    const panel = document.getElementById('isub-panel-'+s);
+    const btn   = document.getElementById('isub-'+s);
+    const acts  = document.getElementById('irrig-actions-'+s);
+    const active = s===sub;
+    if(panel) panel.style.display = active ? '' : 'none';
+    if(acts)  acts.style.display  = active ? 'flex' : 'none';
+    if(btn) {
+      btn.style.color       = active ? colors[s] : 'var(--text3)';
+      btn.style.borderBottom= active ? `2px solid ${colors[s]}` : '2px solid transparent';
+      btn.style.fontWeight  = active ? '700' : '400';
+    }
+  });
+  const title = document.getElementById('irrig-panel-title');
+  if(title) title.textContent = `💧 Ирригация · ${titles[sub]}`;
+  if(sub==='zones')    renderIrrigZones();
+  if(sub==='balance')  renderWaterBalance();
+  if(sub==='fertigation') renderFertigation();
+}
+
+// ──── ЗОНЫ ПОЛИВА ────────────────────────────────────────────────────────
+
+const IRRIG_TYPE_LABELS = {
+  drip:'💧 Капельный', double_drip:'💧💧 Двойная капельница',
+  microsprinkler:'🌧 Микродождеватель', sprinkler:'🌧 Спринклер', flood:'🌊 Поверхностный'
+};
+
+function renderIrrigZones() {
+  const el = document.getElementById('irrig-zones-list');
+  if(!el) return;
+  const zones = S.irrigation.zones||[];
+  if(!zones.length) {
+    el.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text3);">
+      <div style="font-size:40px;margin-bottom:12px;">🗺</div>
+      <div style="font-size:13px;margin-bottom:8px;">Зоны полива не настроены</div>
+      <div style="font-size:11px;">Нажмите + Зона полива чтобы добавить первую зону</div>
+    </div>`;
+    return;
+  }
+  el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;">` +
+    zones.map(z => {
+      const totalTrees = (z.cellKeys||[]).reduce((s,k)=>{
+        const cd=S.cells[k]; return s+(cd?calcCellTotals(cd).totalTrees:0);
+      },0);
+      const totalHa = (z.cellKeys||[]).reduce((s,k)=>{
+        const cd=S.cells[k]; return s+(cd?calcCellTotals(cd).totalHa:0);
+      },0);
+      const totalDrippers = totalTrees * (z.drippersPerTree||2);
+      const systemFlow = z.flowRate || (totalDrippers * (z.dripperFlow||2) / 1000);
+      return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+          <div>
+            <div style="font-size:14px;font-weight:700;">${z.name}</div>
+            <div style="font-size:11px;color:var(--text3);">${IRRIG_TYPE_LABELS[z.irrigType]||z.irrigType||'—'}</div>
+          </div>
+          <button class="btn btn-secondary btn-xs" onclick="openIrrigZoneModal('${z.id}')">✏️</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px;">
+          <div style="text-align:center;padding:8px;background:var(--surface3);border-radius:8px;">
+            <div style="font-size:13px;font-weight:700;color:var(--blue);">${totalHa.toFixed(2)}</div>
+            <div style="font-size:9px;color:var(--text3);">га</div>
+          </div>
+          <div style="text-align:center;padding:8px;background:var(--surface3);border-radius:8px;">
+            <div style="font-size:13px;font-weight:700;color:var(--accent);">${systemFlow.toFixed(1)}</div>
+            <div style="font-size:9px;color:var(--text3);">м³/ч</div>
+          </div>
+          <div style="text-align:center;padding:8px;background:var(--surface3);border-radius:8px;">
+            <div style="font-size:13px;font-weight:700;color:var(--yellow);">${z.pressure||'—'}</div>
+            <div style="font-size:9px;color:var(--text3);">бар</div>
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--text3);">
+          ${z.dripperType?`💧 ${z.dripperType} · ${z.dripperFlow}л/ч · ${z.drippersPerTree}шт/дер · ${totalDrippers} эм. всего`:''}
+          ${z.cellKeys?.length?`<br>🌳 Клетки: ${z.cellKeys.join(', ')} · ${totalTrees} дер.`:''}
+          ${z.valveId?`<br>🔩 Клапан: ${z.valveId}`:''}
+        </div>
+      </div>`;
+    }).join('') + `</div>`;
+}
+
+let _izCells = [];
+
+function openIrrigZoneModal(id) {
+  const z = id ? (S.irrigation.zones||[]).find(x=>x.id===id) : null;
+  document.getElementById('iz-modal-title').textContent = z ? `✏️ ${z.name}` : '🗺 Новая зона полива';
+  document.getElementById('iz-id').value = z?.id||'';
+  document.getElementById('iz-del-btn').style.display = z ? 'block' : 'none';
+  _izCells = z?.cellKeys ? [...z.cellKeys] : [];
+  const fields = {
+    'iz-name':z?.name||'', 'iz-valve':z?.valveId||'', 'iz-pump':z?.pumpId||'',
+    'iz-type':z?.irrigType||'drip', 'iz-flow':z?.flowRate||'',
+    'iz-pressure':z?.pressure||'', 'iz-dripper-type':z?.dripperType||'',
+    'iz-dripper-flow':z?.dripperFlow||'', 'iz-drippers-per-tree':z?.drippersPerTree||'',
+    'iz-emitter-spacing':z?.emitterSpacing||'', 'iz-note':z?.note||'',
+  };
+  Object.entries(fields).forEach(([id,val])=>{const el=document.getElementById(id);if(el)el.value=val;});
+  // Список клеток
+  const listEl = document.getElementById('iz-cell-list');
+  listEl.innerHTML = Object.entries(S.cells).map(([k,cd])=>{
+    const col=getCellColors(cd);
+    const sel=_izCells.includes(k);
+    return `<div onclick="toggleIzCell('${k}')" id="izc-${k}" style="display:flex;align-items:center;gap:6px;padding:3px 6px;border-radius:5px;cursor:pointer;${sel?'background:rgba(96,165,250,.15);':''}">
+      <input type="checkbox" id="izcc-${k}" ${sel?'checked':''} onclick="event.stopPropagation();toggleIzCell('${k}')">
+      <span><strong>${k}</strong>${col[0]?' — '+col[0].name:''}</span>
+    </div>`;
+  }).join('');
+  _renderIzTags();
+  openModal('modal-irrig-zone');
+}
+
+function toggleIzCell(k) {
+  const idx = _izCells.indexOf(k);
+  if(idx>=0) _izCells.splice(idx,1); else _izCells.push(k);
+  const row=document.getElementById('izc-'+k);
+  const cb=document.getElementById('izcc-'+k);
+  if(row) row.style.background=_izCells.includes(k)?'rgba(96,165,250,.15)':'';
+  if(cb) cb.checked=_izCells.includes(k);
+  _renderIzTags();
+}
+
+function _renderIzTags() {
+  document.getElementById('iz-cell-tags').innerHTML = _izCells.map(k=>
+    `<span style="padding:2px 8px;border-radius:10px;background:rgba(96,165,250,.15);color:var(--blue);font-size:11px;">${k}</span>`
+  ).join('');
+}
+
+function saveIrrigZone() {
+  if(!S.irrigation.zones) S.irrigation.zones=[];
+  const id = document.getElementById('iz-id').value;
+  const obj = {
+    id: id||uid(),
+    name: document.getElementById('iz-name').value.trim(),
+    cellKeys: [..._izCells],
+    valveId: document.getElementById('iz-valve').value.trim(),
+    pumpId: document.getElementById('iz-pump').value.trim(),
+    irrigType: document.getElementById('iz-type').value,
+    flowRate: parseFloat(document.getElementById('iz-flow').value)||null,
+    pressure: parseFloat(document.getElementById('iz-pressure').value)||null,
+    dripperType: document.getElementById('iz-dripper-type').value.trim(),
+    dripperFlow: parseFloat(document.getElementById('iz-dripper-flow').value)||null,
+    drippersPerTree: parseInt(document.getElementById('iz-drippers-per-tree').value)||null,
+    emitterSpacing: parseInt(document.getElementById('iz-emitter-spacing').value)||null,
+    note: document.getElementById('iz-note').value.trim(),
+    area: _izCells.reduce((s,k)=>{ const cd=S.cells[k]; return s+(cd?calcCellTotals(cd).totalHa:0); },0),
+  };
+  if(!obj.name){alert('Введите название зоны');return;}
+  const idx = S.irrigation.zones.findIndex(x=>x.id===obj.id);
+  if(idx>=0) S.irrigation.zones[idx]=obj; else S.irrigation.zones.push(obj);
+  save(); closeModal('modal-irrig-zone'); renderIrrigZones();
+}
+
+function deleteIrrigZone() {
+  const id = document.getElementById('iz-id').value;
+  if(!id||!confirm('Удалить зону?')) return;
+  S.irrigation.zones = (S.irrigation.zones||[]).filter(z=>z.id!==id);
+  save(); closeModal('modal-irrig-zone'); renderIrrigZones();
+}
+
+// ──── WATER BALANCE ENGINE ────────────────────────────────────────────────
+
+function calcWaterBalance() {
+  const sp = S.irrigation.waterBalance?.soilParams || {};
+  const fc  = sp.fc||32, pwp = sp.pwp||14;
+  const rootCm = sp.rootDepth||60;
+  const taw = (fc-pwp) * rootCm * 0.1; // mm
+  const raw = taw * 0.35;
+
+  // Строим баланс за последние 30 дней из S.weather
+  const sorted = [...S.weather].sort((a,b)=>a.date.localeCompare(b.date)).slice(-30);
+  if(!sorted.length) return;
+
+  let balance = taw * 0.6; // начальный баланс — 60% TAW
+  const log = [];
+
+  sorted.forEach(w => {
+    const et0 = parseFloat(w.et0) || ((parseFloat(w.tmax)||25)-(parseFloat(w.tmin)||10))*0.2;
+    // Kc из фазы GDD
+    const gdd = getCurrentGdd(5);
+    const phase = getPhaseByGdd(S.varieties[0]?.id, gdd);
+    const kc = phase?.kc || 1.0;
+    const etc = Math.round(et0 * kc * 10)/10;
+    const rain = parseFloat(w.precip)||0;
+    // Полив — ищем в журнале полива за эту дату
+    const irrig = (S.irrigation.readings||[])
+      .filter(r=>r.date===w.date)
+      .reduce((s,r)=>s+parseFloat(r.value||0),0)*0.1; // условно %VWC → мм
+    const prev = balance;
+    balance = Math.min(taw, Math.max(0, balance + rain + irrig - etc));
+    const drainage = Math.max(0, prev + rain + irrig - etc - taw);
+    log.push({
+      date:w.date, balance:Math.round(balance*10)/10,
+      rainfall:rain, irrigation:Math.round(irrig*10)/10,
+      etc, drainage:Math.round(drainage*10)/10,
+      deficit:Math.round(Math.max(0,raw-balance)*10)/10,
+      status: balance<=0?'critical':balance<raw*0.5?'stress':balance<raw?'watch':'ok',
+      kc, et0:Math.round(et0*10)/10,
+    });
+  });
+
+  if(!S.irrigation.waterBalance) S.irrigation.waterBalance={};
+  S.irrigation.waterBalance.log = log;
+  S.irrigation.waterBalance.lastCalc = today();
+  save();
+  renderWaterBalance();
+}
+
+function renderWaterBalance() {
+  const sp = S.irrigation.waterBalance?.soilParams || {};
+  const fc=sp.fc||32, pwp=sp.pwp||14, rootCm=sp.rootDepth||60;
+  const taw = (fc-pwp)*rootCm*0.1;
+  const raw = taw*0.35;
+  const log = S.irrigation.waterBalance?.log||[];
+  const last = log[log.length-1];
+
+  // Параметры почвы
+  const spEl = document.getElementById('wb-soil-params');
+  if(spEl) spEl.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:4px;">
+      <div style="background:var(--surface2);border-radius:8px;padding:10px;text-align:center;">
+        <div style="font-size:15px;font-weight:700;color:var(--blue);">${taw.toFixed(0)} мм</div>
+        <div style="font-size:10px;color:var(--text3);">TAW (запас воды)</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:8px;padding:10px;text-align:center;">
+        <div style="font-size:15px;font-weight:700;color:var(--accent);">${raw.toFixed(0)} мм</div>
+        <div style="font-size:10px;color:var(--text3);">RAW (легкодоступно)</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:8px;padding:10px;text-align:center;">
+        <div style="font-size:15px;font-weight:700;color:var(--text2);">FC ${fc}% / PWP ${pwp}%</div>
+        <div style="font-size:10px;color:var(--text3);">%VWC полевая/завяд.</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:8px;padding:10px;text-align:center;">
+        <div style="font-size:15px;font-weight:700;color:var(--text2);">${rootCm} см</div>
+        <div style="font-size:10px;color:var(--text3);">Глубина корней</div>
+      </div>
+    </div>`;
+
+  // Рекомендация
+  const recEl = document.getElementById('wb-recommendation');
+  if(recEl && last) {
+    const et0 = parseFloat(S.weather[0]?.et0)||2.5;
+    const gdd = getCurrentGdd(5);
+    const phase = getPhaseByGdd(S.varieties[0]?.id, gdd);
+    const kc = phase?.kc||1.0;
+    const etc = Math.round(et0*kc*10)/10;
+    const daysToStress = last.balance>0 ? Math.floor(last.balance/etc) : 0;
+    const irrigNorm = Math.round((raw-last.balance)*1.15*10)/10;
+    const STATUS = {critical:{c:'var(--red)',t:'⛔ Критический дефицит — немедленный полив!'},
+      stress:{c:'var(--orange)',t:'⚠️ Стресс от засухи — нужен полив сегодня'},
+      watch:{c:'var(--yellow)',t:'👀 Начинается дефицит — планируйте полив'},
+      ok:{c:'var(--accent)',t:'✅ Влажность в норме'}};
+    const s = STATUS[last.status]||STATUS.ok;
+
+    // Рекомендация по зонам
+    const zones = S.irrigation.zones||[];
+    const zoneRecs = zones.map(z=>{
+      const ha = z.area||1;
+      const vol = Math.round(irrigNorm*ha*10*10)/10; // мм → м³
+      const flow = z.flowRate||3.5;
+      const hours = Math.round(vol/flow*10)/10;
+      return irrigNorm>0 ? `<div style="font-size:11px;padding:4px 8px;background:var(--surface3);border-radius:6px;">
+        <strong>${z.name}:</strong> ${vol} м³ · ${hours}ч @ ${flow}м³/ч
+      </div>` : '';
+    }).filter(Boolean).join('');
+
+    recEl.innerHTML = `
+      <div style="padding:14px 18px;border-radius:12px;border:1px solid ${s.c}44;background:${s.c}0d;margin-bottom:8px;">
+        <div style="font-size:14px;font-weight:700;color:${s.c};margin-bottom:6px;">${s.t}</div>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--text2);">
+          <span>💧 Баланс: <strong>${last.balance} мм</strong></span>
+          <span>📉 ETc сегодня: <strong>${etc} мм/день</strong></span>
+          <span>⏱ До стресса: <strong>${daysToStress} дн.</strong></span>
+          ${irrigNorm>0?`<span>🚿 Норма полива: <strong style="color:var(--blue);">${irrigNorm} мм</strong></span>`:''}
+        </div>
+        ${zoneRecs?`<div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;">${zoneRecs}</div>`:''}
+      </div>`;
+  } else if(recEl) {
+    recEl.innerHTML = `<div style="padding:12px;background:var(--surface2);border-radius:8px;font-size:12px;color:var(--text3);text-align:center;">
+      Нажмите 🔄 Пересчитать чтобы рассчитать water balance из данных метеостанции
+    </div>`;
+  }
+
+  // Таблица
+  const tblEl = document.getElementById('wb-log-table');
+  if(!tblEl) return;
+  if(!log.length){tblEl.innerHTML='<div style="color:var(--text3);font-size:12px;padding:8px;">Нет данных. Нажмите 🔄 Пересчитать.</div>';return;}
+  const STATUS_BADGE = {
+    critical:`<span style="padding:2px 7px;border-radius:8px;font-size:10px;background:rgba(239,68,68,.15);color:var(--red);">⛔ Критично</span>`,
+    stress:`<span style="padding:2px 7px;border-radius:8px;font-size:10px;background:rgba(251,146,60,.15);color:var(--orange);">⚠️ Стресс</span>`,
+    watch:`<span style="padding:2px 7px;border-radius:8px;font-size:10px;background:rgba(251,191,36,.15);color:var(--yellow);">👀 Внимание</span>`,
+    ok:`<span style="padding:2px 7px;border-radius:8px;font-size:10px;background:rgba(74,222,128,.12);color:var(--accent);">✅ Норма</span>`,
+  };
+  tblEl.innerHTML = `<div style="overflow-x:auto;"><table class="data-table"><thead><tr>
+    <th>Дата</th><th>ET₀</th><th>Kc</th><th>ETc</th><th>Осадки</th><th>Полив</th><th>Баланс</th><th>Дефицит</th><th>Статус</th>
+  </tr></thead><tbody>${[...log].reverse().slice(0,30).map(r=>`<tr>
+    <td>${r.date}</td>
+    <td style="color:var(--text3);">${r.et0}</td>
+    <td style="color:var(--text3);">${r.kc}</td>
+    <td style="color:var(--orange);">${r.etc}</td>
+    <td style="color:var(--blue);">${r.rainfall}</td>
+    <td style="color:var(--teal);">${r.irrigation||0}</td>
+    <td style="font-weight:600;color:${r.balance<raw*0.5?'var(--red)':r.balance<raw?'var(--yellow)':'var(--accent)'};">${r.balance}</td>
+    <td style="color:${r.deficit>0?'var(--red)':'var(--text3)'};">${r.deficit||0}</td>
+    <td>${STATUS_BADGE[r.status]||''}</td>
+  </tr>`).join('')}</tbody></table></div>`;
+}
+
+function openSoilParamsModal() {
+  const sp = S.irrigation.waterBalance?.soilParams||{};
+  document.getElementById('sp-fc').value    = sp.fc||32;
+  document.getElementById('sp-pwp').value   = sp.pwp||14;
+  document.getElementById('sp-root').value  = sp.rootDepth||60;
+  document.getElementById('sp-bulk').value  = sp.bulkDensity||1.35;
+  document.getElementById('sp-infilt').value= sp.infiltrationRate||15;
+  document.getElementById('sp-wetarea').value=sp.wetArea||60;
+  openModal('modal-soil-params');
+}
+
+function saveSoilParams() {
+  if(!S.irrigation.waterBalance) S.irrigation.waterBalance={log:[]};
+  S.irrigation.waterBalance.soilParams = {
+    fc:    parseFloat(document.getElementById('sp-fc').value)||32,
+    pwp:   parseFloat(document.getElementById('sp-pwp').value)||14,
+    rootDepth: parseInt(document.getElementById('sp-root').value)||60,
+    bulkDensity: parseFloat(document.getElementById('sp-bulk').value)||1.35,
+    infiltrationRate: parseFloat(document.getElementById('sp-infilt').value)||15,
+    wetArea: parseInt(document.getElementById('sp-wetarea').value)||60,
+  };
+  save(); closeModal('modal-soil-params'); calcWaterBalance();
+}
+
+// ──── ФЕРТИГАЦИЯ ──────────────────────────────────────────────────────────
+
+// Справочник удобрений (N-P-K содержание %)
+const FERTILIZER_DB = [
+  {name:'Карбамид (Мочевина)',  N:46,  P:0,   K:0,   Ca:0,  Mg:0},
+  {name:'Кальциевая селитра',   N:15.5,P:0,   K:0,   Ca:26, Mg:0},
+  {name:'Нитрат калия',         N:13,  P:0,   K:38,  Ca:0,  Mg:0},
+  {name:'Монофосфат калия',     N:0,   P:52,  K:34,  Ca:0,  Mg:0},
+  {name:'Сульфат магния',       N:0,   P:0,   K:0,   Ca:0,  Mg:9.6},
+  {name:'Сульфат калия',        N:0,   P:0,   K:50,  Ca:0,  Mg:0},
+  {name:'Нитрат аммония',       N:34,  P:0,   K:0,   Ca:0,  Mg:0},
+  {name:'Суперфосфат',          N:0,   P:20,  K:0,   Ca:18, Mg:0},
+  {name:'MAP (Монофосфат аммония)', N:12, P:61,K:0,  Ca:0,  Mg:0},
+];
+
+// Несовместимые пары
+const FERT_INCOMPAT = [
+  ['Кальциевая селитра','Монофосфат калия'],
+  ['Кальциевая селитра','Сульфат магния'],
+  ['Карбамид','Кальциевая селитра'],
+];
+
+function renderFertigation() {
+  const el = document.getElementById('fertigation-content');
+  if(!el) return;
+  const programs = S.irrigation.fertigation?.programs||[];
+  const waterQuality = S.irrigation.fertigation?.waterQuality||[];
+
+  // Water Quality summary
+  let wqHtml = '';
+  if(waterQuality.length) {
+    const last = waterQuality[waterQuality.length-1];
+    const risks = analyzeWaterQuality(last);
+    wqHtml = `<div style="margin-bottom:16px;">
+      <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">💧 Последний анализ воды (${last.date}) — ${last.source||'источник'}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+        ${[['pH',last.ph,'7.0–8.0','var(--text2)'],['EC',last.ec,'<1.5','var(--blue)'],['TDS',last.tds,'<960','var(--text2)'],
+           ['HCO₃',last.hco3,'<180','var(--yellow)'],['Cl',last.cl,'<70','var(--orange)']].map(([l,v,n,c])=>
+          `<div style="padding:6px 12px;background:var(--surface2);border-radius:8px;text-align:center;">
+            <div style="font-size:13px;font-weight:700;color:${c};">${v||'—'}</div>
+            <div style="font-size:10px;color:var(--text3);">${l} (норма: ${n})</div>
+          </div>`).join('')}
+      </div>
+      ${risks.length?`<div style="display:flex;gap:6px;flex-wrap:wrap;">${risks.map(r=>
+        `<span style="padding:3px 10px;border-radius:10px;font-size:11px;background:${r.c}22;color:${r.c};">${r.icon} ${r.text}</span>`
+      ).join('')}</div>`:'<div style="font-size:11px;color:var(--accent);">✅ Качество воды в норме</div>'}
+      <button class="btn btn-secondary btn-sm" onclick="openWaterQualityModal()" style="margin-top:8px;">+ Новый анализ</button>
+    </div>`;
+  } else {
+    wqHtml = `<div style="padding:10px 14px;background:var(--surface2);border-radius:8px;font-size:12px;color:var(--text3);margin-bottom:16px;">
+      Анализ воды не добавлен. <button class="btn btn-secondary btn-sm" onclick="openWaterQualityModal()">+ Добавить</button>
+    </div>`;
+  }
+
+  // Programs
+  let progHtml = '';
+  if(!programs.length) {
+    progHtml = `<div style="text-align:center;padding:30px;color:var(--text3);font-size:12px;">Программы фертигации не добавлены</div>`;
+  } else {
+    progHtml = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;">` +
+      programs.map(p=>{
+        const zone = (S.irrigation.zones||[]).find(z=>z.id===p.zoneId);
+        const elems = ['N','P','K','Ca','Mg','S','Fe','Zn','B','Mn','Cu','Mo']
+          .filter(e=>p[e.toLowerCase()]>0)
+          .map(e=>`<span style="font-size:10px;padding:1px 6px;border-radius:6px;background:var(--surface3);">${e}: ${p[e.toLowerCase()]}</span>`);
+        return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+            <div>
+              <div style="font-size:13px;font-weight:700;">${p.name}</div>
+              <div style="font-size:11px;color:var(--text3);">${p.phase||''} · ${zone?.name||'все зоны'}</div>
+            </div>
+            <button class="btn btn-secondary btn-xs" onclick="openFertigationModal('${p.id}')">✏️</button>
+          </div>
+          ${p.waterVol?`<div style="font-size:11px;color:var(--blue);margin-bottom:6px;">💧 ${p.waterVol} м³/га на цикл</div>`:''}
+          <div style="display:flex;gap:4px;flex-wrap:wrap;">${elems.join('')}</div>
+          ${p.note?`<div style="font-size:11px;color:var(--text3);margin-top:6px;">${p.note}</div>`:''}
+        </div>`;
+      }).join('') + `</div>`;
+  }
+  el.innerHTML = wqHtml + `<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">🌱 Программы фертигации</div>` + progHtml;
+}
+
+function analyzeWaterQuality(wq) {
+  const risks = [];
+  const ec=parseFloat(wq.ec)||0, ph=parseFloat(wq.ph)||7, hco3=parseFloat(wq.hco3)||0;
+  const cl=parseFloat(wq.cl)||0, na=parseFloat(wq.na)||0, ca=parseFloat(wq.ca)||0;
+  const sar = ca>0 ? (na/23.0)/Math.sqrt((ca/40.0+parseFloat(wq.mg||0)/24.3)/2) : 0;
+  if(ec>1.5) risks.push({c:'var(--orange)',icon:'⚠️',text:`EC ${ec} — засоление`});
+  if(ph>7.5) risks.push({c:'var(--yellow)',icon:'⚠️',text:`pH ${ph} — защелачивание`});
+  if(hco3>180) risks.push({c:'var(--orange)',icon:'🧪',text:`HCO₃ ${hco3} — риск засора`});
+  if(cl>70) risks.push({c:'var(--red)',icon:'☠️',text:`Cl ${cl} — токсичность`});
+  if(sar>10) risks.push({c:'var(--red)',icon:'⚠️',text:`SAR ${sar.toFixed(1)} — натриевая опасность`});
+  return risks;
+}
+
+function openFertigationModal(id) {
+  if(!S.irrigation.fertigation) S.irrigation.fertigation={programs:[],waterQuality:[]};
+  const p = id ? S.irrigation.fertigation.programs.find(x=>x.id===id) : null;
+  document.getElementById('fert-modal-title').textContent = p ? `✏️ ${p.name}` : '🌱 Новая программа';
+  document.getElementById('fert-id').value = p?.id||'';
+  document.getElementById('fert-del-btn').style.display = p?'block':'none';
+  document.getElementById('fert-name').value  = p?.name||'';
+  document.getElementById('fert-phase').value = p?.phase||'';
+  document.getElementById('fert-water-vol').value = p?.waterVol||'';
+  document.getElementById('fert-note').value  = p?.note||'';
+  const zoneSel = document.getElementById('fert-zone');
+  zoneSel.innerHTML = '<option value="">— все зоны —</option>'+
+    (S.irrigation.zones||[]).map(z=>`<option value="${z.id}" ${p?.zoneId===z.id?'selected':''}>${z.name}</option>`).join('');
+  if(p?.zoneId) zoneSel.value=p.zoneId;
+  ['N','P','K','Ca','Mg','S','Fe','Zn','B','Mn','Cu','Mo'].forEach(e=>{
+    const el=document.getElementById('fert-'+e.toLowerCase()); if(el) el.value=p?.[e.toLowerCase()]||'';
+  });
+  openModal('modal-fertigation');
+}
+
+function saveFertProgram() {
+  if(!S.irrigation.fertigation) S.irrigation.fertigation={programs:[],waterQuality:[]};
+  const id = document.getElementById('fert-id').value;
+  const obj = {id:id||uid()};
+  obj.name = document.getElementById('fert-name').value.trim();
+  obj.phase = document.getElementById('fert-phase').value.trim();
+  obj.zoneId = document.getElementById('fert-zone').value||null;
+  obj.waterVol = parseFloat(document.getElementById('fert-water-vol').value)||null;
+  obj.note = document.getElementById('fert-note').value.trim();
+  ['N','P','K','Ca','Mg','S','Fe','Zn','B','Mn','Cu','Mo'].forEach(e=>{
+    const el=document.getElementById('fert-'+e.toLowerCase());
+    obj[e.toLowerCase()] = el?parseFloat(el.value)||0:0;
+  });
+  if(!obj.name){alert('Введите название программы');return;}
+  const idx = S.irrigation.fertigation.programs.findIndex(x=>x.id===obj.id);
+  if(idx>=0) S.irrigation.fertigation.programs[idx]=obj;
+  else S.irrigation.fertigation.programs.push(obj);
+  save(); closeModal('modal-fertigation'); renderFertigation();
+}
+
+function deleteFertProgram() {
+  const id=document.getElementById('fert-id').value;
+  if(!id||!confirm('Удалить программу?')) return;
+  S.irrigation.fertigation.programs = S.irrigation.fertigation.programs.filter(p=>p.id!==id);
+  save(); closeModal('modal-fertigation'); renderFertigation();
+}
+
+function openWaterQualityModal() {
+  if(!S.irrigation.fertigation) S.irrigation.fertigation={programs:[],waterQuality:[]};
+  document.getElementById('wq-id').value='';
+  document.getElementById('wq-date').value=today();
+  ['wq-source','wq-ph','wq-ec','wq-tds','wq-hco3','wq-cl','wq-na','wq-ca','wq-mg','wq-fe','wq-mn']
+    .forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('wq-risk-analysis').innerHTML='';
+  openModal('modal-water-quality');
+}
+
+function saveWaterQuality() {
+  if(!S.irrigation.fertigation) S.irrigation.fertigation={programs:[],waterQuality:[]};
+  const wq = {
+    id:uid(), date:document.getElementById('wq-date').value||today(),
+    source:document.getElementById('wq-source').value.trim(),
+    ph:parseFloat(document.getElementById('wq-ph').value)||null,
+    ec:parseFloat(document.getElementById('wq-ec').value)||null,
+    tds:parseFloat(document.getElementById('wq-tds').value)||null,
+    hco3:parseFloat(document.getElementById('wq-hco3').value)||null,
+    cl:parseFloat(document.getElementById('wq-cl').value)||null,
+    na:parseFloat(document.getElementById('wq-na').value)||null,
+    ca:parseFloat(document.getElementById('wq-ca').value)||null,
+    mg:parseFloat(document.getElementById('wq-mg').value)||null,
+    fe:parseFloat(document.getElementById('wq-fe').value)||null,
+    mn:parseFloat(document.getElementById('wq-mn').value)||null,
+  };
+  S.irrigation.fertigation.waterQuality.push(wq);
+  save(); closeModal('modal-water-quality'); renderFertigation();
+}
+
+// ─────────────────────────────────────────────────────────────────────────
 // ═══ ИРРИГАЦИОННОЕ ОБОРУДОВАНИЕ ═════════════════════════════════════════
 
 // Хранится в S.irrigEquip = { pumps:[], valves:[], drip:[], frost:[] }
