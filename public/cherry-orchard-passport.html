@@ -8973,35 +8973,57 @@ async function saveNewTask() {
   };
   const r = await fetch('/api/tasks', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
   if(r.ok) {
-    // Автосписание со склада при обработках
-    const wtLower = wtName.toLowerCase();
-    if(_newTaskChems.length && (wtLower.includes('обработка')||wtLower.includes('опрыскив')||wtLower.includes('пестицид'))) {
+    // Автосписание со склада — при любых препаратах
+    if(_newTaskChems.length) {
       try {
-        const orchState = await fetch('/api/state/orchard').then(r=>r.json());
-        const warehouse = orchState.data?.warehouse || {chemicals:[],parts:[],history:[]};
+        // Берём актуальный склад — сначала с сервера, fallback на S.warehouse
+        let warehouse;
+        try {
+          const orchState = await fetch('/api/state/orchard').then(r=>r.json());
+          warehouse = orchState.data?.warehouse;
+        } catch(e) {}
+        if(!warehouse?.chemicals) warehouse = S.warehouse;
+        if(!warehouse) warehouse = { chemicals:[], parts:[], seeds:[], history:[] };
+
         const date = document.getElementById('nt-due').value || today();
+        let anySpent = false;
+
         _newTaskChems.forEach(c => {
-          const stock = warehouse.chemicals?.find(x=>x.name.toLowerCase()===c.name.toLowerCase());
-          if(!stock) return;
           const doseNum = parseFloat(c.dose_actual)||0;
           if(!doseNum) return;
           const ha = totalHa||1;
           const spent = Math.round(doseNum*ha*1000)/1000;
-          stock.qty = Math.round(Math.max(0,stock.qty-spent)*1000)/1000;
+          // Ищем в складе по точному имени, потом по частичному
+          let stock = warehouse.chemicals?.find(x=>x.name.toLowerCase()===c.name.toLowerCase());
+          if(!stock) stock = warehouse.chemicals?.find(x=>x.name.toLowerCase().includes(c.name.toLowerCase().split(' ')[0]));
+          if(stock) {
+            stock.qty = Math.round(Math.max(0,stock.qty-spent)*1000)/1000;
+          }
+          // В историю пишем в любом случае
+          if(!warehouse.history) warehouse.history=[];
           warehouse.history.unshift({
             id:uid(), date, type:'chemical', name:c.name,
-            operation:'out', qty:spent, unit:stock.unit||'л',
-            price:stock.price||0, total:Math.round(spent*(stock.price||0)),
-            parcelName, note:'Обработка (журнал работ)'
+            operation:'out', qty:spent, unit:stock?.unit||'л',
+            price:stock?.price||0, total:Math.round(spent*(stock?.price||0)),
+            parcelName: parcelName||'Сад', note:`${wtName} (журнал работ)`
           });
+          anySpent = true;
         });
-        S.warehouse = warehouse;
-        save();
-        fetch('/api/state/orchard',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({warehouse})});
-      } catch(e) { console.warn('Warehouse sync failed:', e.message); }
+
+        if(anySpent) {
+          S.warehouse = warehouse;
+          save(); // сохраняем в localStorage
+          // Синхронизируем с сервером
+          fetch('/api/state/orchard',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({warehouse})})
+            .catch(e=>console.warn('Warehouse server sync failed:', e.message));
+        }
+      } catch(e) { console.warn('Warehouse deduction failed:', e.message); }
     }
     closeModal('modal-new-task');
     renderTasks();
+    // Обновляем склад если открыт
+    const whPanel = document.getElementById('panel-warehouse');
+    if(whPanel?.classList.contains('active')) renderWarehouse();
   } else {
     try { const e = await r.json(); alert('Ошибка: '+e.error); } catch{ alert('Ошибка сохранения'); }
   }
