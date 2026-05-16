@@ -2664,6 +2664,11 @@ tbody td{padding:10px 12px;vertical-align:middle;}
 <div class="modal-overlay" id="modal-variety-edit">
   <div class="modal" style="max-width:680px;width:96%;max-height:92vh;overflow-y:auto;">
     <h2 id="variety-edit-title">🍒 Сорт</h2>
+    <div id="ve-catalog-btn-wrap" style="margin-bottom:14px;display:none;">
+      <button class="btn btn-secondary btn-sm" onclick="fillFromCatalog()" style="width:100%;border:1px dashed var(--blue);color:var(--blue);">
+        📚 Заполнить из справочника сортов
+      </button>
+    </div>
     <input type="hidden" id="ve-id">
     <input type="hidden" id="ve-crop-id">
 
@@ -2672,7 +2677,7 @@ tbody td{padding:10px 12px;vertical-align:middle;}
       <div class="ff"><label>Культура</label>
         <select id="ve-crop" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);"></select>
       </div>
-      <div class="ff"><label>Название сорта</label><input type="text" id="ve-name" placeholder="Регина, Kordia..."></div>
+      <div class="ff"><label>Название сорта</label><input type="text" id="ve-name" placeholder="Регина, Kordia..." oninput="onVarietyNameInput(this.value)"></div>
       <div class="ff"><label>Оригинатор / страна</label><input type="text" id="ve-origin" placeholder="Германия, США..."></div>
       <div class="ff"><label>Год допуска</label><input type="number" id="ve-year" placeholder="1998"></div>
       <div class="ff"><label>Срок созревания</label>
@@ -9317,6 +9322,163 @@ function renderRootstocksCatalog() {
   }).join('');
 }
 
+// ═══ СПРАВОЧНИК СОРТОВ (для автозаполнения паспорта) ════════════════════
+
+const VARIETY_REFERENCE = {
+
+  // ── ЧЕРЕШНЯ ──────────────────────────────────────────────────────────
+  'регина':     { cropId:'crop_cherry', name:'Регина', origin:'Германия', year:1957, ripening:'Поздний', daysFlower:58, pollType:'cross', pollinators:'Кордия, Наполеон, Карина', fruitWeight:9, fruitColor:'Тёмно-красный, глянцевый', fruitFirmness:'Очень плотная', fruitTaste:'Сладкий, гармоничный', brix:18, crackResistance:'5', vigor:'Среднерослый', crown:'Пирамидальная', bearingYear:4, yield:14, spacing:'4×2', rootstockRec:'Гизела 5', resMonilia:'4', resCocco:'4', resClaster:'4', resScab:'3', frost:'4', cp:68, pollSAlleles:'S1S3', note:'Эталон позднего срока. Устойчивость к растрескиванию 5/5 — не нуждается в плёнке для защиты от трещин, но плёнка даёт экспортное качество.' },
+
+  'кордия':     { cropId:'crop_cherry', name:'Кордия (Kordia)', origin:'Чехия', year:1963, ripening:'Средне-поздний', daysFlower:52, pollType:'cross', pollinators:'Регина, Саммит, Карина', fruitWeight:10, fruitColor:'Тёмно-бордовый, при созревании глянцево-чёрный', fruitFirmness:'Очень плотная (Бигарро)', fruitTaste:'Эталонный десертный, богатый сортовой аромат', brix:19.5, crackResistance:'3', vigor:'Сильнорослый', crown:'Раскидистая широкоокруглая, ветви поникают', bearingYear:3, yield:14, spacing:'4×2', rootstockRec:'Гизела 5', resMonilia:'4', resCocco:'4', resClaster:'4', resScab:'3', frost:'4', cp:58, pollSAlleles:'S3S6', note:'Королева чёрных черешен. Созревает на 7-10 дней раньше Регины. Растрескивание при дожде — плёнка ОБЯЗАТЕЛЬНА. Длинная плодоножка — удобна для сбора и гидрокулинга.' },
+
+  'kordia':     'кордия',
+
+  'скина':      { cropId:'crop_cherry', name:'Скина (Skeena)', origin:'Канада (Summerland, BC)', year:1999, ripening:'Поздний', daysFlower:55, pollType:'self', pollinators:'Самоплодная — опылитель для Регины и Кордии', fruitWeight:11.5, fruitColor:'Тёмно-бордовый, при созревании насыщенно-чёрный', fruitFirmness:'Высокая хрящеватость (Бигарро)', fruitTaste:'Очень сладкий, насыщенный, сбалансированный', brix:19, crackResistance:'4', vigor:'Среднерослый', crown:'Полупрямостоячая, идеальна для Slender Spindle', bearingYear:3, yield:17, spacing:'4×2', rootstockRec:'Гизела 5', resMonilia:'4', resCocco:'4', resClaster:'4', resScab:'4', frost:'4', cp:62, pollSAlleles:"S1S4'", note:'Самоплодная. Риск перегрузки урожаем → мельчание при 100% завязываемости под плёнкой. Закрывать плёнку одновременно с Кордией.' },
+
+  'skeena':     'скина',
+
+  'лапинс':     { cropId:'crop_cherry', name:'Лапинс (Lapins)', origin:'Канада (Summerland, BC)', year:1984, ripening:'Средне-поздний', daysFlower:50, pollType:'self', pollinators:'Самоплодная — универсальный опылитель', fruitWeight:9.5, fruitColor:'Тёмно-красный', fruitFirmness:'Плотная', fruitTaste:'Сладкий, хороший', brix:17, crackResistance:'3', vigor:'Среднерослый', crown:'Умеренно раскидистая', bearingYear:3, yield:15, spacing:'4×2', rootstockRec:'Гизела 5', resMonilia:'3', resCocco:'4', resClaster:'4', resScab:'3', frost:'4', cp:55, pollSAlleles:'S1S4', note:'Самоплодная. Популярный опылитель в интенсивных садах. Уступает Кордии и Регине по вкусу и товарности, но надёжна в продуктивности.' },
+
+  'lapins':     'лапинс',
+
+  'саммит':     { cropId:'crop_cherry', name:'Саммит (Summit)', origin:'Канада', year:1973, ripening:'Поздний', daysFlower:54, pollType:'cross', pollinators:'Регина, Кордия, Ван', fruitWeight:11, fruitColor:'Тёмно-красный', fruitFirmness:'Плотная', fruitTaste:'Сладкий, хороший аромат', brix:18, crackResistance:'3', vigor:'Сильнорослый', crown:'Широкая, раскидистая', bearingYear:4, yield:13, spacing:'5×3', rootstockRec:'Гизела 6', resMonilia:'3', resCocco:'3', resClaster:'3', resScab:'3', frost:'3', cp:55, note:'Крупноплодный, но склонен к растрескиванию. Нужна плёнка.' },
+
+  'summit':     'саммит',
+
+  'ранье':      { cropId:'crop_cherry', name:'Ранье (Rainier)', origin:'США (Вашингтон)', year:1952, ripening:'Средний', daysFlower:45, pollType:'cross', pollinators:'Бинг, Ван, Лапинс', fruitWeight:9, fruitColor:'Жёлтый с красным румянцем', fruitFirmness:'Плотная', fruitTaste:'Очень сладкий, медовый', brix:20, crackResistance:'2', vigor:'Среднерослый', crown:'Широкая', bearingYear:4, yield:12, spacing:'4×3', rootstockRec:'Гизела 6', resMonilia:'3', resCocco:'3', resClaster:'3', resScab:'2', frost:'3', cp:52, note:'Жёлтая черешня. Кожица нежная — требует аккуратного сбора. Очень чувствительна к дождю — плёнка обязательна.' },
+
+  'rainier':    'ранье',
+
+  'наполеон':   { cropId:'crop_cherry', name:'Наполеон', origin:'Германия', ripening:'Средний', daysFlower:46, pollType:'cross', pollinators:'Регина, Кордия, Ван', fruitWeight:8, fruitColor:'Жёлтый с красным', fruitFirmness:'Плотная', fruitTaste:'Сладко-кислый', brix:16, crackResistance:'3', vigor:'Сильнорослый', bearingYear:5, yield:12, resMonilia:'3', resCocco:'3', resClaster:'3', frost:'4', cp:52, note:'Старинный классический сорт. Опылитель для Регины.' },
+
+  'ван':        { cropId:'crop_cherry', name:'Ван (Van)', origin:'Канада', year:1936, ripening:'Средний', daysFlower:44, pollType:'cross', pollinators:'Кордия, Регина, Лапинс', fruitWeight:8, fruitColor:'Тёмно-красный', fruitFirmness:'Плотная', fruitTaste:'Сладкий', brix:17, crackResistance:'3', vigor:'Среднерослый', bearingYear:3, yield:14, resMonilia:'3', resCocco:'4', resClaster:'4', frost:'4', cp:52, note:'Надёжный опылитель. Хорошая продуктивность.' },
+
+  'мершант':    { cropId:'crop_cherry', name:'Мершант (Merchant)', origin:'Великобритания', ripening:'Ранний', daysFlower:38, pollType:'cross', pollinators:'Ван, Кордия', fruitWeight:8.5, fruitColor:'Тёмно-красный', fruitFirmness:'Плотная', fruitTaste:'Сладкий', brix:16, crackResistance:'4', vigor:'Среднерослый', bearingYear:3, yield:13, resMonilia:'4', resCocco:'4', resClaster:'4', frost:'4', cp:50, note:'Ранний сорт. Один из первых урожаев сезона.' },
+
+  'merchant':   'мершант',
+  'mershant':   'мершант',
+
+  // ── СЛИВА ────────────────────────────────────────────────────────────
+  'стэнли':     { cropId:'crop_plum', name:'Стэнли (Stanley)', origin:'США', year:1926, ripening:'Средний', pollType:'self', pollinators:'Самоплодная', fruitWeight:45, fruitColor:'Тёмно-синий с восковым налётом', fruitFirmness:'Средняя', fruitTaste:'Сладкий, хороший', brix:16, crackResistance:'3', vigor:'Среднерослый', bearingYear:4, yield:20, resMonilia:'3', resCocco:'3', frost:'4', cp:30, note:'Классический сорт сливы. Самоплодный. Используется для свежего рынка и переработки.' },
+
+  'stanley':    'стэнли',
+
+  'блю фри':    { cropId:'crop_plum', name:'Блю Фри (Blue Free)', origin:'США', ripening:'Средне-поздний', pollType:'self', fruitWeight:55, fruitColor:'Синий', fruitFirmness:'Плотная', brix:15, vigor:'Среднерослый', bearingYear:3, yield:25, resMonilia:'4', frost:'4', note:'Продуктивный самоплодный сорт сливы.' },
+
+  'чачакская':  { cropId:'crop_plum', name:'Чачакская лепотица', origin:'Сербия', ripening:'Ранний', pollType:'cross', fruitWeight:35, fruitColor:'Жёлтый', fruitFirmness:'Плотная', brix:14, frost:'4', note:'Жёлтая слива раннего срока.' },
+
+  'валор':      { cropId:'crop_plum', name:'Валор (Valor)', origin:'Канада', ripening:'Поздний', pollType:'self', fruitWeight:60, fruitColor:'Тёмно-синий', fruitFirmness:'Очень плотная', brix:17, vigor:'Среднерослый', bearingYear:4, yield:22, resMonilia:'4', frost:'4', note:'Крупноплодная слива позднего срока.' },
+
+  // ── ЯБЛОКО ───────────────────────────────────────────────────────────
+  'голден':     { cropId:'crop_apple', name:'Голден Делишес (Golden Delicious)', origin:'США', year:1890, ripening:'Средний', pollType:'cross', pollinators:'Гала, Айдаред, Джонагред', fruitWeight:170, fruitColor:'Золотисто-жёлтый', fruitFirmness:'Плотная', fruitTaste:'Сладкий, медовый', brix:14, crackResistance:'3', vigor:'Среднерослый', crown:'Широкопирамидальная', bearingYear:3, yield:35, spacing:'3×1', rootstockRec:'М9', resMonilia:'3', resScab:'2', frost:'3', note:'Классика. Склонен к парше — обязательна защита. На М9 даёт высокую плотность посадки.' },
+
+  'golden delicious': 'голден',
+  'голден делишес':   'голден',
+
+  'гала':       { cropId:'crop_apple', name:'Гала (Gala)', origin:'Новая Зеландия', year:1934, ripening:'Ранний', pollType:'cross', pollinators:'Голден, Айдаред, Фуджи', fruitWeight:150, fruitColor:'Красно-полосатый', fruitFirmness:'Плотная', fruitTaste:'Сладкий, приятный аромат', brix:13, crackResistance:'4', vigor:'Среднерослый', bearingYear:3, yield:40, spacing:'3×1', rootstockRec:'М9', resMonilia:'3', resScab:'3', frost:'3', note:'Популярный ранний сорт. Много клонов (Ройял Гала, Хани Крисп и др.)' },
+
+  'gala':       'гала',
+
+  'гала дарк':  'гала',
+  'gala dark baron': 'гала',
+
+  'айдаред':    { cropId:'crop_apple', name:'Айдаред (Idared)', origin:'США', year:1935, ripening:'Поздний', pollType:'cross', pollinators:'Голден, Гала, Джонатан', fruitWeight:160, fruitColor:'Ярко-красный', fruitFirmness:'Плотная', fruitTaste:'Кисловато-сладкий', brix:12, crackResistance:'4', vigor:'Среднерослый', bearingYear:3, yield:38, spacing:'3×1', rootstockRec:'М9', resMonilia:'3', resScab:'3', frost:'4', note:'Хранится до весны. Хорош для переработки и свежего рынка.' },
+
+  'idared':     'айдаред',
+
+  'фуджи':      { cropId:'crop_apple', name:'Фуджи (Fuji)', origin:'Япония', year:1962, ripening:'Поздний', pollType:'cross', pollinators:'Голден, Гала', fruitWeight:200, fruitColor:'Красно-полосатый', fruitFirmness:'Очень плотная', fruitTaste:'Очень сладкий', brix:16, crackResistance:'4', vigor:'Среднерослый', bearingYear:4, yield:35, spacing:'3×1', rootstockRec:'М9', resMonilia:'3', resScab:'3', frost:'3', note:'Высокий Brix. Требует тепла для полного вызревания.' },
+
+  'fuji':       'фуджи',
+
+  'джонагред':  { cropId:'crop_apple', name:'Джонагред (Jonagored)', origin:'Нидерланды', year:1979, ripening:'Средний', pollType:'cross', pollinators:'Голден, Гала', fruitWeight:175, fruitColor:'Ярко-красный', fruitFirmness:'Плотная', fruitTaste:'Кисловато-сладкий', brix:13, crackResistance:'3', vigor:'Среднерослый', bearingYear:3, yield:40, spacing:'3×1', rootstockRec:'М9', resMonilia:'3', resScab:'2', frost:'3', note:'Клон Джонаголда. Склонен к парше — защита обязательна.' },
+
+  'jonagold':   'джонагред',
+  'jonagored':  'джонагред',
+
+  'ред делишес': { cropId:'crop_apple', name:'Ред Делишес (Red Delicious)', origin:'США', year:1880, ripening:'Средний', pollType:'cross', pollinators:'Голден, Гала', fruitWeight:160, fruitColor:'Ярко-красный', fruitFirmness:'Плотная', fruitTaste:'Сладкий, слабокислый', brix:12, crackResistance:'3', vigor:'Сильнорослый', bearingYear:4, yield:30, rootstockRec:'М9', resMonilia:'3', resScab:'3', frost:'3', note:'Классика американского рынка. Требует тщательной защиты от болезней.' },
+
+  'red delicious': 'ред делишес',
+
+  'брэбурн':    { cropId:'crop_apple', name:'Брэбурн (Braeburn)', origin:'Новая Зеландия', year:1952, ripening:'Поздний', pollType:'cross', pollinators:'Голден, Гала, Фуджи', fruitWeight:165, fruitColor:'Красно-полосатый на зелёном фоне', fruitFirmness:'Очень плотная', fruitTaste:'Кисловато-сладкий, пряный аромат', brix:14, crackResistance:'4', vigor:'Среднерослый', bearingYear:3, yield:38, spacing:'3×1', rootstockRec:'М9', resMonilia:'3', resScab:'3', frost:'3', note:'Плотная мякоть. Хранится до февраля-марта.' },
+
+  'braeburn':   'брэбурн',
+};
+
+function findInVarietyReference(name) {
+  if(!name) return null;
+  const key = name.toLowerCase().trim()
+    .replace('(', '').replace(')', '')
+    .replace(/\s+/g, ' ').trim();
+  // Прямое совпадение
+  let data = VARIETY_REFERENCE[key];
+  if(typeof data === 'string') data = VARIETY_REFERENCE[data]; // алиас
+  if(data) return data;
+  // Частичное совпадение
+  for(const [k, v] of Object.entries(VARIETY_REFERENCE)) {
+    if(typeof v === 'string') continue;
+    if(key.includes(k) || k.includes(key)) return v;
+  }
+  return null;
+}
+
+function fillFromCatalog() {
+  const name = document.getElementById('ve-name').value;
+  if(!name) { alert('Сначала введите название сорта'); return; }
+  const data = findInVarietyReference(name);
+  if(!data) {
+    alert(`Сорт "${name}" не найден в справочнике.\n\nДоступны: Регина, Кордия, Скина, Лапинс, Саммит, Ранье, Ван, Наполеон, Мершант,\nСтэнли, Валор, Голден, Гала, Айдаред, Фуджи, Джонагред, Ред Делишес, Брэбурн`);
+    return;
+  }
+  // Заполняем поля формы
+  const INP = (id, val) => { const el=document.getElementById(id); if(el&&val!=null) el.value=val; };
+  INP('ve-name', data.name);
+  INP('ve-origin', data.origin);
+  INP('ve-year', data.year);
+  INP('ve-ripening', data.ripening);
+  INP('ve-days-flower', data.daysFlower);
+  INP('ve-poll-type', data.pollType);
+  INP('ve-pollinators', data.pollinators);
+  INP('ve-fruit-weight', data.fruitWeight);
+  INP('ve-fruit-color', data.fruitColor);
+  INP('ve-fruit-firmness', data.fruitFirmness);
+  INP('ve-fruit-taste', data.fruitTaste);
+  INP('ve-brix', data.brix);
+  INP('ve-crack-resistance', data.crackResistance);
+  INP('ve-vigor', data.vigor);
+  INP('ve-crown', data.crown);
+  INP('ve-bearing-year', data.bearingYear);
+  INP('ve-yield', data.yield);
+  INP('ve-spacing', data.spacing);
+  INP('ve-rootstock-rec', data.rootstockRec);
+  INP('ve-res-monilia', data.resMonilia);
+  INP('ve-res-cocco', data.resCocco);
+  INP('ve-res-claster', data.resClaster);
+  INP('ve-res-scab', data.resScab);
+  INP('ve-frost', data.frost);
+  INP('ve-cp', data.cp);
+  INP('ve-note', data.note);
+  // Культура
+  if(data.cropId) {
+    const cropSel = document.getElementById('ve-crop');
+    if(cropSel) cropSel.value = data.cropId;
+  }
+  // Визуальное подтверждение
+  const btn = document.querySelector('[onclick="fillFromCatalog()"]');
+  if(btn) { const orig=btn.innerHTML; btn.innerHTML='✅ Данные заполнены — проверьте и сохраните'; btn.style.borderColor='var(--accent)'; btn.style.color='var(--accent)'; setTimeout(()=>{btn.innerHTML=orig;btn.style.borderColor='';btn.style.color='';},3000); }
+}
+
+// Показываем кнопку справочника при вводе названия
+function onVarietyNameInput(val) {
+  const wrap = document.getElementById('ve-catalog-btn-wrap');
+  if(!wrap) return;
+  const found = findInVarietyReference(val);
+  wrap.style.display = found ? 'block' : 'none';
+  if(found) {
+    const btn = wrap.querySelector('button');
+    if(btn) btn.innerHTML = `📚 Заполнить из справочника: <strong>${found.name}</strong>`;
+  }
+}
+
 function openVarietyEditModal(id) {
   const v = id ? S.varieties.find(x=>x.id===id) : null;
   document.getElementById('variety-edit-title').textContent = v ? `✏️ ${v.name}` : '🍒 Новый сорт';
@@ -9343,6 +9505,8 @@ function openVarietyEditModal(id) {
   };
   Object.entries(fields).forEach(([id,val])=>{ const el=document.getElementById(id); if(el) el.value=val; });
   openModal('modal-variety-edit');
+  // Показываем кнопку справочника если сорт найден
+  setTimeout(()=>onVarietyNameInput(document.getElementById('ve-name').value||''), 100);
 }
 
 function saveVarietyEdit() {
