@@ -871,18 +871,16 @@ tbody td{padding:10px 12px;vertical-align:middle;}
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
         <div class="precip-box">
           <span style="font-size:11px;color:var(--text2);">🌧 Осадки:</span>
-          <input type="number" id="precip-input" placeholder="мм" min="0" step="0.1" oninput="updateRain()">
+          <input type="number" id="precip-input" placeholder="мм" min="0" step="0.1"
+            oninput="this._userEdited=true;this.style.borderColor='';updateRain()">
           <span style="font-size:11px;color:var(--text3);">мм</span>
         </div>
         <span class="rain-badge" id="rain-badge" style="display:none;"></span>
-        <button class="btn btn-secondary" onclick="document.getElementById('treatments-file-input').click()">📂 Импорт XLS обработок</button>
-        <input type="file" id="treatments-file-input" accept=".xls,.xlsx" style="display:none" onchange="importTreatmentsFile(event)">
-        <button class="btn btn-secondary" onclick="backfillTreatmentCrops()" title="Привязать обработки к культуре по клетке">🔄 Привязать культуры</button>
-        <button class="btn btn-primary" onclick="openTreatmentModal()">+ Обработка</button>
         <button class="btn btn-secondary" onclick="openExportModal()">📊 Отчёт Excel</button>
       </div>
     </div>
     <div id="treatments-import-status" style="display:none;margin-bottom:12px;"></div>
+    <div id="tr-alerts" style="margin-bottom:12px;"></div>
 
     <!-- Filters -->
     <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center;">
@@ -2110,50 +2108,99 @@ tbody td{padding:10px 12px;vertical-align:middle;}
 
 <!-- MODAL: Новое задание -->
 <div class="modal-overlay" id="modal-new-task">
-  <div class="modal" style="max-width:700px;width:96%;max-height:92vh;overflow-y:auto;">
+  <div class="modal" style="max-width:760px;width:96%;max-height:92vh;overflow-y:auto;">
     <h2>📋 Новое задание</h2>
-    <div class="form-grid" style="margin-bottom:12px;">
+
+    <!-- Секция 1: Основное -->
+    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">📌 Основное</div>
+    <div class="form-grid" style="margin-bottom:14px;">
       <div class="ff">
         <label>Вид работ</label>
         <select id="nt-wt" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);"></select>
       </div>
       <div class="ff">
-        <label>Агроном (создаёт)</label>
+        <label>Дата / срок</label>
+        <input type="date" id="nt-due">
+      </div>
+      <div class="ff">
+        <label>Агроном</label>
         <select id="nt-creator" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);"></select>
       </div>
       <div class="ff">
         <label>Исполнитель</label>
         <select id="nt-assignee" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);"></select>
       </div>
-      <div class="ff">
-        <label>Срок выполнения</label>
-        <input type="date" id="nt-due">
-      </div>
       <div class="ff full">
-        <label>Описание / комментарий</label>
-        <input type="text" id="nt-desc" placeholder="Детали задания...">
+        <label>Примечание</label>
+        <input type="text" id="nt-desc" placeholder="Цель работ, особые указания...">
       </div>
     </div>
-    <!-- Клетки -->
-    <div style="margin-bottom:12px;">
-      <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">🌳 Клетки сада</div>
-      <div id="nt-parcel-list" style="max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:6px;"></div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;" id="nt-selected-tags"></div>
-      <div id="nt-area-info" style="font-size:11px;color:var(--accent);margin-top:4px;font-weight:600;"></div>
-    </div>
-    <!-- Препараты -->
-    <div style="margin-bottom:12px;">
-      <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">💊 Препараты (если обработка)</div>
-      <div style="position:relative;">
-        <input type="text" id="nt-chem-search" placeholder="Поиск препарата..." oninput="searchNtChems(this.value)" onfocus="searchNtChems(this.value)"
-          style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
-        <div id="nt-chem-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1px solid var(--border);border-radius:8px;z-index:100;max-height:200px;overflow-y:auto;box-shadow:0 4px 20px rgba(0,0,0,.4);"></div>
+
+    <!-- Секция 2: Техника и механизатор -->
+    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🚜 Техника и механизатор</div>
+    <div class="form-grid" style="margin-bottom:14px;">
+      <div class="ff">
+        <label>Техника</label>
+        <select id="nt-equip" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+          <option value="">— не выбрана —</option>
+        </select>
       </div>
-      <div id="nt-added-chems" style="margin-top:8px;"></div>
+      <div class="ff">
+        <label>Навесное оборудование</label>
+        <select id="nt-attach" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+          <option value="">— не выбрано —</option>
+        </select>
+      </div>
+      <div class="ff">
+        <label>Механизатор</label>
+        <select id="nt-mechanic" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+          <option value="">— не назначен —</option>
+        </select>
+      </div>
+      <div class="ff">
+        <label>Скорость агрегата (км/ч)</label>
+        <input type="number" id="nt-speed" placeholder="5" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+      </div>
     </div>
+
+    <!-- Секция 3: Клетки -->
+    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🌳 Клетки сада</div>
+    <div id="nt-parcel-list" style="max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:6px;margin-bottom:6px;"></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:4px;" id="nt-selected-tags"></div>
+    <div id="nt-area-info" style="font-size:11px;color:var(--accent);margin-bottom:14px;font-weight:600;"></div>
+
+    <!-- Секция 4: Препараты и баковая смесь -->
+    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">💊 Препараты / баковая смесь</div>
+    <div class="form-grid" style="margin-bottom:8px;">
+      <div class="ff">
+        <label>Расход воды (л/га)</label>
+        <input type="number" id="nt-water" value="400" placeholder="400"
+          style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);"
+          oninput="ntUpdateCalc()">
+      </div>
+      <div class="ff">
+        <label>Метод внесения</label>
+        <select id="nt-method" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+          <option value="foliar">🌿 Листовое опрыскивание</option>
+          <option value="drip">💧 Фертигация (капельное)</option>
+          <option value="soil">🌱 В почву</option>
+          <option value="trunk">🌳 Стволовая инъекция</option>
+        </select>
+      </div>
+    </div>
+    <div style="position:relative;margin-bottom:8px;">
+      <input type="text" id="nt-chem-search" placeholder="Поиск препарата из справочника..." oninput="searchNtChems(this.value)" onfocus="searchNtChems(this.value)"
+        style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+      <div id="nt-chem-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1px solid var(--border);border-radius:8px;z-index:100;max-height:200px;overflow-y:auto;box-shadow:0 4px 20px rgba(0,0,0,.4);"></div>
+    </div>
+    <div id="nt-added-chems" style="margin-bottom:8px;"></div>
+
+    <!-- Расчёт итого -->
+    <div id="nt-calc-summary" style="display:none;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;margin-bottom:14px;"></div>
+
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-new-task')">Отмена</button>
-      <button class="btn btn-primary" onclick="saveNewTask()">Создать задание</button>
+      <button class="btn btn-primary" onclick="saveNewTask()">✅ Создать задание + списать</button>
     </div>
   </div>
 </div>
@@ -3046,7 +3093,7 @@ function switchTab(tab,el){
   }
   if(tab==='catalog')renderCatalog();
   if(tab==='diseases'){popDFilter();renderDiseaseRisks();}
-  if(tab==='treatments')renderTreatments();
+  if(tab==='treatments'){renderTreatments(); autoFillPrecip();}
   if(tab==='analysis'){popAFilter();renderAnalysis();}
   if(tab==='diseases'){popDFilter();renderDiseases();}
   if(tab==='doses')popDoseSelects();
@@ -3229,10 +3276,19 @@ function fillFromCatalog(){
 
 // Quick apply from catalog card button
 function quickAddTreatment(prodId){
-  // Switch to treatments tab first
-  const treatTab=document.querySelector('.tabs .tab:nth-child(3)');
-  if(treatTab)switchTab('treatments',treatTab);
-  openTreatmentModal(prodId);
+  // Открываем журнал работ с предзаполненным препаратом
+  const taskTab = document.querySelector('[onclick*="switchTab(\'tasks\'"]');
+  if(taskTab) switchTab('tasks', taskTab);
+  openNewTask().then(()=>{
+    // Предзаполняем препарат
+    addNtChem(prodId);
+    // Выбираем вид работ "Обработка"
+    const wtSel = document.getElementById('nt-wt');
+    if(wtSel) {
+      const opt = Array.from(wtSel.options).find(o=>o.text.toLowerCase().includes('обработка')||o.text.toLowerCase().includes('опрыскив'));
+      if(opt) wtSel.value = opt.value;
+    }
+  });
 }
 
 // ===================== GRID =====================
@@ -4003,8 +4059,60 @@ function onTrCropChange() {
 
 // ─── renderTreatments ────────────────────────────────────────────────────────
 function renderTreatments(){
-  const todayDate=new Date();
+  const todayDate=new Date(); todayDate.setHours(0,0,0,0);
   const precip=parseFloat(document.getElementById('precip-input')?.value)||0;
+
+  // ══ УВЕДОМЛЕНИЯ ══
+  const alertsEl = document.getElementById('tr-alerts');
+  if(alertsEl) {
+    const alerts = [];
+    S.treatments.forEach(t => {
+      const products = t.products||[{name:t.product,washMm:t.washMm,duration:t.duration}];
+      products.forEach(p => {
+        const endDate = new Date(t.endDate||'2000-01-01');
+        const daysLeft = Math.ceil((endDate-todayDate)/86400000);
+        const washMm = parseFloat(p.washMm||t.washMm)||15;
+        const cellLabel = t.cellsTarget?.length ? t.cellsTarget.join(', ') : (t.cellTarget||'сад');
+
+        // Смыв дождём
+        if(precip>0 && precip>=washMm && daysLeft>0) {
+          const washed = precip>=washMm*2;
+          alerts.push({
+            type: washed?'red':'yellow',
+            icon: washed?'⛔':'⚠️',
+            text: washed
+              ? `<strong>${p.name||t.product}</strong> — смыт дождём (${precip}мм ≥ ${washMm*2}мм). Клетки: ${cellLabel}`
+              : `<strong>${p.name||t.product}</strong> — частичный смыв (${precip}мм). Эффективность -35%. Клетки: ${cellLabel}`,
+            priority: 1,
+          });
+        }
+
+        // Заканчивает действие через ≤3 дня
+        if(daysLeft>0 && daysLeft<=3 && precip<washMm) {
+          alerts.push({
+            type: daysLeft<=1 ? 'red' : 'yellow',
+            icon: '⏳',
+            text: `<strong>${p.name||t.product}</strong> — действие заканчивается ${daysLeft===1?'<strong>завтра</strong>':`через <strong>${daysLeft} дн.</strong>`}. Клетки: ${cellLabel}`,
+            priority: 2,
+          });
+        }
+      });
+    });
+
+    if(alerts.length) {
+      alertsEl.innerHTML = alerts
+        .sort((a,b)=>a.priority-b.priority)
+        .map(a=>`<div style="display:flex;gap:10px;align-items:flex-start;padding:10px 14px;border-radius:10px;margin-bottom:6px;
+          background:${a.type==='red'?'rgba(239,68,68,.08)':'rgba(251,191,36,.08)'};
+          border:1px solid ${a.type==='red'?'rgba(239,68,68,.25)':'rgba(251,191,36,.25)'};">
+          <span style="font-size:16px;line-height:1.2;">${a.icon}</span>
+          <span style="font-size:12px;color:var(--text2);line-height:1.5;">${a.text}</span>
+        </div>`).join('');
+    } else {
+      alertsEl.innerHTML = '';
+    }
+  }
+  // ══════════════════
 
   // Populate filters
   const cropSel=document.getElementById('tr-crop-filter');
@@ -4139,7 +4247,6 @@ function renderTreatments(){
         <td>${sb}</td>
         <td style="font-size:11px;">${wn}</td>
         <td style="white-space:nowrap;">
-          <button class="btn btn-secondary btn-xs" onclick="openTreatmentEditModal(${t.id})" title="Редактировать">✏️</button>
           <button class="btn btn-danger btn-xs" onclick="if(confirm('Удалить?')){S.treatments.splice(${origIdx},1);save();renderTreatments();updateHdr();}">✕</button>
         </td>
       </tr>`;
@@ -4391,17 +4498,48 @@ function saveOrchardCalibration() {
   alert(msg);
 }
 
+function autoFillPrecip() {
+  // Суммируем осадки за последние 7 дней из метеостанции
+  if(!S.weather?.length) return;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const weekAgo = new Date(today); weekAgo.setDate(weekAgo.getDate()-7);
+  const recent = S.weather.filter(w => {
+    const d = new Date(w.date); return d >= weekAgo && d <= today;
+  });
+  if(!recent.length) return;
+  const total7 = recent.reduce((s,w) => s+parseFloat(w.precip||0), 0);
+  const rounded = Math.round(total7*10)/10;
+  const inp = document.getElementById('precip-input');
+  if(inp && !inp._userEdited) {
+    inp.value = rounded > 0 ? rounded : '';
+    inp.title = `Автозаполнено из метеостанции: осадки за 7 дней (${recent.length} дн.)`;
+    inp.style.borderColor = 'rgba(74,222,128,.5)';
+  }
+  updateRain();
+}
+
 function updateRain(){
-  const p=parseFloat(document.getElementById('precip-input').value)||0;const b=document.getElementById('rain-badge');
-  if(p<=0){b.style.display='none';return;}
+  const inp = document.getElementById('precip-input');
+  const p = parseFloat(inp?.value)||0;
+  const b = document.getElementById('rain-badge');
+  if(p<=0){b.style.display='none'; renderTreatments(); return;}
   b.style.display='inline-block';
-  // Check against all active treatments
-  const washMms=S.treatments.map(t=>parseFloat(t.washMm)||15);
-  const minWash=washMms.length?Math.min(...washMms):15;
-  if(p>=minWash*2){b.style.background='rgba(239,68,68,.15)';b.style.color='var(--red)';b.textContent=`⛔ ${p}мм — смывает препараты`;}
-  else if(p>=minWash){b.style.background='rgba(251,191,36,.15)';b.style.color='var(--yellow)';b.textContent=`⚠️ ${p}мм — частичный смыв`;}
-  else{b.style.background='rgba(74,222,128,.15)';b.style.color='var(--accent)';b.textContent=`✅ ${p}мм — препараты в норме`;}
-  renderTreatments();renderMap();
+  const washMms = S.treatments.filter(t=>{
+    const end = new Date(t.endDate||'2000-01-01');
+    return end >= new Date();
+  }).map(t=>parseFloat(t.washMm)||15);
+  const minWash = washMms.length ? Math.min(...washMms) : 15;
+  if(p>=minWash*2){
+    b.style.background='rgba(239,68,68,.15)';b.style.color='var(--red)';
+    b.textContent=`⛔ ${p}мм — смывает препараты`;
+  } else if(p>=minWash){
+    b.style.background='rgba(251,191,36,.15)';b.style.color='var(--yellow)';
+    b.textContent=`⚠️ ${p}мм — частичный смыв`;
+  } else {
+    b.style.background='rgba(74,222,128,.15)';b.style.color='var(--accent)';
+    b.textContent=`✅ ${p}мм — препараты в норме`;
+  }
+  renderTreatments(); renderMap();
 }
 
 // ===================== ANALYSIS =====================
@@ -8838,24 +8976,43 @@ async function openNewTask() {
         {id:'wt2',name:'Ирригация'},
         {id:'wt3',name:'Скашивание травы'},
         {id:'wt4',name:'Обрезка деревьев'},
-        {id:'wt5',name:'Подкормка'},
+        {id:'wt5',name:'Подкормка (фертигация)'},
         {id:'wt6',name:'Уборка урожая'},
         {id:'wt7',name:'Посадка'},
         {id:'wt8',name:'Прочие работы'},
       ];
     }
   }
+
+  // Техника и навесное
+  let allEquip = [], attachArr = [];
+  try { allEquip = await fetch('/api/equipment').then(r=>r.json()); } catch(e) {}
+  try { const at = await fetch('/api/attachments').then(r=>r.json()); attachArr = Array.isArray(at)?at:(at.data||[]); } catch(e) {}
+
   _newTaskParcels = [];
   _newTaskChems = [];
 
   document.getElementById('nt-wt').innerHTML = _taskWorkTypes.map(w=>`<option value="${w.id}" data-name="${w.name}">${w.name}</option>`).join('');
+
   const staffOpts = _taskStaff.length
     ? _taskStaff.map(s=>`<option value="${s.id}" data-name="${s.name}">${s.name} (${s.role})</option>`).join('')
     : '<option value="agronomist" data-name="Агроном">Агроном</option>';
   document.getElementById('nt-creator').innerHTML = staffOpts;
   document.getElementById('nt-assignee').innerHTML = staffOpts;
 
-  // Клетки сада вместо парцеллей
+  // Техника
+  document.getElementById('nt-equip').innerHTML = '<option value="">— не выбрана —</option>'
+    + allEquip.map(e=>`<option value="${e.id}" data-name="${e.name}">${e.name}${e.status&&e.status!=='free'?' ⚠️':''}</option>`).join('');
+
+  // Навесное
+  document.getElementById('nt-attach').innerHTML = '<option value="">— не выбрано —</option>'
+    + attachArr.map(a=>`<option value="${a.id}" data-name="${a.name}">${a.name}</option>`).join('');
+
+  // Механизатор из персонала
+  document.getElementById('nt-mechanic').innerHTML = '<option value="">— не назначен —</option>'
+    + _taskStaff.map(s=>`<option value="${s.id}" data-name="${s.name}">${s.name}</option>`).join('');
+
+  // Клетки сада
   const cells = Object.entries(S.cells||{});
   document.getElementById('nt-parcel-list').innerHTML = cells.length
     ? cells.map(([key,cd])=>{
@@ -8875,8 +9032,11 @@ async function openNewTask() {
   document.getElementById('nt-added-chems').innerHTML = '';
   document.getElementById('nt-selected-tags').innerHTML = '';
   document.getElementById('nt-area-info').textContent = '';
+  document.getElementById('nt-calc-summary').style.display = 'none';
+  document.getElementById('nt-water').value = '400';
   document.getElementById('nt-due').value = today();
   document.getElementById('nt-desc').value = '';
+  document.getElementById('nt-speed').value = '';
   openModal('modal-new-task');
 }
 
@@ -8895,6 +9055,38 @@ function toggleNtParcel(id, name, ha) {
   const total = _newTaskParcels.reduce((s,p)=>s+p.ha,0);
   document.getElementById('nt-selected-tags').innerHTML = _newTaskParcels.map(p=>`<span style="padding:2px 8px;border-radius:10px;background:rgba(107,221,107,.15);color:var(--accent);font-size:11px;">${p.name}</span>`).join('');
   document.getElementById('nt-area-info').textContent = _newTaskParcels.length ? `${_newTaskParcels.length} кл. · ${total.toFixed(3)} га` : '';
+  ntUpdateCalc();
+}
+
+function ntUpdateCalc() {
+  const calcEl = document.getElementById('nt-calc-summary');
+  if(!calcEl) return;
+  const totalHa = _newTaskParcels.reduce((s,p)=>s+p.ha,0);
+  const waterPerHa = parseFloat(document.getElementById('nt-water')?.value)||400;
+  const chems = _newTaskChems.filter(c=>parseFloat(c.dose_actual)>0);
+  if(!chems.length||!totalHa){ calcEl.style.display='none'; return; }
+  const totalWater = Math.round(waterPerHa*totalHa);
+  const TC={fungicide:'var(--teal)',insecticide:'var(--orange)',herbicide:'var(--yellow)',
+    fertilizer:'var(--accent)',acaricide:'var(--purple)',microelement:'var(--blue)',other:'var(--text3)'};
+  let html = `<div style="font-size:10px;color:var(--text3);margin-bottom:8px;">📐 Площадь: <strong style="color:var(--accent);">${totalHa.toFixed(3)} га</strong> · 💧 Воды: <strong style="color:var(--blue);">${totalWater} л</strong></div>`;
+  html += `<div style="display:flex;flex-wrap:wrap;gap:6px;">`;
+  chems.forEach(c=>{
+    const dose=parseFloat(c.dose_actual)||0;
+    const total=Math.round(dose*totalHa*1000)/1000;
+    const cat=S.catalog.find(x=>x.id===c.id);
+    const color=TC[cat?.type||'other']||'var(--accent)';
+    // Проверяем остаток на складе
+    const stock=S.warehouse?.chemicals?.find(x=>x.name.toLowerCase()===c.name.toLowerCase());
+    const enough=stock?stock.qty>=total:null;
+    html+=`<div style="padding:6px 10px;border-radius:8px;background:var(--surface3);border:1px solid ${enough===false?'var(--red)':enough===true?'rgba(74,222,128,.3)':'var(--border)'};">
+      <div style="font-size:11px;font-weight:600;">${c.name}</div>
+      <div style="font-size:13px;font-weight:700;color:${color};">${total} <span style="font-size:10px;">л/кг</span></div>
+      ${stock?`<div style="font-size:10px;color:${enough?'var(--accent)':'var(--red)'};">${enough?'✅':'⚠️'} склад: ${stock.qty} ${stock.unit||'л'}</div>`:'<div style="font-size:10px;color:var(--text3);">склад: нет данных</div>'}
+    </div>`;
+  });
+  html += `</div>`;
+  calcEl.innerHTML = html;
+  calcEl.style.display = 'block';
 }
 
 function searchNtChems(q) {
@@ -8937,13 +9129,14 @@ function renderNtChems() {
           <input type="text" value="${c.dose_default||'—'}" readonly style="width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text3);">
         </div>
         <div>
-          <div style="font-size:10px;color:var(--text3);margin-bottom:2px;">ФАКТ. ДОЗА</div>
+          <div style="font-size:10px;color:var(--text3);margin-bottom:2px;">ФАКТ. ДОЗА (л/кг на га)</div>
           <input type="text" id="ntd-${c.id}" value="${c.dose_actual}" placeholder="л/га"
-            oninput="_newTaskChems.find(x=>x.id==='${c.id}').dose_actual=this.value"
+            oninput="_newTaskChems.find(x=>x.id==='${c.id}').dose_actual=this.value;ntUpdateCalc()"
             style="width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text);">
         </div>
       </div>
     </div>`).join('');
+  ntUpdateCalc();
 }
 
 async function saveNewTask() {
@@ -8957,8 +9150,26 @@ async function saveNewTask() {
   const asId = asSel.value;
   const asName = asSel.options[asSel.selectedIndex]?.dataset?.name || asSel.options[asSel.selectedIndex]?.textContent || '';
   if(!crId||!asId){alert('Выберите агронома и исполнителя');return;}
+
+  const eqSel = document.getElementById('nt-equip');
+  const eqId = eqSel.value;
+  const eqName = eqSel.options[eqSel.selectedIndex]?.dataset?.name || '';
+  const atSel = document.getElementById('nt-attach');
+  const atName = atSel.options[atSel.selectedIndex]?.dataset?.name || '';
+  const meSel = document.getElementById('nt-mechanic');
+  const meId = meSel.value;
+  const meName = meSel.options[meSel.selectedIndex]?.dataset?.name || meSel.options[meSel.selectedIndex]?.textContent || '';
+  const speed = parseFloat(document.getElementById('nt-speed').value)||null;
+  const waterPerHa = parseFloat(document.getElementById('nt-water').value)||400;
+  const method = document.getElementById('nt-method').value;
+
   const parcelName = _newTaskParcels.map(p=>p.name).join(', ') || null;
   const totalHa = _newTaskParcels.reduce((s,p)=>s+p.ha,0);
+  const dueDate = document.getElementById('nt-due').value||null;
+
+  // Статус: если назначена техника и механизатор — сразу "assigned"
+  const initialStatus = (eqId && meId) ? 'assigned' : 'new';
+
   const body = {
     work_type_id: wtId, work_type_name: wtName,
     description: document.getElementById('nt-desc').value.trim(),
@@ -8969,64 +9180,108 @@ async function saveNewTask() {
     chemicals: _newTaskChems.length ? JSON.stringify(_newTaskChems) : null,
     created_by_id: crId, created_by_name: crName,
     assigned_to_id: asId, assigned_to_name: asName,
-    due_date: document.getElementById('nt-due').value||null,
+    equipment_id: eqId||null, equipment_name: eqName||null,
+    attachment: atName||null,
+    mechanic_id: meId||null, mechanic_name: meName||null,
+    speed_kmh: speed,
+    water_per_ha: waterPerHa,
+    method,
+    due_date: dueDate,
+    status: initialStatus,
   };
+
   const r = await fetch('/api/tasks', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
-  if(r.ok) {
-    // Автосписание со склада — при любых препаратах
-    if(_newTaskChems.length) {
-      try {
-        // Берём актуальный склад — сначала с сервера, fallback на S.warehouse
-        let warehouse;
-        try {
-          const orchState = await fetch('/api/state/orchard').then(r=>r.json());
-          warehouse = orchState.data?.warehouse;
-        } catch(e) {}
-        if(!warehouse?.chemicals) warehouse = S.warehouse;
-        if(!warehouse) warehouse = { chemicals:[], parts:[], seeds:[], history:[] };
-
-        const date = document.getElementById('nt-due').value || today();
-        let anySpent = false;
-
-        _newTaskChems.forEach(c => {
-          const doseNum = parseFloat(c.dose_actual)||0;
-          if(!doseNum) return;
-          const ha = totalHa||1;
-          const spent = Math.round(doseNum*ha*1000)/1000;
-          // Ищем в складе по точному имени, потом по частичному
-          let stock = warehouse.chemicals?.find(x=>x.name.toLowerCase()===c.name.toLowerCase());
-          if(!stock) stock = warehouse.chemicals?.find(x=>x.name.toLowerCase().includes(c.name.toLowerCase().split(' ')[0]));
-          if(stock) {
-            stock.qty = Math.round(Math.max(0,stock.qty-spent)*1000)/1000;
-          }
-          // В историю пишем в любом случае
-          if(!warehouse.history) warehouse.history=[];
-          warehouse.history.unshift({
-            id:uid(), date, type:'chemical', name:c.name,
-            operation:'out', qty:spent, unit:stock?.unit||'л',
-            price:stock?.price||0, total:Math.round(spent*(stock?.price||0)),
-            parcelName: parcelName||'Сад', note:`${wtName} (журнал работ)`
-          });
-          anySpent = true;
-        });
-
-        if(anySpent) {
-          S.warehouse = warehouse;
-          save(); // сохраняем в localStorage
-          // Синхронизируем с сервером
-          fetch('/api/state/orchard',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({warehouse})})
-            .catch(e=>console.warn('Warehouse server sync failed:', e.message));
-        }
-      } catch(e) { console.warn('Warehouse deduction failed:', e.message); }
-    }
-    closeModal('modal-new-task');
-    renderTasks();
-    // Обновляем склад если открыт
-    const whPanel = document.getElementById('panel-warehouse');
-    if(whPanel?.classList.contains('active')) renderWarehouse();
-  } else {
+  if(!r.ok) {
     try { const e = await r.json(); alert('Ошибка: '+e.error); } catch{ alert('Ошибка сохранения'); }
+    return;
   }
+
+  // ══ Автосписание со склада при наличии препаратов ══
+  if(_newTaskChems.length) {
+    try {
+      let warehouse;
+      try {
+        const orchState = await fetch('/api/state/orchard').then(r=>r.json());
+        warehouse = orchState.data?.warehouse;
+      } catch(e) {}
+      if(!warehouse?.chemicals) warehouse = S.warehouse;
+      if(!warehouse) warehouse = { chemicals:[], parts:[], seeds:[], history:[] };
+
+      let anySpent = false;
+      _newTaskChems.forEach(c => {
+        const doseNum = parseFloat(c.dose_actual)||0;
+        if(!doseNum) return;
+        const ha = totalHa||1;
+        const spent = Math.round(doseNum*ha*1000)/1000;
+        let stock = warehouse.chemicals?.find(x=>x.name.toLowerCase()===c.name.toLowerCase());
+        if(!stock) stock = warehouse.chemicals?.find(x=>x.name.toLowerCase().includes(c.name.toLowerCase().split(' ')[0]));
+        if(stock) {
+          stock.qty = Math.round(Math.max(0,stock.qty-spent)*1000)/1000;
+        }
+        if(!warehouse.history) warehouse.history=[];
+        warehouse.history.unshift({
+          id:uid(), date:dueDate||today(), type:'chemical', name:c.name,
+          operation:'out', qty:spent, unit:stock?.unit||'л',
+          price:stock?.price||0, total:Math.round(spent*(stock?.price||0)),
+          parcelName: parcelName||'Сад',
+          note:`${wtName}${eqName?' · '+eqName:''}${meName?' · '+meName:''}`
+        });
+        anySpent = true;
+      });
+
+      if(anySpent) {
+        S.warehouse = warehouse;
+        save();
+        fetch('/api/state/orchard',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({warehouse})})
+          .catch(e=>console.warn('Warehouse sync failed:', e.message));
+      }
+    } catch(e) { console.warn('Warehouse deduction failed:', e.message); }
+
+    // ══ Автосоздание записи в Обработках ══
+    // (только если вид работы связан с опрыскиванием)
+    const wtLower = wtName.toLowerCase();
+    if(wtLower.includes('обработка')||wtLower.includes('опрыскив')||wtLower.includes('подкормка')||wtLower.includes('фертиг')) {
+      try {
+        const products = _newTaskChems.map(c=>({
+          catId: c.id, name: c.name,
+          type: S.catalog.find(x=>x.id===c.id)?.type||'fungicide',
+          dose: c.dose_actual, dur: 14, washMm: 15,
+          active: S.catalog.find(x=>x.id===c.id)?.activeSubstance||''
+        }));
+        const first = products[0];
+        const maxDur = 14;
+        const endDate = new Date(dueDate||today());
+        endDate.setDate(endDate.getDate()+maxDur);
+        const cellsTarget = _newTaskParcels.map(p=>p.id);
+        const treatment = {
+          id: Date.now(),
+          date: dueDate||today(),
+          product: products.map(p=>p.name).join(' + '),
+          products,
+          activeSubstance: products.map(p=>p.active).filter(Boolean).join(', '),
+          type: first?.type||'fungicide',
+          method,
+          dose: first?.dose||'',
+          water: waterPerHa,
+          duration: maxDur, washMm: 15,
+          endDate: endDate.toISOString().split('T')[0],
+          cellsTarget,
+          cellTarget: cellsTarget.length===1?cellsTarget[0]:(cellsTarget.length>1?cellsTarget.join(','):'all'),
+          cropId: null,
+          varietyTarget: 'all',
+          note: `${wtName}${meName?' · '+meName:''}${parcelName?' · '+parcelName:''}`,
+          fromTask: true,
+        };
+        S.treatments.unshift(treatment);
+        save();
+      } catch(e) { console.warn('Treatment auto-create failed:', e.message); }
+    }
+  }
+
+  closeModal('modal-new-task');
+  renderTasks();
+  const whPanel = document.getElementById('panel-warehouse');
+  if(whPanel?.classList.contains('active')) renderWarehouse();
 }
 
 function openTaskProb(id) {
@@ -9884,7 +10139,7 @@ function applyRole(roleKey) {
       <button class="btn btn-sm" style="background:rgba(167,139,250,.15);color:#a78bfa;border:1px solid rgba(167,139,250,.3);" onclick="showTab('weather');openWeatherModal()">+ День вручную</button>
       <button class="btn btn-sm" style="background:rgba(96,165,250,.2);color:#60a5fa;border:1px solid rgba(96,165,250,.4);font-weight:700;" onclick="showTab('weather');document.getElementById('meteo-input').click()">📂 Импорт XLS метеостанции</button>
       <button class="btn btn-sm" style="background:rgba(167,139,250,.15);color:#a78bfa;border:1px solid rgba(167,139,250,.3);" onclick="showTab('irrigation');openIrrigModal()">+ Полив</button>
-      <button class="btn btn-sm" style="background:rgba(167,139,250,.15);color:#a78bfa;border:1px solid rgba(167,139,250,.3);" onclick="showTab('treatments');openTreatmentModal()">+ Обработка</button>`;
+      <button class="btn btn-sm" style="background:rgba(74,222,128,.2);color:var(--accent);border:1px solid rgba(74,222,128,.4);font-weight:700;" onclick="switchTab('tasks',document.querySelector('[onclick*=tasks]'));openNewTask()">📋 Новое задание</button>`;
     document.querySelector('.nav').after(banner);
   }
 
