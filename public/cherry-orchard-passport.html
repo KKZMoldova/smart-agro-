@@ -3015,10 +3015,70 @@ let S = {
   rootstocks: [],
   aiLog: [], // [{id, date, type, prompt_summary, ai_text, photo_base64, comments:[{date,author,role,text}]}]
   varieties:[
-    {id:'v1',name:'Регина',  ripening:'Поздний',pollType:'cross',pollinators:'Коралл, Наполеон',color:'vc0',note:'',cropId:'crop_cherry'},
-    {id:'v2',name:'Коралл',  ripening:'Средний',pollType:'cross',pollinators:'Регина, Ревна',   color:'vc1',note:'',cropId:'crop_cherry'},
+    {id:'v1',name:'Регина',  ripening:'Поздний',pollType:'cross',pollinators:'Кордия, Наполеон, Карина',color:'vc0',note:'',cropId:'crop_cherry'},
+    {id:'v2', name:'Кордия (Kordia)', ripening:'Средне-поздний', pollType:'cross',
+     pollinators:'Регина, Саммит, Карина',
+     color:'vc1', cropId:'crop_cherry',
+     // Помологический паспорт (статья Kordia)
+     origin: 'Чехия', year: 1963,
+     fruitWeight: 10,        // 9-11 г
+     fruitColor: 'Тёмно-бордовый, при созревании глянцево-чёрный',
+     fruitFirmness: 'Очень плотная (Бигарро)',
+     fruitTaste: 'Эталонный десертный, богатый сортовой аромат',
+     brix: 19.5,             // 18-21% Brix
+     crackResistance: '3',   // 3/5 — уязвима к дождю, нужна плёнка
+     // Дерево
+     vigor: 'Сильнорослый',
+     crown: 'Раскидистая широкоокруглая, ветви поникают под урожаем',
+     bearingYear: 3,
+     yield: 14,              // 12-16 т/га на Gisela 5
+     spacing: '4×2',
+     rootstockRec: 'Гизела 5',
+     // Устойчивость к болезням
+     resMonilia: '4',        // высокая
+     resCocco: '4',          // средне-высокая
+     resClaster: '4',        // высокая
+     resScab: '3',
+     frost: '4',             // зимостойкость древесины 3.8/5
+     // GDD и CP
+     cp: 58,                 // 55-60 CP
+     daysFlower: 52,         // созревает за ~52 дня от цветения
+     // Генетика
+     pollSAlleles: 'S3S6',   // самобесплодна
+     note: 'Королева чёрных черешен. Созревает на 7-10 дней раньше Регины (20-25 июня Молдова). Регина (S1S3) и Кордия (S3S6) — частично совместимы, Кордия зацветает на 2-3 дня раньше. Растрескивание у вершины ягоды при дожде — ОБЯЗАТЕЛЬНА плёнка. Длинная плодоножка — удобна для сбора и гидрокулинга.',
+    },
     {id:'v3',name:'Наполеон',ripening:'Средний',pollType:'cross',pollinators:'Коралл, Регина',  color:'vc2',note:'',cropId:'crop_cherry'},
-    {id:'v4',name:'Ревна',   ripening:'Поздний',pollType:'self', pollinators:'',                 color:'vc3',note:'Самоопыляемый',cropId:'crop_cherry'},
+    {id:'v4', name:'Скина (Skeena)', ripening:'Поздний', pollType:'self',
+     pollinators:'Самоплодная — опылитель для Регины и Кордии',
+     color:'vc3', cropId:'crop_cherry',
+     // Помологический паспорт (статья Skeena)
+     origin: 'Канада (Summerland, BC)', year: 1999,
+     fruitWeight: 11.5,       // 11-12 г
+     fruitColor: 'Тёмно-бордовый, при созревании насыщенно-чёрный',
+     fruitFirmness: 'Высокая хрящеватость (Бигарро)',
+     fruitTaste: 'Очень сладкий, насыщенный, сбалансированный',
+     brix: 19,                // 18-20% Brix
+     crackResistance: '4',    // 3.5/5 — лучше Кордии, уступает Регине
+     // Дерево
+     vigor: 'Среднерослый',
+     crown: 'Полупрямостоячая, ветви под правильными углами — идеальна для Slender Spindle',
+     bearingYear: 3,
+     yield: 17,               // 15-19 т/га на Gisela 5
+     spacing: '4×2',
+     rootstockRec: 'Гизела 5',
+     // Устойчивость к болезням
+     resMonilia: '4',
+     resCocco: '4',
+     resClaster: '4',
+     resScab: '4',
+     frost: '4',              // 4.2/5 — высокая, канадская селекция
+     // GDD и CP
+     cp: 62,                  // 60-65 CP
+     daysFlower: 55,          // между Кордией и Региной
+     // Генетика
+     pollSAlleles: 'S1S4\'',  // самоплодная
+     note: 'Канадская селекция. Самоплодная (S1S4\') — одновременно даёт урожай и опыляет Регину и Кордию. Созревает между Кордией и Региной (конец июня — начало июля). Риск перегрузки урожаем → мельчание ягоды: обязательна нормировочная обрезка и фертигация в фазу налива. Пленку закрывать одновременно с Кордией.',
+    },
     // Sour cherry varieties with full GDD profiles (base 4.5°C, 14 phases)
     {id:'vs1',name:'Молодёжная',  ripening:'Средний',pollType:'self',pollinators:'',color:'vc0',note:'Широко распространена в Молдове. Урожайный. Коккомикоз 5/5.',cropId:'crop_sour_cherry'},
     {id:'vs2',name:'Тургеневка',  ripening:'Поздний', pollType:'self',pollinators:'',color:'vc1',note:'Позднеспелая. Хорошая лёжкость плодов.',cropId:'crop_sour_cherry'},
@@ -3077,9 +3137,9 @@ let S = {
     // cultivarSettings: per-variety (cherries mainly)
     cultivarSettings: [
       {varietyId:'v1', name:'Регина (Regina)',  cpMin:65, cpTarget:68, cpMax:72, isActive:true, gddStartDate:null},
-      {varietyId:'v2', name:'Коралл (Kordia)',  cpMin:55, cpTarget:58, cpMax:62, isActive:true, gddStartDate:null},
+      {varietyId:'v2', name:'Кордия (Kordia)', cpMin:55, cpTarget:58, cpMax:62, isActive:true, gddStartDate:null},
       {varietyId:'v3', name:'Наполеон',         cpMin:50, cpTarget:55, cpMax:60, isActive:true, gddStartDate:null},
-      {varietyId:'v4', name:'Ревна (Rainier)',  cpMin:52, cpTarget:56, cpMax:60, isActive:true, gddStartDate:null},
+      {varietyId:'v4', name:'Скина (Skeena)', cpMin:60, cpTarget:62, cpMax:65, isActive:true, gddStartDate:null},
     ],
     // cropSettings: per-crop CP requirements (for cultures without per-variety data)
     cropSettings: [
@@ -3308,9 +3368,9 @@ let S = {
     varietyGdd: {
       // Cherry varieties (10 phases, base 5°C)
       'v1': [0, 120, 225, 320, 465, 635, 760, 900, 1050, 1200],  // Регина (Молдова, cut-off 30°C)
-      'v2': [0, 45, 110, 185, 260, 325, 470, 700, 870, 1000],  // Коралл
+      'v2': [0, 105, 200, 295, 420, 570, 650, 800, 950, 1100],  // Кордия (Kordia) — созревает на 7-10 дн. раньше Регины
       'v3': [0, 48, 115, 192, 270, 338, 485, 720, 900, 1050],  // Наполеон
-      'v4': [0, 55, 125, 205, 290, 360, 510, 770, 960, 1120],  // Ревна
+      'v4': [0, 108, 207, 308, 438, 600, 690, 840, 990, 1140],  // Скина (Skeena) — между Кордией (650) и Региной (760)
       // Sour cherry varieties (14 phases, base 4.5°C — UC IPM GDD-модель)
       // Покой|Набухание|Распускание|Зелёный конус|Бутонизация|
       // Нач.цветения|Полн.цветения|Опад.лепестков|Завязь|Рост плода|
@@ -10479,7 +10539,45 @@ function detectStress(weatherArr, forecast) {
     });
   }
 
-  // ── 11. Анализ прогноза (следующие 3 дня) ────────────────────────────
+  // ── 11. Кордия — плёнку закрывать раньше чем для Регины ─────────────
+  const hasKordia = S.varieties.some(v=>v.id==='v2'&&(v.name.includes('Кордия')||v.name.includes('Kordia')));
+  const hasFilmKordia = hasFilm && hasKordia;
+  if(hasFilmKordia) {
+    // Кордия созревает на 7-10 дней раньше Регины → BBCH 81 наступает раньше
+    const gddKordia = getCurrentGdd(4.5);
+    const phaseKordia = getPhaseByGdd('v2', gddKordia);
+    // Предупреждение когда Кордия входит в фазу роста завязи (скоро начало окрашивания)
+    if(phaseKordia?.name?.includes('Завязь') || phaseKordia?.name?.includes('Рост')) {
+      const phaseRegina = getPhaseByGdd('v1', gddKordia);
+      if(phaseRegina && !phaseRegina.name.includes('Окрашив')) {
+        alerts.push({
+          level: 'warning',
+          icon: '🎪',
+          title: 'Кордия созревает раньше Регины — готовьте плёнку',
+          body: 'Кордия (S3S6) войдёт в фазу окрашивания на 7–10 дней раньше Регины. Закройте плёнку над рядами Кордии как только ягода начнёт окрашиваться. Кордия растрескивается при дожде значительно сильнее Регины (3/5 vs 5/5).',
+          tags: ['Кордия', 'Плёнка'],
+        });
+      }
+    }
+  }
+
+  // ── 12. Скина — риск перегрузки урожаем ─────────────────────────────
+  const hasSkeena = S.varieties.some(v=>v.id==='v4'&&(v.name.includes('Скина')||v.name.includes('Skeena')));
+  if(hasSkeena) {
+    const phSkeena = getPhaseByGdd('v4', getCurrentGdd(4.5));
+    // В фазу активного роста завязи — предупреждение о нормировке
+    if(phSkeena?.name?.includes('Завязь') || phSkeena?.name?.includes('Рост')) {
+      alerts.push({
+        level: 'watch',
+        icon: '🍒',
+        title: 'Скина — контроль нагрузки урожаем',
+        body: 'Скина самоплодная — под плёнкой завязываемость ~100%. Избыток завязи снижает калибр с 32 до 26 мм. Проверьте нагрузку на ветвь. При необходимости — ручное прореживание или регулировка фертигации N/K для налива.',
+        tags: ['Скина', 'Нормировка'],
+      });
+    }
+  }
+
+  // ── 13. Анализ прогноза (следующие 3 дня) ────────────────────────────
   if(forecast && forecast.length) {
     const next3 = forecast.slice(0,3);
     const frostDay = next3.find(d=>parseFloat(d.tmin)<=0);
