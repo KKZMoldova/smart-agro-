@@ -2664,8 +2664,8 @@ tbody td{padding:10px 12px;vertical-align:middle;}
 <div class="modal-overlay" id="modal-variety-edit">
   <div class="modal" style="max-width:680px;width:96%;max-height:92vh;overflow-y:auto;">
     <h2 id="variety-edit-title">🍒 Сорт</h2>
-    <div id="ve-catalog-btn-wrap" style="margin-bottom:14px;display:none;">
-      <button class="btn btn-secondary btn-sm" onclick="fillFromCatalog()" style="width:100%;border:1px dashed var(--blue);color:var(--blue);">
+    <div id="ve-catalog-btn-wrap" style="margin-bottom:14px;">
+      <button class="btn btn-secondary btn-sm" onclick="fillFromCatalog()" style="width:100%;border:1px dashed var(--blue);color:var(--blue);" id="ve-catalog-btn">
         📚 Заполнить из справочника сортов
       </button>
     </div>
@@ -9362,6 +9362,8 @@ const VARIETY_REFERENCE = {
   'стэнли':     { cropId:'crop_plum', name:'Стэнли (Stanley)', origin:'США', year:1926, ripening:'Средний', pollType:'self', pollinators:'Самоплодная', fruitWeight:45, fruitColor:'Тёмно-синий с восковым налётом', fruitFirmness:'Средняя', fruitTaste:'Сладкий, хороший', brix:16, crackResistance:'3', vigor:'Среднерослый', bearingYear:4, yield:20, resMonilia:'3', resCocco:'3', frost:'4', cp:30, note:'Классический сорт сливы. Самоплодный. Используется для свежего рынка и переработки.' },
 
   'stanley':    'стэнли',
+  'stenley':    'стэнли',
+  'стенли':     'стэнли',
 
   'блю фри':    { cropId:'crop_plum', name:'Блю Фри (Blue Free)', origin:'США', ripening:'Средне-поздний', pollType:'self', fruitWeight:55, fruitColor:'Синий', fruitFirmness:'Плотная', brix:15, vigor:'Среднерослый', bearingYear:3, yield:25, resMonilia:'4', frost:'4', note:'Продуктивный самоплодный сорт сливы.' },
 
@@ -9407,29 +9409,87 @@ const VARIETY_REFERENCE = {
 function findInVarietyReference(name) {
   if(!name) return null;
   const key = name.toLowerCase().trim()
-    .replace('(', '').replace(')', '')
-    .replace(/\s+/g, ' ').trim();
+    .replace(/[()]/g, '').replace(/\s+/g, ' ').trim();
   // Прямое совпадение
   let data = VARIETY_REFERENCE[key];
-  if(typeof data === 'string') data = VARIETY_REFERENCE[data]; // алиас
+  if(typeof data === 'string') data = VARIETY_REFERENCE[data];
   if(data) return data;
-  // Частичное совпадение
+  // Частичное совпадение — ключ содержится в названии или наоборот
   for(const [k, v] of Object.entries(VARIETY_REFERENCE)) {
     if(typeof v === 'string') continue;
     if(key.includes(k) || k.includes(key)) return v;
+  }
+  // Нечёткое — первые 4 буквы совпадают
+  const prefix = key.slice(0, 4);
+  for(const [k, v] of Object.entries(VARIETY_REFERENCE)) {
+    if(typeof v === 'string') continue;
+    if(k.startsWith(prefix) || prefix.startsWith(k.slice(0,4))) return v;
   }
   return null;
 }
 
 function fillFromCatalog() {
   const name = document.getElementById('ve-name').value;
-  if(!name) { alert('Сначала введите название сорта'); return; }
   const data = findInVarietyReference(name);
+
   if(!data) {
-    alert(`Сорт "${name}" не найден в справочнике.\n\nДоступны: Регина, Кордия, Скина, Лапинс, Саммит, Ранье, Ван, Наполеон, Мершант,\nСтэнли, Валор, Голден, Гала, Айдаред, Фуджи, Джонагред, Ред Делишес, Брэбурн`);
+    // Показываем список доступных сортов для выбора
+    const cropId = document.getElementById('ve-crop').value || 'crop_cherry';
+    const crop = getCropById(cropId);
+
+    // Группируем справочник по культурам
+    const byCrop = {};
+    for(const [k, v] of Object.entries(VARIETY_REFERENCE)) {
+      if(typeof v === 'string') continue; // алиас
+      const cid = v.cropId || 'crop_cherry';
+      if(!byCrop[cid]) byCrop[cid] = [];
+      // Не дублируем одинаковые сорта
+      if(!byCrop[cid].find(x=>x.name===v.name)) byCrop[cid].push({key:k, name:v.name});
+    }
+
+    const CROP_LABELS = {
+      crop_cherry:'🍒 Черешня', crop_plum:'🫐 Слива',
+      crop_apple:'🍎 Яблоко', crop_apricot:'🍑 Абрикос',
+      crop_peach:'🍑 Персик', crop_grape:'🍇 Виноград',
+    };
+
+    const listHtml = Object.entries(byCrop).map(([cid, vars])=>
+      `<div style="margin-bottom:8px;">
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">${CROP_LABELS[cid]||cid}</div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;">
+          ${vars.map(v=>`<button onclick="selectFromCatalogList('${v.key}')" style="padding:3px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text2);font-size:12px;cursor:pointer;">${v.name}</button>`).join('')}
+        </div>
+      </div>`
+    ).join('');
+
+    // Показываем выбор прямо под кнопкой
+    let picker = document.getElementById('ve-catalog-picker');
+    if(!picker) {
+      picker = document.createElement('div');
+      picker.id = 've-catalog-picker';
+      picker.style.cssText = 'margin-top:8px;padding:12px;background:var(--surface2);border-radius:10px;border:1px solid var(--border);';
+      document.getElementById('ve-catalog-btn-wrap').after(picker);
+    }
+    picker.innerHTML = `<div style="font-size:12px;font-weight:600;margin-bottom:10px;">Выберите сорт из справочника:</div>${listHtml}
+      <button onclick="document.getElementById('ve-catalog-picker').remove()" style="margin-top:8px;padding:3px 10px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text3);font-size:11px;cursor:pointer;">✕ Закрыть</button>`;
     return;
   }
-  // Заполняем поля формы
+
+  // Нашли — заполняем поля
+  applyVarietyData(data);
+}
+
+function selectFromCatalogList(key) {
+  let data = VARIETY_REFERENCE[key];
+  if(typeof data === 'string') data = VARIETY_REFERENCE[data];
+  if(!data) return;
+  // Закрываем picker
+  const picker = document.getElementById('ve-catalog-picker');
+  if(picker) picker.remove();
+  applyVarietyData(data);
+}
+
+function applyVarietyData(data) {
   const INP = (id, val) => { const el=document.getElementById(id); if(el&&val!=null) el.value=val; };
   INP('ve-name', data.name);
   INP('ve-origin', data.origin);
@@ -9457,25 +9517,30 @@ function fillFromCatalog() {
   INP('ve-frost', data.frost);
   INP('ve-cp', data.cp);
   INP('ve-note', data.note);
-  // Культура
   if(data.cropId) {
     const cropSel = document.getElementById('ve-crop');
-    if(cropSel) cropSel.value = data.cropId;
+    if(cropSel) { cropSel.value = data.cropId; }
   }
-  // Визуальное подтверждение
-  const btn = document.querySelector('[onclick="fillFromCatalog()"]');
-  if(btn) { const orig=btn.innerHTML; btn.innerHTML='✅ Данные заполнены — проверьте и сохраните'; btn.style.borderColor='var(--accent)'; btn.style.color='var(--accent)'; setTimeout(()=>{btn.innerHTML=orig;btn.style.borderColor='';btn.style.color='';},3000); }
+  // Обновляем кнопку
+  onVarietyNameInput(data.name);
+  // Подтверждение
+  const btn = document.getElementById('ve-catalog-btn');
+  if(btn) { const orig=btn.innerHTML; btn.innerHTML='✅ Данные заполнены — проверьте и сохраните'; btn.style.borderColor='var(--accent)'; btn.style.color='var(--accent)'; setTimeout(()=>{ btn.innerHTML=orig; onVarietyNameInput(data.name); },3000); }
 }
 
 // Показываем кнопку справочника при вводе названия
 function onVarietyNameInput(val) {
-  const wrap = document.getElementById('ve-catalog-btn-wrap');
-  if(!wrap) return;
+  const btn = document.getElementById('ve-catalog-btn');
+  if(!btn) return;
   const found = findInVarietyReference(val);
-  wrap.style.display = found ? 'block' : 'none';
   if(found) {
-    const btn = wrap.querySelector('button');
-    if(btn) btn.innerHTML = `📚 Заполнить из справочника: <strong>${found.name}</strong>`;
+    btn.innerHTML = `📚 Заполнить из справочника: <strong>${found.name}</strong>`;
+    btn.style.borderColor = 'var(--accent)';
+    btn.style.color = 'var(--accent)';
+  } else {
+    btn.innerHTML = `📚 Выбрать из справочника сортов`;
+    btn.style.borderColor = 'var(--blue)';
+    btn.style.color = 'var(--blue)';
   }
 }
 
