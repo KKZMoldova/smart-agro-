@@ -60,7 +60,26 @@ app.get('/api/work-types',  async (req, res) => {
   catch(e) { res.status(500).json({ error: e.message }); }
 });
 app.use('/api/tasks', require('./routes/tasks'));
+
+// ═══ AI ENDPOINTS (Anthropic) ════════════════════════════════════════════
+
+// PDF парсинг анализов
 app.post('/api/ai/parse-pdf', express.json({ limit: '20mb' }), async (req, res) => {
+  const KEY = process.env.ANTHROPIC_API_KEY;
+  if (!KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY не настроен' });
+  try {
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': KEY, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify(req.body),
+    });
+    const data = await r.json();
+    res.status(r.ok ? 200 : r.status).json(data);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// AI Агроном-советник (Smart Orchard)
+app.post('/api/ai/advisor', async (req, res) => {
   const KEY = process.env.ANTHROPIC_API_KEY;
   if (!KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY не настроен' });
   try {
@@ -190,6 +209,18 @@ app.get('/api/state/orchard', async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+app.post('/api/state/orchard', async (req, res) => {
+  try {
+    const body = req.body;
+    const r = await db.query(`SELECT value FROM settings WHERE key='orchard_full_state'`);
+    let state = r.rows.length ? (typeof r.rows[0].value === 'string' ? JSON.parse(r.rows[0].value) : r.rows[0].value) : {};
+    // Merge — обновляем только переданные поля
+    Object.keys(body).forEach(k => { state[k] = body[k]; });
+    await db.query(`INSERT INTO settings (key,value) VALUES ('orchard_full_state',$1) ON CONFLICT (key) DO UPDATE SET value=$1, updated_at=NOW()`, [JSON.stringify(state)]);
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
 app.get('/api/test-telegram', async (req, res) => {
   try { await sendTelegram(TELEGRAM_GROUP_ID, '🌿 <b>Smart Agro</b> — тест ✅'); res.json({ ok: true }); }
   catch(e) { res.status(500).json({ error: e.message }); }
@@ -201,8 +232,10 @@ app.get('/vegetable',(req, res) => res.sendFile(path.join(__dirname, 'public', '
 app.get('/orchard',  (req, res) => res.sendFile(path.join(__dirname, 'public', 'cherry-orchard-passport.html')));
 app.get('/',         (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
+// ═══ CRON ═════════════════════════════════════════════════════════════════
 const fc = require('./cron/fieldclimate');
 const syncFieldClimate = fc.syncFieldClimate || fc;
+
 cron.schedule('5 1 * * *', async () => {
   try { await syncFieldClimate(); console.log('[CRON] Weather sync OK'); }
   catch(err) { console.error('[CRON] Weather sync FAILED:', err.message); }
