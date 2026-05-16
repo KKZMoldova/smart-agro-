@@ -568,7 +568,7 @@ tbody td{padding:10px 12px;vertical-align:middle;}
       </div>
       <div id="irrig-actions-fertigation" style="display:none;gap:8px;">
         <button class="btn btn-primary" onclick="openFertigationModal()">+ Программа</button>
-        <button class="btn btn-secondary" onclick="openWaterQualityModal()">💧 Анализ воды</button>
+        <button class="btn btn-secondary" onclick="const t=document.querySelector('[onclick*=\'switchTab(\\\'analysis\\\'\')]\');if(t){switchTab('analysis',t);}setTimeout(()=>openAnalysisModal('water'),200);">💧 + Анализ воды</button>
       </div>
     </div>
 
@@ -6424,45 +6424,63 @@ function renderFertigation() {
   const el = document.getElementById('fertigation-content');
   if(!el) return;
   const programs = S.irrigation.fertigation?.programs||[];
-  const waterQuality = S.irrigation.fertigation?.waterQuality||[];
+
+  // Последний анализ воды из S.analyses (единый источник данных)
+  const waterAnalyses = [...(S.analyses||[])].filter(a=>a.type==='water').sort((a,b)=>b.date.localeCompare(a.date));
+  const lastWater = waterAnalyses[0]||null;
 
   // Water Quality summary
   let wqHtml = '';
-  if(waterQuality.length) {
-    const last = waterQuality[waterQuality.length-1];
-    const risks = analyzeWaterQuality(last);
+  if(lastWater) {
+    const risks = analyzeWaterQuality(lastWater);
     wqHtml = `<div style="margin-bottom:16px;">
-      <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">💧 Последний анализ воды (${last.date}) — ${last.source||'источник'}</div>
+      <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">
+        💧 Последний анализ воды (${lastWater.date})${lastWater.lab?' — '+lastWater.lab:''}
+      </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
-        ${[['pH',last.ph,'7.0–8.0','var(--text2)'],['EC',last.ec,'<1.5','var(--blue)'],['TDS',last.tds,'<960','var(--text2)'],
-           ['HCO₃',last.hco3,'<180','var(--yellow)'],['Cl',last.cl,'<70','var(--orange)']].map(([l,v,n,c])=>
-          `<div style="padding:6px 12px;background:var(--surface2);border-radius:8px;text-align:center;">
-            <div style="font-size:13px;font-weight:700;color:${c};">${v||'—'}</div>
-            <div style="font-size:10px;color:var(--text3);">${l} (норма: ${n})</div>
+        ${[['pH',lastWater.pH,'6.5–8.0'],['EC',lastWater.EC,'<1.5 mS/cm'],['TDS',lastWater.TDS,'<960 ppm'],
+           ['HCO₃',lastWater.HCO3||lastWater.HCO,'<180 ppm'],['Cl',lastWater.Cl,'<70 ppm'],
+           ['Na',lastWater.Na,'<50 ppm'],['Fe',lastWater.Fe,'<0.3 ppm'],['Mn',lastWater.Mn,'<0.1 ppm']]
+          .filter(([,v])=>v!=null&&v!=='')
+          .map(([l,v,n])=>`<div style="padding:6px 12px;background:var(--surface2);border-radius:8px;text-align:center;">
+            <div style="font-size:13px;font-weight:700;color:var(--text2);">${v}</div>
+            <div style="font-size:9px;color:var(--text3);">${l}</div>
+            <div style="font-size:9px;color:var(--text3);">${n}</div>
           </div>`).join('')}
       </div>
-      ${risks.length?`<div style="display:flex;gap:6px;flex-wrap:wrap;">${risks.map(r=>
-        `<span style="padding:3px 10px;border-radius:10px;font-size:11px;background:${r.c}22;color:${r.c};">${r.icon} ${r.text}</span>`
-      ).join('')}</div>`:'<div style="font-size:11px;color:var(--accent);">✅ Качество воды в норме</div>'}
-      <button class="btn btn-secondary btn-sm" onclick="openWaterQualityModal()" style="margin-top:8px;">+ Новый анализ</button>
+      ${risks.length
+        ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">${risks.map(r=>`<span style="padding:3px 10px;border-radius:10px;font-size:11px;background:${r.c}22;color:${r.c};">${r.icon} ${r.text}</span>`).join('')}</div>`
+        : `<div style="font-size:11px;color:var(--accent);margin-bottom:8px;">✅ Качество воды в норме</div>`}
+      ${waterAnalyses.length>1?`<div style="font-size:11px;color:var(--text3);">Всего анализов воды: ${waterAnalyses.length}</div>`:''}
+      <button class="btn btn-secondary btn-sm" style="margin-top:8px;" onclick="switchTab('analysis',document.querySelector('[onclick*=\\\"switchTab(\\\\\\\"analysis\\\\\\\"\\\"]'))">
+        🔬 Перейти в Анализы →
+      </button>
     </div>`;
   } else {
-    wqHtml = `<div style="padding:10px 14px;background:var(--surface2);border-radius:8px;font-size:12px;color:var(--text3);margin-bottom:16px;">
-      Анализ воды не добавлен. <button class="btn btn-secondary btn-sm" onclick="openWaterQualityModal()">+ Добавить</button>
+    wqHtml = `<div style="padding:14px;background:var(--surface2);border-radius:10px;font-size:12px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+      <div>
+        <div style="font-weight:600;margin-bottom:4px;">💧 Анализ воды не загружен</div>
+        <div style="color:var(--text3);font-size:11px;">Добавьте анализ воды в блоке Анализы → вкладка Вода</div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="
+        const tab=document.querySelector('[onclick*=\\'switchTab(\\'analysis\\'\\')\\']');
+        if(tab){switchTab('analysis',tab);}
+        setTimeout(()=>openAnalysisModal('water'),200);
+      ">+ Анализ воды</button>
     </div>`;
   }
 
   // Programs
   let progHtml = '';
   if(!programs.length) {
-    progHtml = `<div style="text-align:center;padding:30px;color:var(--text3);font-size:12px;">Программы фертигации не добавлены</div>`;
+    progHtml = `<div style="text-align:center;padding:30px;color:var(--text3);font-size:12px;">Программы фертигации не добавлены.<br>Нажмите <strong>+ Программа</strong> выше.</div>`;
   } else {
     progHtml = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;">` +
       programs.map(p=>{
         const zone = (S.irrigation.zones||[]).find(z=>z.id===p.zoneId);
         const elems = ['N','P','K','Ca','Mg','S','Fe','Zn','B','Mn','Cu','Mo']
-          .filter(e=>p[e.toLowerCase()]>0)
-          .map(e=>`<span style="font-size:10px;padding:1px 6px;border-radius:6px;background:var(--surface3);">${e}: ${p[e.toLowerCase()]}</span>`);
+          .filter(e=>parseFloat(p[e.toLowerCase()])>0)
+          .map(e=>`<span style="font-size:10px;padding:1px 6px;border-radius:6px;background:var(--surface3);color:var(--text2);">${e}: ${p[e.toLowerCase()]}</span>`);
         return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px;">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
             <div>
@@ -6477,19 +6495,35 @@ function renderFertigation() {
         </div>`;
       }).join('') + `</div>`;
   }
-  el.innerHTML = wqHtml + `<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">🌱 Программы фертигации</div>` + progHtml;
+
+  el.innerHTML = wqHtml +
+    `<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">🌱 Программы фертигации</div>` +
+    progHtml;
 }
 
 function analyzeWaterQuality(wq) {
   const risks = [];
-  const ec=parseFloat(wq.ec)||0, ph=parseFloat(wq.ph)||7, hco3=parseFloat(wq.hco3)||0;
-  const cl=parseFloat(wq.cl)||0, na=parseFloat(wq.na)||0, ca=parseFloat(wq.ca)||0;
-  const sar = ca>0 ? (na/23.0)/Math.sqrt((ca/40.0+parseFloat(wq.mg||0)/24.3)/2) : 0;
-  if(ec>1.5) risks.push({c:'var(--orange)',icon:'⚠️',text:`EC ${ec} — засоление`});
-  if(ph>7.5) risks.push({c:'var(--yellow)',icon:'⚠️',text:`pH ${ph} — защелачивание`});
-  if(hco3>180) risks.push({c:'var(--orange)',icon:'🧪',text:`HCO₃ ${hco3} — риск засора`});
-  if(cl>70) risks.push({c:'var(--red)',icon:'☠️',text:`Cl ${cl} — токсичность`});
-  if(sar>10) risks.push({c:'var(--red)',icon:'⚠️',text:`SAR ${sar.toFixed(1)} — натриевая опасность`});
+  // S.analyses использует заглавные поля (pH, EC, Cl, Na...), поддерживаем оба варианта
+  const ec   = parseFloat(wq.EC||wq.ec)||0;
+  const ph   = parseFloat(wq.pH||wq.ph)||0;
+  const hco3 = parseFloat(wq.HCO3||wq.HCO||wq.hco3)||0;
+  const cl   = parseFloat(wq.Cl||wq.cl)||0;
+  const na   = parseFloat(wq.Na||wq.na)||0;
+  const ca   = parseFloat(wq.Ca||wq.ca)||0;
+  const mg   = parseFloat(wq.Mg||wq.mg)||0;
+  const fe   = parseFloat(wq.Fe||wq.fe)||0;
+  const mn   = parseFloat(wq.Mn||wq.mn)||0;
+  const sar  = (ca/40+mg/24.3)>0 ? (na/23)/Math.sqrt((ca/40+mg/24.3)/2) : 0;
+  if(ec>1.5)   risks.push({c:'var(--orange)',icon:'⚠️',text:`EC ${ec} mS/cm — риск засоления`});
+  if(ec>3.0)   risks.push({c:'var(--red)',   icon:'⛔',text:`EC ${ec} — высокое засоление`});
+  if(ph>7.8)   risks.push({c:'var(--yellow)',icon:'⚠️',text:`pH ${ph} — защелачивание, блокировка Fe/Mn`});
+  if(ph<6.0)   risks.push({c:'var(--yellow)',icon:'⚠️',text:`pH ${ph} — повышенная кислотность`});
+  if(hco3>180) risks.push({c:'var(--orange)',icon:'🧪',text:`HCO₃ ${hco3} ppm — риск засора эмиттеров`});
+  if(hco3>300) risks.push({c:'var(--red)',   icon:'⛔',text:`HCO₃ ${hco3} — кислотная обработка обязательна`});
+  if(cl>70)    risks.push({c:'var(--red)',   icon:'☠️',text:`Cl ${cl} ppm — токсичность для культур`});
+  if(fe>0.3)   risks.push({c:'var(--orange)',icon:'🟤',text:`Fe ${fe} ppm — засор эмиттеров`});
+  if(mn>0.1)   risks.push({c:'var(--yellow)',icon:'⚠️',text:`Mn ${mn} ppm — засор эмиттеров`});
+  if(sar>10)   risks.push({c:'var(--red)',   icon:'⚠️',text:`SAR ${sar.toFixed(1)} — натриевая опасность`});
   return risks;
 }
 
