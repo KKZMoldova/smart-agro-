@@ -1213,6 +1213,53 @@ tbody td{padding:10px 12px;vertical-align:middle;}
           <div class="ff"><label>Клеток в ряду</label><input type="number" id="set-cols" value="8" min="1" max="40" oninput="rebuildGrid()"></div>
         </div>
       </div>
+
+      <!-- Паспорт сада -->
+      <div class="card"><div class="card-title">🌳 Паспорт сада</div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div class="ff"><label>Укрытие</label>
+            <select id="set-cover" onchange="saveSettings()" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+              <option value="none">Нет укрытия</option>
+              <option value="net">🕸 Противоградовая сетка</option>
+              <option value="film">🎪 Антидождевая плёнка</option>
+              <option value="both">🎪🕸 Плёнка + сетка</option>
+            </select>
+          </div>
+          <div class="ff"><label>Схема посадки</label>
+            <select id="set-planting" onchange="saveSettings()" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+              <option value="4x2">4×2 м (1250 дер/га) — суперинтенсивный</option>
+              <option value="4x3">4×3 м (833 дер/га) — интенсивный</option>
+              <option value="5x3">5×3 м (667 дер/га) — интенсивный</option>
+              <option value="5x4">5×4 м (500 дер/га) — полуинтенсивный</option>
+              <option value="6x4">6×4 м (416 дер/га) — традиционный</option>
+              <option value="custom">Другая схема</option>
+            </select>
+          </div>
+          <div class="ff"><label>Основной подвой</label>
+            <select id="set-rootstock" onchange="saveSettings()" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+              <option value="gisela5">Гизела 5 (слаборослый, корни 40–50 см)</option>
+              <option value="gisela6">Гизела 6 (среднерослый)</option>
+              <option value="vsl2">ВСЛ-2 (среднерослый)</option>
+              <option value="maxma">Maxma 14 (Delbard)</option>
+              <option value="colt">Colt (сильнорослый)</option>
+              <option value="seedling">Сеянец (сильнорослый)</option>
+            </select>
+          </div>
+          <div class="ff"><label>Датчики влажности почвы (глубины)</label>
+            <select id="set-sensor-depth" onchange="saveSettings()" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+              <option value="20-40">20 и 40 см (Gisela 5 — рекомендуется)</option>
+              <option value="30-60">30 и 60 см</option>
+              <option value="20-50">20 и 50 см</option>
+              <option value="40-80">40 и 80 см (глубококорневой)</option>
+            </select>
+          </div>
+          <div class="ff"><label>Активный карбонат Ca в почве (%)</label>
+            <input type="number" id="set-ca-carbonate" step="0.1" placeholder="5.0"
+              onchange="saveSettings()"
+              style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+          </div>
+        </div>
+      </div>
       <div class="card"><div class="card-title">Пороги смыва осадками</div>
         <div style="display:flex;flex-direction:column;gap:12px;">
           <div class="ff"><label>Частичный смыв (мм)</label><input type="number" id="wash-p" value="10" min="1" oninput="saveSettings()"></div>
@@ -7168,8 +7215,34 @@ async function deleteStaff() {
   _taskStaff = [];
 }
 
-function loadSettings(){document.getElementById('set-rows').value=S.rows;document.getElementById('set-cols').value=S.cols;document.getElementById('wash-p').value=S.settings.washPartial;document.getElementById('wash-f').value=S.settings.washFull;}
-function saveSettings(){S.settings.washPartial=parseInt(document.getElementById('wash-p').value)||10;S.settings.washFull=parseInt(document.getElementById('wash-f').value)||25;save();}
+function loadSettings(){
+  document.getElementById('set-rows').value = S.rows;
+  document.getElementById('set-cols').value = S.cols;
+  document.getElementById('wash-p').value = S.settings.washPartial||10;
+  document.getElementById('wash-f').value = S.settings.washFull||25;
+  // Паспорт сада
+  if(document.getElementById('set-cover'))       document.getElementById('set-cover').value       = S.settings.orchardCover||'none';
+  if(document.getElementById('set-planting'))    document.getElementById('set-planting').value    = S.settings.orchardPlanting||'4x2';
+  if(document.getElementById('set-rootstock'))   document.getElementById('set-rootstock').value   = S.settings.orchardRootstock||'gisela5';
+  if(document.getElementById('set-sensor-depth'))document.getElementById('set-sensor-depth').value= S.settings.sensorDepth||'20-40';
+  if(document.getElementById('set-ca-carbonate'))document.getElementById('set-ca-carbonate').value= S.settings.caCarbonate||'';
+}
+function saveSettings(){
+  S.settings.washPartial   = parseInt(document.getElementById('wash-p').value)||10;
+  S.settings.washFull      = parseInt(document.getElementById('wash-f').value)||25;
+  // Паспорт сада
+  const cover = document.getElementById('set-cover');
+  if(cover) S.settings.orchardCover = cover.value;
+  const planting = document.getElementById('set-planting');
+  if(planting) S.settings.orchardPlanting = planting.value;
+  const rootstock = document.getElementById('set-rootstock');
+  if(rootstock) S.settings.orchardRootstock = rootstock.value;
+  const sensorD = document.getElementById('set-sensor-depth');
+  if(sensorD) S.settings.sensorDepth = sensorD.value;
+  const caCarb = document.getElementById('set-ca-carbonate');
+  if(caCarb) S.settings.caCarbonate = parseFloat(caCarb.value)||null;
+  save();
+}
 function exportData(){const b=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='passport_sad_'+new Date().toISOString().split('T')[0]+'.json';a.click();}
 function importData(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{Object.assign(S,JSON.parse(ev.target.result));save();init();alert('Импортировано!');}catch{alert('Ошибка файла');}};r.readAsText(f);}
 function resetData(){localStorage.removeItem('cherry_v5');sessionStorage.clear();location.reload();}
@@ -10256,7 +10329,102 @@ function detectStress(weatherArr, forecast) {
     }
   }
 
-  // ── 7. Анализ прогноза (следующие 3 дня) ────────────────────────────
+  // ── 7. Кальциевый дефицит (Молдова специфика) ───────────────────────
+  // При жаре >30°C листья забирают кальций у плодов — риск потери плотности
+  const isFruitGrowth = phaseName.includes('Завязь') || phaseName.includes('Налив') ||
+    phaseName.includes('Рост') || phaseName.includes('Окрашив');
+  if(tmax >= 30 && isFruitGrowth) {
+    alerts.push({
+      level: tmax >= 34 ? 'critical' : 'warning',
+      icon: '🧪',
+      title: `Риск Ca-дефицита — Tmax ${tmax}°C в фазу налива`,
+      body: `При жаре листья перехватывают весь кальций, обделяя плоды. Ягода теряет плотность и растрескивается. Листовая подкормка CaCl₂ 0.3–0.5% или хелат Ca сегодня / завтра утром (до 9:00). Избегать N и K в этот период.`,
+      tags: ['Ca-дефицит', 'Фертигация'],
+    });
+  }
+
+  // ── 8. Управление плёнкой по BBCH фазе ──────────────────────────────
+  // Читаем параметры сада: есть ли укрытие
+  const hasCover = S.settings?.orchardCover === 'film' || S.settings?.orchardCover === 'net';
+  if(hasCover) {
+    const coverStatus = (() => {
+      if(phaseName.includes('Покой') || phaseName.includes('Набухание') || phaseName.includes('Бутон')) {
+        return {action:'open', msg:'BBCH 01–57 — плёнка должна быть открыта. Деревья развиваются в естественных условиях, закалка кроны.', urgent:false};
+      }
+      if(isFlowering) {
+        return {action:'open', msg:'BBCH 61–69 — цветение. Плёнку максимально открыть для свободного лёта пчёл. Закрывать только при дожде.', urgent:true};
+      }
+      if(phaseName.includes('Завязь') || phaseName.includes('Рост')) {
+        return {action:'open', msg:'BBCH 71–81 — рост завязи. Плёнка открыта. Парниковый эффект вызовет сброс завязи и температурный стресс.', urgent:false};
+      }
+      if(phaseName.includes('Окрашив') || phaseName.includes('Созрев') || phaseName.includes('Налив')) {
+        return {action:'close', msg:'BBCH 81–89 — начало окрашивания. Закрыть верхнюю крышу! Боковые пологи открыть для вентиляции.', urgent:true};
+      }
+      if(phaseName.includes('Уборка') || phaseName.includes('После')) {
+        return {action:'open', msg:'После уборки — законсервировать плёнку. Максимум солнца для закладки почек следующего года.', urgent:false};
+      }
+      return null;
+    })();
+    if(coverStatus) {
+      alerts.push({
+        level: coverStatus.urgent ? 'warning' : 'watch',
+        icon: coverStatus.action === 'close' ? '🎪' : '🌬️',
+        title: `Плёнка: ${coverStatus.action === 'close' ? 'ЗАКРЫТЬ' : 'ОТКРЫТЬ'} — ${phaseName}`,
+        body: coverStatus.msg,
+        tags: ['Плёнка', 'BBCH'],
+      });
+      // Парниковый эффект под плёнкой
+      if(coverStatus.action === 'close' && tmax >= 28) {
+        alerts.push({
+          level: tmax >= 32 ? 'critical' : 'warning',
+          icon: '🌡️',
+          title: `Парниковый эффект под плёнкой — реальная T° ~${tmax+4}°C`,
+          body: `Под плёнкой температура на +3–5°C выше чем снаружи. При Tmax ${tmax}°C под плёнкой уже ${tmax+4}°C — порог стресса Регины. Открыть боковые пологи для сквозного проветривания.`,
+          tags: ['Плёнка', 'Перегрев'],
+        });
+      }
+    }
+  }
+
+  // ── 9. Опыление + суховей ────────────────────────────────────────────
+  // RH < 40% в фазу цветения → рыльце пестика пересыхает
+  if(isFlowering) {
+    if(rh < 40) {
+      alerts.push({
+        level: rh < 30 ? 'critical' : 'warning',
+        icon: '🐝',
+        title: `Суховей в цветение — RH ${rh}% (норма >60%)`,
+        body: `При влажности ниже 40% рыльце пестика Регины высыхает за несколько часов. Пыльца опылителей (Kordia, Karina) не прорастает → массовое бесплодие. Утреннее мелкодисперсное дождевание кроны (6:00–9:00). Пчёлы активны утром и вечером.`,
+        tags: ['Опыление', '🚨 СРОЧНО'],
+      });
+    }
+    if(wind >= 12 && rh < 55) {
+      alerts.push({
+        level: 'warning',
+        icon: '🐝',
+        title: `Ветер ${wind} км/ч + сухо (RH ${rh}%) в цветение`,
+        body: `Ветер сносит пыльцу, сухой воздух ухудшает опыление. Норма пчёл: мин. 3–4 семьи/га. Опыление идёт в 6:00–10:00 и 17:00–20:00 когда ветер стихает.`,
+        tags: ['Опыление'],
+      });
+    }
+  }
+
+  // ── 10. Мучнистая роса под плёнкой ──────────────────────────────────
+  // Под плёнкой нет смывания дождём → порог ниже чем в открытом поле
+  const isCoverClosed = hasCover && (
+    phaseName.includes('Окрашив') || phaseName.includes('Созрев') || phaseName.includes('Налив')
+  );
+  if(isCoverClosed && tavg >= 18 && rh >= 65 && !isDormant) {
+    alerts.push({
+      level: rh >= 80 ? 'warning' : 'watch',
+      icon: '🍄',
+      title: `Риск мучнистой росы под плёнкой — T${tavg.toFixed(0)}°C / RH${rh}%`,
+      body: `Под укрытием отсутствует смывание дождём. Споры накапливаются. Регина: устойчивость 3.5/5. Профилактика: сера, флуопирам (Топаз) каждые 7–10 дней. Формировка — прозрачная крона без застоя воздуха.`,
+      tags: ['Мучнистая роса', 'Под плёнкой'],
+    });
+  }
+
+  // ── 11. Анализ прогноза (следующие 3 дня) ────────────────────────────
   if(forecast && forecast.length) {
     const next3 = forecast.slice(0,3);
     const frostDay = next3.find(d=>parseFloat(d.tmin)<=0);
