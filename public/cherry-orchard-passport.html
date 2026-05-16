@@ -3539,6 +3539,30 @@ async function save() {
 
   if (!_serverAvailable) return;
 
+  // Save full orchard state (varieties, rootstocks, cells, aiLog, etc.)
+  try {
+    await fetch('/api/state/orchard', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        varieties:   S.varieties,
+        rootstocks:  S.rootstocks||[],
+        cells:       S.cells,
+        treatments:  S.treatments,
+        catalog:     S.catalog,
+        warehouse:   S.warehouse,
+        irrigation:  S.irrigation,
+        irrigEquip:  S.irrigEquip,
+        aiLog:       S.aiLog||[],
+        gddDb:       S.gddDb,
+        settings:    S.settings,
+        chillPortions: S.chillPortions,
+        analyses:    S.analyses,
+        diseases:    S.diseases,
+      })
+    });
+  } catch(e) { console.warn('[save] Full state sync failed:', e.message); }
+
   // Save treatments
   for (const t of S.treatments) {
     await API.saveTreatment({
@@ -3692,14 +3716,16 @@ function _mergeState(parsed) {
     parsed.crops = [...merged, ...userAdded];
   }
   if(parsed.varieties && Array.isArray(parsed.varieties)){
-    // Если пользователь сохранил varieties — используем только их (без принудительного мержа встроенных)
-    // Встроенные сорта добавляем только если их нет в сохранённом списке И они не были явно удалены
-    const savedIds = new Set(parsed.varieties.map(v=>v.id));
     const builtinIds = S.varieties.map(v=>v.id);
-    // Встроенные которых нет в сохранённом = были удалены пользователем, не восстанавливаем
+    // Сохранённые сорта с приоритетом над встроенными
     const userAdded = parsed.varieties.filter(v=>!builtinIds.includes(v.id));
     const merged = parsed.varieties.filter(v=>builtinIds.includes(v.id))
-      .map(saved=>{ const builtin=S.varieties.find(b=>b.id===saved.id); return Object.assign({},builtin||{},saved); });
+      .map(saved=>{
+        const builtin = S.varieties.find(b=>b.id===saved.id)||{};
+        // saved имеет приоритет — перезаписывает builtin
+        return Object.assign({}, builtin, saved);
+      });
+    // Встроенные которых нет в saved = удалены пользователем, не восстанавливаем
     parsed.varieties = [...merged, ...userAdded];
   }
   if(parsed.diseaseCatalog && Array.isArray(parsed.diseaseCatalog)){
@@ -3712,6 +3738,7 @@ function _mergeState(parsed) {
     parsed.diseaseCatalog = [...mergedDc, ...userDiseases];
   }
   if(parsed.gddDb && parsed.gddDb.varietyGdd){
+    // parsed (saved) имеет приоритет над встроенными S.gddDb.varietyGdd
     parsed.gddDb.varietyGdd = Object.assign({}, S.gddDb.varietyGdd, parsed.gddDb.varietyGdd);
   }
   Object.assign(S, parsed);
