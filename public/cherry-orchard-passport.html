@@ -6013,7 +6013,14 @@ function resetData(){localStorage.removeItem('cherry_v5');sessionStorage.clear()
 // ===================== MODALS =====================
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
-document.addEventListener('click',e=>{if(e.target.classList.contains('modal-overlay'))e.target.classList.remove('open');});
+document.addEventListener('click',e=>{
+  if(e.target.classList.contains('modal-overlay')) e.target.classList.remove('open');
+  // Закрываем dropdown препаратов если клик вне его
+  if(!e.target.closest('#nt-chem-search') && !e.target.closest('#nt-chem-dropdown')) {
+    const dd = document.getElementById('nt-chem-dropdown');
+    if(dd) dd.style.display='none';
+  }
+});
 
 // ============================================================
 // GDD ENGINE v2 — spec-compliant per "Цифровой агроном сада"
@@ -9609,13 +9616,54 @@ function ntUpdateCalc() {
 
 function searchNtChems(q) {
   const dd = document.getElementById('nt-chem-dropdown');
-  const filtered = q ? S.catalog.filter(c=>c.name.toLowerCase().includes(q.toLowerCase())) : S.catalog.slice(0,30);
-  if(!filtered.length){dd.style.display='none';return;}
-  dd.innerHTML = filtered.map(c=>`<div style="padding:7px 12px;cursor:pointer;font-size:13px;display:flex;justify-content:space-between;"
-    onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''"
-    onclick="addNtChem('${c.id}')">
-    <span>${c.name}</span><span style="font-size:10px;color:var(--text3);">${c.type||''}</span>
-  </div>`).join('');
+  const catalog = S.catalog||[];
+  const filtered = q
+    ? catalog.filter(c =>
+        c.name.toLowerCase().includes(q.toLowerCase()) ||
+        (c.activeSubstance||'').toLowerCase().includes(q.toLowerCase()) ||
+        (c.type||'').toLowerCase().includes(q.toLowerCase())
+      )
+    : catalog.slice(0, 40);
+  if(!filtered.length){ dd.style.display='none'; return; }
+
+  const TYPE_LABELS = {
+    fungicide:'🍄 Фунгицид', insecticide:'🐛 Инсектицид', herbicide:'🌿 Гербицид',
+    acaricide:'🕷 Акарицид', fertilizer:'🌱 Удобрение', microelement:'⚗️ Микроэл.',
+    surfactant:'🧴 ПАВ', other:'🔧 Прочее'
+  };
+  const TYPE_COLORS = {
+    fungicide:'var(--teal)', insecticide:'var(--orange)', herbicide:'var(--yellow)',
+    acaricide:'#a855f7', fertilizer:'var(--accent)', microelement:'var(--blue)',
+    surfactant:'#67e8f9', other:'var(--text3)'
+  };
+
+  dd.innerHTML = filtered.map(c => {
+    // Остаток на складе
+    const stock = S.warehouse?.chemicals?.find(x=>x.name.toLowerCase()===c.name.toLowerCase());
+    const stockInfo = stock
+      ? `<span style="font-size:10px;font-weight:600;color:${stock.qty>0?'var(--accent)':'var(--red)'};">${stock.qty} ${stock.unit||'л'}</span>`
+      : `<span style="font-size:10px;color:var(--text3);">нет на складе</span>`;
+    const typeLabel = TYPE_LABELS[c.type]||c.type||'';
+    const typeColor = TYPE_COLORS[c.type]||'var(--text3)';
+    const alreadyAdded = !!_newTaskChems.find(x=>x.id===c.id);
+
+    return `<div style="padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);${alreadyAdded?'opacity:.4;pointer-events:none;':''}"
+      onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''"
+      onclick="addNtChem('${c.id}')">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">
+        <span style="font-size:13px;font-weight:600;">${c.name}</span>
+        <div style="display:flex;gap:6px;align-items:center;">
+          ${stockInfo}
+          <span style="padding:1px 6px;border-radius:8px;font-size:10px;font-weight:600;background:${typeColor}22;color:${typeColor};">${typeLabel}</span>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--text3);">
+        ${c.activeSubstance?`д.в.: ${c.activeSubstance} · `:''}
+        ${c.dose?`реком. доза: ${c.dose} · `:''}
+        ${c.duration?`действует ${c.duration} дн.`:''}
+      </div>
+    </div>`;
+  }).join('');
   dd.style.display = 'block';
 }
 
@@ -9623,7 +9671,15 @@ function addNtChem(id) {
   if(_newTaskChems.find(c=>c.id===id)) return;
   const c = S.catalog.find(x=>x.id===id);
   if(!c) return;
-  _newTaskChems.push({id:c.id, name:c.name, type:c.type, dose_default:c.dose||'', dose_actual:c.dose||'', target:''});
+  _newTaskChems.push({
+    id: c.id, name: c.name, type: c.type,
+    dose_default: c.dose||'',
+    dose_actual: c.dose||'',
+    active: c.activeSubstance||'',
+    duration: c.duration||14,
+    washMm: c.washMm||15,
+    target: ''
+  });
   document.getElementById('nt-chem-search').value = '';
   document.getElementById('nt-chem-dropdown').style.display = 'none';
   renderNtChems();
