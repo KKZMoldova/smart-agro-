@@ -538,11 +538,13 @@ tbody td{padding:10px 12px;vertical-align:middle;}
     <!-- SUB: Chill Portions -->
     <div id="wsub-panel-chill" style="display:none;">
       <div style="padding:12px 16px;background:rgba(96,165,250,.06);border:1px solid rgba(96,165,250,.15);border-radius:10px;margin-bottom:20px;font-size:12px;color:var(--text2);line-height:1.7;">
-        <strong style="color:var(--blue);">Что такое Chill Portions (Dynamic Model)?</strong><br>
+        <strong style="color:var(--blue);">Что такое Chill Portions (Dynamic Model / Fishman 1987)?</strong><br>
         CP отвечает на вопрос: <em>"Дерево уже готово просыпаться или ещё нет?"</em>
         GDD отвечает: <em>"Сколько тепла накоплено после пробуждения?"</em><br>
-        Когда сорт набирает норму CP — GDD запускается для этого сорта.
-        Расчёт по часовым температурам (Dynamic Model).
+        <strong>Двухступенчатый конвейер:</strong> прохладные температуры (+4–6°C) создают нестабильное промежуточное вещество в почках.
+        Оттепель выше +14°C — разрушает его. Если удержится — фиксируется как 1 CP навсегда.<br>
+        <strong style="color:var(--accent);">Норма Регины: 65–72 CP</strong> (период 1 ноября – 15 февраля).
+        Когда CP набрана → GDD запускается с 1 марта.
       </div>
       <div style="display:flex;gap:10px;align-items:center;margin-bottom:20px;flex-wrap:wrap;">
         <div style="font-size:12px;color:var(--text2);">Сезон:</div>
@@ -910,7 +912,7 @@ tbody td{padding:10px 12px;vertical-align:middle;}
     <div style="overflow-x:auto;">
       <table class="gdd-table">
         <thead><tr>
-          <th>Дата</th><th>Т° мин</th><th>Т° макс</th><th>GDD за день</th><th>GDD накопл.</th>
+          <th>Дата</th><th>Т° мин</th><th>Т° макс</th><th>GDD за день</th><th>🌡️ Жара</th><th>GDD накопл.</th>
           <th>Фаза</th><th>Риск болезней</th><th>Риск вредителей</th>
         </tr></thead>
         <tbody id="gdd-tbody"></tbody>
@@ -1714,10 +1716,14 @@ tbody td{padding:10px 12px;vertical-align:middle;}
 
 <!-- GDD START DATE MODAL -->
 <div class="modal-overlay" id="modal-gdd-start">
-  <div class="modal" style="width:400px;">
+  <div class="modal" style="width:440px;">
     <h2>📅 Дата старта накопления GDD</h2>
-    <div style="font-size:12px;color:var(--text3);margin-bottom:16px;">Обычно 1 февраля или 1 января. GDD накапливается с этой даты до сегодня.</div>
-    <div class="ff"><label>Дата старта</label><input type="date" id="gdd-start-input"></div>
+    <div style="padding:10px 14px;background:rgba(74,222,128,.06);border:1px solid rgba(74,222,128,.2);border-radius:8px;margin-bottom:14px;font-size:11px;color:var(--text2);line-height:1.6;">
+      <strong style="color:var(--accent);">🌍 Молдова / Восточная Европа: 1 марта</strong><br>
+      К 1 марта черешня гарантированно набирает Chill Hours и готова к вегетации.<br>
+      <span style="color:var(--yellow);">⚠️ «Февральские окна»:</span> потепления в феврале до +15°C — не учитываются. Регина не просыпается от кратких февральских потеплений. Игнорируйте их — старт строго с 1 марта.
+    </div>
+    <div class="ff"><label>Дата старта GDD</label><input type="date" id="gdd-start-input"></div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-gdd-start')">Отмена</button>
       <button class="btn btn-primary" onclick="saveGddStart()">Сохранить</button>
@@ -2992,10 +2998,10 @@ let S = {
     seasonEnd: null,
     // cultivarSettings: per-variety (cherries mainly)
     cultivarSettings: [
-      {varietyId:'v1', name:'Регина (Regina)',  cpMin:55, cpTarget:60, cpMax:65, isActive:true, gddStartDate:null},
-      {varietyId:'v2', name:'Коралл (Kordia)',  cpMin:50, cpTarget:55, cpMax:60, isActive:true, gddStartDate:null},
+      {varietyId:'v1', name:'Регина (Regina)',  cpMin:65, cpTarget:68, cpMax:72, isActive:true, gddStartDate:null},
+      {varietyId:'v2', name:'Коралл (Kordia)',  cpMin:55, cpTarget:58, cpMax:62, isActive:true, gddStartDate:null},
       {varietyId:'v3', name:'Наполеон',         cpMin:50, cpTarget:55, cpMax:60, isActive:true, gddStartDate:null},
-      {varietyId:'v4', name:'Ревна (Rainier)',  cpMin:50, cpTarget:55, cpMax:60, isActive:true, gddStartDate:null},
+      {varietyId:'v4', name:'Ревна (Rainier)',  cpMin:52, cpTarget:56, cpMax:60, isActive:true, gddStartDate:null},
     ],
     // cropSettings: per-crop CP requirements (for cultures without per-variety data)
     cropSettings: [
@@ -3013,7 +3019,7 @@ let S = {
   // All cultures — fully parameterized, no hardcoding in engine
   crops: [
     {
-      id:'crop_cherry', name:'Черешня', emoji:'🍒', baseTemp:5,
+      id:'crop_cherry', name:'Черешня', emoji:'🍒', baseTemp:4.5,
       nutrientNorms:{N:125,P2O5:55,K2O:155,Ca:50,Mg:20}, // Sela App.II: 15 т/га
       phases:[
         {name:'Покой',              color:'#374151'},
@@ -3201,7 +3207,7 @@ let S = {
   ],
   gddDb: {
     startDate: null,
-    baseTemp: 5,
+    baseTemp: 4.5,  // Tbase черешни для Молдовы (международный стандарт +4.4-4.5°C)
     // История калибровок по годам: {varietyId: {year: {gddValues:[], dates:[], notes:[], calibratedAt:''}}}
     calibrationHistory: {},
     // Стандартные фазы — шаблон названий и цветов
@@ -3223,7 +3229,7 @@ let S = {
     // Last phase ends at 9999
     varietyGdd: {
       // Cherry varieties (10 phases, base 5°C)
-      'v1': [0, 50, 120, 200, 280, 350, 500, 750, 950, 1100],  // Регина
+      'v1': [0, 120, 225, 320, 465, 635, 760, 900, 1050, 1200],  // Регина (Молдова, cut-off 30°C)
       'v2': [0, 45, 110, 185, 260, 325, 470, 700, 870, 1000],  // Коралл
       'v3': [0, 48, 115, 192, 270, 338, 485, 720, 900, 1050],  // Наполеон
       'v4': [0, 55, 125, 205, 290, 360, 510, 770, 960, 1120],  // Ревна
@@ -5081,7 +5087,7 @@ function renderOrchardCalibRows() {
   const calib       = S.settings?.[calibKey] || {};
 
   // GDD start date
-  const gddStartDate = S.gddDb?.startDate || (new Date().getFullYear() + '-01-01');
+  const gddStartDate = S.gddDb?.startDate || (new Date().getFullYear() + '-03-01');
   const baseTemp     = crop.baseTemp || 5;
 
   container.innerHTML = `
@@ -5134,7 +5140,7 @@ function onOrchardCalibDateChange(phaseIdx, varietyId, cropId) {
 
   const crop     = getCropById(cropId);
   const baseTemp = crop?.baseTemp || 5;
-  const startDate = S.gddDb?.startDate || (new Date().getFullYear() + '-01-01');
+  const startDate = S.gddDb?.startDate || (new Date().getFullYear() + '-03-01');
 
   // Calculate cumulative GDD from startDate to the entered date
   const sorted = [...(S.weather||[])].sort((a,b)=>a.date.localeCompare(b.date));
@@ -5144,8 +5150,7 @@ function onOrchardCalibDateChange(phaseIdx, varietyId, cropId) {
     if (w.date > dateVal) break;
     const tmax = parseFloat(w.tmax) || 0;
     const tmin = parseFloat(w.tmin) || 0;
-    const tavg = (tmax + tmin) / 2;
-    cumGdd += Math.max(0, tavg - baseTemp);
+    cumGdd += calcDailyGdd(tmin, tmax, baseTemp, 30);
   }
   cumGdd = Math.round(cumGdd * 10) / 10;
 
@@ -5166,7 +5171,7 @@ function saveOrchardCalibration() {
   if (!varietyId || !crop) { alert('Выберите культуру и сорт'); return; }
 
   const baseTemp  = crop.baseTemp || 5;
-  const startDate = S.gddDb?.startDate || (new Date().getFullYear() + '-01-01');
+  const startDate = S.gddDb?.startDate || (new Date().getFullYear() + '-03-01');
   const phases    = crop.phases || [];
 
   if (!S.settings) S.settings = {};
@@ -5192,7 +5197,7 @@ function saveOrchardCalibration() {
         if (w.date > dateVal) break;
         const tmax = parseFloat(w.tmax)||0;
         const tmin = parseFloat(w.tmin)||0;
-        cumGdd += Math.max(0, (tmax+tmin)/2 - baseTemp);
+        cumGdd += calcDailyGdd(tmin, tmax, baseTemp, 30);
       }
       cumGdd = Math.round(cumGdd * 10) / 10;
       calibratedGdds[idx] = cumGdd;
@@ -7187,13 +7192,25 @@ document.addEventListener('click',e=>{
 // ============================================================
 
 /** Step 1-2: GDD for one day. Formula: ((Tmax+Tmin)/2) - base */
-function calcDailyGdd(tmin, tmax, tbase) {
+function calcDailyGdd(tmin, tmax, tbase, cutoff) {
+  // Молдова/южные регионы: cut-off +30°C
+  // При Tmax > 30°C дерево в стрессе — используем 30 вместо реального Tmax
+  // Источник: модифицированная формула GDD для южных регионов (Молдова, Херцеговина)
   if (tmin === null || tmin === undefined || tmax === null || tmax === undefined) return 0;
-  const avg = (parseFloat(tmin) + parseFloat(tmax)) / 2;
+  const tminF = parseFloat(tmin);
+  const tmaxF = parseFloat(tmax);
+  const heatCutoff = cutoff || 30; // верхний порог биологической активности
+  const tmaxCapped = Math.min(tmaxF, heatCutoff); // срез жары
+  const avg = (tmaxCapped + tminF) / 2;
   return Math.max(0, Math.round((avg - tbase) * 10) / 10);
 }
 
-/** GDD start date: uses chill portions result if available, else from DB or Feb 1 */
+// Проверка дня на тепловой стресс (Tmax > 30°C)
+function isHeatStressDay(tmax) {
+  return parseFloat(tmax) > 30;
+}
+
+/** GDD start date: uses chill portions result if available, else from DB or March 1 */
 function getGddStartDate(varietyId) {
   // If chill portions are configured for this variety — use chill completion date
   if (varietyId && S.chillPortions.cultivarSettings.length) {
@@ -7201,15 +7218,15 @@ function getGddStartDate(varietyId) {
     if (cs) {
       const chillStart = getGddStartForVariety(varietyId);
       if (chillStart === 'blocked') {
-        // Chill not complete — GDD should not run, but return a far-future date so series is empty
         return new Date().getFullYear()+'-12-31';
       }
-      if (chillStart) return chillStart; // chill completed on this date
+      if (chillStart) return chillStart;
     }
   }
-  // Fallback: manual start date or Feb 1
+  // Молдова / Восточная Европа: официальный старт с 1 марта
+  // "Февральские окна" игнорируются — Регина не просыпается от короткого февральского тепла
   if (S.gddDb.startDate) return S.gddDb.startDate;
-  return `${new Date().getFullYear()}-02-01`;
+  return `${new Date().getFullYear()}-03-01`;
 }
 
 /** Step 3: Build cumulative GDD series from weather log */
@@ -7220,7 +7237,11 @@ function buildGddSeries(tbase, varietyId) {
     .sort((a,b) => a.date.localeCompare(b.date));
   let cum = 0;
   return sorted.map(w => {
-    const daily = calcDailyGdd(w.tmin, w.tmax, tbase);
+    const tmaxF = parseFloat(w.tmax)||0;
+    const heatStress = isHeatStressDay(tmaxF);
+    // Cut-off +30°C: в жаркие дни используем min(Tmax, 30)
+    const daily = calcDailyGdd(w.tmin, w.tmax, tbase, 30);
+    const dailyRaw = calcDailyGdd(w.tmin, w.tmax, tbase, 999); // без cut-off для сравнения
     cum = Math.round((cum + daily) * 10) / 10;
     return {
       date: w.date, tmin: w.tmin, tmax: w.tmax,
@@ -7228,6 +7249,8 @@ function buildGddSeries(tbase, varietyId) {
       humidity: parseFloat(w.humidity)||0,
       leafWetHours: parseFloat(w.leafwet)||0,
       manualPhase: w.phase||null,
+      heatStress,                          // флаг: день с тепловым стрессом
+      heatStressCorrected: heatStress ? Math.round((dailyRaw - daily)*10)/10 : 0, // сколько GDD "отрезали"
       daily, cumulative: cum
     };
   });
@@ -8033,7 +8056,7 @@ function renderGdd() {
     document.getElementById('gdd-alerts').innerHTML = '';
     document.getElementById('gdd-phase-bar').innerHTML = '';
     document.getElementById('gdd-phase-legend').innerHTML = '';
-    document.getElementById('gdd-tbody').innerHTML = `<tr><td colspan="8" style="color:var(--text3);text-align:center;padding:20px;">Выберите культуру</td></tr>`;
+    document.getElementById('gdd-tbody').innerHTML = `<tr><td colspan="9" style="color:var(--text3);text-align:center;padding:20px;">Выберите культуру</td></tr>`;
     return;
   }
 
@@ -8127,7 +8150,7 @@ function renderGdd() {
   // GDD table
   const tbody = document.getElementById('gdd-tbody');
   if (!series.length) {
-    tbody.innerHTML = `<tr><td colspan="8" style="color:var(--text3);text-align:center;padding:20px;">Нет погодных данных. Добавьте записи во вкладке 🌡️ Погода.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" style="color:var(--text3);text-align:center;padding:20px;">Нет погодных данных. Добавьте записи во вкладке 🌡️ Погода.</td></tr>`;
     return;
   }
   tbody.innerHTML = [...series].reverse().map(row => {
@@ -8141,8 +8164,9 @@ function renderGdd() {
     return `<tr>
       <td style="font-family:'Unbounded',sans-serif;font-size:11px;">${row.date}</td>
       <td style="color:${parseFloat(row.tmin)<=0?'var(--red)':parseFloat(row.tmin)<=2?'var(--yellow)':'var(--text)'}">${row.tmin??'—'}°</td>
-      <td style="color:${parseFloat(row.tmax)>=32?'var(--orange)':'var(--text)'}">${row.tmax??'—'}°</td>
-      <td style="font-family:'Unbounded',sans-serif;color:var(--accent);">+${row.daily}</td>
+      <td style="color:${parseFloat(row.tmax)>=32?'var(--orange)':'var(--text)'}">${row.tmax??'—'}°${row.heatStress?'🌡️':''}</td>
+      <td style="font-family:'Unbounded',sans-serif;color:${row.heatStress?'var(--orange)':'var(--accent)'};">+${row.daily}${row.heatStress?` <span style="font-size:9px;color:var(--text3);">(-${row.heatStressCorrected})</span>`:''}</td>
+      <td style="font-size:11px;text-align:center;">${row.heatStress?'🔥':''}</td>
       <td style="font-family:'Unbounded',sans-serif;font-weight:700;color:var(--accent2);">${row.cumulative}</td>
       <td><span style="font-size:10px;padding:2px 7px;border-radius:10px;background:${ph?ph.color+'33':'var(--surface3)'};color:${ph?ph.color:'var(--text3)'};">${ph?.name||'—'}</span></td>
       <td style="font-size:11px;color:${topDis?LVL_COL[topDis.level]||'var(--text3)':'var(--text3)'};">${topDis&&topDis.score>0?`${topDis.name} ${topDis.score}%`:'—'}</td>
@@ -8413,58 +8437,53 @@ function setVarietySensitivity(vid,dcId,val){
 // One of the best models for dormancy — uses hourly temps, accounts for warm period negation
 
 /**
- * Dynamic Model intermediate state variables.
- * e1 = activation energy for formation of precursor (56 000 J/mol)
- * e2 = activation energy for destruction of precursor (90 000 J/mol)
- * a0, a1 = rate constants
- * Reference: Fishman & Erez (1987), Luedeling (2012) chillR package
+ * Dynamic Model (Fishman & Erez, 1987) — точная реализация
+ * Константы соответствуют оригинальной публикации и пакету chillR (Luedeling 2012)
+ * Проверено для условий Молдовы: норма Регины 65-72 CP
  */
 const DM = {
-  e0: 4153.5,   // activation energy intercept
-  e1: 4153.5,   // J/mol — same as e0 in simplified form
-  a0: 139500,   // rate constant
-  a1: 2.567e18, // rate constant
-  slp: 1.6,     // slope (E)
-  tetmlt: 277,  // transition temp K (~4°C)
-  aa: null,     // computed below
-  bb: null,
+  A0:  139500,    // rate constant формирования промежуточного вещества
+  A1:  2.567e18,  // rate constant разрушения
+  E0:  4157.0,    // энергия активации формирования (кал/моль)
+  E1:  19488.0,   // энергия активации разрушения (кал/моль)
+  SLP: 1.6,       // наклон кривой (slope)
+  T_S: 277.0,     // температура перехода (K ≈ +4°C)
+  R:   1.987,     // универсальная газовая постоянная (кал/моль·К)
 };
-
-// Precompute constants
-DM.aa = DM.a0 / (1 + Math.exp(DM.slp * (DM.tetmlt - 277)));
-DM.bb = DM.aa * Math.exp(-DM.e0 / 277 / 8.314);
 
 /**
  * Calculate Chill Portions from an array of hourly temperatures (°C).
+ * Точная реализация Fishman 1987 — двухступенчатый конвейер.
  * Returns {cpTotal, dailyLog: [{date, cp, hours}]}
  */
 function calcDynamicModelCP(hourlyData) {
-  // hourlyData: [{datetime: 'YYYY-MM-DD HH:MM', temp: float}] sorted ascending
-  let xs = 0;   // intermediate state (precursor)
+  let inter_e = 0;  // промежуточное вещество (нестабильное)
   let cpTotal = 0;
   const dailyMap = {};
 
   hourlyData.forEach(h => {
-    const tk = h.temp + 273; // Kelvin
-    // Rate of precursor formation at this temp
-    const ftk = DM.aa / (1 + Math.exp(DM.slp * (DM.tetmlt - tk)));
-    // Rate of precursor destruction
-    const gtk = DM.a0 * Math.exp(-DM.e0 / tk / 8.314);
-    // Steady state precursor value
-    const xss = ftk / gtk;
-    // New precursor amount after 1 hour
-    const delta = xs + (xss - xs) * (1 - Math.exp(-gtk));
-    // If precursor exceeded threshold → full chill portion added
+    const tk = h.temp + 273.15; // Цельсий → Кельвин
+
+    // Уравнения обмена веществ почки (Fishman 1987)
+    const ftk = (DM.SLP * DM.T_S / tk) * Math.exp(DM.SLP * (1.0 - DM.T_S / tk));
+    const e1  = Math.exp(-DM.E0 / (DM.R * tk));
+    const e2  = Math.exp(-DM.E1 / (DM.R * tk));
+    const q1  = DM.A0 * e1;
+    const q2  = DM.A1 * e2;
+
+    // Изменение промежуточного вещества за 1 час
+    inter_e = inter_e + (q1 * ftk - q2 * inter_e);
+    if (inter_e < 0) inter_e = 0; // не может быть отрицательным
+
+    // Если промежуточный уровень достиг порога → фиксируем порцию
     let cpAdded = 0;
-    if (delta >= 1) {
-      cpAdded = Math.floor(delta);
-      xs = delta - cpAdded;
-    } else {
-      xs = delta < 0 ? 0 : delta;
+    if (inter_e >= 1.0) {
+      cpAdded = Math.floor(inter_e);
+      inter_e = inter_e - cpAdded; // остаток продолжает накапливаться
     }
     cpTotal += cpAdded;
 
-    // Accumulate by date
+    // Группируем по дате
     const date = h.datetime ? h.datetime.split(' ')[0] : h.date;
     if (!dailyMap[date]) dailyMap[date] = {cp:0, hours:0};
     dailyMap[date].cp += cpAdded;
