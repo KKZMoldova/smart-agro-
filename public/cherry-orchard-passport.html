@@ -10234,7 +10234,7 @@ ${stockAlert}
 Отвечай конкретно, с цифрами. Учитывай реальные данные хозяйства. Язык: русский.`;
 
     // ── Вызов через прокси-сервер ─────────────────────────────────────
-    const response = await fetch('/api/ai/parse-pdf', {
+    const response = await fetch('/api/ai/advisor', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
