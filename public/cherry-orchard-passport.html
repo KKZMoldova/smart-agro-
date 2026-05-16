@@ -7242,6 +7242,9 @@ function saveSettings(){
   const caCarb = document.getElementById('set-ca-carbonate');
   if(caCarb) S.settings.caCarbonate = parseFloat(caCarb.value)||null;
   save();
+  // Визуальное подтверждение
+  const btn = document.querySelector('[onclick="saveSettings()"]');
+  if(btn){ const orig=btn.textContent; btn.textContent='✅ Сохранено!'; btn.style.background='var(--accent)'; setTimeout(()=>{btn.textContent=orig;btn.style.background='';},2000); }
 }
 function exportData(){const b=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='passport_sad_'+new Date().toISOString().split('T')[0]+'.json';a.click();}
 function importData(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{Object.assign(S,JSON.parse(ev.target.result));save();init();alert('Импортировано!');}catch{alert('Ошибка файла');}};r.readAsText(f);}
@@ -12667,17 +12670,6 @@ function openWarehousePartModal(partId) {
   }, 100);
 }
 
-function saveSettings() {
-  save();
-  fetch('/api/state/vegetable', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ settings: S.settings })
-  }).then(() => {
-    const btn = document.querySelector('[onclick="saveSettings()"]');
-    if(btn) { btn.textContent = '✅ Сохранено!'; setTimeout(()=>btn.textContent='💾 Сохранить настройки', 2000); }
-  });
-}
   function updateCatalogPriceConverted() {
   const priceRaw = parseFloat(document.getElementById('c-price').value) || 0;
   const currency = document.getElementById('c-price-currency').value;
