@@ -404,6 +404,7 @@ tbody td{padding:10px 12px;vertical-align:middle;}
   <div class="tab" onclick="switchTab('diseases',this)">🦠 Болезни</div>
   <div class="tab" onclick="switchTab('warehouse',this)">🏪 Склад</div>
   <div class="tab" onclick="switchTab('tasks',this)">📋 Журнал работ</div>
+  <div class="tab" onclick="switchTab('ailog',this)">🤖 Журнал AI</div>
   <div class="tab" onclick="switchTab('doses',this)">⚗️ Дозы</div>
   <div class="tab" onclick="switchTab('settings',this)">⚙️ Настройки</div>
 </div>
@@ -2870,6 +2871,56 @@ tbody td{padding:10px 12px;vertical-align:middle;}
   </div>
 </div>
 
+<!-- PANEL: Журнал AI рекомендаций -->
+<div class="panel" id="panel-ailog">
+  <div class="section-hdr">
+    <h2>🤖 Журнал AI рекомендаций</h2>
+    <button class="btn btn-secondary btn-sm" onclick="renderAiLog()">🔄 Обновить</button>
+  </div>
+  <div id="ailog-list"></div>
+</div>
+
+<!-- MODAL: Комментарий агронома -->
+<div class="modal-overlay" id="modal-ai-comment">
+  <div class="modal" style="max-width:500px;width:96%;">
+    <h2>💬 Комментарий агронома</h2>
+    <input type="hidden" id="aic-rec-id">
+    <div class="form-grid">
+      <div class="ff">
+        <label>Ваше имя</label>
+        <input type="text" id="aic-author" placeholder="Иван Петров">
+      </div>
+      <div class="ff">
+        <label>Роль</label>
+        <select id="aic-role" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+          <option value="agronomist">🌿 Агроном</option>
+          <option value="owner">👔 Владелец</option>
+          <option value="director">📋 Директор</option>
+        </select>
+      </div>
+      <div class="ff full">
+        <label>Комментарий / решение</label>
+        <textarea id="aic-text" rows="4" placeholder="Согласен с рекомендацией. Запланировал обработку на 18.05 утром..."
+          style="width:100%;padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);resize:vertical;font-family:'Inter',sans-serif;font-size:13px;"></textarea>
+      </div>
+      <div class="ff">
+        <label>Статус решения</label>
+        <select id="aic-status" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+          <option value="noted">📌 Принято к сведению</option>
+          <option value="planned">📅 Запланировано</option>
+          <option value="done">✅ Выполнено</option>
+          <option value="rejected">❌ Отклонено</option>
+          <option value="question">❓ Требует уточнения</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-ai-comment')">Отмена</button>
+      <button class="btn btn-primary" onclick="saveAiComment()">Сохранить комментарий</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 // ===================== STATE =====================
@@ -2878,6 +2929,7 @@ let S = {
   warehouse: { chemicals: [], parts: [], seeds: [], history: [] },
   irrigEquip: { pumps: [], valves: [], drip: [], frost: [] },
   rootstocks: [],
+  aiLog: [], // [{id, date, type, prompt_summary, ai_text, photo_base64, comments:[{date,author,role,text}]}]
   varieties:[
     {id:'v1',name:'Регина',  ripening:'Поздний',pollType:'cross',pollinators:'Коралл, Наполеон',color:'vc0',note:'',cropId:'crop_cherry'},
     {id:'v2',name:'Коралл',  ripening:'Средний',pollType:'cross',pollinators:'Регина, Ревна',   color:'vc1',note:'',cropId:'crop_cherry'},
@@ -3694,6 +3746,7 @@ function switchTab(tab,el){
   if(tab==='settings'){loadSettings(); loadEquipLists(); loadIrrigLists();}
   if(tab==='warehouse')renderWarehouse();
   if(tab==='tasks')renderTasks();
+  if(tab==='ailog')renderAiLog();
 }
 
 // ===================== CATALOG =====================
@@ -10217,6 +10270,9 @@ GDD ${gdd}, фаза: ${phase?.name||'вегетация'}. ${weatherCtx}
       const data = await response.json();
       const text = data.content?.[0]?.text || data.error?.message || JSON.stringify(data);
 
+      // Сохраняем в журнал AI
+      saveAiRec('photo', text, e.target.result, `Фото: ${file.name} · ${cropNames||'сад'} · ${phase?.name||'вегетация'}`);
+
       // Форматируем ответ
       const html = text
         .replace(/^(🔍|📊|🧬|⚠️|💊|⏰)(.+)$/gm, '<div style="margin:10px 0 4px;font-weight:700;color:var(--text);">$1$2</div>')
@@ -10398,6 +10454,10 @@ ${stockAlert}
 
     const data = await response.json();
     const text = data.content?.[0]?.text || data.error?.message || JSON.stringify(data);
+
+    // Сохраняем в журнал AI
+    const summary = `GDD ${gdd} · ${phase?.name||'вегетация'} · ${alerts.length} алертов`;
+    saveAiRec('advisor', text, null, summary);
 
     // ── Рендер ответа ─────────────────────────────────────────────────
     // Конвертируем Markdown в HTML
@@ -11194,6 +11254,147 @@ function renderCherryForecastRecs(f) {
         <span style="font-size:16px;">${a.icon}</span>
         <span>${a.text}</span>
       </div>`).join('')}`;
+}
+
+// ═══ ЖУРНАЛ AI РЕКОМЕНДАЦИЙ ══════════════════════════════════════════════
+
+const AI_STATUS = {
+  noted:    {icon:'📌', label:'Принято к сведению', color:'var(--blue)'},
+  planned:  {icon:'📅', label:'Запланировано',       color:'var(--yellow)'},
+  done:     {icon:'✅', label:'Выполнено',            color:'var(--accent)'},
+  rejected: {icon:'❌', label:'Отклонено',            color:'var(--red)'},
+  question: {icon:'❓', label:'Требует уточнения',    color:'var(--orange)'},
+};
+
+const AI_ROLE = {
+  agronomist: '🌿 Агроном',
+  owner:      '👔 Владелец',
+  director:   '📋 Директор',
+};
+
+function saveAiRec(type, aiText, photoBase64, promptSummary) {
+  if(!S.aiLog) S.aiLog = [];
+  const rec = {
+    id: uid(),
+    date: new Date().toISOString(),
+    type,           // 'advisor' | 'photo'
+    promptSummary,  // краткое описание контекста
+    aiText,
+    photoBase64: photoBase64 || null,
+    comments: [],
+    status: null,   // итоговый статус (из последнего комментария)
+  };
+  S.aiLog.unshift(rec);
+  // Храним только последние 50 записей
+  if(S.aiLog.length > 50) S.aiLog = S.aiLog.slice(0, 50);
+  save();
+  return rec.id;
+}
+
+function renderAiLog() {
+  const el = document.getElementById('ailog-list');
+  if(!el) return;
+  const log = S.aiLog || [];
+  if(!log.length) {
+    el.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text3);">
+      <div style="font-size:40px;margin-bottom:12px;">🤖</div>
+      <div style="font-size:13px;margin-bottom:6px;">Журнал AI пуст</div>
+      <div style="font-size:11px;">Нажмите ✨ Получить рекомендации или 📷 Фото-диагностика на вкладке Погода</div>
+    </div>`;
+    return;
+  }
+
+  el.innerHTML = log.map(rec => {
+    const date = new Date(rec.date).toLocaleString('ru-RU');
+    const typeLabel = rec.type === 'photo' ? '📷 Фото-диагностика' : '✨ AI Советник';
+    const lastStatus = rec.comments?.slice(-1)[0]?.status;
+    const statusInfo = lastStatus ? AI_STATUS[lastStatus] : null;
+
+    // Форматируем текст AI
+    const aiHtml = (rec.aiText||'')
+      .replace(/^(🔍|📊|🧬|⚠️|💊|⏰|🚨|1\.|2\.|3\.|4\.|5\.)(.+)$/gm,
+        '<div style="font-weight:700;color:var(--text);margin:8px 0 2px;">$1$2</div>')
+      .replace(/^- (.+)$/gm, '<div style="padding:1px 0 1px 12px;color:var(--text2);">• $1</div>')
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\n\n/g, '<br>')
+      .replace(/\n/g, '<br>');
+
+    // Комментарии
+    const commentsHtml = (rec.comments||[]).map(c => {
+      const cStatus = c.status ? AI_STATUS[c.status] : null;
+      return `<div style="margin-top:8px;padding:10px 14px;background:var(--surface);border-left:3px solid ${cStatus?.color||'var(--border)'};border-radius:0 8px 8px 0;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+          <span style="font-size:12px;font-weight:700;color:var(--text);">${AI_ROLE[c.role]||c.role} · ${c.author}</span>
+          ${cStatus?`<span style="padding:1px 8px;border-radius:8px;font-size:10px;background:${cStatus.color}22;color:${cStatus.color};font-weight:600;">${cStatus.icon} ${cStatus.label}</span>`:''}
+          <span style="margin-left:auto;font-size:10px;color:var(--text3);">${new Date(c.date).toLocaleString('ru-RU')}</span>
+        </div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.5;">${c.text}</div>
+      </div>`;
+    }).join('');
+
+    return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px;">
+      <!-- Заголовок -->
+      <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--border);">
+        <span style="font-size:20px;">${rec.type==='photo'?'📷':'🤖'}</span>
+        <div style="flex:1;">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <span style="font-size:13px;font-weight:700;">${typeLabel}</span>
+            ${statusInfo?`<span style="padding:2px 8px;border-radius:10px;font-size:10px;background:${statusInfo.color}22;color:${statusInfo.color};font-weight:600;">${statusInfo.icon} ${statusInfo.label}</span>`:''}
+          </div>
+          <div style="font-size:10px;color:var(--text3);margin-top:2px;">${date} · ${rec.promptSummary||''}</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="openAiComment('${rec.id}')">💬 Комментировать</button>
+      </div>
+
+      <!-- Фото если есть -->
+      ${rec.photoBase64?`<img src="${rec.photoBase64}" style="max-width:100%;max-height:200px;border-radius:8px;margin-bottom:10px;object-fit:contain;display:block;">`:'' }
+
+      <!-- Текст AI -->
+      <div style="font-size:12px;line-height:1.7;color:var(--text2);margin-bottom:${rec.comments?.length?'12px':'0'};">
+        ${aiHtml}
+      </div>
+
+      <!-- Комментарии -->
+      ${commentsHtml}
+    </div>`;
+  }).join('');
+}
+
+function openAiComment(recId) {
+  document.getElementById('aic-rec-id').value = recId;
+  document.getElementById('aic-text').value = '';
+  document.getElementById('aic-status').value = 'noted';
+  // Предзаполняем имя из последнего комментария
+  const rec = (S.aiLog||[]).find(r=>r.id===recId);
+  const lastComment = rec?.comments?.slice(-1)[0];
+  if(lastComment) {
+    document.getElementById('aic-author').value = lastComment.author||'';
+    document.getElementById('aic-role').value = lastComment.role||'agronomist';
+  }
+  openModal('modal-ai-comment');
+}
+
+function saveAiComment() {
+  const recId = document.getElementById('aic-rec-id').value;
+  const author = document.getElementById('aic-author').value.trim();
+  const text = document.getElementById('aic-text').value.trim();
+  if(!author){alert('Введите ваше имя');return;}
+  if(!text){alert('Введите комментарий');return;}
+  const rec = (S.aiLog||[]).find(r=>r.id===recId);
+  if(!rec) return;
+  if(!rec.comments) rec.comments = [];
+  rec.comments.push({
+    id: uid(),
+    date: new Date().toISOString(),
+    author,
+    role: document.getElementById('aic-role').value,
+    status: document.getElementById('aic-status').value,
+    text,
+  });
+  rec.status = document.getElementById('aic-status').value;
+  save();
+  closeModal('modal-ai-comment');
+  renderAiLog();
 }
 
 // ═══ ЖУРНАЛ РАБОТ ════════════════════════════════════════════════════
