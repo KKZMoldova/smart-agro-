@@ -2122,6 +2122,19 @@ tbody td{padding:10px 12px;vertical-align:middle;}
         <div class="ff"><label>Поставщик</label><input type="text" id="wh-seed-supplier" placeholder="Питомник"></div>
         <div class="ff"><label>Мин. запас</label><input type="number" id="wh-seed-min-stock" step="1" placeholder="5"></div>
         <div class="ff"><label>Год</label><input type="number" id="wh-seed-year" placeholder="2025"></div>
+        <div class="ff"><label>Норма посадки</label><input type="number" id="wh-seed-rate" step="0.01" placeholder="1.5"></div>
+        <div class="ff"><label>Ед. нормы</label>
+          <select id="wh-seed-rate-unit" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+            <option value="шт/га">шт/га</option>
+            <option value="кг/га">кг/га</option>
+            <option value="шт/м">шт/м</option>
+          </select>
+        </div>
+        <div class="ff"><label>Валюта</label>
+          <select id="wh-seed-price-currency" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+            <option value="MDL">MDL</option><option value="EUR">EUR</option><option value="USD">USD</option><option value="RON">RON</option>
+          </select>
+        </div>
         <div class="ff full"><label>Примечание</label><input type="text" id="wh-seed-note" placeholder="Партия, сертификат..."></div>
       </div>
     </div>
