@@ -1129,6 +1129,76 @@ tbody td{padding:10px 12px;vertical-align:middle;}
         <button class="btn btn-danger" onclick="if(confirm('Сбросить все данные?'))resetData()">🗑 Сброс</button>
       </div>
     </div>
+
+    <!-- Техника -->
+    <div style="margin-top:20px;">
+      <div class="section-hdr" style="margin-bottom:12px;">
+        <h3 style="font-size:14px;font-weight:700;">🚜 Техника</h3>
+        <button class="btn btn-primary btn-sm" onclick="openEquipModal()">+ Добавить</button>
+      </div>
+      <div id="equip-list"><div style="color:var(--text3);font-size:12px;padding:8px;">Загрузка...</div></div>
+    </div>
+
+    <!-- Навесное -->
+    <div style="margin-top:20px;">
+      <div class="section-hdr" style="margin-bottom:12px;">
+        <h3 style="font-size:14px;font-weight:700;">🔩 Навесное оборудование</h3>
+        <button class="btn btn-primary btn-sm" onclick="openAttachModal()">+ Добавить</button>
+      </div>
+      <div id="attach-list"><div style="color:var(--text3);font-size:12px;padding:8px;">Загрузка...</div></div>
+    </div>
+
+    <!-- Персонал -->
+    <div style="margin-top:20px;">
+      <div class="section-hdr" style="margin-bottom:12px;">
+        <h3 style="font-size:14px;font-weight:700;">👷 Персонал</h3>
+        <button class="btn btn-primary btn-sm" onclick="openStaffModal()">+ Добавить</button>
+      </div>
+      <div id="staff-list"><div style="color:var(--text3);font-size:12px;padding:8px;">Загрузка...</div></div>
+    </div>
+
+    <!-- Ирригационное оборудование -->
+    <div style="margin-top:20px;">
+      <div class="section-hdr" style="margin-bottom:16px;">
+        <h3 style="font-size:14px;font-weight:700;">💧 Ирригационное оборудование</h3>
+      </div>
+
+      <!-- Насосы -->
+      <div style="margin-bottom:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <span style="font-size:12px;font-weight:600;color:var(--text2);">🔧 Насосы</span>
+          <button class="btn btn-secondary btn-sm" onclick="openIrrigModal('pump')">+ Добавить</button>
+        </div>
+        <div id="irrig-pump-list"><div style="color:var(--text3);font-size:12px;padding:6px;">Загрузка...</div></div>
+      </div>
+
+      <!-- Клапаны -->
+      <div style="margin-bottom:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <span style="font-size:12px;font-weight:600;color:var(--text2);">🔩 Клапаны</span>
+          <button class="btn btn-secondary btn-sm" onclick="openIrrigModal('valve')">+ Добавить</button>
+        </div>
+        <div id="irrig-valve-list"><div style="color:var(--text3);font-size:12px;padding:6px;">Загрузка...</div></div>
+      </div>
+
+      <!-- Капельная система -->
+      <div style="margin-bottom:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <span style="font-size:12px;font-weight:600;color:var(--text2);">💦 Капельная трубка / эмиттеры</span>
+          <button class="btn btn-secondary btn-sm" onclick="openIrrigModal('drip')">+ Добавить</button>
+        </div>
+        <div id="irrig-drip-list"><div style="color:var(--text3);font-size:12px;padding:6px;">Загрузка...</div></div>
+      </div>
+
+      <!-- Антизаморозка -->
+      <div style="margin-bottom:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <span style="font-size:12px;font-weight:600;color:var(--text2);">🌡️ Система антизаморозки</span>
+          <button class="btn btn-secondary btn-sm" onclick="openIrrigModal('frost')">+ Добавить</button>
+        </div>
+        <div id="irrig-frost-list"><div style="color:var(--text3);font-size:12px;padding:6px;">Загрузка...</div></div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -2295,12 +2365,114 @@ tbody td{padding:10px 12px;vertical-align:middle;}
   </div>
 </div>
 
+<!-- MODAL: Техника -->
+<div class="modal-overlay" id="modal-equip">
+  <div class="modal" style="max-width:480px;width:96%;">
+    <h2 id="equip-modal-title">🚜 Техника</h2>
+    <input type="hidden" id="equip-edit-id">
+    <div class="form-grid">
+      <div class="ff full"><label>Название</label><input type="text" id="equip-name" placeholder="МТЗ-82, John Deere 5090E..."></div>
+      <div class="ff"><label>Тип</label>
+        <select id="equip-type" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+          <option value="tractor">🚜 Трактор</option>
+          <option value="sprayer">💧 Опрыскиватель</option>
+          <option value="harvester">🌾 Комбайн</option>
+          <option value="truck">🚛 Грузовик</option>
+          <option value="other">🔧 Другое</option>
+        </select>
+      </div>
+      <div class="ff"><label>Статус</label>
+        <select id="equip-status" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+          <option value="free">✅ Свободна</option>
+          <option value="busy">🔄 Занята</option>
+          <option value="repair">🔧 В ремонте</option>
+        </select>
+      </div>
+      <div class="ff"><label>Год</label><input type="number" id="equip-year" placeholder="2018"></div>
+      <div class="ff full"><label>Примечание</label><input type="text" id="equip-note" placeholder="Гос. номер, особенности..."></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger btn-sm" id="equip-del-btn" style="display:none;margin-right:auto;" onclick="deleteEquip()">🗑 Удалить</button>
+      <button class="btn btn-secondary" onclick="closeModal('modal-equip')">Отмена</button>
+      <button class="btn btn-primary" onclick="saveEquip()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Навесное -->
+<div class="modal-overlay" id="modal-attach">
+  <div class="modal" style="max-width:480px;width:96%;">
+    <h2 id="attach-modal-title">🔩 Навесное оборудование</h2>
+    <input type="hidden" id="attach-edit-id">
+    <div class="form-grid">
+      <div class="ff full"><label>Название</label><input type="text" id="attach-name" placeholder="Опрыскиватель 2000л, Косилка роторная..."></div>
+      <div class="ff"><label>Тип</label>
+        <select id="attach-type" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+          <option value="sprayer">💊 Опрыскиватель</option>
+          <option value="mower">✂️ Косилка</option>
+          <option value="spreader">🌱 Разбрасыватель</option>
+          <option value="plow">🌾 Плуг/культиватор</option>
+          <option value="other">🔧 Другое</option>
+        </select>
+      </div>
+      <div class="ff"><label>Объём/ширина</label><input type="text" id="attach-capacity" placeholder="2000 л / 12 м"></div>
+      <div class="ff full"><label>Примечание</label><input type="text" id="attach-note" placeholder="Особенности, год..."></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger btn-sm" id="attach-del-btn" style="display:none;margin-right:auto;" onclick="deleteAttach()">🗑 Удалить</button>
+      <button class="btn btn-secondary" onclick="closeModal('modal-attach')">Отмена</button>
+      <button class="btn btn-primary" onclick="saveAttach()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Персонал -->
+<div class="modal-overlay" id="modal-staff">
+  <div class="modal" style="max-width:480px;width:96%;">
+    <h2 id="staff-modal-title">👷 Сотрудник</h2>
+    <input type="hidden" id="staff-edit-id">
+    <div class="form-grid">
+      <div class="ff full"><label>Имя</label><input type="text" id="staff-name" placeholder="Иван Петров"></div>
+      <div class="ff"><label>Должность</label>
+        <select id="staff-role" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+          <option value="mechanic">🚜 Механизатор</option>
+          <option value="agronomist">🌿 Агроном</option>
+          <option value="worker">👷 Рабочий</option>
+          <option value="manager">📋 Бригадир</option>
+        </select>
+      </div>
+      <div class="ff"><label>Телефон</label><input type="text" id="staff-phone" placeholder="+373 69 000 000"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger btn-sm" id="staff-del-btn" style="display:none;margin-right:auto;" onclick="deleteStaff()">🗑 Удалить</button>
+      <button class="btn btn-secondary" onclick="closeModal('modal-staff')">Отмена</button>
+      <button class="btn btn-primary" onclick="saveStaff()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Ирригационное оборудование -->
+<div class="modal-overlay" id="modal-irrig">
+  <div class="modal" style="max-width:560px;width:96%;max-height:90vh;overflow-y:auto;">
+    <h2 id="irrig-modal-title">💧 Оборудование</h2>
+    <input type="hidden" id="irrig-edit-id">
+    <input type="hidden" id="irrig-edit-type">
+    <div id="irrig-form-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-danger btn-sm" id="irrig-del-btn" style="display:none;margin-right:auto;" onclick="deleteIrrig()">🗑 Удалить</button>
+      <button class="btn btn-secondary" onclick="closeModal('modal-irrig')">Отмена</button>
+      <button class="btn btn-primary" onclick="saveIrrig()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 // ===================== STATE =====================
 let S = {
   rows:6, cols:8,
   warehouse: { chemicals: [], parts: [], seeds: [], history: [] },
+  irrigEquip: { pumps: [], valves: [], drip: [], frost: [] },
   varieties:[
     {id:'v1',name:'Регина',  ripening:'Поздний',pollType:'cross',pollinators:'Коралл, Наполеон',color:'vc0',note:'',cropId:'crop_cherry'},
     {id:'v2',name:'Коралл',  ripening:'Средний',pollType:'cross',pollinators:'Регина, Ревна',   color:'vc1',note:'',cropId:'crop_cherry'},
@@ -3097,7 +3269,7 @@ function switchTab(tab,el){
   if(tab==='analysis'){popAFilter();renderAnalysis();}
   if(tab==='diseases'){popDFilter();renderDiseases();}
   if(tab==='doses')popDoseSelects();
-  if(tab==='settings')loadSettings();
+  if(tab==='settings'){loadSettings(); loadEquipLists(); loadIrrigLists();}
   if(tab==='warehouse')renderWarehouse();
   if(tab==='tasks')renderTasks();
 }
@@ -5486,6 +5658,352 @@ function calcDose(){
 }
 
 // ===================== SETTINGS =====================
+// ═══ ИРРИГАЦИОННОЕ ОБОРУДОВАНИЕ ═════════════════════════════════════════
+
+// Хранится в S.irrigEquip = { pumps:[], valves:[], drip:[], frost:[] }
+function _getIrrigStore() {
+  if(!S.irrigEquip) S.irrigEquip = {pumps:[], valves:[], drip:[], frost:[]};
+  return S.irrigEquip;
+}
+
+const IRRIG_FORMS = {
+  pump: {
+    title: '🔧 Насос',
+    listId: 'irrig-pump-list',
+    storeKey: 'pumps',
+    cols: ['Название/модель','Производит. (м³/ч)','Давление (бар)','Мощность (кВт)','Фазы','Примечание'],
+    fields: [
+      {id:'irrig-f-name',   label:'Название / модель',         type:'text',   placeholder:'Grundfos CM5-6, Pedrollo F32/200A'},
+      {id:'irrig-f-flow',   label:'Производительность (м³/ч)', type:'number', placeholder:'12.5'},
+      {id:'irrig-f-pres',   label:'Рабочее давление (бар)',    type:'number', placeholder:'4.5'},
+      {id:'irrig-f-power',  label:'Мощность (кВт)',            type:'number', placeholder:'2.2'},
+      {id:'irrig-f-phases', label:'Фазы питания',              type:'select', options:['1-фазный 220В','3-фазный 380В','Дизельный']},
+      {id:'irrig-f-note',   label:'Примечание',                type:'text',   placeholder:'Серийный номер, расположение...'},
+    ],
+    row: r => `<td><strong>${r.name}</strong></td><td>${r.flow||'—'}</td><td>${r.pres||'—'}</td><td>${r.power||'—'}</td><td style="color:var(--text3);">${r.phases||'—'}</td><td style="color:var(--text3);font-size:11px;">${r.note||'—'}</td>`,
+  },
+  valve: {
+    title: '🔩 Клапан',
+    listId: 'irrig-valve-list',
+    storeKey: 'valves',
+    cols: ['Модель','Тип','Диаметр','Макс. давление','Зона','Управление','Примечание'],
+    fields: [
+      {id:'irrig-f-name',  label:'Модель',                   type:'text',   placeholder:'Bermad 400E, Netafim NP-19'},
+      {id:'irrig-f-vtype', label:'Тип клапана',              type:'select', options:['Электромагнитный','Гидравлический','Ручной','Обратный']},
+      {id:'irrig-f-diam',  label:'Диаметр (дюйм / мм)',      type:'text',   placeholder:'1.5" / 40мм'},
+      {id:'irrig-f-pres',  label:'Макс. давление (бар)',     type:'number', placeholder:'10'},
+      {id:'irrig-f-zone',  label:'Зона / клетка',            type:'text',   placeholder:'Ряд 1-3, блок А'},
+      {id:'irrig-f-volt',  label:'Напряжение управления',    type:'text',   placeholder:'24V AC, 12V DC'},
+      {id:'irrig-f-note',  label:'Устройство / особенности', type:'text',   placeholder:'Регулятор давления, фильтр-сетка...'},
+    ],
+    row: r => `<td><strong>${r.name}</strong></td><td>${r.vtype||'—'}</td><td>${r.diam||'—'}</td><td>${r.pres||'—'} бар</td><td style="color:var(--text3);">${r.zone||'—'}</td><td style="color:var(--text3);">${r.volt||'—'}</td><td style="color:var(--text3);font-size:11px;">${r.note||'—'}</td>`,
+  },
+  drip: {
+    title: '💦 Капельная трубка / эмиттеры',
+    listId: 'irrig-drip-list',
+    storeKey: 'drip',
+    cols: ['Марка трубки','Тип эмиттера','Расст. (см)','Водовылив (л/ч)','Давл. мин/ном (бар)','Диаметр','Зона','Примечание'],
+    fields: [
+      {id:'irrig-f-name',     label:'Марка / модель трубки',          type:'text',   placeholder:'Netafim Typhoon, Irritec Premium'},
+      {id:'irrig-f-emitter',  label:'Тип эмиттера',                   type:'select', options:['Встроенный (inline)','Вставной (online)','Компенсирующий (PCE)','Лабиринтный']},
+      {id:'irrig-f-spacing',  label:'Расстояние между эмиттерами (см)', type:'number', placeholder:'50'},
+      {id:'irrig-f-flow',     label:'Водовылив одного эмиттера (л/ч)',  type:'number', placeholder:'2.0'},
+      {id:'irrig-f-pres_min', label:'Мин. рабочее давление (бар)',      type:'number', placeholder:'0.5'},
+      {id:'irrig-f-pres_nom', label:'Номинальное давление (бар)',       type:'number', placeholder:'1.0'},
+      {id:'irrig-f-diam',     label:'Диаметр трубки (мм)',             type:'text',   placeholder:'16мм'},
+      {id:'irrig-f-zone',     label:'Зона / клетки',                   type:'text',   placeholder:'Черешня 1-1 до 3-6'},
+      {id:'irrig-f-note',     label:'Примечание',                      type:'text',   placeholder:'Год монтажа, длина линий...'},
+    ],
+    row: r => `<td><strong>${r.name}</strong></td><td>${r.emitter||'—'}</td><td>${r.spacing||'—'}</td><td><strong style="color:var(--blue);">${r.flow||'—'} л/ч</strong></td><td>${r.pres_min||'—'} / ${r.pres_nom||'—'}</td><td>${r.diam||'—'}</td><td style="color:var(--text3);">${r.zone||'—'}</td><td style="color:var(--text3);font-size:11px;">${r.note||'—'}</td>`,
+  },
+  frost: {
+    title: '🌡️ Система антизаморозки',
+    listId: 'irrig-frost-list',
+    storeKey: 'frost',
+    cols: ['Зона / название','Тип','Модель спринклера','Расход (м³/ч·га)','Мин. давл. (бар)','Радиус (м)','Расст. (м)','Вкл. при (°C)','Примечание'],
+    fields: [
+      {id:'irrig-f-name',     label:'Название / зона',                    type:'text',   placeholder:'Антизаморозка блок А'},
+      {id:'irrig-f-ftype',    label:'Тип системы',                        type:'select', options:['Водяная (спринклеры)','Воздушная (вентиляторы)','Смешанная','Обогрев почвы']},
+      {id:'irrig-f-sprink',   label:'Модель спринклера',                  type:'text',   placeholder:'Nelson R33, Senninger i-Wob'},
+      {id:'irrig-f-flow',     label:'Объём потребляемой воды (м³/ч·га)',  type:'number', placeholder:'40'},
+      {id:'irrig-f-pres_min', label:'Мин. рабочее давление (бар)',        type:'number', placeholder:'2.5'},
+      {id:'irrig-f-radius',   label:'Радиус охвата спринклера (м)',       type:'number', placeholder:'12'},
+      {id:'irrig-f-spacing',  label:'Расстояние между спринклерами (м)',  type:'number', placeholder:'18'},
+      {id:'irrig-f-temp_on',  label:'Температура включения (°C)',         type:'number', placeholder:'-0.5'},
+      {id:'irrig-f-zone',     label:'Зона / клетки',                      type:'text',   placeholder:'Весь сад / Блок 1'},
+      {id:'irrig-f-note',     label:'Примечание',                         type:'text',   placeholder:'Источник воды, насос, год монтажа...'},
+    ],
+    row: r => `<td><strong>${r.name}</strong></td><td style="color:var(--text3);font-size:11px;">${r.ftype||'—'}</td><td>${r.sprink||'—'}</td><td><strong style="color:var(--blue);">${r.flow||'—'}</strong></td><td>${r.pres_min||'—'}</td><td>${r.radius||'—'}</td><td>${r.spacing||'—'}</td><td style="color:${parseFloat(r.temp_on)<0?'var(--blue)':'var(--text2)'};">${r.temp_on!=null?r.temp_on+'°C':'—'}</td><td style="color:var(--text3);font-size:11px;">${r.note||'—'}</td>`,
+  },
+};
+
+function loadIrrigLists() {
+  const store = _getIrrigStore();
+  Object.entries(IRRIG_FORMS).forEach(([type, cfg]) => {
+    const el = document.getElementById(cfg.listId);
+    if(!el) return;
+    const items = store[cfg.storeKey]||[];
+    if(!items.length) {
+      el.innerHTML = `<div style="color:var(--text3);font-size:12px;padding:6px;">Не добавлено</div>`;
+      return;
+    }
+    el.innerHTML = `<div style="overflow-x:auto;"><table class="data-table"><thead><tr>
+      ${cfg.cols.map(c=>`<th>${c}</th>`).join('')}<th></th>
+    </tr></thead><tbody>${items.map((r,i)=>`<tr>
+      ${cfg.row(r)}
+      <td><button class="btn btn-secondary btn-xs" onclick="openIrrigModal('${type}',${i})">✏️</button></td>
+    </tr>`).join('')}</tbody></table></div>`;
+  });
+}
+
+function openIrrigModal(type, editIdx) {
+  const cfg = IRRIG_FORMS[type];
+  if(!cfg) return;
+  const store = _getIrrigStore();
+  const item = (editIdx!==undefined && editIdx!==null) ? store[cfg.storeKey][editIdx] : null;
+  document.getElementById('irrig-modal-title').textContent = item ? `✏️ ${cfg.title}` : `+ ${cfg.title}`;
+  document.getElementById('irrig-edit-id').value = (editIdx!==undefined && editIdx!==null) ? editIdx : '';
+  document.getElementById('irrig-edit-type').value = type;
+  document.getElementById('irrig-del-btn').style.display = item ? 'block' : 'none';
+  const INP = `width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;`;
+  document.getElementById('irrig-form-body').innerHTML = `<div class="form-grid">` +
+    cfg.fields.map(f => {
+      const key = f.id.replace('irrig-f-','');
+      const val = item?.[key] ?? '';
+      if(f.type==='select') {
+        return `<div class="ff"><label>${f.label}</label>
+          <select id="${f.id}" style="${INP}">
+            ${f.options.map(o=>`<option value="${o}" ${o===val?'selected':''}>${o}</option>`).join('')}
+          </select></div>`;
+      }
+      return `<div class="ff"><label>${f.label}</label>
+        <input type="${f.type}" id="${f.id}" value="${val}" placeholder="${f.placeholder||''}" style="${INP}"></div>`;
+    }).join('') + `</div>`;
+  openModal('modal-irrig');
+}
+
+function saveIrrig() {
+  const type = document.getElementById('irrig-edit-type').value;
+  const editIdx = document.getElementById('irrig-edit-id').value;
+  const cfg = IRRIG_FORMS[type];
+  if(!cfg) return;
+  const obj = {};
+  cfg.fields.forEach(f => {
+    const key = f.id.replace('irrig-f-','');
+    const el = document.getElementById(f.id);
+    if(el) obj[key] = f.type==='number' ? (el.value!==''?parseFloat(el.value):null) : (el.value.trim()||null);
+  });
+  if(!obj.name){alert('Введите название/модель');return;}
+  const store = _getIrrigStore();
+  if(editIdx!=='') store[cfg.storeKey][parseInt(editIdx)] = obj;
+  else store[cfg.storeKey].push(obj);
+  S.irrigEquip = store;
+  save();
+  closeModal('modal-irrig');
+  loadIrrigLists();
+}
+
+function deleteIrrig() {
+  const type = document.getElementById('irrig-edit-type').value;
+  const editIdx = parseInt(document.getElementById('irrig-edit-id').value);
+  const cfg = IRRIG_FORMS[type];
+  if(!cfg||isNaN(editIdx)||!confirm('Удалить?')) return;
+  const store = _getIrrigStore();
+  store[cfg.storeKey].splice(editIdx,1);
+  S.irrigEquip = store;
+  save();
+  closeModal('modal-irrig');
+  loadIrrigLists();
+}
+
+// ═══ ТЕХНИКА / НАВЕСНОЕ / ПЕРСОНАЛ ══════════════════════════════════════
+
+async function loadEquipLists() {
+  // Техника
+  let equip = [], attach = [], staff = [];
+  try { equip = await fetch('/api/equipment').then(r=>r.json()); } catch(e) {}
+  try { const at = await fetch('/api/attachments').then(r=>r.json()); attach = Array.isArray(at)?at:(at.data||[]); } catch(e) {}
+  try { staff = await fetch('/api/staff').then(r=>r.json()); } catch(e) {}
+
+  const STATUS = {free:'✅ Свободна', busy:'🔄 Занята', repair:'🔧 В ремонте'};
+  const ETYPE = {tractor:'🚜',sprayer:'💧',harvester:'🌾',truck:'🚛',other:'🔧'};
+  const ATYPE = {sprayer:'💊',mower:'✂️',spreader:'🌱',plow:'🌾',other:'🔧'};
+  const SROLE = {mechanic:'🚜 Механизатор',agronomist:'🌿 Агроном',worker:'👷 Рабочий',manager:'📋 Бригадир'};
+
+  const equipEl = document.getElementById('equip-list');
+  if(equipEl) {
+    if(!equip.length) {
+      equipEl.innerHTML = '<div style="color:var(--text3);font-size:12px;padding:8px;">Техника не добавлена</div>';
+    } else {
+      equipEl.innerHTML = `<table class="data-table"><thead><tr>
+        <th>Техника</th><th>Тип</th><th>Год</th><th>Статус</th><th>Примечание</th><th></th>
+      </tr></thead><tbody>${equip.map(e=>`<tr>
+        <td><strong>${e.name}</strong></td>
+        <td>${ETYPE[e.type]||'🔧'} ${e.type||'—'}</td>
+        <td style="color:var(--text3);">${e.year||'—'}</td>
+        <td><span style="padding:2px 8px;border-radius:10px;font-size:11px;background:${e.status==='free'?'rgba(74,222,128,.15)':e.status==='repair'?'rgba(239,68,68,.15)':'rgba(251,191,36,.15)'};color:${e.status==='free'?'var(--accent)':e.status==='repair'?'var(--red)':'var(--yellow)'};">${STATUS[e.status]||e.status||'—'}</span></td>
+        <td style="color:var(--text3);font-size:11px;">${e.note||'—'}</td>
+        <td><button class="btn btn-secondary btn-xs" onclick="openEquipModal(${JSON.stringify(e).replace(/"/g,'&quot;')})">✏️</button></td>
+      </tr>`).join('')}</tbody></table>`;
+    }
+  }
+
+  const attachEl = document.getElementById('attach-list');
+  if(attachEl) {
+    if(!attach.length) {
+      attachEl.innerHTML = '<div style="color:var(--text3);font-size:12px;padding:8px;">Навесное не добавлено</div>';
+    } else {
+      attachEl.innerHTML = `<table class="data-table"><thead><tr>
+        <th>Навесное</th><th>Тип</th><th>Объём/ширина</th><th>Примечание</th><th></th>
+      </tr></thead><tbody>${attach.map(a=>`<tr>
+        <td><strong>${a.name}</strong></td>
+        <td>${ATYPE[a.type]||'🔧'} ${a.type||'—'}</td>
+        <td style="color:var(--text3);">${a.capacity||'—'}</td>
+        <td style="color:var(--text3);font-size:11px;">${a.note||'—'}</td>
+        <td><button class="btn btn-secondary btn-xs" onclick="openAttachModal(${JSON.stringify(a).replace(/"/g,'&quot;')})">✏️</button></td>
+      </tr>`).join('')}</tbody></table>`;
+    }
+  }
+
+  const staffEl = document.getElementById('staff-list');
+  if(staffEl) {
+    if(!staff.length) {
+      staffEl.innerHTML = '<div style="color:var(--text3);font-size:12px;padding:8px;">Персонал не добавлен</div>';
+    } else {
+      staffEl.innerHTML = `<table class="data-table"><thead><tr>
+        <th>Имя</th><th>Должность</th><th>Телефон</th><th></th>
+      </tr></thead><tbody>${staff.map(s=>`<tr>
+        <td><strong>${s.name}</strong></td>
+        <td>${SROLE[s.role]||s.role||'—'}</td>
+        <td style="color:var(--text3);">${s.phone||'—'}</td>
+        <td><button class="btn btn-secondary btn-xs" onclick="openStaffModal(${JSON.stringify(s).replace(/"/g,'&quot;')})">✏️</button></td>
+      </tr>`).join('')}</tbody></table>`;
+    }
+  }
+
+  // Обновляем _taskStaff кэш
+  if(staff.length) _taskStaff = staff;
+}
+
+function openEquipModal(e) {
+  document.getElementById('equip-edit-id').value = e?.id||'';
+  document.getElementById('equip-name').value = e?.name||'';
+  document.getElementById('equip-type').value = e?.type||'tractor';
+  document.getElementById('equip-status').value = e?.status||'free';
+  document.getElementById('equip-year').value = e?.year||'';
+  document.getElementById('equip-note').value = e?.note||'';
+  document.getElementById('equip-modal-title').textContent = e ? '✏️ Редактировать технику' : '🚜 Новая техника';
+  document.getElementById('equip-del-btn').style.display = e ? 'block' : 'none';
+  openModal('modal-equip');
+}
+
+async function saveEquip() {
+  const id = document.getElementById('equip-edit-id').value;
+  const body = {
+    name: document.getElementById('equip-name').value.trim(),
+    type: document.getElementById('equip-type').value,
+    status: document.getElementById('equip-status').value,
+    year: document.getElementById('equip-year').value||null,
+    note: document.getElementById('equip-note').value.trim(),
+  };
+  if(!body.name){alert('Введите название');return;}
+  try {
+    if(id) {
+      await fetch(`/api/equipment/${id}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+    } else {
+      await fetch('/api/equipment', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+    }
+  } catch(e) { alert('Ошибка сохранения: '+e.message); return; }
+  closeModal('modal-equip');
+  loadEquipLists();
+}
+
+async function deleteEquip() {
+  const id = document.getElementById('equip-edit-id').value;
+  if(!id||!confirm('Удалить технику?')) return;
+  try { await fetch(`/api/equipment/${id}`, {method:'DELETE'}); } catch(e) {}
+  closeModal('modal-equip');
+  loadEquipLists();
+}
+
+function openAttachModal(a) {
+  document.getElementById('attach-edit-id').value = a?.id||'';
+  document.getElementById('attach-name').value = a?.name||'';
+  document.getElementById('attach-type').value = a?.type||'sprayer';
+  document.getElementById('attach-capacity').value = a?.capacity||'';
+  document.getElementById('attach-note').value = a?.note||'';
+  document.getElementById('attach-modal-title').textContent = a ? '✏️ Редактировать навесное' : '🔩 Новое навесное';
+  document.getElementById('attach-del-btn').style.display = a ? 'block' : 'none';
+  openModal('modal-attach');
+}
+
+async function saveAttach() {
+  const id = document.getElementById('attach-edit-id').value;
+  const body = {
+    name: document.getElementById('attach-name').value.trim(),
+    type: document.getElementById('attach-type').value,
+    capacity: document.getElementById('attach-capacity').value.trim(),
+    note: document.getElementById('attach-note').value.trim(),
+  };
+  if(!body.name){alert('Введите название');return;}
+  try {
+    if(id) {
+      await fetch(`/api/attachments/${id}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+    } else {
+      await fetch('/api/attachments', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+    }
+  } catch(e) { alert('Ошибка сохранения: '+e.message); return; }
+  closeModal('modal-attach');
+  loadEquipLists();
+}
+
+async function deleteAttach() {
+  const id = document.getElementById('attach-edit-id').value;
+  if(!id||!confirm('Удалить навесное?')) return;
+  try { await fetch(`/api/attachments/${id}`, {method:'DELETE'}); } catch(e) {}
+  closeModal('modal-attach');
+  loadEquipLists();
+}
+
+function openStaffModal(s) {
+  document.getElementById('staff-edit-id').value = s?.id||'';
+  document.getElementById('staff-name').value = s?.name||'';
+  document.getElementById('staff-role').value = s?.role||'mechanic';
+  document.getElementById('staff-phone').value = s?.phone||'';
+  document.getElementById('staff-modal-title').textContent = s ? '✏️ Редактировать сотрудника' : '👷 Новый сотрудник';
+  document.getElementById('staff-del-btn').style.display = s ? 'block' : 'none';
+  openModal('modal-staff');
+}
+
+async function saveStaff() {
+  const id = document.getElementById('staff-edit-id').value;
+  const body = {
+    name: document.getElementById('staff-name').value.trim(),
+    role: document.getElementById('staff-role').value,
+    phone: document.getElementById('staff-phone').value.trim(),
+  };
+  if(!body.name){alert('Введите имя');return;}
+  try {
+    if(id) {
+      await fetch(`/api/staff/${id}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+    } else {
+      await fetch('/api/staff', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+    }
+  } catch(e) { alert('Ошибка сохранения: '+e.message); return; }
+  closeModal('modal-staff');
+  loadEquipLists();
+  _taskStaff = []; // сбрасываем кэш
+}
+
+async function deleteStaff() {
+  const id = document.getElementById('staff-edit-id').value;
+  if(!id||!confirm('Удалить сотрудника?')) return;
+  try { await fetch(`/api/staff/${id}`, {method:'DELETE'}); } catch(e) {}
+  closeModal('modal-staff');
+  loadEquipLists();
+  _taskStaff = [];
+}
+
 function loadSettings(){document.getElementById('set-rows').value=S.rows;document.getElementById('set-cols').value=S.cols;document.getElementById('wash-p').value=S.settings.washPartial;document.getElementById('wash-f').value=S.settings.washFull;}
 function saveSettings(){S.settings.washPartial=parseInt(document.getElementById('wash-p').value)||10;S.settings.washFull=parseInt(document.getElementById('wash-f').value)||25;save();}
 function exportData(){const b=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='passport_sad_'+new Date().toISOString().split('T')[0]+'.json';a.click();}
