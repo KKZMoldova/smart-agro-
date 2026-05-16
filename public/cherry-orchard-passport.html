@@ -513,6 +513,41 @@ tbody td{padding:10px 12px;vertical-align:middle;}
     </div>
   </div>
 
+
+    </div><!-- end wsub-panel-weather -->
+
+    <!-- SUB: Chill Portions -->
+    <div id="wsub-panel-chill" style="display:none;">
+      <div style="padding:12px 16px;background:rgba(96,165,250,.06);border:1px solid rgba(96,165,250,.15);border-radius:10px;margin-bottom:20px;font-size:12px;color:var(--text2);line-height:1.7;">
+        <strong style="color:var(--blue);">Что такое Chill Portions (Dynamic Model)?</strong><br>
+        CP отвечает на вопрос: <em>"Дерево уже готово просыпаться или ещё нет?"</em>
+        GDD отвечает: <em>"Сколько тепла накоплено после пробуждения?"</em><br>
+        Когда сорт набирает норму CP — GDD запускается для этого сорта.
+        Расчёт по часовым температурам (Dynamic Model).
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:20px;flex-wrap:wrap;">
+        <div style="font-size:12px;color:var(--text2);">Сезон:</div>
+        <select id="chill-season" onchange="renderChill()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-family:'Inter',sans-serif;"></select>
+        <span id="chill-data-quality" style="font-size:11px;"></span>
+      </div>
+      <div style="font-family:'Unbounded',sans-serif;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:2px;margin-bottom:12px;">🌡️ Статус по сортам</div>
+      <div id="chill-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-bottom:24px;"></div>
+      <div id="chill-history-wrap" style="display:none;">
+        <div style="font-family:'Unbounded',sans-serif;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:2px;margin-bottom:12px;">📈 Накопление CP по дням</div>
+        <div style="overflow-x:auto;">
+          <table class="gdd-table" id="chill-history-table">
+            <thead><tr>
+              <th>Дата</th><th>Ч. данных</th><th>Качество</th><th>CP за день</th><th>CP накопл.</th>
+              <th>Skeena</th><th>Kordia/Rainier</th><th>Regina</th>
+            </tr></thead>
+            <tbody id="chill-history-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div><!-- end wsub-panel-chill -->
+
+  </div><!-- end panel-weather -->
+
   <!-- IRRIGATION -->
   <div class="panel" id="panel-irrigation">
     <div class="section-hdr">
@@ -801,39 +836,6 @@ tbody td{padding:10px 12px;vertical-align:middle;}
 
 </div><!-- end panel-irrigation -->
 
-    </div><!-- end wsub-panel-weather -->
-
-    <!-- SUB: Chill Portions -->
-    <div id="wsub-panel-chill" style="display:none;">
-      <div style="padding:12px 16px;background:rgba(96,165,250,.06);border:1px solid rgba(96,165,250,.15);border-radius:10px;margin-bottom:20px;font-size:12px;color:var(--text2);line-height:1.7;">
-        <strong style="color:var(--blue);">Что такое Chill Portions (Dynamic Model)?</strong><br>
-        CP отвечает на вопрос: <em>"Дерево уже готово просыпаться или ещё нет?"</em>
-        GDD отвечает: <em>"Сколько тепла накоплено после пробуждения?"</em><br>
-        Когда сорт набирает норму CP — GDD запускается для этого сорта.
-        Расчёт по часовым температурам (Dynamic Model).
-      </div>
-      <div style="display:flex;gap:10px;align-items:center;margin-bottom:20px;flex-wrap:wrap;">
-        <div style="font-size:12px;color:var(--text2);">Сезон:</div>
-        <select id="chill-season" onchange="renderChill()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-family:'Inter',sans-serif;"></select>
-        <span id="chill-data-quality" style="font-size:11px;"></span>
-      </div>
-      <div style="font-family:'Unbounded',sans-serif;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:2px;margin-bottom:12px;">🌡️ Статус по сортам</div>
-      <div id="chill-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-bottom:24px;"></div>
-      <div id="chill-history-wrap" style="display:none;">
-        <div style="font-family:'Unbounded',sans-serif;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:2px;margin-bottom:12px;">📈 Накопление CP по дням</div>
-        <div style="overflow-x:auto;">
-          <table class="gdd-table" id="chill-history-table">
-            <thead><tr>
-              <th>Дата</th><th>Ч. данных</th><th>Качество</th><th>CP за день</th><th>CP накопл.</th>
-              <th>Skeena</th><th>Kordia/Rainier</th><th>Regina</th>
-            </tr></thead>
-            <tbody id="chill-history-body"></tbody>
-          </table>
-        </div>
-      </div>
-    </div><!-- end wsub-panel-chill -->
-
-  </div><!-- end panel-weather -->
 
   <!-- GDD / PHASES -->
   <div class="panel" id="panel-gdd">
