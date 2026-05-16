@@ -485,6 +485,9 @@ tbody td{padding:10px 12px;vertical-align:middle;}
     <!-- Today's indicators -->
     <div id="weather-dashboard" class="weather-dashboard"></div>
 
+    <!-- Stress detector banner -->
+    <div id="stress-alerts-banner" style="margin-bottom:16px;"></div>
+
     <!-- Active treatment warning -->
     <div id="weather-treatment-warn" style="display:none;margin-bottom:16px;"></div>
 
@@ -6272,6 +6275,8 @@ function calcWaterBalance() {
   S.irrigation.waterBalance.lastCalc = today();
   save();
   renderWaterBalance();
+  // Обновляем стресс-алерты — водный стресс мог измениться
+  if(document.getElementById('stress-alerts-banner')) renderStressAlerts(null);
 }
 
 function renderWaterBalance() {
@@ -9860,6 +9865,256 @@ function switchWeatherSub(sub) {
   if(!isWeather) renderChill();
 }
 
+// ═══ СТРЕСС-ДЕТЕКТОР ════════════════════════════════════════════════════
+
+function calcVPD(tC, rhPct) {
+  // VPD (кПа) = es - ea, где es = 0.6108 * exp(17.27*T/(T+237.3))
+  const es = 0.6108 * Math.exp(17.27 * tC / (tC + 237.3));
+  const ea = es * (rhPct / 100);
+  return Math.round((es - ea) * 100) / 100;
+}
+
+function detectStress(weatherArr, forecast) {
+  const alerts = [];
+  if(!weatherArr || !weatherArr.length) return alerts;
+
+  const w = weatherArr[0]; // последний день
+  const tmax = parseFloat(w.tmax) || 0;
+  const tmin = parseFloat(w.tmin) || 0;
+  const tavg = (tmax + tmin) / 2;
+  const rh   = parseFloat(w.humidity) || 60;
+  const wind = parseFloat(w.wind) || 0;
+  const precip = parseFloat(w.precip) || 0;
+
+  // Текущая GDD фаза
+  const gdd = getCurrentGdd(5);
+  const firstVarId = S.varieties[0]?.id;
+  const phase = firstVarId ? getPhaseByGdd(firstVarId, gdd) : null;
+  const phaseName = phase?.name || '';
+  const isFlowering = phaseName.toLowerCase().includes('цвет') || phaseName.toLowerCase().includes('flower');
+  const isDormant   = phaseName.toLowerCase().includes('покой') || phaseName.toLowerCase().includes('dormant');
+
+  // VPD
+  const vpd = calcVPD(tavg, rh);
+
+  // ── 1. Тепловой стресс ──────────────────────────────────────────────
+  if(tmax >= 35) {
+    alerts.push({
+      level: tmax>=38 ? 'critical' : 'warning',
+      icon: '🌡️',
+      title: `Тепловой стресс — Tmax ${tmax}°C`,
+      body: `Критическая жара. Избегать обработок. Полив ночью или рано утром. ${vpd>2.5?'Высокий VPD — усиленное испарение.':''}`,
+      tags: ['Ирригация','Обработки'],
+    });
+  } else if(tmax >= 32) {
+    alerts.push({
+      level: 'watch',
+      icon: '🔥',
+      title: `Жара — Tmax ${tmax}°C`,
+      body: `Обработки только до 9:00 или после 19:00. Контролировать влажность почвы.`,
+      tags: ['Обработки'],
+    });
+  }
+
+  // ── 2. VPD стресс ───────────────────────────────────────────────────
+  if(vpd >= 2.5 && tmax >= 28) {
+    alerts.push({
+      level: vpd>=3.5 ? 'critical' : 'warning',
+      icon: '💨',
+      title: `Высокий VPD — ${vpd} кПа`,
+      body: `Испарение значительно превышает поглощение воды корнями. Повышенная потребность в поливе. Стресс транспирации.`,
+      tags: ['Ирригация','Стресс'],
+    });
+  }
+
+  // ── 3. Заморозок ────────────────────────────────────────────────────
+  if(tmin <= 0) {
+    const isCritical = tmin <= -2 || isFlowering;
+    alerts.push({
+      level: isCritical ? 'critical' : 'warning',
+      icon: '❄️',
+      title: `Заморозок — Tmin ${tmin}°C${isFlowering?' (фаза цветения!)':''}`,
+      body: isFlowering
+        ? `⚠️ Критично! Цветки повреждаются при -0.5°C. Немедленно включить антизаморозку.`
+        : `Риск повреждения почек/цветков. Проверить антизаморозку.`,
+      tags: ['Антизаморозка', isFlowering ? '🚨 СРОЧНО' : ''],
+    });
+  } else if(tmin <= 2 && isFlowering) {
+    alerts.push({
+      level: 'warning',
+      icon: '🌸❄️',
+      title: `Риск заморозка в фазу цветения — Tmin ${tmin}°C`,
+      body: `Цветение чувствительно к температуре ниже 0°C. Контролировать ночные температуры.`,
+      tags: ['Антизаморозка'],
+    });
+  }
+
+  // ── 4. Ветровой стресс / запрет обработок ───────────────────────────
+  if(wind >= 20) {
+    alerts.push({
+      level: 'warning',
+      icon: '🌬️',
+      title: `Сильный ветер — ${wind} км/ч`,
+      body: `Запрещено опрыскивание. Снос препарата более 30%. Риск ожогов.`,
+      tags: ['Обработки'],
+    });
+  } else if(wind >= 12) {
+    alerts.push({
+      level: 'watch',
+      icon: '💨',
+      title: `Умеренный ветер — ${wind} км/ч`,
+      body: `Опрыскивание только с антисносными насадками. Использовать ПАВ.`,
+      tags: ['Обработки'],
+    });
+  }
+
+  // ── 5. Риск болезней (температура + влажность) ──────────────────────
+  // Монилиоз: T 15–24°C + влажность > 80% + осадки
+  if(tavg>=15 && tavg<=24 && rh>=80 && precip>0 && !isDormant) {
+    alerts.push({
+      level: rh>=90 && precip>=5 ? 'critical' : 'warning',
+      icon: '🍄',
+      title: `Риск монилиоза — T${tavg.toFixed(0)}°C / RH${rh}%`,
+      body: `Оптимальные условия для монилиоза. ${isFlowering?'Цветение — критическая фаза заражения!':''} Профилактическая обработка фунгицидом.`,
+      tags: ['Обработки', isFlowering?'Монилиоз🚨':'Монилиоз'],
+    });
+  }
+
+  // Коккомикоз вишни: T 16–22°C + влажность > 75%
+  const hasSourCherry = Object.values(S.cells).some(cd=>cd?.cropId==='crop_sour_cherry');
+  if(hasSourCherry && tavg>=16 && tavg<=22 && rh>=75 && !isDormant) {
+    alerts.push({
+      level: 'watch',
+      icon: '🍒',
+      title: `Риск коккомикоза — T${tavg.toFixed(0)}°C / RH${rh}%`,
+      body: `Условия благоприятны для коккомикоза вишни. Контролировать листья, профилактика фунгицидом.`,
+      tags: ['Обработки','Коккомикоз'],
+    });
+  }
+
+  // ── 6. Водный стресс (из Water Balance) ─────────────────────────────
+  const wbLog = S.irrigation?.waterBalance?.log || [];
+  const lastWb = wbLog[wbLog.length-1];
+  if(lastWb) {
+    const sp = S.irrigation?.waterBalance?.soilParams || {};
+    const fc=sp.fc||32, pwp=sp.pwp||14, root=sp.rootDepth||60;
+    const taw = (fc-pwp)*root*0.1;
+    const raw = taw*0.35;
+    const pct = taw>0 ? lastWb.balance/taw*100 : 50;
+    if(lastWb.balance <= 0) {
+      alerts.push({
+        level: 'critical',
+        icon: '🏜️',
+        title: 'Критический дефицит воды — баланс исчерпан',
+        body: `Немедленный полив. Растения в состоянии завядания. Потери урожая неизбежны при задержке.`,
+        tags: ['Ирригация','🚨 СРОЧНО'],
+      });
+    } else if(lastWb.balance < raw*0.4) {
+      const et0 = parseFloat(S.weather[0]?.et0)||2.5;
+      const daysLeft = Math.floor(lastWb.balance/Math.max(et0,0.1));
+      alerts.push({
+        level: 'warning',
+        icon: '💧',
+        title: `Водный стресс — ${pct.toFixed(0)}% TAW (${daysLeft} дн. до критики)`,
+        body: `Запас доступной воды критически низкий. Полив необходим сегодня.`,
+        tags: ['Ирригация'],
+      });
+    } else if(lastWb.balance < raw*0.7) {
+      alerts.push({
+        level: 'watch',
+        icon: '💦',
+        title: `Снижение влажности — ${pct.toFixed(0)}% TAW`,
+        body: `Запланируйте полив в течение 1–2 дней.`,
+        tags: ['Ирригация'],
+      });
+    }
+  }
+
+  // ── 7. Анализ прогноза (следующие 3 дня) ────────────────────────────
+  if(forecast && forecast.length) {
+    const next3 = forecast.slice(0,3);
+    const frostDay = next3.find(d=>parseFloat(d.tmin)<=0);
+    const heatDay  = next3.find(d=>parseFloat(d.tmax)>=35);
+    const rainDay  = next3.find(d=>parseFloat(d.precip||d.precipSum||0)>=10);
+
+    if(frostDay && !tmin<=0) { // не предупреждали уже
+      alerts.push({
+        level: 'warning',
+        icon: '❄️',
+        title: `Прогноз: заморозок ${frostDay.date}`,
+        body: `Ожидается Tmin ${frostDay.tmin}°C. Подготовьте антизаморозку.`,
+        tags: ['Прогноз','Антизаморозка'],
+      });
+    }
+    if(heatDay && tmax<35) {
+      alerts.push({
+        level: 'watch',
+        icon: '🌡️',
+        title: `Прогноз: жара ${heatDay.date}`,
+        body: `Ожидается Tmax ${heatDay.tmax}°C. Спланируйте усиленный полив заранее.`,
+        tags: ['Прогноз','Ирригация'],
+      });
+    }
+    if(rainDay) {
+      const activeTr = S.treatments.filter(t=>{
+        const ed=new Date(t.endDate||'2000-01-01');
+        return ed>=new Date();
+      });
+      if(activeTr.length) {
+        alerts.push({
+          level: 'watch',
+          icon: '🌧️',
+          title: `Прогноз: дождь ${rainDay.date} — проверить смыв препаратов`,
+          body: `Ожидается ${rainDay.precip||rainDay.precipSum}мм. Активных обработок: ${activeTr.length}. Проверить порог смыва.`,
+          tags: ['Прогноз','Обработки'],
+        });
+      }
+    }
+  }
+
+  return alerts;
+}
+
+function renderStressAlerts(forecast) {
+  const el = document.getElementById('stress-alerts-banner');
+  if(!el) return;
+  const alerts = detectStress(S.weather, forecast);
+  if(!alerts.length) {
+    el.innerHTML = `<div style="padding:10px 16px;background:rgba(74,222,128,.06);border:1px solid rgba(74,222,128,.2);border-radius:10px;font-size:12px;color:var(--accent);display:flex;align-items:center;gap:8px;">
+      <span style="font-size:16px;">✅</span>
+      <span><strong>Стресс-факторов не выявлено</strong> — условия благоприятные для всех культур</span>
+      <span style="margin-left:auto;font-size:10px;color:var(--text3);">${S.weather[0]?.date||''}</span>
+    </div>`;
+    return;
+  }
+
+  const LEVEL = {
+    critical: { bg:'rgba(239,68,68,.08)', border:'rgba(239,68,68,.3)', color:'var(--red)' },
+    warning:  { bg:'rgba(251,146,60,.08)', border:'rgba(251,146,60,.3)', color:'var(--orange)' },
+    watch:    { bg:'rgba(251,191,36,.06)', border:'rgba(251,191,36,.25)', color:'var(--yellow)' },
+  };
+
+  // Сортируем: critical → warning → watch
+  const sorted = [...alerts].sort((a,b)=>
+    ['critical','warning','watch'].indexOf(a.level) - ['critical','warning','watch'].indexOf(b.level)
+  );
+
+  el.innerHTML = sorted.map(a => {
+    const s = LEVEL[a.level] || LEVEL.watch;
+    const tags = a.tags.filter(Boolean).map(t=>
+      `<span style="padding:1px 7px;border-radius:8px;font-size:10px;background:${s.color}22;color:${s.color};font-weight:600;">${t}</span>`
+    ).join('');
+    return `<div style="padding:12px 16px;background:${s.bg};border:1px solid ${s.border};border-radius:10px;margin-bottom:6px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+        <span style="font-size:18px;line-height:1;">${a.icon}</span>
+        <strong style="font-size:13px;color:${s.color};">${a.title}</strong>
+        <div style="margin-left:auto;display:flex;gap:4px;">${tags}</div>
+      </div>
+      <div style="font-size:11px;color:var(--text2);line-height:1.5;padding-left:26px;">${a.body}</div>
+    </div>`;
+  }).join('');
+}
+
 function renderWeather() {
   const latest = S.weather[0];
   const dash = document.getElementById('weather-dashboard');
@@ -9928,6 +10183,9 @@ function renderWeather() {
   } else {
     dash.innerHTML = `<div style="color:var(--text3);font-size:12px;grid-column:1/-1;">Нет данных. Добавьте первый день.</div>`;
   }
+
+  // Стресс-детектор (без прогноза — прогноз добавит loadCherryForecast)
+  renderStressAlerts(null);
 
   // Active treatment warnings based on weather
   const warnEl = document.getElementById('weather-treatment-warn');
@@ -10554,6 +10812,9 @@ async function loadCherryForecast() {
 
     // Генерировать рекомендации агронома
     renderCherryForecastRecs(f);
+
+    // Обновляем стресс-детектор с данными прогноза
+    renderStressAlerts(f);
 
   } catch(e) {
     grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;color:var(--text3);font-size:12px;padding:20px;">❌ Не удалось загрузить прогноз: ${e.message}</div>`;
