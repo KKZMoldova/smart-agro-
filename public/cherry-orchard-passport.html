@@ -1394,7 +1394,38 @@ tbody td{padding:10px 12px;vertical-align:middle;}
     </div>
     <button class="add-row-btn" onclick="addRowEntry()">＋ Добавить ряд</button>
 
-    <div class="modal-footer">
+    <!-- Инфраструктура клетки -->
+    <div style="font-family:'Unbounded',sans-serif;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:2px;margin:14px 0 10px;">🏗 Инфраструктура</div>
+    <div class="form-grid" style="margin-bottom:8px;">
+      <div class="ff"><label>Укрытие</label>
+        <select id="cm-cover" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+          <option value="none">Нет укрытия</option>
+          <option value="net">🕸 Противоградовая сетка</option>
+          <option value="film">🎪 Антидождевая плёнка</option>
+          <option value="both">🎪🕸 Плёнка + сетка</option>
+        </select>
+      </div>
+      <div class="ff"><label>Подвой</label>
+        <select id="cm-rootstock" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+          <option value="">— не указан —</option>
+          <option value="gisela5">Гизела 5 (слаборослый)</option>
+          <option value="gisela6">Гизела 6 (среднерослый)</option>
+          <option value="vsl2">ВСЛ-2</option>
+          <option value="maxma">Maxma 14</option>
+          <option value="colt">Colt (сильнорослый)</option>
+          <option value="seedling">Сеянец</option>
+          <option value="other">Другой</option>
+        </select>
+      </div>
+      <div class="ff"><label>Год посадки</label>
+        <input type="number" id="cm-plant-year" placeholder="2019" min="1990" max="2035"
+          style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+      </div>
+      <div class="ff"><label>Схема (ряд × дерево, м)</label>
+        <input type="text" id="cm-planting-scheme" placeholder="4×2"
+          style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+      </div>
+    </div>
       <button class="btn btn-danger btn-sm" id="btn-del-cell" onclick="deleteCell()" style="display:none;margin-right:auto;">🗑 Удалить клетку</button>
       <button class="btn btn-secondary" onclick="closeModal('modal-cell')">Отмена</button>
       <button class="btn btn-primary" onclick="saveCell()">Сохранить</button>
@@ -4154,6 +4185,12 @@ function renderCellDetail(key){
     <div>
       <div style="font-family:'Unbounded',sans-serif;font-size:14px;color:var(--accent);">Клетка ${r}-${c}</div>
       <div style="font-size:11px;color:var(--text3);margin-top:3px;">Схема: ${cd.rowSpacing||'?'}м × ${cd.treeSpacing||'?'}м${cd.note?' · '+cd.note:''}</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:5px;">
+        ${cd.cover&&cd.cover!=='none'?`<span style="padding:1px 8px;border-radius:8px;font-size:10px;background:rgba(96,165,250,.12);color:var(--blue);">${{net:'🕸 Сетка',film:'🎪 Плёнка',both:'🎪🕸 Плёнка+сетка'}[cd.cover]||cd.cover}</span>`:''}
+        ${cd.rootstock?`<span style="padding:1px 8px;border-radius:8px;font-size:10px;background:var(--surface2);color:var(--text3);">🌳 ${cd.rootstock}</span>`:''}
+        ${cd.plantYear?`<span style="padding:1px 8px;border-radius:8px;font-size:10px;background:var(--surface2);color:var(--text3);">📅 ${cd.plantYear}</span>`:''}
+        ${cd.plantingScheme?`<span style="padding:1px 8px;border-radius:8px;font-size:10px;background:var(--surface2);color:var(--text3);">📐 ${cd.plantingScheme}</span>`:''}
+      </div>
     </div>
     <button class="btn btn-secondary btn-sm" onclick="openCellModal(${r},${c},true)">✏️</button>
   </div>
@@ -4232,6 +4269,11 @@ function openCellModal(r,c,editing=false){
   document.getElementById('cm-row-spacing').value=cd?.rowSpacing||'5';
   document.getElementById('cm-tree-spacing').value=cd?.treeSpacing||'3';
   document.getElementById('btn-del-cell').style.display=cd?'inline-flex':'none';
+  // Инфраструктура клетки
+  document.getElementById('cm-cover').value       = cd?.cover||'none';
+  document.getElementById('cm-rootstock').value   = cd?.rootstock||'';
+  document.getElementById('cm-plant-year').value  = cd?.plantYear||'';
+  document.getElementById('cm-planting-scheme').value = cd?.plantingScheme||'';
   // Populate and set crop selector
   populateCropSelect();
   const cropId = cd?.cropId || 'crop_cherry';
@@ -4328,6 +4370,11 @@ function saveCell(){
     rowSpacing:parseFloat(document.getElementById('cm-row-spacing').value)||5,
     treeSpacing:parseFloat(document.getElementById('cm-tree-spacing').value)||3,
     rows,
+    // Инфраструктура клетки
+    cover:       document.getElementById('cm-cover').value||'none',
+    rootstock:   document.getElementById('cm-rootstock').value||'',
+    plantYear:   parseInt(document.getElementById('cm-plant-year').value)||null,
+    plantingScheme: document.getElementById('cm-planting-scheme').value||'',
   };
   S.selectedCell=key;save();closeModal('modal-cell');renderMap();renderCellDetail(key);
 }
@@ -10347,9 +10394,14 @@ function detectStress(weatherArr, forecast) {
   }
 
   // ── 8. Управление плёнкой по BBCH фазе ──────────────────────────────
-  // Читаем параметры сада: есть ли укрытие
-  const hasCover = S.settings?.orchardCover === 'film' || S.settings?.orchardCover === 'net';
-  if(hasCover) {
+  // Проверяем укрытие — смотрим клетки (каждая может иметь своё)
+  const cellsWithCover = Object.values(S.cells).filter(cd=>cd.cover && cd.cover!=='none');
+  const hasCover = cellsWithCover.length > 0 ||
+    S.settings?.orchardCover === 'film' || S.settings?.orchardCover === 'net' ||
+    S.settings?.orchardCover === 'both';
+  const hasFilm = cellsWithCover.some(cd=>cd.cover==='film'||cd.cover==='both') ||
+    S.settings?.orchardCover === 'film' || S.settings?.orchardCover === 'both';
+  if(hasFilm) {
     const coverStatus = (() => {
       if(phaseName.includes('Покой') || phaseName.includes('Набухание') || phaseName.includes('Бутон')) {
         return {action:'open', msg:'BBCH 01–57 — плёнка должна быть открыта. Деревья развиваются в естественных условиях, закалка кроны.', urgent:false};
@@ -10414,7 +10466,7 @@ function detectStress(weatherArr, forecast) {
 
   // ── 10. Мучнистая роса под плёнкой ──────────────────────────────────
   // Под плёнкой нет смывания дождём → порог ниже чем в открытом поле
-  const isCoverClosed = hasCover && (
+  const isCoverClosed = hasFilm && (
     phaseName.includes('Окрашив') || phaseName.includes('Созрев') || phaseName.includes('Налив')
   );
   if(isCoverClosed && tavg >= 18 && rh >= 65 && !isDormant) {
