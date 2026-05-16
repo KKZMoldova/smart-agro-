@@ -355,6 +355,22 @@ tbody td{padding:10px 12px;vertical-align:middle;}
 .data-table tr:hover td{background:var(--surface2);}
 .badge-orange{background:rgba(251,146,60,.12);color:var(--orange);}
 .badge-blue{background:rgba(96,165,250,.12);color:var(--blue);}
+.task-card{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:10px;transition:border-color .2s;}
+.task-card:hover{border-color:rgba(74,222,128,.3);}
+.task-title{font-size:14px;font-weight:700;margin-bottom:4px;}
+.task-sub{font-size:12px;color:var(--text2);margin-bottom:8px;}
+.task-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px;margin-bottom:10px;}
+.tl{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;}
+.tv{font-size:12px;font-weight:600;}
+.task-chem{display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid var(--border);}
+.task-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+.s-new{border-left:3px solid var(--blue);}
+.s-assigned{border-left:3px solid #a855f7;}
+.s-accepted{border-left:3px solid var(--orange);}
+.s-in_progress{border-left:3px solid var(--accent);}
+.s-done{border-left:3px solid #2dd4bf;}
+.s-closed{border-left:3px solid var(--text3);}
+.s-problem{border-left:3px solid var(--red);}
 </style>
 </head>
 <body>
@@ -388,6 +404,7 @@ tbody td{padding:10px 12px;vertical-align:middle;}
   <div class="tab" onclick="switchTab('analysis',this)">🔬 Анализы</div>
   <div class="tab" onclick="switchTab('diseases',this)">🦠 Болезни</div>
   <div class="tab" onclick="switchTab('warehouse',this)">🏪 Склад</div>
+  <div class="tab" onclick="switchTab('tasks',this)">📋 Журнал работ</div>
   <div class="tab" onclick="switchTab('doses',this)">⚗️ Дозы</div>
   <div class="tab" onclick="switchTab('settings',this)">⚙️ Настройки</div>
 </div>
@@ -2071,6 +2088,166 @@ tbody td{padding:10px 12px;vertical-align:middle;}
   </div>
 </div>
 
+<!-- ═══ ЖУРНАЛ РАБОТ ═══ -->
+<div class="panel" id="panel-tasks">
+  <div class="section-hdr">
+    <h2>📋 Журнал работ</h2>
+    <button class="btn btn-primary" onclick="openNewTask()">+ Новое задание</button>
+  </div>
+  <!-- Фильтры по статусу -->
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;">
+    <button class="sort-btn active" id="tf-all" onclick="filterTasks('all',this)">Все <span id="tc-all">0</span></button>
+    <button class="sort-btn" id="tf-new" onclick="filterTasks('new',this)" style="color:var(--blue);">🔵 Новые <span id="tc-new">0</span></button>
+    <button class="sort-btn" id="tf-assigned" onclick="filterTasks('assigned',this)" style="color:#a855f7;">🟣 Назначено <span id="tc-assigned">0</span></button>
+    <button class="sort-btn" id="tf-accepted" onclick="filterTasks('accepted',this)" style="color:var(--orange);">🟠 Принято <span id="tc-accepted">0</span></button>
+    <button class="sort-btn" id="tf-in_progress" onclick="filterTasks('in_progress',this)" style="color:var(--accent);">🟢 В работе <span id="tc-in_progress">0</span></button>
+    <button class="sort-btn" id="tf-done" onclick="filterTasks('done',this)" style="color:#2dd4bf;">✅ Выполнено <span id="tc-done">0</span></button>
+    <button class="sort-btn" id="tf-problem" onclick="filterTasks('problem',this)" style="color:var(--red);">⚠️ Проблема <span id="tc-problem">0</span></button>
+    <button class="sort-btn" id="tf-closed" onclick="filterTasks('closed',this)">🔒 Закрыто <span id="tc-closed">0</span></button>
+  </div>
+  <div id="tasks-list"></div>
+</div>
+
+<!-- MODAL: Новое задание -->
+<div class="modal-overlay" id="modal-new-task">
+  <div class="modal" style="max-width:700px;width:96%;max-height:92vh;overflow-y:auto;">
+    <h2>📋 Новое задание</h2>
+    <div class="form-grid" style="margin-bottom:12px;">
+      <div class="ff">
+        <label>Вид работ</label>
+        <select id="nt-wt" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);"></select>
+      </div>
+      <div class="ff">
+        <label>Агроном (создаёт)</label>
+        <select id="nt-creator" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);"></select>
+      </div>
+      <div class="ff">
+        <label>Исполнитель</label>
+        <select id="nt-assignee" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);"></select>
+      </div>
+      <div class="ff">
+        <label>Срок выполнения</label>
+        <input type="date" id="nt-due">
+      </div>
+      <div class="ff full">
+        <label>Описание / комментарий</label>
+        <input type="text" id="nt-desc" placeholder="Детали задания...">
+      </div>
+    </div>
+    <!-- Клетки -->
+    <div style="margin-bottom:12px;">
+      <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">🌳 Клетки сада</div>
+      <div id="nt-parcel-list" style="max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:6px;"></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;" id="nt-selected-tags"></div>
+      <div id="nt-area-info" style="font-size:11px;color:var(--accent);margin-top:4px;font-weight:600;"></div>
+    </div>
+    <!-- Препараты -->
+    <div style="margin-bottom:12px;">
+      <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">💊 Препараты (если обработка)</div>
+      <div style="position:relative;">
+        <input type="text" id="nt-chem-search" placeholder="Поиск препарата..." oninput="searchNtChems(this.value)" onfocus="searchNtChems(this.value)"
+          style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+        <div id="nt-chem-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1px solid var(--border);border-radius:8px;z-index:100;max-height:200px;overflow-y:auto;box-shadow:0 4px 20px rgba(0,0,0,.4);"></div>
+      </div>
+      <div id="nt-added-chems" style="margin-top:8px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-new-task')">Отмена</button>
+      <button class="btn btn-primary" onclick="saveNewTask()">Создать задание</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Назначить технику -->
+<div class="modal-overlay" id="modal-task-eng">
+  <div class="modal" style="max-width:500px;width:96%;">
+    <h2>🔧 Техника и механизатор</h2>
+    <input type="hidden" id="task-eng-id">
+    <div id="task-eng-info" style="background:var(--surface2);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px;"></div>
+    <div class="form-grid">
+      <div class="ff">
+        <label>Техника</label>
+        <select id="task-eng-equip" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);"></select>
+      </div>
+      <div class="ff">
+        <label>Навесное оборудование</label>
+        <select id="task-eng-attach" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);"></select>
+      </div>
+      <div class="ff">
+        <label>Механизатор</label>
+        <select id="task-eng-mechanic" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);"></select>
+      </div>
+      <div class="ff">
+        <label>Скорость (км/ч)</label>
+        <input type="number" id="task-eng-speed" placeholder="5">
+      </div>
+      <div class="ff full">
+        <label>Примечание</label>
+        <input type="text" id="task-eng-note" placeholder="Инструкции для механизатора...">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-task-eng')">Отмена</button>
+      <button class="btn btn-primary" onclick="saveTaskEng()">Назначить → В работу</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Завершить работу (механизатор) -->
+<div class="modal-overlay" id="modal-task-done">
+  <div class="modal" style="max-width:420px;width:96%;">
+    <h2>✅ Завершить работу</h2>
+    <input type="hidden" id="task-done-id">
+    <div class="ff" style="margin-bottom:16px;">
+      <label>Примечание механизатора</label>
+      <input type="text" id="task-done-note" placeholder="Замечания по выполнению...">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-task-done')">Отмена</button>
+      <button class="btn btn-primary" onclick="saveTaskDone()">Подтвердить выполнение</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Закрыть задание (агроном) -->
+<div class="modal-overlay" id="modal-task-close">
+  <div class="modal" style="max-width:420px;width:96%;">
+    <h2>🔒 Закрыть задание</h2>
+    <input type="hidden" id="task-close-id">
+    <div class="form-grid">
+      <div class="ff">
+        <label>Кто закрывает</label>
+        <input type="text" id="task-close-name" placeholder="Имя агронома">
+      </div>
+      <div class="ff full">
+        <label>Комментарий</label>
+        <input type="text" id="task-close-note" placeholder="Итоги, замечания...">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-task-close')">Отмена</button>
+      <button class="btn btn-primary" onclick="saveTaskClose()">Закрыть задание</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Проблема -->
+<div class="modal-overlay" id="modal-task-prob">
+  <div class="modal" style="max-width:420px;width:96%;">
+    <h2>⚠️ Сообщить о проблеме</h2>
+    <input type="hidden" id="task-prob-id">
+    <div class="ff" style="margin-bottom:16px;">
+      <label>Описание проблемы</label>
+      <textarea id="task-prob-txt" rows="4" placeholder="Опишите что пошло не так..."
+        style="width:100%;padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);resize:vertical;"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-task-prob')">Отмена</button>
+      <button class="btn btn-danger" onclick="saveTaskProb()">Отправить</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 // ===================== STATE =====================
@@ -2875,6 +3052,7 @@ function switchTab(tab,el){
   if(tab==='doses')popDoseSelects();
   if(tab==='settings')loadSettings();
   if(tab==='warehouse')renderWarehouse();
+  if(tab==='tasks')renderTasks();
 }
 
 // ===================== CATALOG =====================
@@ -8491,6 +8669,372 @@ function renderCherryForecastRecs(f) {
       </div>`).join('')}`;
 }
 
+// ═══ ЖУРНАЛ РАБОТ ════════════════════════════════════════════════════
+
+let _tasks = [];
+let _taskFilter = 'all';
+let _taskStaff = [];
+let _taskWorkTypes = [];
+let _newTaskParcels = [];
+let _newTaskChems = [];
+
+const TASK_STATUS_LABELS = {new:'Новое',assigned:'Назначено',accepted:'Принято',in_progress:'В работе',done:'Выполнено',closed:'Закрыто',problem:'Проблема'};
+const TASK_STATUS_COLORS = {new:'var(--blue)',assigned:'#a855f7',accepted:'var(--orange)',in_progress:'var(--accent)',done:'#2dd4bf',closed:'var(--text3)',problem:'var(--red)'};
+
+async function renderTasks() {
+  try {
+    const r = await fetch('/api/tasks');
+    _tasks = await r.json();
+  } catch(e) { _tasks = []; }
+  const statuses = ['all','new','assigned','accepted','in_progress','done','problem','closed'];
+  statuses.forEach(s => {
+    const el = document.getElementById('tc-'+s);
+    if(el) el.textContent = s==='all' ? _tasks.length : _tasks.filter(t=>t.status===s).length;
+  });
+  const filtered = _taskFilter==='all' ? _tasks : _tasks.filter(t=>t.status===_taskFilter);
+  const el = document.getElementById('tasks-list');
+  if(!el) return;
+  if(!filtered.length) {
+    el.innerHTML = '<div style="text-align:center;color:var(--text3);padding:40px;">Заданий нет. Нажмите + Новое задание</div>';
+    return;
+  }
+  el.innerHTML = filtered.map(t => {
+    const chems = t.chemicals ? (typeof t.chemicals==='string' ? JSON.parse(t.chemicals) : t.chemicals) : [];
+    const statusColor = TASK_STATUS_COLORS[t.status] || 'var(--text3)';
+    const dueDate = t.due_date ? new Date(t.due_date).toLocaleDateString('ru-RU') : '—';
+    return `<div class="task-card s-${t.status}">
+      <div class="task-title">${t.work_type_name||'Работа'}</div>
+      <div class="task-sub">${t.parcel_name||'—'}${t.description?' · '+t.description.slice(0,60):''}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">
+        <span style="padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:${statusColor}22;color:${statusColor};">${TASK_STATUS_LABELS[t.status]||t.status}</span>
+        ${t.due_date?`<span style="padding:2px 8px;border-radius:10px;font-size:11px;background:rgba(255,216,77,.15);color:var(--yellow);">До ${dueDate}</span>`:''}
+        ${t.total_ha?`<span style="padding:2px 8px;border-radius:10px;font-size:11px;background:var(--surface2);color:var(--text3);">📐 ${t.total_ha} га</span>`:''}
+        ${t.telegram_sent?`<span style="padding:2px 8px;border-radius:10px;font-size:11px;background:var(--surface2);color:var(--text3);">✈️ Telegram</span>`:''}
+      </div>
+      <div class="task-grid">
+        <div><div class="tl">Агроном</div><div class="tv">${t.created_by_name||'—'}</div></div>
+        <div><div class="tl">Исполнитель</div><div class="tv">${t.assigned_to_name||'—'}</div></div>
+        <div><div class="tl">Механизатор</div><div class="tv">${t.mechanic_name||'—'}</div></div>
+        <div><div class="tl">Техника</div><div class="tv">${t.equipment_name||'—'}</div></div>
+        <div><div class="tl">Навесное</div><div class="tv">${t.attachment||'—'}</div></div>
+        ${t.closed_by_name?`<div><div class="tl">Закрыл</div><div class="tv">${t.closed_by_name}</div></div>`:''}
+      </div>
+      ${chems.length?`<div style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px;">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:4px;">💊 ПРЕПАРАТЫ:</div>
+        ${chems.map(c=>`<div class="task-chem">
+          <span style="font-weight:500;">${c.name}</span>
+          <span style="color:var(--text3);">${c.dose_actual||c.dose_default||''}</span>
+        </div>`).join('')}
+      </div>`:''}
+      ${t.problem_note?`<div style="background:rgba(255,85,85,.08);border:1px solid rgba(255,85,85,.2);border-radius:8px;padding:8px 12px;margin-top:8px;font-size:12px;color:var(--red);">⚠️ ${t.problem_note}</div>`:''}
+      <div class="task-actions">${renderTaskActions(t)}</div>
+    </div>`;
+  }).join('');
+}
+
+function filterTasks(f, el) {
+  _taskFilter = f;
+  document.querySelectorAll('[id^="tf-"]').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  renderTasks();
+}
+
+function renderTaskActions(t) {
+  let h = '';
+  if(t.status==='new') {
+    h+=`<button class="btn btn-secondary btn-sm" onclick="openTaskEng('${t.id}')">🔧 Назначить технику</button>`;
+    h+=`<button class="btn btn-secondary btn-sm" style="color:var(--orange);" onclick="openTaskProb('${t.id}')">⚠️ Проблема</button>`;
+  }
+  if(t.status==='assigned') {
+    h+=`<button class="btn btn-secondary btn-sm" onclick="updateTaskStatus('${t.id}','accepted',{})">✓ Принять</button>`;
+    h+=`<button class="btn btn-secondary btn-sm" style="color:var(--orange);" onclick="openTaskProb('${t.id}')">⚠️ Проблема</button>`;
+  }
+  if(t.status==='accepted') {
+    h+=`<button class="btn btn-primary btn-sm" onclick="updateTaskStatus('${t.id}','in_progress',{})">▶ Начать работу</button>`;
+    h+=`<button class="btn btn-secondary btn-sm" style="color:var(--orange);" onclick="openTaskProb('${t.id}')">⚠️ Проблема</button>`;
+  }
+  if(t.status==='in_progress') {
+    h+=`<button class="btn btn-primary btn-sm" onclick="openTaskDone('${t.id}')">✅ Завершить работу</button>`;
+    h+=`<button class="btn btn-secondary btn-sm" style="color:var(--orange);" onclick="openTaskProb('${t.id}')">⚠️ Проблема</button>`;
+  }
+  if(t.status==='done'||t.status==='problem') {
+    h+=`<button class="btn btn-primary btn-sm" onclick="openTaskClose('${t.id}')">✅ Закрыть (агроном)</button>`;
+  }
+  return h;
+}
+
+async function updateTaskStatus(id, status, extra) {
+  await fetch(`/api/tasks/${id}/status`, {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status,...extra})});
+  renderTasks();
+}
+
+async function openNewTask() {
+  if(!_taskStaff.length) {
+    try { _taskStaff = await fetch('/api/staff').then(r=>r.json()); } catch(e) { _taskStaff = []; }
+  }
+  if(!_taskWorkTypes.length) {
+    try { _taskWorkTypes = await fetch('/api/work-types').then(r=>r.json()); } catch(e) {
+      _taskWorkTypes = [
+        {id:'wt1',name:'Обработка (опрыскивание)'},
+        {id:'wt2',name:'Ирригация'},
+        {id:'wt3',name:'Скашивание травы'},
+        {id:'wt4',name:'Обрезка деревьев'},
+        {id:'wt5',name:'Подкормка'},
+        {id:'wt6',name:'Уборка урожая'},
+        {id:'wt7',name:'Посадка'},
+        {id:'wt8',name:'Прочие работы'},
+      ];
+    }
+  }
+  _newTaskParcels = [];
+  _newTaskChems = [];
+
+  document.getElementById('nt-wt').innerHTML = _taskWorkTypes.map(w=>`<option value="${w.id}" data-name="${w.name}">${w.name}</option>`).join('');
+  const staffOpts = _taskStaff.length
+    ? _taskStaff.map(s=>`<option value="${s.id}" data-name="${s.name}">${s.name} (${s.role})</option>`).join('')
+    : '<option value="agronomist" data-name="Агроном">Агроном</option>';
+  document.getElementById('nt-creator').innerHTML = staffOpts;
+  document.getElementById('nt-assignee').innerHTML = staffOpts;
+
+  // Клетки сада вместо парцеллей
+  const cells = Object.entries(S.cells||{});
+  document.getElementById('nt-parcel-list').innerHTML = cells.length
+    ? cells.map(([key,cd])=>{
+        const crop = getCropById(cd.cropId||'crop_cherry');
+        const cols = getCellColors(cd);
+        const ha = calcCellTotals(cd)?.totalHa||0;
+        return `<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;cursor:pointer;" onclick="toggleNtParcel('${key}','${key}${cols[0]?' – '+cols[0].name:''}',${ha})" id="ntp-${key}">
+          <input type="checkbox" id="ntpc-${key}" onclick="event.stopPropagation();toggleNtParcel('${key}','${key}${cols[0]?' – '+cols[0].name:''}',${ha})">
+          <span>${crop?.emoji||'🌳'} <strong>${key}</strong>${cols[0]?' — '+cols[0].name:''}</span>
+          <span style="margin-left:auto;color:var(--text3);font-size:11px;">${ha.toFixed(3)} га</span>
+        </div>`;
+      }).join('')
+    : '<div style="color:var(--text3);padding:8px;">Клетки не заданы. Добавьте клетки на Карте.</div>';
+
+  document.getElementById('nt-chem-search').value = '';
+  document.getElementById('nt-chem-dropdown').style.display = 'none';
+  document.getElementById('nt-added-chems').innerHTML = '';
+  document.getElementById('nt-selected-tags').innerHTML = '';
+  document.getElementById('nt-area-info').textContent = '';
+  document.getElementById('nt-due').value = today();
+  document.getElementById('nt-desc').value = '';
+  openModal('modal-new-task');
+}
+
+function toggleNtParcel(id, name, ha) {
+  const idx = _newTaskParcels.findIndex(p=>p.id===id);
+  if(idx>=0) _newTaskParcels.splice(idx,1);
+  else _newTaskParcels.push({id, name, ha:parseFloat(ha)||0});
+  Object.keys(S.cells||{}).forEach(key => {
+    const row = document.getElementById('ntp-'+key);
+    const cb = document.getElementById('ntpc-'+key);
+    if(!row||!cb) return;
+    const sel = _newTaskParcels.find(x=>x.id===key);
+    row.style.background = sel ? 'rgba(107,221,107,.1)' : '';
+    cb.checked = !!sel;
+  });
+  const total = _newTaskParcels.reduce((s,p)=>s+p.ha,0);
+  document.getElementById('nt-selected-tags').innerHTML = _newTaskParcels.map(p=>`<span style="padding:2px 8px;border-radius:10px;background:rgba(107,221,107,.15);color:var(--accent);font-size:11px;">${p.name}</span>`).join('');
+  document.getElementById('nt-area-info').textContent = _newTaskParcels.length ? `${_newTaskParcels.length} кл. · ${total.toFixed(3)} га` : '';
+}
+
+function searchNtChems(q) {
+  const dd = document.getElementById('nt-chem-dropdown');
+  const filtered = q ? S.catalog.filter(c=>c.name.toLowerCase().includes(q.toLowerCase())) : S.catalog.slice(0,30);
+  if(!filtered.length){dd.style.display='none';return;}
+  dd.innerHTML = filtered.map(c=>`<div style="padding:7px 12px;cursor:pointer;font-size:13px;display:flex;justify-content:space-between;"
+    onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''"
+    onclick="addNtChem('${c.id}')">
+    <span>${c.name}</span><span style="font-size:10px;color:var(--text3);">${c.type||''}</span>
+  </div>`).join('');
+  dd.style.display = 'block';
+}
+
+function addNtChem(id) {
+  if(_newTaskChems.find(c=>c.id===id)) return;
+  const c = S.catalog.find(x=>x.id===id);
+  if(!c) return;
+  _newTaskChems.push({id:c.id, name:c.name, type:c.type, dose_default:c.dose||'', dose_actual:c.dose||'', target:''});
+  document.getElementById('nt-chem-search').value = '';
+  document.getElementById('nt-chem-dropdown').style.display = 'none';
+  renderNtChems();
+}
+
+function removeNtChem(id) {
+  _newTaskChems = _newTaskChems.filter(c=>c.id!==id);
+  renderNtChems();
+}
+
+function renderNtChems() {
+  document.getElementById('nt-added-chems').innerHTML = _newTaskChems.map(c=>`
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;margin-bottom:6px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <span style="font-weight:600;">${c.name}</span>
+        <button class="btn btn-secondary btn-sm" style="color:var(--red);padding:2px 8px;" onclick="removeNtChem('${c.id}')">✕</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div>
+          <div style="font-size:10px;color:var(--text3);margin-bottom:2px;">РЕК. ДОЗА</div>
+          <input type="text" value="${c.dose_default||'—'}" readonly style="width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text3);">
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--text3);margin-bottom:2px;">ФАКТ. ДОЗА</div>
+          <input type="text" id="ntd-${c.id}" value="${c.dose_actual}" placeholder="л/га"
+            oninput="_newTaskChems.find(x=>x.id==='${c.id}').dose_actual=this.value"
+            style="width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text);">
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+async function saveNewTask() {
+  const wtSel = document.getElementById('nt-wt');
+  const wtId = wtSel.value;
+  const wtName = wtSel.options[wtSel.selectedIndex]?.textContent || '';
+  const crSel = document.getElementById('nt-creator');
+  const crId = crSel.value;
+  const crName = crSel.options[crSel.selectedIndex]?.dataset?.name || crSel.options[crSel.selectedIndex]?.textContent || '';
+  const asSel = document.getElementById('nt-assignee');
+  const asId = asSel.value;
+  const asName = asSel.options[asSel.selectedIndex]?.dataset?.name || asSel.options[asSel.selectedIndex]?.textContent || '';
+  if(!crId||!asId){alert('Выберите агронома и исполнителя');return;}
+  const parcelName = _newTaskParcels.map(p=>p.name).join(', ') || null;
+  const totalHa = _newTaskParcels.reduce((s,p)=>s+p.ha,0);
+  const body = {
+    work_type_id: wtId, work_type_name: wtName,
+    description: document.getElementById('nt-desc').value.trim(),
+    parcel_id: _newTaskParcels.length===1 ? _newTaskParcels[0].id : null,
+    parcel_name: parcelName,
+    parcels_json: _newTaskParcels.length ? _newTaskParcels : null,
+    total_ha: totalHa||null,
+    chemicals: _newTaskChems.length ? JSON.stringify(_newTaskChems) : null,
+    created_by_id: crId, created_by_name: crName,
+    assigned_to_id: asId, assigned_to_name: asName,
+    due_date: document.getElementById('nt-due').value||null,
+  };
+  const r = await fetch('/api/tasks', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+  if(r.ok) {
+    // Автосписание со склада при обработках
+    const wtLower = wtName.toLowerCase();
+    if(_newTaskChems.length && (wtLower.includes('обработка')||wtLower.includes('опрыскив')||wtLower.includes('пестицид'))) {
+      try {
+        const orchState = await fetch('/api/state/orchard').then(r=>r.json());
+        const warehouse = orchState.data?.warehouse || {chemicals:[],parts:[],history:[]};
+        const date = document.getElementById('nt-due').value || today();
+        _newTaskChems.forEach(c => {
+          const stock = warehouse.chemicals?.find(x=>x.name.toLowerCase()===c.name.toLowerCase());
+          if(!stock) return;
+          const doseNum = parseFloat(c.dose_actual)||0;
+          if(!doseNum) return;
+          const ha = totalHa||1;
+          const spent = Math.round(doseNum*ha*1000)/1000;
+          stock.qty = Math.round(Math.max(0,stock.qty-spent)*1000)/1000;
+          warehouse.history.unshift({
+            id:uid(), date, type:'chemical', name:c.name,
+            operation:'out', qty:spent, unit:stock.unit||'л',
+            price:stock.price||0, total:Math.round(spent*(stock.price||0)),
+            parcelName, note:'Обработка (журнал работ)'
+          });
+        });
+        S.warehouse = warehouse;
+        save();
+        fetch('/api/state/orchard',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({warehouse})});
+      } catch(e) { console.warn('Warehouse sync failed:', e.message); }
+    }
+    closeModal('modal-new-task');
+    renderTasks();
+  } else {
+    try { const e = await r.json(); alert('Ошибка: '+e.error); } catch{ alert('Ошибка сохранения'); }
+  }
+}
+
+function openTaskProb(id) {
+  document.getElementById('task-prob-id').value = id;
+  document.getElementById('task-prob-txt').value = '';
+  openModal('modal-task-prob');
+}
+
+function openTaskClose(id) {
+  document.getElementById('task-close-id').value = id;
+  document.getElementById('task-close-name').value = '';
+  document.getElementById('task-close-note').value = '';
+  openModal('modal-task-close');
+}
+
+async function saveTaskClose() {
+  const id = document.getElementById('task-close-id').value;
+  const name = document.getElementById('task-close-name').value.trim()||'Агроном';
+  const note = document.getElementById('task-close-note').value.trim();
+  await updateTaskStatus(id,'closed',{closed_by_name:name,problem_note:note||undefined});
+  closeModal('modal-task-close');
+}
+
+async function saveTaskProb() {
+  const id = document.getElementById('task-prob-id').value;
+  const note = document.getElementById('task-prob-txt').value.trim();
+  if(!note){alert('Опишите проблему');return;}
+  await updateTaskStatus(id,'problem',{problem_note:note});
+  closeModal('modal-task-prob');
+}
+
+async function openTaskEng(id) {
+  const t = _tasks.find(x=>x.id===id);
+  if(!t) return;
+  if(!_taskStaff.length) {
+    try { _taskStaff = await fetch('/api/staff').then(r=>r.json()); } catch(e) { _taskStaff = []; }
+  }
+  let allEquip = [], attachArr = [];
+  try { allEquip = await fetch('/api/equipment').then(r=>r.json()); } catch(e) {}
+  try { const at = await fetch('/api/attachments').then(r=>r.json()); attachArr = Array.isArray(at)?at:(at.data||[]); } catch(e) {}
+  document.getElementById('task-eng-id').value = id;
+  const chems = t.chemicals?(typeof t.chemicals==='string'?JSON.parse(t.chemicals):t.chemicals):[];
+  document.getElementById('task-eng-info').innerHTML = `
+    <div style="font-weight:700;margin-bottom:4px;">${t.work_type_name||'Работа'}</div>
+    <div style="font-size:12px;color:var(--text2);">🌳 ${t.parcel_name||'—'}${t.total_ha?' · '+t.total_ha+' га':''}</div>
+    <div style="font-size:12px;color:var(--text2);">👤 ${t.created_by_name||'—'} → ${t.assigned_to_name||'—'}</div>
+    ${chems.length?`<div style="font-size:11px;color:var(--text3);margin-top:4px;">💊 ${chems.map(c=>c.name+(c.dose_actual?' '+c.dose_actual:'')).join(', ')}</div>`:''}`;
+  document.getElementById('task-eng-equip').innerHTML = '<option value="">— не выбрана —</option>'+allEquip.map(e=>`<option value="${e.id}" data-name="${e.name}">${e.name}${e.status!=='free'?' ⚠️':''}</option>`).join('');
+  document.getElementById('task-eng-attach').innerHTML = '<option value="">— не выбрано —</option>'+attachArr.map(a=>`<option value="${a.id}" data-name="${a.name}">${a.name}</option>`).join('');
+  document.getElementById('task-eng-mechanic').innerHTML = '<option value="">— не назначен —</option>'+_taskStaff.map(s=>`<option value="${s.id}" data-name="${s.name}">${s.name}</option>`).join('');
+  document.getElementById('task-eng-speed').value = '';
+  document.getElementById('task-eng-note').value = '';
+  openModal('modal-task-eng');
+}
+
+async function saveTaskEng() {
+  const id = document.getElementById('task-eng-id').value;
+  const meSel = document.getElementById('task-eng-mechanic');
+  const meId = meSel.value;
+  const meName = meSel.options[meSel.selectedIndex]?.dataset?.name || meSel.options[meSel.selectedIndex]?.textContent || '';
+  if(!meId){alert('Выберите механизатора');return;}
+  const eqSel = document.getElementById('task-eng-equip');
+  const eqId = eqSel.value;
+  const eqName = eqSel.options[eqSel.selectedIndex]?.dataset?.name || '';
+  const atSel = document.getElementById('task-eng-attach');
+  const atName = atSel.options[atSel.selectedIndex]?.dataset?.name || '';
+  await updateTaskStatus(id,'assigned',{
+    equipment_id:eqId, equipment_name:eqName,
+    attachment:atName,
+    mechanic_id:meId, mechanic_name:meName,
+    speed_kmh:parseFloat(document.getElementById('task-eng-speed').value)||null,
+    note:document.getElementById('task-eng-note').value.trim(),
+  });
+  closeModal('modal-task-eng');
+}
+
+async function openTaskDone(id) {
+  document.getElementById('task-done-id').value = id;
+  document.getElementById('task-done-note').value = '';
+  openModal('modal-task-done');
+}
+
+async function saveTaskDone() {
+  const id = document.getElementById('task-done-id').value;
+  const note = document.getElementById('task-done-note').value.trim();
+  await updateTaskStatus(id,'done',{closed_by_name:'Механизатор',problem_note:note||undefined});
+  closeModal('modal-task-done');
+}
+
 // ═══ СКЛАД (WAREHOUSE) ════════════════════════════════════════════════
 
 // ═══ СКЛАД (WAREHOUSE) ════════════════════════════════════════════════
@@ -8879,337 +9423,6 @@ function openWarehousePartModal(partId) {
     document.getElementById('wh-part-worked').value = part.worked || '';
     document.getElementById('wh-part-note').value = part.note || '';
   }, 100);
-}
-  // ═══ TASKS ═══════════════════════════════════════════════════════════════
-let _tasks = [];
-let _taskFilter = 'all';
-let _taskStaff = [];
-let _taskWorkTypes = [];
-
-const TASK_STATUS_LABELS = {new:'Новое',assigned:'Назначено',accepted:'Принято',in_progress:'В работе',done:'Выполнено',closed:'Закрыто',problem:'Проблема'};
-const TASK_STATUS_COLORS = {new:'var(--blue)',assigned:'var(--purple)',accepted:'var(--orange)',in_progress:'var(--accent)',done:'var(--teal)',closed:'var(--text3)',problem:'var(--red)'};
-
-async function renderTasks() {
-  const r = await fetch('/api/tasks');
-  _tasks = await r.json();
-  // Counts
-  const statuses = ['all','new','assigned','accepted','in_progress','done','problem','closed'];
-  statuses.forEach(s => {
-    const el = document.getElementById('tc-'+s);
-    if(el) el.textContent = s==='all' ? _tasks.length : _tasks.filter(t=>t.status===s).length;
-  });
-  // Render list
-  const filtered = _taskFilter==='all' ? _tasks : _tasks.filter(t=>t.status===_taskFilter);
-  const el = document.getElementById('tasks-list');
-  if(!filtered.length) {
-    el.innerHTML = '<div style="text-align:center;color:var(--text3);padding:40px;">Заданий нет. Нажмите + Новое задание</div>';
-    return;
-  }
-  el.innerHTML = filtered.map(t => {
-    const chems = t.chemicals ? (typeof t.chemicals==='string' ? JSON.parse(t.chemicals) : t.chemicals) : [];
-    const statusColor = TASK_STATUS_COLORS[t.status] || 'var(--text3)';
-    const dueDate = t.due_date ? new Date(t.due_date).toLocaleDateString('ru-RU') : '—';
-    return `<div class="task-card s-${t.status}">
-      <div class="task-title">${t.work_type_name||'Работа'}</div>
-      <div class="task-sub">${t.parcel_name||'—'}${t.description?' · '+t.description.slice(0,60):''}</div>
-      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">
-        <span style="padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:${statusColor}22;color:${statusColor};">${TASK_STATUS_LABELS[t.status]||t.status}</span>
-        ${t.due_date?`<span style="padding:2px 8px;border-radius:10px;font-size:11px;background:rgba(255,216,77,.15);color:var(--yellow);">До ${dueDate}</span>`:''}
-        ${t.telegram_sent?`<span style="padding:2px 8px;border-radius:10px;font-size:11px;background:var(--surface2);color:var(--text3);">✈️ Telegram</span>`:''}
-        ${t.total_ha?`<span style="padding:2px 8px;border-radius:10px;font-size:11px;background:var(--surface2);color:var(--text3);">📐 ${t.total_ha} га</span>`:''}
-      </div>
-      <div class="task-grid">
-        <div><div class="tl">Агроном</div><div class="tv">${t.created_by_name||'—'}</div></div>
-        <div><div class="tl">Исполнитель</div><div class="tv">${t.assigned_to_name||'—'}</div></div>
-        <div><div class="tl">Механизатор</div><div class="tv">${t.mechanic_name||'—'}</div></div>
-        <div><div class="tl">Техника</div><div class="tv">${t.equipment_name||'—'}</div></div>
-        <div><div class="tl">Навесное</div><div class="tv">${t.attachment||'—'}</div></div>
-        ${t.closed_by_name?`<div><div class="tl">Закрыл</div><div class="tv">${t.closed_by_name}</div></div>`:''}
-      </div>
-      ${chems.length?`<div style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px;">
-        <div style="font-size:11px;color:var(--text3);margin-bottom:4px;">💊 ПРЕПАРАТЫ:</div>
-        ${chems.map(c=>`<div class="task-chem">
-          <span style="font-weight:500;">${c.name}</span>
-          <span style="color:var(--text3);">${c.dose_actual||c.dose_default||''}</span>
-        </div>`).join('')}
-      </div>`:''}
-      ${t.problem_note?`<div style="background:rgba(255,85,85,.08);border:1px solid rgba(255,85,85,.2);border-radius:8px;padding:8px 12px;margin-top:8px;font-size:12px;color:var(--red);">⚠️ ${t.problem_note}</div>`:''}
-      <div class="task-actions">${renderTaskActions(t)}</div>
-    </div>`;
-  }).join('');
-}
-
-function filterTasks(f, el) {
-  _taskFilter = f;
-  document.querySelectorAll('[id^="tf-"]').forEach(b=>b.classList.remove('active'));
-  el.classList.add('active');
-  renderTasks();
-}
-
-function renderTaskActions(t) {
-  let h = '';
-  if(t.status==='new') {
-    h+=`<button class="btn btn-secondary btn-sm" onclick="openTaskEng('${t.id}')">🔧 Назначить технику</button>`;
-    h+=`<button class="btn btn-secondary btn-sm" style="color:var(--orange);" onclick="openTaskProb('${t.id}')">⚠️ Проблема</button>`;
-  }
-  if(t.status==='assigned') {
-    h+=`<button class="btn btn-secondary btn-sm" onclick="updateTaskStatus('${t.id}','accepted',{})">✓ Принять</button>`;
-    h+=`<button class="btn btn-secondary btn-sm" style="color:var(--orange);" onclick="openTaskProb('${t.id}')">⚠️ Проблема</button>`;
-  }
-  if(t.status==='accepted') {
-    h+=`<button class="btn btn-primary btn-sm" onclick="updateTaskStatus('${t.id}','in_progress',{})">▶ Начать работу</button>`;
-    h+=`<button class="btn btn-secondary btn-sm" style="color:var(--orange);" onclick="openTaskProb('${t.id}')">⚠️ Проблема</button>`;
-  }
-  if(t.status==='in_progress') {
-    h+=`<button class="btn btn-primary btn-sm" onclick="openTaskDone('${t.id}')">✅ Завершить работу</button>`;
-    h+=`<button class="btn btn-secondary btn-sm" style="color:var(--orange);" onclick="openTaskProb('${t.id}')">⚠️ Проблема</button>`;
-  }
-  if(t.status==='done'||t.status==='problem') {
-    h+=`<button class="btn btn-primary btn-sm" onclick="openTaskClose('${t.id}')">✅ Закрыть (агроном)</button>`;
-  }
-  return h;
-}
-
-async function updateTaskStatus(id, status, extra) {
-  await fetch(`/api/tasks/${id}/status`, {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status,...extra})});
-  renderTasks();
-}
-
-async function openNewTask() {
-  // Load data
-  if(!_taskStaff.length) _taskStaff = await fetch('/api/staff').then(r=>r.json());
-  if(!_taskWorkTypes.length) _taskWorkTypes = await fetch('/api/work-types').then(r=>r.json());
-  // Reset
-  _newTaskParcels = [];
-  _newTaskChems = [];
-  document.getElementById('nt-wt').innerHTML = _taskWorkTypes.map(w=>`<option value="${w.id}" data-name="${w.name}">${w.name}</option>`).join('');
-  document.getElementById('nt-creator').innerHTML = _taskStaff.map(s=>`<option value="${s.id}" data-name="${s.name}">${s.name} (${s.role})</option>`).join('');
-  document.getElementById('nt-assignee').innerHTML = _taskStaff.map(s=>`<option value="${s.id}" data-name="${s.name}">${s.name} (${s.role})</option>`).join('');
-  // Parcels
-  document.getElementById('nt-parcel-list').innerHTML = S.parcels.map(p=>`
-    <div style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;cursor:pointer;" onclick="toggleNtParcel('${p.id}','${p.name}',${p.ha||0})" id="ntp-${p.id}">
-      <input type="checkbox" id="ntpc-${p.id}" onclick="event.stopPropagation();toggleNtParcel('${p.id}','${p.name}',${p.ha||0})">
-      <span>${p.name}</span>
-      <span style="margin-left:auto;color:var(--text3);font-size:11px;">${p.ha||0} га</span>
-    </div>`).join('');
-  // Chems
-  document.getElementById('nt-chem-search').value = '';
-  document.getElementById('nt-chem-dropdown').style.display = 'none';
-  document.getElementById('nt-added-chems').innerHTML = '';
-  document.getElementById('nt-selected-tags').innerHTML = '';
-  document.getElementById('nt-area-info').textContent = '';
-  document.getElementById('nt-due').value = today();
-  document.getElementById('nt-desc').value = '';
-  openModal('modal-new-task');
-}
-
-let _newTaskParcels = [];
-let _newTaskChems = [];
-
-function toggleNtParcel(id, name, ha) {
-  const idx = _newTaskParcels.findIndex(p=>p.id===id);
-  if(idx>=0) _newTaskParcels.splice(idx,1);
-  else _newTaskParcels.push({id,name,ha:parseFloat(ha)||0});
-  // Update UI
-  S.parcels.forEach(p => {
-    const row = document.getElementById('ntp-'+p.id);
-    const cb = document.getElementById('ntpc-'+p.id);
-    if(!row||!cb) return;
-    const sel = _newTaskParcels.find(x=>x.id===p.id);
-    row.style.background = sel ? 'rgba(107,221,107,.1)' : '';
-    cb.checked = !!sel;
-  });
-  const total = _newTaskParcels.reduce((s,p)=>s+p.ha,0);
-  document.getElementById('nt-selected-tags').innerHTML = _newTaskParcels.map(p=>`<span style="padding:2px 8px;border-radius:10px;background:rgba(107,221,107,.15);color:var(--accent);font-size:11px;">${p.name}</span>`).join('');
-  document.getElementById('nt-area-info').textContent = _newTaskParcels.length ? `${_newTaskParcels.length} уч. · ${total.toFixed(1)} га` : '';
-}
-
-function searchNtChems(q) {
-  const dd = document.getElementById('nt-chem-dropdown');
-  const filtered = q ? S.catalog.filter(c=>c.name.toLowerCase().includes(q.toLowerCase())) : S.catalog.slice(0,30);
-  if(!filtered.length){dd.style.display='none';return;}
-  dd.innerHTML = filtered.map(c=>`<div style="padding:7px 12px;cursor:pointer;font-size:13px;display:flex;justify-content:space-between;" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''" onclick="addNtChem('${c.id}')">
-    <span>${c.name}</span><span style="font-size:10px;color:var(--text3);">${c.type||''}</span>
-  </div>`).join('');
-  dd.style.display = 'block';
-}
-
-function addNtChem(id) {
-  if(_newTaskChems.find(c=>c.id===id)) return;
-  const c = S.catalog.find(x=>x.id===id);
-  if(!c) return;
-  _newTaskChems.push({id:c.id, name:c.name, type:c.type, dose_default:c.dose||'', dose_actual:c.dose||'', target:''});
-  document.getElementById('nt-chem-search').value = '';
-  document.getElementById('nt-chem-dropdown').style.display = 'none';
-  renderNtChems();
-}
-
-function removeNtChem(id) {
-  _newTaskChems = _newTaskChems.filter(c=>c.id!==id);
-  renderNtChems();
-}
-
-function renderNtChems() {
-  document.getElementById('nt-added-chems').innerHTML = _newTaskChems.map(c=>`
-    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;margin-bottom:6px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-        <span style="font-weight:600;">${c.name}</span>
-        <button class="btn btn-secondary btn-xs" style="color:var(--red);" onclick="removeNtChem('${c.id}')">✕</button>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-        <div>
-          <div style="font-size:10px;color:var(--text3);margin-bottom:2px;">РЕК. ДОЗА</div>
-          <input type="text" value="${c.dose_default||'—'}" readonly style="width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text3);">
-        </div>
-        <div>
-          <div style="font-size:10px;color:var(--text3);margin-bottom:2px;">ФАКТ. ДОЗА</div>
-          <input type="text" id="ntd-${c.id}" value="${c.dose_actual}" placeholder="л/га" oninput="_newTaskChems.find(x=>x.id==='${c.id}').dose_actual=this.value" style="width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text);">
-        </div>
-      </div>
-    </div>`).join('');
-}
-
-async function saveNewTask() {
-  const wtSel = document.getElementById('nt-wt');
-  const wtId = wtSel.value;
-  const wtName = wtSel.options[wtSel.selectedIndex]?.textContent || '';
-  const crSel = document.getElementById('nt-creator');
-  const crId = crSel.value;
-  const crName = crSel.options[crSel.selectedIndex]?.dataset?.name || crSel.options[crSel.selectedIndex]?.textContent || '';
-  const asSel = document.getElementById('nt-assignee');
-  const asId = asSel.value;
-  const asName = asSel.options[asSel.selectedIndex]?.dataset?.name || asSel.options[asSel.selectedIndex]?.textContent || '';
-  if(!crId||!asId){alert('Выберите агронома и исполнителя');return;}
-  const parcelId = _newTaskParcels.length===1 ? _newTaskParcels[0].id : null;
-  const parcelName = _newTaskParcels.map(p=>p.name).join(', ') || null;
-  const totalHa = _newTaskParcels.reduce((s,p)=>s+p.ha,0);
-  const body = {
-    work_type_id: wtId, work_type_name: wtName,
-    description: document.getElementById('nt-desc').value.trim(),
-    parcel_id: parcelId, parcel_name: parcelName,
-    parcels_json: _newTaskParcels.length ? _newTaskParcels : null,
-    total_ha: totalHa||null,
-    chemicals: _newTaskChems.length ? JSON.stringify(_newTaskChems) : null,
-    created_by_id: crId, created_by_name: crName,
-    assigned_to_id: asId, assigned_to_name: asName,
-    due_date: document.getElementById('nt-due').value||null,
-  };
-  const r = await fetch('/api/tasks', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
-  if(r.ok) {
-    // Автосписание со склада
-    const wtLower = wtName.toLowerCase();
-    if(_newTaskChems.length && (wtLower.includes('обработка')||wtLower.includes('пестицид')||wtLower.includes('опрыскив'))) {
-      const vState = await fetch('/api/state/vegetable').then(r=>r.json());
-      const warehouse = vState.data?.warehouse || {chemicals:[],parts:[],history:[]};
-      const date = document.getElementById('nt-due').value || today();
-      _newTaskChems.forEach(c => {
-        const stock = warehouse.chemicals?.find(x=>x.name.toLowerCase()===c.name.toLowerCase());
-        if(!stock) return;
-        const doseNum = parseFloat(c.dose_actual)||0;
-        if(!doseNum) return;
-        const ha = totalHa||1;
-        const spent = Math.round(doseNum*ha*1000)/1000;
-        stock.qty = Math.round(Math.max(0,stock.qty-spent)*1000)/1000;
-        warehouse.history.unshift({
-          id:uid(), date, type:'chemical', name:c.name,
-          operation:'out', qty:spent, unit:stock.unit||'л',
-          price:stock.price||0, total:Math.round(spent*(stock.price||0)),
-          parcelName, note:'Обработка (журнал работ)'
-        });
-      });
-      fetch('/api/state/vegetable',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({warehouse})});
-    }
-    closeModal('modal-new-task');
-    renderTasks();
-  } else {
-    const e = await r.json();
-    alert('Ошибка: '+e.error);
-  }
-}
-
-function openTaskProb(id) {
-  document.getElementById('task-prob-id').value = id;
-  document.getElementById('task-prob-txt').value = '';
-  openModal('modal-task-prob');
-}
-
-function openTaskClose(id) {
-  document.getElementById('task-close-id').value = id;
-  document.getElementById('task-close-name').value = '';
-  document.getElementById('task-close-note').value = '';
-  openModal('modal-task-close');
-}
-
-async function saveTaskClose() {
-  const id = document.getElementById('task-close-id').value;
-  const name = document.getElementById('task-close-name').value.trim()||'Агроном';
-  const note = document.getElementById('task-close-note').value.trim();
-  await updateTaskStatus(id,'closed',{closed_by_name:name,problem_note:note||undefined});
-  closeModal('modal-task-close');
-}
-
-async function saveTaskProb() {
-  const id = document.getElementById('task-prob-id').value;
-  const note = document.getElementById('task-prob-txt').value.trim();
-  if(!note){alert('Опишите проблему');return;}
-  await updateTaskStatus(id,'problem',{problem_note:note});
-  closeModal('modal-task-prob');
-}
-
-async function openTaskEng(id) {
-  const t = _tasks.find(x=>x.id===id);
-  if(!t) return;
-  if(!_taskStaff.length) _taskStaff = await fetch('/api/staff').then(r=>r.json());
-  const allEquip = await fetch('/api/equipment').then(r=>r.json());
-  const attach = await fetch('/api/attachments').then(r=>r.json());
-  const attachArr = Array.isArray(attach)?attach:(attach.data||[]);
-  document.getElementById('task-eng-id').value = id;
-  const chems = t.chemicals?(typeof t.chemicals==='string'?JSON.parse(t.chemicals):t.chemicals):[];
-  document.getElementById('task-eng-info').innerHTML = `
-    <div style="font-weight:700;margin-bottom:4px;">${t.work_type_name||'Работа'}</div>
-    <div style="font-size:12px;color:var(--text2);">🌱 ${t.parcel_name||'—'}${t.total_ha?' · '+t.total_ha+' га':''}</div>
-    <div style="font-size:12px;color:var(--text2);">👤 ${t.created_by_name||'—'} · ${t.assigned_to_name||'—'}</div>
-    ${chems.length?`<div style="font-size:11px;color:var(--text3);margin-top:4px;">💊 ${chems.map(c=>c.name+(c.dose_actual?' '+c.dose_actual:'')).join(', ')}</div>`:''}`;
-  document.getElementById('task-eng-equip').innerHTML = '<option value="">— не выбрана —</option>'+allEquip.map(e=>`<option value="${e.id}" data-name="${e.name}">${e.name}${e.status!=='free'?' ⚠️':''}</option>`).join('');
-  document.getElementById('task-eng-attach').innerHTML = '<option value="">— не выбрано —</option>'+attachArr.map(a=>`<option value="${a.id}" data-name="${a.name}">${a.name}</option>`).join('');
-  document.getElementById('task-eng-mechanic').innerHTML = '<option value="">— не назначен —</option>'+_taskStaff.map(s=>`<option value="${s.id}" data-name="${s.name}">${s.name}</option>`).join('');
-  document.getElementById('task-eng-speed').value = '';
-  document.getElementById('task-eng-note').value = '';
-  openModal('modal-task-eng');
-}
-
-async function saveTaskEng() {
-  const id = document.getElementById('task-eng-id').value;
-  const meSel = document.getElementById('task-eng-mechanic');
-  const meId = meSel.value;
-  const meName = meSel.options[meSel.selectedIndex]?.dataset?.name || meSel.options[meSel.selectedIndex]?.textContent;
-  if(!meId){alert('Выберите механизатора');return;}
-  const eqSel = document.getElementById('task-eng-equip');
-  const eqId = eqSel.value;
-  const eqName = eqSel.options[eqSel.selectedIndex]?.dataset?.name || '';
-  const atSel = document.getElementById('task-eng-attach');
-  const atName = atSel.options[atSel.selectedIndex]?.dataset?.name || '';
-  await updateTaskStatus(id,'assigned',{
-    equipment_id:eqId, equipment_name:eqName,
-    attachment:atName,
-    mechanic_id:meId, mechanic_name:meName,
-    speed_kmh:parseFloat(document.getElementById('task-eng-speed').value)||null,
-    note:document.getElementById('task-eng-note').value.trim(),
-  });
-  closeModal('modal-task-eng');
-}
-
-async function openTaskDone(id) {
-  document.getElementById('task-done-id').value = id;
-  document.getElementById('task-done-note').value = '';
-  openModal('modal-task-done');
-}
-
-async function saveTaskDone() {
-  const id = document.getElementById('task-done-id').value;
-  const note = document.getElementById('task-done-note').value.trim();
-  await updateTaskStatus(id,'done',{closed_by_name:'Механизатор',problem_note:note||undefined});
-  closeModal('modal-task-done');
 }
 
 function saveSettings() {
