@@ -340,6 +340,21 @@ tbody td{padding:10px 12px;vertical-align:middle;}
 ::-webkit-scrollbar-track{background:var(--bg);}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
 @media(max-width:900px){.map-wrap{grid-template-columns:1fr;}.hstats{display:none;}}
+
+/* ── СКЛАД ── */
+.kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;text-align:center;}
+.kpi-val{font-family:'Unbounded',sans-serif;font-size:22px;font-weight:700;color:var(--accent);}
+.kpi-lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-top:4px;}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:20px;}
+.sort-btn{padding:6px 14px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);color:var(--text3);font-size:11px;cursor:pointer;transition:all .15s;font-family:'Inter',sans-serif;}
+.sort-btn:hover{background:var(--surface3);color:var(--text2);}
+.sort-btn.active{background:var(--accent3);color:var(--accent2);border-color:var(--accent);}
+.data-table{width:100%;border-collapse:collapse;}
+.data-table th{background:var(--surface2);color:var(--text3);font-size:9px;text-transform:uppercase;letter-spacing:1.5px;padding:10px 12px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap;font-family:'Unbounded',sans-serif;}
+.data-table td{padding:10px 12px;border-bottom:1px solid var(--border);font-size:12px;vertical-align:middle;}
+.data-table tr:hover td{background:var(--surface2);}
+.badge-orange{background:rgba(251,146,60,.12);color:var(--orange);}
+.badge-blue{background:rgba(96,165,250,.12);color:var(--blue);}
 </style>
 </head>
 <body>
@@ -1229,7 +1244,7 @@ tbody td{padding:10px 12px;vertical-align:middle;}
           <option value="trunk">🌳 Стволовая инъекция</option>
         </select>
       </div>
-      <div class="ff"><label>Расход воды (л/га)</label><input type="number" id="t-water" value="400" placeholder="400"></div>
+      <div class="ff"><label>Расход воды (л/га)</label><input type="number" id="t-water" value="400" placeholder="400" oninput="orchardUpdateChecks()"></div>
       <div class="ff full"><label>Цель обработки / примечание</label>
         <input type="text" id="t-note" placeholder="Против монилиоза, профилактика, подкормка...">
       </div>
@@ -1258,6 +1273,9 @@ tbody td{padding:10px 12px;vertical-align:middle;}
       <div style="font-weight:700;color:var(--accent);margin-bottom:4px;">💧 Порядок заправки бака:</div>
       <div id="ot-tank-order-text"></div>
     </div>
+
+    <!-- Расчёт итого на площадь -->
+    <div id="ot-calc-summary" style="display:none;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;margin-bottom:12px;"></div>
 
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-treatment')">Отмена</button>
@@ -2058,7 +2076,6 @@ tbody td{padding:10px 12px;vertical-align:middle;}
 // ===================== STATE =====================
 let S = {
   rows:6, cols:8,
-  warehouse: { chemicals: [], parts: [], seeds: [], history: [] },
   warehouse: { chemicals: [], parts: [], seeds: [], history: [] },
   varieties:[
     {id:'v1',name:'Регина',  ripening:'Поздний',pollType:'cross',pollinators:'Коралл, Наполеон',color:'vc0',note:'',cropId:'crop_cherry'},
@@ -3663,6 +3680,42 @@ function orchardUpdateChecks(){
       ' <span style="color:var(--text3);">→ долить воду → перемешать → опрыскивать</span>';
     document.getElementById('ot-tank-order').style.display='block';
   } else document.getElementById('ot-tank-order').style.display='none';
+
+  // Расчёт итого на площадь клетки
+  const cellKey = document.getElementById('t-cell')?.value||'all';
+  const waterPerHa = parseFloat(document.getElementById('t-water')?.value)||400;
+  const cd = (cellKey && cellKey!=='all') ? S.cells[cellKey] : null;
+  const totals = cd ? calcCellTotals(cd) : null;
+  const ha = totals?.totalHa || 0;
+  const calcEl = document.getElementById('ot-calc-summary');
+  if(!calcEl) return;
+  if(!names.length){ calcEl.style.display='none'; return; }
+  const rows = _otProductRows.filter(r=>r.name);
+  const totalWater = ha>0 ? Math.round(waterPerHa*ha) : null;
+  let html = '';
+  if(ha>0){
+    html += `<div style="font-size:10px;color:var(--text3);margin-bottom:8px;">📐 Площадь: <strong style="color:var(--accent);">${ha.toFixed(3)} га</strong> · Вода: <strong style="color:var(--blue);">${totalWater} л</strong></div>`;
+    html += `<div style="display:flex;flex-wrap:wrap;gap:6px;">`;
+    rows.forEach(r=>{
+      const dose=parseFloat(r.dose)||0;
+      if(!dose) return;
+      const total=Math.round(dose*ha*1000)/1000;
+      const TC={fungicide:'var(--teal)',insecticide:'var(--orange)',herbicide:'var(--yellow)',
+        fertilizer:'var(--accent)',acaricide:'var(--purple)',microelement:'var(--blue)',other:'var(--text3)'};
+      html+=`<div style="padding:6px 10px;border-radius:8px;background:var(--surface3);border:1px solid var(--border);">
+        <div style="font-size:11px;font-weight:600;">${r.name}</div>
+        <div style="font-family:'Unbounded',sans-serif;font-size:14px;font-weight:700;color:${TC[r.type]||'var(--accent)'};">${total} <span style="font-size:10px;">л/кг</span></div>
+      </div>`;
+    });
+    html += `</div>`;
+  } else {
+    html = rows.map(r=>{
+      const dose=parseFloat(r.dose)||0;
+      return dose ? `<span style="font-size:11px;color:var(--text2);">${r.name}: <strong>${dose} л/кг·га</strong></span>` : '';
+    }).filter(Boolean).join(' · ');
+  }
+  calcEl.innerHTML = html;
+  calcEl.style.display = html ? 'block' : 'none';
 }
 
 function orchardCopyFromTreatment(){
@@ -3854,7 +3907,7 @@ function renderTreatments(){
 function onTreatmentCellChange() {
   const cellKey=document.getElementById('t-cell').value;
   const infoEl=document.getElementById('t-cell-crop-info');
-  if(!cellKey||cellKey==='all'){infoEl.textContent='';return;}
+  if(!cellKey||cellKey==='all'){infoEl.textContent='';orchardUpdateChecks();return;}
   const cd=S.cells[cellKey]; if(!cd){infoEl.textContent='';return;}
   const crop=getCropById(cd.cropId||'crop_cherry');
   const cols=getCellColors(cd);
@@ -8439,6 +8492,12 @@ function renderCherryForecastRecs(f) {
 }
 
 // ═══ СКЛАД (WAREHOUSE) ════════════════════════════════════════════════
+
+// ═══ СКЛАД (WAREHOUSE) ════════════════════════════════════════════════
+// Вспомогательные функции склада
+function uid() { return '_' + Math.random().toString(36).slice(2,10) + Date.now().toString(36); }
+function today() { return new Date().toISOString().split('T')[0]; }
+let _whTab = 'chemicals';
 
 function showWarehouseTab(tab) {
   _whTab = tab;
