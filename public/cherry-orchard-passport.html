@@ -414,11 +414,25 @@ tbody td{padding:10px 12px;vertical-align:middle;}
   <div class="panel" id="panel-crops">
     <div class="section-hdr">
       <h2>🌿 Культуры хозяйства</h2>
-      <button class="btn btn-primary" onclick="openCropEditModal()">+ Добавить культуру</button>
+      <div style="display:flex;gap:6px;" id="crops-header-btns">
+        <button class="btn btn-secondary" id="crops-btn-add-variety" onclick="openVarietyEditModal()" style="display:none;">+ Сорт</button>
+        <button class="btn btn-secondary" id="crops-btn-add-rootstock" onclick="openRootstockModal()" style="display:none;">+ Подвой</button>
+        <button class="btn btn-primary" id="crops-btn-add-crop" onclick="openCropEditModal()">+ Культура</button>
+      </div>
     </div>
 
-    <!-- Dashboard: all crops summary -->
-    <div id="crops-dashboard" style="margin-bottom:24px;"></div>
+    <!-- Внутренние вкладки -->
+    <div style="display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--border);">
+      <button id="csub-overview" onclick="switchCropsSub('overview')"
+        style="padding:7px 16px;border:none;border-bottom:2px solid var(--accent);background:transparent;color:var(--accent);font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;">🏡 Обзор</button>
+      <button id="csub-varieties" onclick="switchCropsSub('varieties')"
+        style="padding:7px 16px;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--text3);font-size:12px;cursor:pointer;font-family:'Inter',sans-serif;">🍒 Сорта</button>
+      <button id="csub-rootstocks" onclick="switchCropsSub('rootstocks')"
+        style="padding:7px 16px;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--text3);font-size:12px;cursor:pointer;font-family:'Inter',sans-serif;">🌳 Подвои</button>
+    </div>
+
+    <!-- SUB: Обзор (прежнее содержимое) -->
+    <div id="csub-panel-overview">
 
     <!-- GDD status per crop today -->
     <div style="font-family:'Unbounded',sans-serif;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:2px;margin-bottom:12px;">📈 Текущий статус GDD по культурам</div>
@@ -427,7 +441,19 @@ tbody td{padding:10px 12px;vertical-align:middle;}
     <!-- Crop cards list -->
     <div style="font-family:'Unbounded',sans-serif;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:2px;margin-bottom:12px;">📚 Справочник культур</div>
     <div id="crops-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px;"></div>
+  </div><!-- end csub-panel-overview -->
+
+  <!-- SUB: Сорта -->
+  <div id="csub-panel-varieties" style="display:none;">
+    <div id="varieties-catalog-list"></div>
   </div>
+
+  <!-- SUB: Подвои -->
+  <div id="csub-panel-rootstocks" style="display:none;">
+    <div id="rootstocks-catalog-list"></div>
+  </div>
+
+</div><!-- end panel-crops -->
 
   <!-- WEATHER -->
   <div class="panel" id="panel-weather">
@@ -2482,6 +2508,183 @@ tbody td{padding:10px 12px;vertical-align:middle;}
   </div>
 </div>
 
+<!-- MODAL: Сорт -->
+<div class="modal-overlay" id="modal-variety-edit">
+  <div class="modal" style="max-width:680px;width:96%;max-height:92vh;overflow-y:auto;">
+    <h2 id="variety-edit-title">🍒 Сорт</h2>
+    <input type="hidden" id="ve-id">
+    <input type="hidden" id="ve-crop-id">
+
+    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">📌 Основное</div>
+    <div class="form-grid" style="margin-bottom:14px;">
+      <div class="ff"><label>Культура</label>
+        <select id="ve-crop" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);"></select>
+      </div>
+      <div class="ff"><label>Название сорта</label><input type="text" id="ve-name" placeholder="Регина, Kordia..."></div>
+      <div class="ff"><label>Оригинатор / страна</label><input type="text" id="ve-origin" placeholder="Германия, США..."></div>
+      <div class="ff"><label>Год допуска</label><input type="number" id="ve-year" placeholder="1998"></div>
+      <div class="ff"><label>Срок созревания</label>
+        <select id="ve-ripening" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+          <option>Очень ранний</option><option>Ранний</option><option>Средний</option><option>Поздний</option><option>Очень поздний</option>
+        </select>
+      </div>
+      <div class="ff"><label>Дней от цветения до сбора</label><input type="number" id="ve-days-flower" placeholder="45"></div>
+      <div class="ff"><label>Тип опыления</label>
+        <select id="ve-poll-type" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+          <option value="cross">Перекрёстное</option><option value="self">Самоопыляемый</option><option value="partial">Частично самоопыляемый</option>
+        </select>
+      </div>
+      <div class="ff"><label>Опылители</label><input type="text" id="ve-pollinators" placeholder="Коралл, Наполеон"></div>
+    </div>
+
+    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🍒 Плод</div>
+    <div class="form-grid" style="margin-bottom:14px;">
+      <div class="ff"><label>Масса плода (г)</label><input type="number" id="ve-fruit-weight" placeholder="8.5" step="0.1"></div>
+      <div class="ff"><label>Цвет плода</label><input type="text" id="ve-fruit-color" placeholder="Тёмно-красный, жёлтый..."></div>
+      <div class="ff"><label>Плотность мякоти</label>
+        <select id="ve-fruit-firmness" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+          <option>Очень плотная</option><option>Плотная</option><option>Средняя</option><option>Мягкая</option>
+        </select>
+      </div>
+      <div class="ff"><label>Вкус</label><input type="text" id="ve-fruit-taste" placeholder="Сладкий, сладко-кислый..."></div>
+      <div class="ff"><label>Сахар (Brix °)</label><input type="number" id="ve-brix" step="0.1" placeholder="17.5"></div>
+      <div class="ff"><label>Устойчивость к растрескиванию (1–5)</label>
+        <select id="ve-crack-resistance" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+          <option value="5">5 — отличная</option><option value="4">4 — хорошая</option><option value="3">3 — средняя</option><option value="2">2 — слабая</option><option value="1">1 — очень слабая</option>
+        </select>
+      </div>
+    </div>
+
+    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🌳 Дерево и продуктивность</div>
+    <div class="form-grid" style="margin-bottom:14px;">
+      <div class="ff"><label>Сила роста</label>
+        <select id="ve-vigor" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+          <option>Сильнорослый</option><option>Среднерослый</option><option>Слаборослый</option>
+        </select>
+      </div>
+      <div class="ff"><label>Форма кроны</label><input type="text" id="ve-crown" placeholder="Пирамидальная, шаровидная..."></div>
+      <div class="ff"><label>Начало плодоношения (год)</label><input type="number" id="ve-bearing-year" placeholder="3"></div>
+      <div class="ff"><label>Потенциальная урожайность (т/га)</label><input type="number" id="ve-yield" step="0.1" placeholder="18"></div>
+      <div class="ff"><label>Схема посадки</label><input type="text" id="ve-spacing" placeholder="4×2, 5×3 м"></div>
+      <div class="ff"><label>Подвой (рекомендуемый)</label><input type="text" id="ve-rootstock-rec" placeholder="Гизела 5, ВСЛ-2..."></div>
+    </div>
+
+    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🛡️ Устойчивость к болезням (1–5)</div>
+    <div class="form-grid" style="margin-bottom:14px;">
+      <div class="ff"><label>Монилиоз</label>
+        <select id="ve-res-monilia" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+          <option value="5">5 — устойчивый</option><option value="4">4</option><option value="3">3 — средний</option><option value="2">2</option><option value="1">1 — восприимчивый</option>
+        </select>
+      </div>
+      <div class="ff"><label>Коккомикоз</label>
+        <select id="ve-res-cocco" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+          <option value="5">5</option><option value="4">4</option><option value="3">3</option><option value="2">2</option><option value="1">1</option>
+        </select>
+      </div>
+      <div class="ff"><label>Клястероспориоз</label>
+        <select id="ve-res-claster" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+          <option value="5">5</option><option value="4">4</option><option value="3">3</option><option value="2">2</option><option value="1">1</option>
+        </select>
+      </div>
+      <div class="ff"><label>Парша / Мучнистая роса</label>
+        <select id="ve-res-scab" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+          <option value="5">5</option><option value="4">4</option><option value="3">3</option><option value="2">2</option><option value="1">1</option>
+        </select>
+      </div>
+      <div class="ff"><label>Зимостойкость (1–5)</label>
+        <select id="ve-frost" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+          <option value="5">5 — высокая</option><option value="4">4</option><option value="3">3 — средняя</option><option value="2">2</option><option value="1">1 — низкая</option>
+        </select>
+      </div>
+      <div class="ff"><label>Chill Portions (норма)</label><input type="number" id="ve-cp" placeholder="55" step="1"></div>
+    </div>
+
+    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">📋 Дополнительно</div>
+    <div class="form-grid" style="margin-bottom:14px;">
+      <div class="ff"><label>Цвет метки на карте</label>
+        <select id="ve-color" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+          <option value="vc0">🔴 Красный</option><option value="vc1">🟠 Оранжевый</option><option value="vc2">🟡 Жёлтый</option>
+          <option value="vc3">🟢 Зелёный</option><option value="vc4">🔵 Синий</option><option value="vc5">🟣 Фиолетовый</option>
+          <option value="vc6">⚪ Белый</option><option value="vc7">⚫ Чёрный</option>
+        </select>
+      </div>
+      <div class="ff full"><label>Примечание / агрономические особенности</label>
+        <textarea id="ve-note" rows="2" placeholder="Особенности возделывания, риски, рекомендации..."
+          style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);resize:vertical;"></textarea>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-danger btn-sm" id="ve-del-btn" style="display:none;margin-right:auto;" onclick="deleteVarietyEdit()">🗑 Удалить</button>
+      <button class="btn btn-secondary" onclick="closeModal('modal-variety-edit')">Отмена</button>
+      <button class="btn btn-primary" onclick="saveVarietyEdit()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Подвой -->
+<div class="modal-overlay" id="modal-rootstock">
+  <div class="modal" style="max-width:620px;width:96%;max-height:92vh;overflow-y:auto;">
+    <h2 id="rootstock-modal-title">🌳 Подвой</h2>
+    <input type="hidden" id="rs-id">
+    <div class="form-grid" style="margin-bottom:14px;">
+      <div class="ff"><label>Культура</label>
+        <select id="rs-crop" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);"></select>
+      </div>
+      <div class="ff"><label>Название подвоя</label><input type="text" id="rs-name" placeholder="Гизела 5, ВСЛ-2, М9..."></div>
+      <div class="ff"><label>Тип</label>
+        <select id="rs-type" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+          <option value="clonal">Клоновый</option><option value="seed">Семенной</option><option value="interstock">Интерстем</option>
+        </select>
+      </div>
+      <div class="ff"><label>Сила роста (% от сеянца)</label><input type="number" id="rs-vigor" placeholder="40" step="1"></div>
+      <div class="ff"><label>Начало плодоношения (год)</label><input type="number" id="rs-bearing" placeholder="2"></div>
+      <div class="ff"><label>Продуктивность</label>
+        <select id="rs-productivity" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+          <option>Высокая</option><option>Средняя</option><option>Низкая</option>
+        </select>
+      </div>
+      <div class="ff"><label>Потребность в опоре</label>
+        <select id="rs-support" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+          <option value="required">Обязательна</option><option value="recommended">Рекомендуется</option><option value="none">Не нужна</option>
+        </select>
+      </div>
+      <div class="ff"><label>Корневая система</label>
+        <select id="rs-roots" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+          <option>Мочковатая (поверхностная)</option><option>Стержневая (глубокая)</option><option>Смешанная</option>
+        </select>
+      </div>
+      <div class="ff"><label>Устойчивость к засухе (1–5)</label>
+        <select id="rs-drought" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+          <option value="5">5</option><option value="4">4</option><option value="3">3</option><option value="2">2</option><option value="1">1</option>
+        </select>
+      </div>
+      <div class="ff"><label>Устойчивость к переувлажнению (1–5)</label>
+        <select id="rs-wet" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+          <option value="5">5</option><option value="4">4</option><option value="3">3</option><option value="2">2</option><option value="1">1</option>
+        </select>
+      </div>
+      <div class="ff"><label>Зимостойкость (1–5)</label>
+        <select id="rs-frost" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+          <option value="5">5</option><option value="4">4</option><option value="3">3</option><option value="2">2</option><option value="1">1</option>
+        </select>
+      </div>
+      <div class="ff"><label>pH почвы (диапазон)</label><input type="text" id="rs-ph" placeholder="6.0–7.0"></div>
+      <div class="ff"><label>Рекомендуемые сорта-привои</label><input type="text" id="rs-compatible" placeholder="Регина, Kordia, Lapins..."></div>
+      <div class="ff"><label>Схема посадки (рекомен.)</label><input type="text" id="rs-spacing" placeholder="4×2 м"></div>
+      <div class="ff full"><label>Примечание</label>
+        <textarea id="rs-note" rows="2" placeholder="Особенности, совместимость с сортами, агрофон..."
+          style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);resize:vertical;"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger btn-sm" id="rs-del-btn" style="display:none;margin-right:auto;" onclick="deleteRootstock()">🗑 Удалить</button>
+      <button class="btn btn-secondary" onclick="closeModal('modal-rootstock')">Отмена</button>
+      <button class="btn btn-primary" onclick="saveRootstock()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 // ===================== STATE =====================
@@ -2489,6 +2692,7 @@ let S = {
   rows:6, cols:8,
   warehouse: { chemicals: [], parts: [], seeds: [], history: [] },
   irrigEquip: { pumps: [], valves: [], drip: [], frost: [] },
+  rootstocks: [],
   varieties:[
     {id:'v1',name:'Регина',  ripening:'Поздний',pollType:'cross',pollinators:'Коралл, Наполеон',color:'vc0',note:'',cropId:'crop_cherry'},
     {id:'v2',name:'Коралл',  ripening:'Средний',pollType:'cross',pollinators:'Регина, Ревна',   color:'vc1',note:'',cropId:'crop_cherry'},
@@ -3271,7 +3475,7 @@ function switchTab(tab,el){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   el.classList.add('active');document.getElementById('panel-'+tab).classList.add('active');
-  if(tab==='crops'){renderCrops();}
+  if(tab==='crops'){renderCrops(); switchCropsSub('overview');}
   if(tab==='chill'){renderChill();}
   if(tab==='weather'){renderWeather(); loadCherryForecast(); switchWeatherSub('weather');}
   if(tab==='irrigation'){renderIrrigation();}
@@ -7850,6 +8054,258 @@ function renderCrops() {
     </div>`).join('');
 }
 
+// ═══ СПРАВОЧНИК СОРТОВ И ПОДВОЕВ ══════════════════════════════════════
+
+function switchCropsSub(sub) {
+  ['overview','varieties','rootstocks'].forEach(s => {
+    const panel = document.getElementById('csub-panel-'+s);
+    const btn   = document.getElementById('csub-'+s);
+    if(!panel||!btn) return;
+    const active = s===sub;
+    panel.style.display = active ? '' : 'none';
+    btn.style.color      = active ? (s==='varieties'?'var(--orange)':s==='rootstocks'?'var(--teal)':'var(--accent)') : 'var(--text3)';
+    btn.style.borderBottom = active ? `2px solid ${s==='varieties'?'var(--orange)':s==='rootstocks'?'var(--teal)':'var(--accent)'}` : '2px solid transparent';
+    btn.style.fontWeight = active ? '700' : '400';
+  });
+  // Показываем нужные кнопки в header
+  document.getElementById('crops-btn-add-crop').style.display     = sub==='overview'    ? '' : 'none';
+  document.getElementById('crops-btn-add-variety').style.display  = sub==='varieties'   ? '' : 'none';
+  document.getElementById('crops-btn-add-rootstock').style.display= sub==='rootstocks'  ? '' : 'none';
+  if(sub==='varieties')  renderVarietiesCatalog();
+  if(sub==='rootstocks') renderRootstocksCatalog();
+}
+
+const STAR = n => '★'.repeat(Math.min(5,parseInt(n)||0)) + '☆'.repeat(Math.max(0,5-(parseInt(n)||0)));
+const RES_COLOR = n => {const v=parseInt(n)||3; return v>=4?'var(--accent)':v>=3?'var(--yellow)':'var(--red)';};
+
+function renderVarietiesCatalog() {
+  const el = document.getElementById('varieties-catalog-list');
+  if(!el) return;
+  if(!S.varieties.length){ el.innerHTML='<div style="color:var(--text3);padding:20px;text-align:center;">Сорта не добавлены. Нажмите + Сорт</div>'; return; }
+
+  // Группируем по культуре
+  const byCrop = {};
+  S.varieties.forEach(v => {
+    const cropId = v.cropId||'crop_cherry';
+    if(!byCrop[cropId]) byCrop[cropId]=[];
+    byCrop[cropId].push(v);
+  });
+
+  el.innerHTML = Object.entries(byCrop).map(([cropId, vars]) => {
+    const crop = getCropById(cropId)||{name:cropId,emoji:'🌱'};
+    return `<div style="margin-bottom:28px;">
+      <div style="font-family:'Unbounded',sans-serif;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:2px;margin-bottom:12px;">
+        ${crop.emoji} ${crop.name}
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;">
+        ${vars.map(v => `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+            <div>
+              <div style="font-size:15px;font-weight:700;">${v.name}</div>
+              <div style="font-size:11px;color:var(--text3);">${v.origin||''} ${v.year?'· '+v.year+' г.':''}</div>
+            </div>
+            <div style="display:flex;gap:4px;">
+              <span style="padding:2px 8px;border-radius:10px;font-size:10px;background:rgba(74,222,128,.1);color:var(--accent);font-weight:600;">${v.ripening||'—'}</span>
+              <button class="btn btn-secondary btn-xs" onclick="openVarietyEditModal('${v.id}')">✏️</button>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;font-size:11px;">
+            ${v.fruitWeight?`<div><span style="color:var(--text3);">Масса плода:</span> <strong>${v.fruitWeight} г</strong></div>`:''}
+            ${v.brix?`<div><span style="color:var(--text3);">Brix:</span> <strong>${v.brix}°</strong></div>`:''}
+            ${v.yield?`<div><span style="color:var(--text3);">Урожайность:</span> <strong>${v.yield} т/га</strong></div>`:''}
+            ${v.spacing?`<div><span style="color:var(--text3);">Схема:</span> <strong>${v.spacing}</strong></div>`:''}
+            ${v.bearingYear?`<div><span style="color:var(--text3);">Плодоношение:</span> <strong>${v.bearingYear} год</strong></div>`:''}
+            ${v.cp?`<div><span style="color:var(--text3);">Chill Portions:</span> <strong style="color:var(--blue);">${v.cp} CP</strong></div>`:''}
+          </div>
+          ${v.pollinators?`<div style="font-size:11px;color:var(--text3);margin-bottom:6px;">🌸 Опылители: <strong style="color:var(--text2);">${v.pollinators}</strong></div>`:''}
+          ${v.rootstockRec?`<div style="font-size:11px;color:var(--text3);margin-bottom:6px;">🌳 Подвой: <strong style="color:var(--text2);">${v.rootstockRec}</strong></div>`:''}
+          ${(v.resMonilia||v.resCocco||v.resFrost)?`
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+            ${v.resMonilia?`<span style="font-size:10px;padding:1px 6px;border-radius:6px;background:${RES_COLOR(v.resMonilia)}22;color:${RES_COLOR(v.resMonilia)};" title="Монилиоз">М:${v.resMonilia}/5</span>`:''}
+            ${v.resCocco?`<span style="font-size:10px;padding:1px 6px;border-radius:6px;background:${RES_COLOR(v.resCocco)}22;color:${RES_COLOR(v.resCocco)};" title="Коккомикоз">К:${v.resCocco}/5</span>`:''}
+            ${v.resClaster?`<span style="font-size:10px;padding:1px 6px;border-radius:6px;background:${RES_COLOR(v.resClaster)}22;color:${RES_COLOR(v.resClaster)};" title="Клястероспориоз">Кл:${v.resClaster}/5</span>`:''}
+            ${v.resScab?`<span style="font-size:10px;padding:1px 6px;border-radius:6px;background:${RES_COLOR(v.resScab)}22;color:${RES_COLOR(v.resScab)};" title="Парша">П:${v.resScab}/5</span>`:''}
+            ${v.frost?`<span style="font-size:10px;padding:1px 6px;border-radius:6px;background:rgba(96,165,250,.15);color:var(--blue);" title="Зимостойкость">❄️${v.frost}/5</span>`:''}
+            ${v.crackResistance?`<span style="font-size:10px;padding:1px 6px;border-radius:6px;background:rgba(251,191,36,.12);color:var(--yellow);" title="Устойчивость к растрескиванию">💧${v.crackResistance}/5</span>`:''}
+          </div>`:''}
+          ${v.note?`<div style="font-size:11px;color:var(--text3);border-top:1px solid var(--border);padding-top:6px;margin-top:4px;">${v.note}</div>`:''}
+        </div>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderRootstocksCatalog() {
+  const el = document.getElementById('rootstocks-catalog-list');
+  if(!el) return;
+  const rs = S.rootstocks||[];
+  if(!rs.length){ el.innerHTML='<div style="color:var(--text3);padding:20px;text-align:center;">Подвои не добавлены. Нажмите + Подвой</div>'; return; }
+  const byCrop = {};
+  rs.forEach(r => { const c=r.cropId||'crop_cherry'; if(!byCrop[c])byCrop[c]=[]; byCrop[c].push(r); });
+  el.innerHTML = Object.entries(byCrop).map(([cropId,rootstocks]) => {
+    const crop = getCropById(cropId)||{name:cropId,emoji:'🌱'};
+    return `<div style="margin-bottom:28px;">
+      <div style="font-family:'Unbounded',sans-serif;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:2px;margin-bottom:12px;">${crop.emoji} ${crop.name}</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;">
+        ${rootstocks.map(r=>`<div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+            <div>
+              <div style="font-size:15px;font-weight:700;">🌳 ${r.name}</div>
+              <div style="font-size:11px;color:var(--text3);">${r.type||'Клоновый'}${r.vigor?' · '+r.vigor+'% роста':''}</div>
+            </div>
+            <button class="btn btn-secondary btn-xs" onclick="openRootstockModal('${r.id}')">✏️</button>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;font-size:11px;">
+            ${r.bearingYear?`<div><span style="color:var(--text3);">Плодоношение:</span> <strong>${r.bearingYear} год</strong></div>`:''}
+            ${r.productivity?`<div><span style="color:var(--text3);">Продуктивность:</span> <strong>${r.productivity}</strong></div>`:''}
+            ${r.support?`<div><span style="color:var(--text3);">Опора:</span> <strong>${{required:'Обязательна',recommended:'Рекомендуется',none:'Не нужна'}[r.support]||r.support}</strong></div>`:''}
+            ${r.ph?`<div><span style="color:var(--text3);">pH почвы:</span> <strong>${r.ph}</strong></div>`:''}
+            ${r.spacing?`<div><span style="color:var(--text3);">Схема:</span> <strong>${r.spacing}</strong></div>`:''}
+            ${r.roots?`<div style="grid-column:1/-1;"><span style="color:var(--text3);">Корни:</span> ${r.roots}</div>`:''}
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;">
+            ${r.drought?`<span style="font-size:10px;padding:1px 6px;border-radius:6px;background:${RES_COLOR(r.drought)}22;color:${RES_COLOR(r.drought)};" title="Засухоустойчивость">☀️${r.drought}/5</span>`:''}
+            ${r.wet?`<span style="font-size:10px;padding:1px 6px;border-radius:6px;background:${RES_COLOR(r.wet)}22;color:${RES_COLOR(r.wet)};" title="Переувлажнение">💧${r.wet}/5</span>`:''}
+            ${r.frost?`<span style="font-size:10px;padding:1px 6px;border-radius:6px;background:rgba(96,165,250,.15);color:var(--blue);" title="Зимостойкость">❄️${r.frost}/5</span>`:''}
+          </div>
+          ${r.compatible?`<div style="font-size:11px;color:var(--text3);margin-bottom:4px;">🍒 Сорта: <strong style="color:var(--text2);">${r.compatible}</strong></div>`:''}
+          ${r.note?`<div style="font-size:11px;color:var(--text3);border-top:1px solid var(--border);padding-top:6px;margin-top:4px;">${r.note}</div>`:''}
+        </div>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openVarietyEditModal(id) {
+  const v = id ? S.varieties.find(x=>x.id===id) : null;
+  document.getElementById('variety-edit-title').textContent = v ? `✏️ ${v.name}` : '🍒 Новый сорт';
+  document.getElementById('ve-id').value = v?.id||'';
+  document.getElementById('ve-del-btn').style.display = v ? 'block' : 'none';
+  // Культуры
+  const cropSel = document.getElementById('ve-crop');
+  cropSel.innerHTML = S.crops.map(c=>`<option value="${c.id}" ${(v?.cropId||'crop_cherry')===c.id?'selected':''}>${c.emoji||''} ${c.name}</option>`).join('');
+  // Заполняем поля
+  const fields = {
+    've-name':v?.name||'', 've-origin':v?.origin||'', 've-year':v?.year||'',
+    've-ripening':v?.ripening||'Средний', 've-days-flower':v?.daysFlower||'',
+    've-poll-type':v?.pollType||'cross', 've-pollinators':v?.pollinators||'',
+    've-fruit-weight':v?.fruitWeight||'', 've-fruit-color':v?.fruitColor||'',
+    've-fruit-firmness':v?.fruitFirmness||'Плотная', 've-fruit-taste':v?.fruitTaste||'',
+    've-brix':v?.brix||'', 've-crack-resistance':v?.crackResistance||'3',
+    've-vigor':v?.vigor||'Среднерослый', 've-crown':v?.crown||'',
+    've-bearing-year':v?.bearingYear||'', 've-yield':v?.yield||'',
+    've-spacing':v?.spacing||'', 've-rootstock-rec':v?.rootstockRec||'',
+    've-res-monilia':v?.resMonilia||'3', 've-res-cocco':v?.resCocco||'3',
+    've-res-claster':v?.resClaster||'3', 've-res-scab':v?.resScab||'3',
+    've-frost':v?.frost||'3', 've-cp':v?.cp||'',
+    've-color':v?.color||'vc0', 've-note':v?.note||'',
+  };
+  Object.entries(fields).forEach(([id,val])=>{ const el=document.getElementById(id); if(el) el.value=val; });
+  openModal('modal-variety-edit');
+}
+
+function saveVarietyEdit() {
+  const id = document.getElementById('ve-id').value;
+  const obj = {
+    id: id||uid(),
+    cropId: document.getElementById('ve-crop').value,
+    name: document.getElementById('ve-name').value.trim(),
+    origin: document.getElementById('ve-origin').value.trim(),
+    year: parseInt(document.getElementById('ve-year').value)||null,
+    ripening: document.getElementById('ve-ripening').value,
+    daysFlower: parseInt(document.getElementById('ve-days-flower').value)||null,
+    pollType: document.getElementById('ve-poll-type').value,
+    pollinators: document.getElementById('ve-pollinators').value.trim(),
+    fruitWeight: parseFloat(document.getElementById('ve-fruit-weight').value)||null,
+    fruitColor: document.getElementById('ve-fruit-color').value.trim(),
+    fruitFirmness: document.getElementById('ve-fruit-firmness').value,
+    fruitTaste: document.getElementById('ve-fruit-taste').value.trim(),
+    brix: parseFloat(document.getElementById('ve-brix').value)||null,
+    crackResistance: document.getElementById('ve-crack-resistance').value,
+    vigor: document.getElementById('ve-vigor').value,
+    crown: document.getElementById('ve-crown').value.trim(),
+    bearingYear: parseInt(document.getElementById('ve-bearing-year').value)||null,
+    yield: parseFloat(document.getElementById('ve-yield').value)||null,
+    spacing: document.getElementById('ve-spacing').value.trim(),
+    rootstockRec: document.getElementById('ve-rootstock-rec').value.trim(),
+    resMonilia: document.getElementById('ve-res-monilia').value,
+    resCocco: document.getElementById('ve-res-cocco').value,
+    resClaster: document.getElementById('ve-res-claster').value,
+    resScab: document.getElementById('ve-res-scab').value,
+    frost: document.getElementById('ve-frost').value,
+    cp: parseInt(document.getElementById('ve-cp').value)||null,
+    color: document.getElementById('ve-color').value,
+    note: document.getElementById('ve-note').value.trim(),
+  };
+  if(!obj.name){alert('Введите название сорта');return;}
+  const idx = S.varieties.findIndex(x=>x.id===obj.id);
+  if(idx>=0) S.varieties[idx]={...S.varieties[idx],...obj};
+  else S.varieties.push(obj);
+  save(); closeModal('modal-variety-edit'); renderVarietiesCatalog();
+}
+
+function deleteVarietyEdit() {
+  const id = document.getElementById('ve-id').value;
+  if(!id||!confirm('Удалить сорт?')) return;
+  S.varieties = S.varieties.filter(v=>v.id!==id);
+  save(); closeModal('modal-variety-edit'); renderVarietiesCatalog();
+}
+
+function openRootstockModal(id) {
+  if(!S.rootstocks) S.rootstocks=[];
+  const r = id ? S.rootstocks.find(x=>x.id===id) : null;
+  document.getElementById('rootstock-modal-title').textContent = r ? `✏️ ${r.name}` : '🌳 Новый подвой';
+  document.getElementById('rs-id').value = r?.id||'';
+  document.getElementById('rs-del-btn').style.display = r ? 'block' : 'none';
+  const cropSel = document.getElementById('rs-crop');
+  cropSel.innerHTML = S.crops.map(c=>`<option value="${c.id}" ${(r?.cropId||'crop_cherry')===c.id?'selected':''}>${c.emoji||''} ${c.name}</option>`).join('');
+  const fields = {
+    'rs-name':r?.name||'', 'rs-type':r?.type||'clonal', 'rs-vigor':r?.vigor||'',
+    'rs-bearing':r?.bearingYear||'', 'rs-productivity':r?.productivity||'Высокая',
+    'rs-support':r?.support||'required', 'rs-roots':r?.roots||'Мочковатая (поверхностная)',
+    'rs-drought':r?.drought||'3', 'rs-wet':r?.wet||'3', 'rs-frost':r?.frost||'3',
+    'rs-ph':r?.ph||'', 'rs-compatible':r?.compatible||'',
+    'rs-spacing':r?.spacing||'', 'rs-note':r?.note||'',
+  };
+  Object.entries(fields).forEach(([fid,val])=>{ const el=document.getElementById(fid); if(el) el.value=val; });
+  openModal('modal-rootstock');
+}
+
+function saveRootstock() {
+  if(!S.rootstocks) S.rootstocks=[];
+  const id = document.getElementById('rs-id').value;
+  const obj = {
+    id: id||uid(),
+    cropId: document.getElementById('rs-crop').value,
+    name: document.getElementById('rs-name').value.trim(),
+    type: document.getElementById('rs-type').value,
+    vigor: parseInt(document.getElementById('rs-vigor').value)||null,
+    bearingYear: parseInt(document.getElementById('rs-bearing').value)||null,
+    productivity: document.getElementById('rs-productivity').value,
+    support: document.getElementById('rs-support').value,
+    roots: document.getElementById('rs-roots').value,
+    drought: document.getElementById('rs-drought').value,
+    wet: document.getElementById('rs-wet').value,
+    frost: document.getElementById('rs-frost').value,
+    ph: document.getElementById('rs-ph').value.trim(),
+    compatible: document.getElementById('rs-compatible').value.trim(),
+    spacing: document.getElementById('rs-spacing').value.trim(),
+    note: document.getElementById('rs-note').value.trim(),
+  };
+  if(!obj.name){alert('Введите название подвоя');return;}
+  const idx = S.rootstocks.findIndex(x=>x.id===obj.id);
+  if(idx>=0) S.rootstocks[idx]=obj; else S.rootstocks.push(obj);
+  save(); closeModal('modal-rootstock'); renderRootstocksCatalog();
+}
+
+function deleteRootstock() {
+  const id = document.getElementById('rs-id').value;
+  if(!id||!confirm('Удалить подвой?')) return;
+  S.rootstocks = (S.rootstocks||[]).filter(r=>r.id!==id);
+  save(); closeModal('modal-rootstock'); renderRootstocksCatalog();
+}
+
+// ═══ БЛОК КУЛЬТУР ══════════════════════════════════════════════════════
 // ---- CROP EDIT MODAL ----
 let _editingCropId = null;
 let _editingCropPhases = [];
