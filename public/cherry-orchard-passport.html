@@ -1246,13 +1246,13 @@ tbody td{padding:10px 12px;vertical-align:middle;}
     <!-- Header fields -->
     <div class="form-grid" style="margin-bottom:10px;">
       <div class="ff"><label>Дата</label><input type="date" id="t-date"></div>
-      <div class="ff"><label>Клетка / участок</label>
-        <select id="t-cell" onchange="onTreatmentCellChange()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px;color:var(--text);width:100%;font-family:'Inter',sans-serif;">
-          <option value="all">🌳 Весь сад (все клетки)</option>
-        </select>
-        <div id="t-cell-crop-info" style="font-size:11px;color:var(--text3);margin-top:3px;"></div>
+      <div class="ff full">
+        <label>Клетки / участки</label>
+        <div id="t-cell-list" style="max-height:150px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:6px;background:var(--surface2);"></div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:5px;" id="t-cell-tags"></div>
+        <div id="t-cell-crop-info" style="font-size:11px;color:var(--accent);margin-top:3px;font-weight:600;"></div>
       </div>
-      <div class="ff"><label>Сорт</label><select id="t-var"><option value="all">Все сорта</option></select></div>
+      <div class="ff"><label>Сорт</label><select id="t-var" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);"><option value="all">Все сорта</option></select></div>
       <div class="ff"><label>Метод внесения</label>
         <select id="t-method-global" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px;color:var(--text);width:100%;font-family:'Inter',sans-serif;">
           <option value="foliar">🌿 Листовое опрыскивание</option>
@@ -3713,6 +3713,78 @@ function orchardCheckRotation(prodName, cellTarget) {
 
 let _otProductRows=[];
 let _otEditId=null;
+let _otCells=[]; // выбранные клетки для обработки
+
+function _buildTreatCellList(selectedKeys=[]) {
+  _otCells = selectedKeys.slice();
+  const listEl = document.getElementById('t-cell-list');
+  if(!listEl) return;
+  const cells = Object.keys(S.cells).sort();
+  // "Весь сад" кнопка
+  listEl.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:6px;cursor:pointer;margin-bottom:4px;border-bottom:1px solid var(--border);"
+      onclick="toggleTrCellAll()" id="trc-all">
+    <input type="checkbox" id="trcc-all" style="accent-color:var(--accent);" ${!_otCells.length?'checked':''}>
+    <span style="font-weight:600;">🌳 Весь сад (все клетки)</span>
+  </div>` + cells.map(k => {
+    const cd = S.cells[k];
+    const col = getCellColors(cd);
+    const crop = getCropById(cd?.cropId||'crop_cherry');
+    const ha = calcCellTotals(cd)?.totalHa||0;
+    const sel = _otCells.includes(k);
+    return `<div style="display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:6px;cursor:pointer;${sel?'background:rgba(107,221,107,.1);':''}"
+        onclick="toggleTrCell('${k}')" id="trc-${k}">
+      <input type="checkbox" id="trcc-${k}" style="accent-color:var(--accent);" ${sel?'checked':''} onclick="event.stopPropagation();toggleTrCell('${k}')">
+      <span>${crop?.emoji||'🌳'} <strong>${k}</strong>${col[0]?' — '+col[0].name:''}</span>
+      <span style="margin-left:auto;color:var(--text3);font-size:11px;">${ha.toFixed(3)} га</span>
+    </div>`;
+  }).join('');
+  _updateTrCellInfo();
+}
+
+function toggleTrCellAll() {
+  _otCells = [];
+  document.querySelectorAll('[id^="trc-"]').forEach(el => el.style.background='');
+  document.querySelectorAll('[id^="trcc-"]').forEach(cb => cb.checked=false);
+  document.getElementById('trcc-all').checked = true;
+  _updateTrCellInfo();
+  orchardUpdateChecks();
+}
+
+function toggleTrCell(k) {
+  const idx = _otCells.indexOf(k);
+  if(idx>=0) _otCells.splice(idx,1); else _otCells.push(k);
+  // обновляем UI
+  const row = document.getElementById('trc-'+k);
+  const cb = document.getElementById('trcc-'+k);
+  if(row) row.style.background = _otCells.includes(k) ? 'rgba(107,221,107,.1)' : '';
+  if(cb) cb.checked = _otCells.includes(k);
+  // "Весь сад" — снять если выбрана конкретная клетка
+  const allCb = document.getElementById('trcc-all');
+  if(allCb) allCb.checked = !_otCells.length;
+  _updateTrCellInfo();
+  orchardUpdateChecks();
+}
+
+function _updateTrCellInfo() {
+  const infoEl = document.getElementById('t-cell-crop-info');
+  const tagsEl = document.getElementById('t-cell-tags');
+  if(!infoEl||!tagsEl) return;
+  if(!_otCells.length) {
+    tagsEl.innerHTML = '';
+    infoEl.textContent = '';
+    return;
+  }
+  let totalHa = 0;
+  const tags = _otCells.map(k => {
+    const cd = S.cells[k]; if(!cd) return '';
+    const col = getCellColors(cd);
+    const ha = calcCellTotals(cd)?.totalHa||0;
+    totalHa += ha;
+    return `<span style="padding:2px 8px;border-radius:10px;background:rgba(107,221,107,.15);color:var(--accent);font-size:11px;">${k}${col[0]?' '+col[0].name:''}</span>`;
+  });
+  tagsEl.innerHTML = tags.join('');
+  infoEl.textContent = `${_otCells.length} кл. · ${totalHa.toFixed(3)} га`;
+}
 
 function openTreatmentModal(prefillProdId){
   _otEditId=null; _otProductRows=[];
@@ -3726,16 +3798,8 @@ function openTreatmentModal(prefillProdId){
   document.getElementById('ot-rotation-warning').style.display='none';
   document.getElementById('ot-tank-order').style.display='none';
 
-  // Cell select
-  const csel=document.getElementById('t-cell');
-  csel.innerHTML='<option value="all">🌳 Весь сад (все клетки)</option>';
-  Object.keys(S.cells).sort().forEach(k=>{
-    const cd=S.cells[k]; const col=getCellColors(cd);
-    const crop=getCropById(cd?.cropId||'crop_cherry');
-    csel.innerHTML+=`<option value="${k}">${crop?.emoji||'🌱'} ${k}${col[0]?' — '+col[0].name:''} (${crop?.name||''})</option>`;
-  });
-  csel.value='all';
-  document.getElementById('t-cell-crop-info').textContent='';
+  // Мультивыбор клеток — по умолчанию весь сад
+  _buildTreatCellList([]);
 
   // Variety select
   const vs=document.getElementById('t-var');
@@ -3750,7 +3814,6 @@ function openTreatmentModal(prefillProdId){
     cf.innerHTML+=`<option value="${t.id}">${t.date} · ${t.cellTarget||'сад'} · ${names}</option>`;
   });
 
-  // Initial product row
   if(prefillProdId){
     const cat=S.catalog.find(c=>c.id===prefillProdId);
     _otProductRows=[{catId:prefillProdId,name:cat?.name||'',type:cat?.type||'fungicide',dose:cat?.dose||'',dur:cat?.duration||14,washMm:cat?.washMm||15,active:cat?.activeSubstance||''}];
@@ -3768,7 +3831,9 @@ function openTreatmentEditModal(treatId){
   document.getElementById('ot-modal-title').textContent='✏️ Редактировать обработку';
   document.getElementById('ot-delete-btn').style.display='block';
   document.getElementById('t-date').value=t.date||'';
-  document.getElementById('t-cell').value=t.cellTarget||'all'; onTreatmentCellChange();
+  // Восстанавливаем выбор клеток
+  const savedCells = t.cellsTarget?.length ? t.cellsTarget : (t.cellTarget&&t.cellTarget!=='all'?[t.cellTarget]:[]);
+  _buildTreatCellList(savedCells);
   document.getElementById('t-var').value=t.varietyTarget||'all';
   document.getElementById('t-method-global').value=t.method||'foliar';
   document.getElementById('t-water').value=t.water||400;
@@ -3859,25 +3924,26 @@ function orchardUpdateChecks(){
     document.getElementById('ot-tank-order').style.display='block';
   } else document.getElementById('ot-tank-order').style.display='none';
 
-  // Расчёт итого на площадь клетки
-  const cellKey = document.getElementById('t-cell')?.value||'all';
+  // Расчёт итого на площадь клеток
   const waterPerHa = parseFloat(document.getElementById('t-water')?.value)||400;
-  const cd = (cellKey && cellKey!=='all') ? S.cells[cellKey] : null;
-  const totals = cd ? calcCellTotals(cd) : null;
-  const ha = totals?.totalHa || 0;
+  // Суммируем площадь выбранных клеток
+  let totalHa = 0;
+  if(_otCells.length) {
+    _otCells.forEach(k => { const cd=S.cells[k]; if(cd) totalHa+=calcCellTotals(cd)?.totalHa||0; });
+  }
   const calcEl = document.getElementById('ot-calc-summary');
   if(!calcEl) return;
   if(!names.length){ calcEl.style.display='none'; return; }
   const rows = _otProductRows.filter(r=>r.name);
-  const totalWater = ha>0 ? Math.round(waterPerHa*ha) : null;
+  const totalWater = totalHa>0 ? Math.round(waterPerHa*totalHa) : null;
   let html = '';
-  if(ha>0){
-    html += `<div style="font-size:10px;color:var(--text3);margin-bottom:8px;">📐 Площадь: <strong style="color:var(--accent);">${ha.toFixed(3)} га</strong> · Вода: <strong style="color:var(--blue);">${totalWater} л</strong></div>`;
+  if(totalHa>0){
+    html += `<div style="font-size:10px;color:var(--text3);margin-bottom:8px;">📐 Площадь: <strong style="color:var(--accent);">${totalHa.toFixed(3)} га</strong> · Вода: <strong style="color:var(--blue);">${totalWater} л</strong></div>`;
     html += `<div style="display:flex;flex-wrap:wrap;gap:6px;">`;
     rows.forEach(r=>{
       const dose=parseFloat(r.dose)||0;
       if(!dose) return;
-      const total=Math.round(dose*ha*1000)/1000;
+      const total=Math.round(dose*totalHa*1000)/1000;
       const TC={fungicide:'var(--teal)',insecticide:'var(--orange)',herbicide:'var(--yellow)',
         fertilizer:'var(--accent)',acaricide:'var(--purple)',microelement:'var(--blue)',other:'var(--text3)'};
       html+=`<div style="padding:6px 10px;border-radius:8px;background:var(--surface3);border:1px solid var(--border);">
@@ -3908,7 +3974,8 @@ function orchardCopyFromTreatment(){
   document.getElementById('t-method-global').value=t.method||'foliar';
   document.getElementById('t-water').value=t.water||t.water||400;
   document.getElementById('t-note').value=t.note||'';
-  if(t.cellTarget) document.getElementById('t-cell').value=t.cellTarget;
+  const savedCells = t.cellsTarget?.length ? t.cellsTarget : (t.cellTarget&&t.cellTarget!=='all'?[t.cellTarget]:[]);
+  _buildTreatCellList(savedCells);
   orchardRenderProductRows();
 }
 
@@ -4082,16 +4149,7 @@ function renderTreatments(){
   }).join('');
 }
 
-function onTreatmentCellChange() {
-  const cellKey=document.getElementById('t-cell').value;
-  const infoEl=document.getElementById('t-cell-crop-info');
-  if(!cellKey||cellKey==='all'){infoEl.textContent='';orchardUpdateChecks();return;}
-  const cd=S.cells[cellKey]; if(!cd){infoEl.textContent='';return;}
-  const crop=getCropById(cd.cropId||'crop_cherry');
-  const cols=getCellColors(cd);
-  infoEl.innerHTML=`${crop?.emoji||''} <strong>${crop?.name||''}</strong>${cols[0]?' · '+cols[0].name:''}`;
-  orchardUpdateChecks();
-}
+function onTreatmentCellChange() { orchardUpdateChecks(); } // legacy, мультивыбор через _otCells
 
 function saveTreatment(){
   const date=document.getElementById('t-date').value;
@@ -4107,8 +4165,8 @@ function saveTreatment(){
 
   const entry={
     id:_otEditId||Date.now(),date,
-    product:products.map(p=>p.name).join(' + '), // compat string
-    products, // full array
+    product:products.map(p=>p.name).join(' + '),
+    products,
     activeSubstance:products.map(p=>p.active).filter(Boolean).join(', '),
     type:first.type,
     method:document.getElementById('t-method-global').value,
@@ -4116,8 +4174,9 @@ function saveTreatment(){
     water:document.getElementById('t-water').value||400,
     duration:maxDur, washMm:minWash, catalogId:first.catId||null,
     endDate:end.toISOString().split('T')[0],
-    cellTarget:document.getElementById('t-cell').value||'all',
-    cropId:(()=>{const ck=document.getElementById('t-cell').value;return(ck&&ck!=='all'&&S.cells[ck])?S.cells[ck].cropId||null:null;})(),
+    cellsTarget:_otCells.length ? _otCells : [],
+    cellTarget:_otCells.length===1 ? _otCells[0] : (_otCells.length>1 ? _otCells.join(',') : 'all'),
+    cropId:(()=>{if(_otCells.length===1&&S.cells[_otCells[0]])return S.cells[_otCells[0]].cropId||null;return null;})(),
     varietyTarget:document.getElementById('t-var').value,
     note:document.getElementById('t-note').value
   };
