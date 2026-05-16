@@ -9177,27 +9177,59 @@ function renderCrops() {
 
   // Crops catalog
   const listEl = document.getElementById('crops-list');
-  listEl.innerHTML = S.crops.map(crop=>`
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;">
+  if(!listEl) return;
+  listEl.innerHTML = S.crops.map(crop => {
+    // Сколько клеток этой культуры
+    const cropCells = Object.values(S.cells).filter(cd=>(cd.cropId||'crop_cherry')===crop.id);
+    const totalHa = cropCells.reduce((s,cd)=>s+calcCellTotals(cd).totalHa, 0);
+    const totalTrees = cropCells.reduce((s,cd)=>s+calcCellTotals(cd).totalTrees, 0);
+    // Сорта этой культуры
+    const cropVarieties = S.varieties.filter(v=>(v.cropId||'crop_cherry')===crop.id);
+    // Текущая фаза
+    const gdd = getCurrentGdd(crop.baseTemp||4.5);
+    const currentPhase = crop.phases?.find((ph,i)=>{
+      const gddVals = S.gddDb.varietyGdd?.[S.varieties.find(v=>v.cropId===crop.id)?.id];
+      if(!gddVals) return false;
+      return gdd >= (gddVals[i]||0) && gdd < (gddVals[i+1]||9999);
+    });
+
+    return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px;">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
         <div style="font-size:32px;">${crop.emoji||'🌱'}</div>
         <div style="flex:1;">
           <div style="font-size:15px;font-weight:700;">${crop.name}</div>
-          <div style="font-size:11px;color:var(--text3);">База GDD: +${crop.baseTemp}°C · ${crop.phases.length} фаз</div>
+          <div style="font-size:11px;color:var(--text3);">Tbase +${crop.baseTemp}°C · ${crop.phases?.length||0} фаз BBCH</div>
         </div>
         <button class="btn btn-secondary btn-xs" onclick="openCropEditModal('${crop.id}')">✏️</button>
       </div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
-        ${crop.phases.map(ph=>`<span style="font-size:9px;padding:2px 7px;border-radius:10px;background:${ph.color}33;color:${ph.color};font-weight:600;">${ph.name}</span>`).join('')}
+
+      ${cropCells.length ? `
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px;">
+        <div style="text-align:center;padding:6px;background:var(--surface3);border-radius:6px;">
+          <div style="font-size:14px;font-weight:700;color:var(--accent);">${totalHa.toFixed(1)}</div>
+          <div style="font-size:9px;color:var(--text3);">га</div>
+        </div>
+        <div style="text-align:center;padding:6px;background:var(--surface3);border-radius:6px;">
+          <div style="font-size:14px;font-weight:700;color:var(--blue);">${totalTrees}</div>
+          <div style="font-size:9px;color:var(--text3);">деревьев</div>
+        </div>
+        <div style="text-align:center;padding:6px;background:var(--surface3);border-radius:6px;">
+          <div style="font-size:14px;font-weight:700;color:var(--yellow);">${cropVarieties.length}</div>
+          <div style="font-size:9px;color:var(--text3);">сортов</div>
+        </div>
+      </div>` : `<div style="font-size:11px;color:var(--text3);margin-bottom:10px;">Клетки не привязаны</div>`}
+
+      ${cropVarieties.length ? `
+      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;">
+        ${cropVarieties.slice(0,6).map(v=>`<span style="padding:2px 8px;border-radius:8px;font-size:10px;background:var(--surface3);color:var(--text2);">${v.name}</span>`).join('')}
+        ${cropVarieties.length>6?`<span style="font-size:10px;color:var(--text3);">+${cropVarieties.length-6}</span>`:''}
+      </div>` : ''}
+
+      <div style="display:flex;gap:4px;flex-wrap:wrap;">
+        ${(crop.phases||[]).slice(0,6).map(ph=>`<span style="font-size:9px;padding:1px 6px;border-radius:8px;background:${ph.color}22;color:${ph.color};font-weight:600;">${ph.name}</span>`).join('')}
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:8px;">
-        <div style="text-align:center;padding:6px;background:var(--surface2);border-radius:6px;font-size:11px;"><div style="color:var(--accent);font-family:'Unbounded',sans-serif;">${crop.nutrientNorms?.N||'—'}</div><div style="color:var(--text3);font-size:9px;">N кг/га</div></div>
-        <div style="text-align:center;padding:6px;background:var(--surface2);border-radius:6px;font-size:11px;"><div style="color:var(--blue);font-family:'Unbounded',sans-serif;">${crop.nutrientNorms?.P2O5||'—'}</div><div style="color:var(--text3);font-size:9px;">P₂O₅</div></div>
-        <div style="text-align:center;padding:6px;background:var(--surface2);border-radius:6px;font-size:11px;"><div style="color:var(--yellow);font-family:'Unbounded',sans-serif;">${crop.nutrientNorms?.K2O||'—'}</div><div style="color:var(--text3);font-size:9px;">K₂O</div></div>
-      </div>
-      ${crop.pests?.length?`<div style="font-size:10px;color:var(--text3);">🪲 Вредители: ${crop.pests.map(p=>p.name).join(', ')}</div>`:''}
-      ${crop.note?`<div style="font-size:10px;color:var(--text3);margin-top:4px;">💬 ${crop.note}</div>`:''}
-    </div>`).join('');
+    </div>`;
+  }).join('') || `<div style="color:var(--text3);padding:20px;text-align:center;">Нет культур. Нажмите + Культура.</div>`;
 }
 
 // ═══ СПРАВОЧНИК СОРТОВ И ПОДВОЕВ ══════════════════════════════════════
