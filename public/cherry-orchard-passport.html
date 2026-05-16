@@ -3684,19 +3684,20 @@ function _mergeState(parsed) {
   if(parsed.crops && Array.isArray(parsed.crops)){
     const builtinIds = S.crops.map(c=>c.id);
     const userAdded = parsed.crops.filter(c=>!builtinIds.includes(c.id));
-    const merged = S.crops.map(bc=>{
-      const saved = parsed.crops.find(c=>c.id===bc.id);
-      return saved ? Object.assign({},bc,saved) : bc;
-    });
+    // Только те встроенные которые есть в сохранённом (не были удалены)
+    const merged = parsed.crops.filter(c=>builtinIds.includes(c.id))
+      .map(saved=>{ const builtin=S.crops.find(b=>b.id===saved.id); return Object.assign({},builtin||{},saved); });
     parsed.crops = [...merged, ...userAdded];
   }
   if(parsed.varieties && Array.isArray(parsed.varieties)){
+    // Если пользователь сохранил varieties — используем только их (без принудительного мержа встроенных)
+    // Встроенные сорта добавляем только если их нет в сохранённом списке И они не были явно удалены
+    const savedIds = new Set(parsed.varieties.map(v=>v.id));
     const builtinIds = S.varieties.map(v=>v.id);
+    // Встроенные которых нет в сохранённом = были удалены пользователем, не восстанавливаем
     const userAdded = parsed.varieties.filter(v=>!builtinIds.includes(v.id));
-    const merged = S.varieties.map(bv=>{
-      const saved = parsed.varieties.find(v=>v.id===bv.id);
-      return saved ? Object.assign({},bv,saved) : bv;
-    });
+    const merged = parsed.varieties.filter(v=>builtinIds.includes(v.id))
+      .map(saved=>{ const builtin=S.varieties.find(b=>b.id===saved.id); return Object.assign({},builtin||{},saved); });
     parsed.varieties = [...merged, ...userAdded];
   }
   if(parsed.diseaseCatalog && Array.isArray(parsed.diseaseCatalog)){
