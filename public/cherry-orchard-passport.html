@@ -7553,18 +7553,21 @@ function calcFertDose() {
   const zone     = (S.irrigation.zones||[]).find(z=>z.id===zoneId);
   const areaHa   = zone?.area || Object.values(S.cells).reduce((s,cd)=>s+calcCellTotals(cd).totalHa,0) || 1;
 
+  // Читаем целевые ppm из полей
+  const ppm = {};
+  ['n','p','k','ca','mg'].forEach(el => {
+    ppm[el.toUpperCase()] = parseFloat(document.getElementById(`fc-ppm-${el}`)?.value)||0;
+  });
+
   // Научные алерты Neilsen et al.
   const sciAlerts = [];
-  const ppmN = parseFloat(document.getElementById('fc-ppm-n')?.value)||0;
-  if(ppmN > 120) sciAlerts.push(`⚠️ N ${ppmN}ppm превышает оптимум! Neilsen 2007: N &gt;168ppm → мельчание плода, задержка созревания, снижение Brix. Рекомендуется 84 ppm.`);
+  const ppmN = ppm.N || 0;
+  if(ppmN > 120) sciAlerts.push(`⚠️ N ${ppmN}ppm превышает оптимум! Neilsen 2007: N >168ppm → мельчание плода, задержка созревания, снижение Brix. Рекомендуется 84 ppm.`);
 
   const phase = document.getElementById('fc-phase')?.value;
   const phaseTargets = FERT_PHASE_TARGETS[phase];
   if(phaseTargets?.nFertPeriod?.includes('СТОП')) sciAlerts.push(`⛔ ${phaseTargets.stopNote||'Стоп фертигации за 30 дней до сбора!'}`);
   if(phaseTargets?.nFertPeriod?.includes('НЕ ВНОСИТЬ')) sciAlerts.push(`🚫 В период цветения N НЕ вносить! Только P при цветении (20г/дерево).`);
-  ['n','p','k','ca','mg'].forEach(el => {
-    ppm[el.toUpperCase()] = parseFloat(document.getElementById(`fc-ppm-${el}`)?.value)||0;
-  });
 
   // Вода из анализа
   const waterAn = [...(S.analyses||[])].filter(a=>a.type==='water').sort((a,b)=>b.date.localeCompare(a.date))[0];
