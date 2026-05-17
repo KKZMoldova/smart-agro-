@@ -103,6 +103,17 @@ router.post('/change-password', authMiddleware, async (req, res) => {
   const { oldPassword, newPassword } = req.body;
   if (!newPassword || newPassword.length < 6) return res.status(400).json({ error: 'Пароль минимум 6 символов' });
   try {
+    // Superadmin хранится в отдельной таблице
+    if (req.user.role === 'superadmin') {
+      const r = await db.query('SELECT * FROM super_admins WHERE login=$1', [req.user.login]);
+      if (!r.rows.length) return res.status(404).json({ error: 'Не найден' });
+      const ok = await bcrypt.compare(oldPassword, r.rows[0].password_hash);
+      if (!ok) return res.status(401).json({ error: 'Неверный текущий пароль' });
+      const hash = await bcrypt.hash(newPassword, 10);
+      await db.query('UPDATE super_admins SET password_hash=$1 WHERE login=$2', [hash, req.user.login]);
+      return res.json({ ok: true });
+    }
+    // Обычный пользователь
     const r = await db.query('SELECT * FROM users WHERE id=$1', [req.user.userId]);
     if (!r.rows.length) return res.status(404).json({ error: 'Пользователь не найден' });
     const ok = await bcrypt.compare(oldPassword, r.rows[0].password_hash);
