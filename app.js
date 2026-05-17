@@ -229,7 +229,12 @@ app.get('/api/test-telegram', async (req, res) => {
 app.get('/map',      (req, res) => res.sendFile(path.join(__dirname, 'public', 'map.html')));
 app.get('/analyses', (req, res) => res.sendFile(path.join(__dirname, 'public', 'analyses.html')));
 app.get('/vegetable',(req, res) => res.sendFile(path.join(__dirname, 'public', 'smart-vegetable.html')));
-app.get('/orchard',  (req, res) => res.sendFile(path.join(__dirname, 'public', 'cherry-orchard-passport.html')));
+app.get('/orchard', (req, res) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  res.sendFile(path.join(__dirname, 'public', 'cherry-orchard-passport.html'));
+});
 app.get('/',         (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 // ═══ CRON ═════════════════════════════════════════════════════════════════
