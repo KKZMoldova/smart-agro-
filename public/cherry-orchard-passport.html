@@ -2874,17 +2874,39 @@ tbody td{padding:10px 12px;vertical-align:middle;}
 
 <!-- MODAL: Зона полива -->
 <div class="modal-overlay" id="modal-irrig-zone">
-  <div class="modal" style="max-width:600px;width:96%;max-height:92vh;overflow-y:auto;">
+  <div class="modal" style="max-width:620px;width:96%;max-height:92vh;overflow-y:auto;">
     <h2 id="iz-modal-title">🗺 Зона полива</h2>
     <input type="hidden" id="iz-id">
     <div class="form-grid">
-      <div class="ff full"><label>Название зоны</label><input type="text" id="iz-name" placeholder="Зона А — Черешня блок 1-3"></div>
-      <div class="ff"><label>Клетки сада</label>
-        <div id="iz-cell-list" style="max-height:120px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:6px;background:var(--surface2);font-size:11px;"></div>
-        <div id="iz-cell-tags" style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;"></div>
+      <div class="ff full"><label>Название зоны</label>
+        <input type="text" id="iz-name" placeholder="Зона А — Черешня блок 1-3"></div>
+
+      <!-- Клетки -->
+      <div class="ff full"><label>Клетки сада (участки)</label>
+        <div id="iz-cell-list" style="max-height:130px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:6px;background:var(--surface2);font-size:11px;"></div>
+        <div id="iz-cell-tags" style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px;"></div>
       </div>
-      <div class="ff"><label>Клапан (ID / название)</label><input type="text" id="iz-valve" placeholder="V-01, Bermad 400E зона А"></div>
-      <div class="ff"><label>Насос</label><input type="text" id="iz-pump" placeholder="Grundfos CM5-6"></div>
+
+      <!-- Сорта в зоне (автоматически из клеток) -->
+      <div class="ff full" id="iz-varieties-wrap" style="display:none;">
+        <label>Сорта в зоне</label>
+        <div id="iz-varieties-list" style="display:flex;gap:6px;flex-wrap:wrap;padding:6px;background:var(--surface2);border-radius:8px;"></div>
+      </div>
+
+      <!-- Оборудование из справочника -->
+      <div class="ff"><label>Клапан</label>
+        <select id="iz-valve-sel" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+          <option value="">— выбрать клапан —</option>
+        </select>
+        <input type="text" id="iz-valve" placeholder="или введите вручную" style="width:100%;padding:6px 8px;margin-top:4px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;">
+      </div>
+      <div class="ff"><label>Насос</label>
+        <select id="iz-pump-sel" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+          <option value="">— выбрать насос —</option>
+        </select>
+        <input type="text" id="iz-pump" placeholder="или введите вручную" style="width:100%;padding:6px 8px;margin-top:4px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;">
+      </div>
+
       <div class="ff"><label>Тип полива</label>
         <select id="iz-type" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
           <option value="drip">💧 Капельный</option>
@@ -2894,13 +2916,24 @@ tbody td{padding:10px 12px;vertical-align:middle;}
           <option value="flood">🌊 Поверхностный</option>
         </select>
       </div>
-      <div class="ff"><label>Расход системы (м³/ч)</label><input type="number" id="iz-flow" step="0.1" placeholder="3.5"></div>
-      <div class="ff"><label>Рабочее давление (бар)</label><input type="number" id="iz-pressure" step="0.1" placeholder="1.5"></div>
-      <div class="ff"><label>Тип эмиттера</label><input type="text" id="iz-dripper-type" placeholder="Netafim 2л/ч inline"></div>
-      <div class="ff"><label>Расход эмиттера (л/ч)</label><input type="number" id="iz-dripper-flow" step="0.1" placeholder="2.0"></div>
-      <div class="ff"><label>Эмиттеров на дерево</label><input type="number" id="iz-drippers-per-tree" step="1" placeholder="2"></div>
-      <div class="ff"><label>Расстояние между эмиттерами (см)</label><input type="number" id="iz-emitter-spacing" step="1" placeholder="50"></div>
-      <div class="ff full"><label>Примечание</label><input type="text" id="iz-note" placeholder="Особенности зоны..."></div>
+      <div class="ff"><label>Расход системы (м³/ч)</label>
+        <input type="number" id="iz-flow" step="0.1" placeholder="3.5"></div>
+      <div class="ff"><label>Рабочее давление (бар)</label>
+        <input type="number" id="iz-pressure" step="0.1" placeholder="1.5"></div>
+      <div class="ff"><label>Тип эмиттера</label>
+        <select id="iz-dripper-sel" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+          <option value="">— из справочника —</option>
+        </select>
+        <input type="text" id="iz-dripper-type" placeholder="или введите вручную" style="width:100%;padding:6px 8px;margin-top:4px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;">
+      </div>
+      <div class="ff"><label>Расход эмиттера (л/ч)</label>
+        <input type="number" id="iz-dripper-flow" step="0.1" placeholder="2.0"></div>
+      <div class="ff"><label>Эмиттеров на дерево</label>
+        <input type="number" id="iz-drippers-per-tree" step="1" placeholder="2"></div>
+      <div class="ff"><label>Расстояние между эмиттерами (см)</label>
+        <input type="number" id="iz-emitter-spacing" step="1" placeholder="50"></div>
+      <div class="ff full"><label>Примечание</label>
+        <input type="text" id="iz-note" placeholder="Особенности зоны..."></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-danger btn-sm" id="iz-del-btn" style="display:none;margin-right:auto;" onclick="deleteIrrigZone()">🗑 Удалить</button>
@@ -3049,34 +3082,40 @@ tbody td{padding:10px 12px;vertical-align:middle;}
       <div class="ff"><label>Дата полива</label>
         <input type="date" id="ie-date" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
       </div>
-      <div class="ff"><label>Зона полива</label>
+      <div class="ff"><label>Зона полива (если настроена)</label>
         <select id="ie-zone" onchange="calcIrrigVolume()" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
-          <option value="">— выбрать зону —</option>
+          <option value="">— без зоны / вручную —</option>
+        </select>
+      </div>
+      <div class="ff"><label>Участок / клетка</label>
+        <select id="ie-cell" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+          <option value="">— весь сад —</option>
         </select>
       </div>
       <div class="ff"><label>Продолжительность (мин)</label>
         <input type="number" id="ie-duration" placeholder="120" oninput="calcIrrigVolume()"
           style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
       </div>
-      <div class="ff"><label>Объём воды (м³) — авто</label>
-        <input type="number" id="ie-volume" step="0.1" placeholder="0"
+      <div class="ff"><label>Объём воды (м³)</label>
+        <input type="number" id="ie-volume" step="0.1" placeholder="0" oninput="calcIrrigMm()"
           style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
       </div>
-      <div class="ff"><label>Норма полива (мм) — авто</label>
-        <input type="number" id="ie-mm" step="0.1" placeholder="0" readonly
-          style="width:100%;padding:8px;background:var(--surface3);border:1px solid var(--border);border-radius:8px;color:var(--accent);font-weight:600;">
+      <div class="ff"><label>Норма полива (мм)</label>
+        <input type="number" id="ie-mm" step="0.1" placeholder="введите мм или рассчитается авто"
+          style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--accent);font-weight:600;">
       </div>
-      <div class="ff"><label>Фаза</label>
+      <div class="ff"><label>Фаза GDD</label>
         <input type="text" id="ie-phase" placeholder="Завязь" readonly
           style="width:100%;padding:8px;background:var(--surface3);border:1px solid var(--border);border-radius:8px;color:var(--text3);">
       </div>
       <div class="ff full"><label>Примечание</label>
-        <input type="text" id="ie-note" placeholder="Плановый полив, экстренный, фертигация..."
+        <input type="text" id="ie-note" placeholder="Плановый, экстренный, фертигация..."
           style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
       </div>
     </div>
     <div id="ie-recommendation" style="margin-top:10px;padding:10px;background:rgba(96,165,250,.06);border-radius:8px;font-size:11px;color:var(--text2);display:none;"></div>
     <div class="modal-footer">
+      <button class="btn btn-danger btn-sm" id="ie-del-btn" style="display:none;margin-right:auto;" onclick="deleteIrrigEvent()">🗑</button>
       <button class="btn btn-secondary" onclick="closeModal('modal-irrig-event')">Отмена</button>
       <button class="btn btn-primary" onclick="saveIrrigEvent()">💾 Сохранить</button>
     </div>
@@ -6589,16 +6628,29 @@ function renderIrrigZones() {
             <div style="font-size:9px;color:var(--text3);">бар</div>
           </div>
         </div>
-        <div style="font-size:11px;color:var(--text3);">
-          ${z.dripperType?`💧 ${z.dripperType} · ${z.dripperFlow}л/ч · ${z.drippersPerTree}шт/дер · ${totalDrippers} эм. всего`:''}
-          ${z.cellKeys?.length?`<br>🌳 Клетки: ${z.cellKeys.join(', ')} · ${totalTrees} дер.`:''}
-          ${z.valveId?`<br>🔩 Клапан: ${z.valveId}`:''}
+        ${(() => {
+          // Сорта в зоне
+          const zoneVarieties = new Map();
+          (z.cellKeys||[]).forEach(k=>{
+            const cd=S.cells[k]; if(!cd) return;
+            const cropId=cd.cropId||'crop_cherry';
+            S.varieties.filter(v=>(v.cropId||'crop_cherry')===cropId)
+              .forEach(v=>{ if(!zoneVarieties.has(v.id)) zoneVarieties.set(v.id,v); });
+          });
+          if(!zoneVarieties.size) return '';
+          return `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;">
+            ${[...zoneVarieties.values()].map(v=>`<span style="padding:1px 8px;border-radius:8px;font-size:10px;background:rgba(74,222,128,.1);color:var(--accent);">🍒 ${v.name}</span>`).join('')}
+          </div>`;
+        })()}
+        <div style="font-size:11px;color:var(--text3);line-height:1.8;">
+          ${z.dripperType?`💧 ${z.dripperType} · ${z.dripperFlow}л/ч · ${z.drippersPerTree}шт/дер`:''}
+          ${z.cellKeys?.length?`<br>📍 Клетки: ${z.cellKeys.join(', ')} · ${totalTrees} дер.`:''}
+          ${z.valveId?`<br>🔩 Клапан: <strong>${z.valveId}</strong>`:''}
+          ${z.pumpId?` · 🔧 Насос: <strong>${z.pumpId}</strong>`:''}
         </div>
       </div>`;
     }).join('') + `</div>`;
 }
-
-let _izCells = [];
 
 function openIrrigZoneModal(id) {
   const z = id ? (S.irrigation.zones||[]).find(x=>x.id===id) : null;
@@ -6606,6 +6658,7 @@ function openIrrigZoneModal(id) {
   document.getElementById('iz-id').value = z?.id||'';
   document.getElementById('iz-del-btn').style.display = z ? 'block' : 'none';
   _izCells = z?.cellKeys ? [...z.cellKeys] : [];
+
   const fields = {
     'iz-name':z?.name||'', 'iz-valve':z?.valveId||'', 'iz-pump':z?.pumpId||'',
     'iz-type':z?.irrigType||'drip', 'iz-flow':z?.flowRate||'',
@@ -6614,19 +6667,106 @@ function openIrrigZoneModal(id) {
     'iz-emitter-spacing':z?.emitterSpacing||'', 'iz-note':z?.note||'',
   };
   Object.entries(fields).forEach(([id,val])=>{const el=document.getElementById(id);if(el)el.value=val;});
-  // Список клеток
+
+  // Заполняем клапаны из справочника оборудования
+  const valveSel = document.getElementById('iz-valve-sel');
+  if(valveSel) {
+    const valves = S.irrigEquip?.valves||[];
+    valveSel.innerHTML = '<option value="">— выбрать клапан —</option>' +
+      valves.map(v=>`<option value="${v.name}" ${z?.valveId===v.name?'selected':''}>${v.name} · ${v.vtype||''} · ${v.diam||''} · Зона: ${v.zone||'—'}</option>`).join('');
+    valveSel.onchange = () => { if(valveSel.value) document.getElementById('iz-valve').value = valveSel.value; };
+  }
+
+  // Насосы из справочника
+  const pumpSel = document.getElementById('iz-pump-sel');
+  if(pumpSel) {
+    const pumps = S.irrigEquip?.pumps||[];
+    pumpSel.innerHTML = '<option value="">— выбрать насос —</option>' +
+      pumps.map(p=>`<option value="${p.name}" ${z?.pumpId===p.name?'selected':''}>${p.name} · ${p.flow||'?'}м³/ч · ${p.pres||'?'}бар</option>`).join('');
+    pumpSel.onchange = () => { if(pumpSel.value) document.getElementById('iz-pump').value = pumpSel.value; };
+    // Автозаполнение расхода из насоса
+    pumpSel.onchange = () => {
+      if(!pumpSel.value) return;
+      document.getElementById('iz-pump').value = pumpSel.value;
+      const pump = pumps.find(p=>p.name===pumpSel.value);
+      if(pump?.flow && !document.getElementById('iz-flow').value) {
+        document.getElementById('iz-flow').value = pump.flow;
+      }
+    };
+  }
+
+  // Капельницы из справочника
+  const dripSel = document.getElementById('iz-dripper-sel');
+  if(dripSel) {
+    const drips = S.irrigEquip?.drip||[];
+    dripSel.innerHTML = '<option value="">— из справочника —</option>' +
+      drips.map(d=>`<option value="${d.name}">${d.name} · ${d.flow||'?'}л/ч · шаг ${d.spacing||'?'}см</option>`).join('');
+    dripSel.onchange = () => {
+      if(!dripSel.value) return;
+      const drip = drips.find(d=>d.name===dripSel.value);
+      if(drip) {
+        document.getElementById('iz-dripper-type').value = drip.name;
+        if(drip.flow) document.getElementById('iz-dripper-flow').value = drip.flow;
+        if(drip.spacing) document.getElementById('iz-emitter-spacing').value = drip.spacing;
+        if(drip.pres_min) document.getElementById('iz-pressure').value = drip.pres_min;
+      }
+    };
+  }
+
+  // Клетки
   const listEl = document.getElementById('iz-cell-list');
   listEl.innerHTML = Object.entries(S.cells).map(([k,cd])=>{
-    const col=getCellColors(cd);
-    const sel=_izCells.includes(k);
-    return `<div onclick="toggleIzCell('${k}')" id="izc-${k}" style="display:flex;align-items:center;gap:6px;padding:3px 6px;border-radius:5px;cursor:pointer;${sel?'background:rgba(96,165,250,.15);':''}">
+    const crop = getCropById(cd.cropId||'crop_cherry');
+    const tot = calcCellTotals(cd);
+    const sel = _izCells.includes(k);
+    return `<div onclick="toggleIzCell('${k}')" id="izc-${k}" style="display:flex;align-items:center;gap:6px;padding:4px 6px;border-radius:5px;cursor:pointer;${sel?'background:rgba(96,165,250,.15);':''}">
       <input type="checkbox" id="izcc-${k}" ${sel?'checked':''} onclick="event.stopPropagation();toggleIzCell('${k}')">
-      <span><strong>${k}</strong>${col[0]?' — '+col[0].name:''}</span>
+      <span>${crop?.emoji||'🌱'} <strong>${k}</strong> — ${crop?.name||'?'} · ${tot.totalHa.toFixed(2)}га · ${tot.totalTrees}дер.</span>
     </div>`;
   }).join('');
+
   _renderIzTags();
+  _updateIzVarieties();
   openModal('modal-irrig-zone');
 }
+
+function _updateIzVarieties() {
+  const wrap = document.getElementById('iz-varieties-wrap');
+  const list = document.getElementById('iz-varieties-list');
+  if(!wrap||!list) return;
+
+  // Собираем все сорта из выбранных клеток
+  const allVarieties = new Map();
+  _izCells.forEach(k => {
+    const cd = S.cells[k];
+    if(!cd) return;
+    const cropId = cd.cropId||'crop_cherry';
+    const cropVars = S.varieties.filter(v=>(v.cropId||'crop_cherry')===cropId);
+    cropVars.forEach(v => {
+      if(!allVarieties.has(v.id)) allVarieties.set(v.id, v);
+    });
+  });
+
+  if(allVarieties.size === 0) { wrap.style.display='none'; return; }
+  wrap.style.display = 'block';
+  list.innerHTML = [...allVarieties.values()].map(v=>`
+    <span style="padding:3px 10px;border-radius:8px;font-size:11px;background:var(--surface3);color:var(--text2);">
+      🍒 ${v.name}${v.cp?` · ${v.cp}CP`:''}${v.brix?` · ${v.brix}°`:''}
+    </span>`).join('');
+}
+
+// Обновляем сорта при изменении клеток
+const _origToggleIzCell = window.toggleIzCell;
+window.toggleIzCell = function(k) {
+  const idx = _izCells.indexOf(k);
+  if(idx>=0) _izCells.splice(idx,1); else _izCells.push(k);
+  const row=document.getElementById('izc-'+k);
+  const cb=document.getElementById('izcc-'+k);
+  if(row) row.style.background=_izCells.includes(k)?'rgba(96,165,250,.15)':'';
+  if(cb) cb.checked=_izCells.includes(k);
+  _renderIzTags();
+  _updateIzVarieties();
+};
 
 function toggleIzCell(k) {
   const idx = _izCells.indexOf(k);
