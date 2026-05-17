@@ -4103,7 +4103,7 @@ function switchTab(tab,el){
   if(tab==='catalog')renderCatalog();
   if(tab==='diseases'){popDFilter();renderDiseaseRisks();}
   if(tab==='treatments'){renderTreatments(); autoFillPrecip();}
-  if(tab==='analysis'){popAFilter();renderAnalysis();}
+  if(tab==='analysis'){popAFilter();renderAnalysis();setTimeout(loadAllAnalysisPdfs,300);}
   if(tab==='diseases'){popDFilter();renderDiseases();}
   if(tab==='doses')popDoseSelects();
   if(tab==='settings'){loadSettings(); loadEquipLists(); loadIrrigLists();}
@@ -5827,6 +5827,7 @@ function saveAnalysis() {
     S.analyses.push(e);
   }
   save(); closeModal('modal-analysis'); renderAnalysis();
+  setTimeout(loadAllAnalysisPdfs, 400);
 }
 
 function popAFilter() {
@@ -6145,7 +6146,7 @@ function renderAnalysis() {
       }).join('');
     }
 
-    return `<div class="an-card" onclick="openAnalysisModal('${an.type}','${an.id}')" style="cursor:pointer;">
+    return `<div class="an-card" style="cursor:default;">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
         <div>
           <div style="font-size:16px;">${icon}</div>
@@ -6155,12 +6156,89 @@ function renderAnalysis() {
           <div style="font-size:11px;font-family:'Unbounded',sans-serif;color:var(--text2);">${an.date}</div>
           <div style="font-size:10px;color:var(--text3);">${cell}</div>
           ${an.lab?`<div style="font-size:10px;color:var(--text3);">${an.lab}</div>`:''}
+          <button class="btn btn-secondary btn-xs" style="margin-top:4px;" onclick="openAnalysisModal('${an.type}','${an.id}');event.stopPropagation();">✏️</button>
         </div>
       </div>
       ${elemRows}
       ${an.note?`<div style="font-size:10px;color:var(--text3);margin-top:6px;">${an.note}</div>`:''}
+      <!-- PDF блок -->
+      <div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);">
+        <div id="pdf-list-${an.id}" style="margin-bottom:6px;font-size:11px;color:var(--text3);">📎 Загрузка PDF...</div>
+        <label style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);font-size:11px;cursor:pointer;color:var(--text2);">
+          📎 Прикрепить PDF
+          <input type="file" accept="application/pdf" style="display:none;" onchange="uploadAnalysisPdf('${an.id}',this)">
+        </label>
+      </div>
     </div>`;
   }).join('');
+}
+
+// ═══ PDF АНАЛИЗОВ ════════════════════════════════════════════════════════
+
+async function loadAnalysisPdfs(analysisId) {
+  const el = document.getElementById(`pdf-list-${analysisId}`);
+  if(!el) return;
+  try {
+    const r = await fetch(`/api/analyses/${analysisId}/pdfs`);
+    if(!r.ok) { el.innerHTML = ''; return; }
+    const data = await r.json();
+    const files = data.files || [];
+    if(!files.length) {
+      el.innerHTML = '<span style="color:var(--text3);font-size:11px;">PDF не прикреплены</span>';
+      return;
+    }
+    el.innerHTML = files.map(f=>`
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
+        <a href="/api/analyses/${analysisId}/pdfs/${f.id}/download" target="_blank"
+          style="font-size:11px;color:var(--blue);text-decoration:none;">
+          📄 ${f.filename}
+        </a>
+        <span style="font-size:10px;color:var(--text3);">(${(f.size/1024).toFixed(0)} KB · ${f.uploaded_at?.slice(0,10)||''})</span>
+        <button onclick="deleteAnalysisPdf('${analysisId}','${f.id}')"
+          style="border:none;background:none;color:var(--red);cursor:pointer;font-size:11px;padding:0;">🗑</button>
+      </div>`).join('');
+  } catch(e) {
+    el.innerHTML = '';
+  }
+}
+
+async function uploadAnalysisPdf(analysisId, input) {
+  const file = input.files[0];
+  if(!file) return;
+  const el = document.getElementById(`pdf-list-${analysisId}`);
+  if(el) el.innerHTML = '<span style="color:var(--text3);font-size:11px;">⏳ Загружаю...</span>';
+  try {
+    const r = await fetch(`/api/analyses/${analysisId}/pdfs`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/pdf',
+        'X-Filename': encodeURIComponent(file.name),
+      },
+      body: file,
+    });
+    const data = await r.json();
+    if(data.ok) {
+      await loadAnalysisPdfs(analysisId);
+    } else {
+      if(el) el.innerHTML = `<span style="color:var(--red);font-size:11px;">❌ ${data.error||'Ошибка'}</span>`;
+    }
+  } catch(e) {
+    if(el) el.innerHTML = `<span style="color:var(--red);font-size:11px;">❌ ${e.message}</span>`;
+  }
+  input.value = '';
+}
+
+async function deleteAnalysisPdf(analysisId, fileId) {
+  if(!confirm('Удалить PDF?')) return;
+  try {
+    await fetch(`/api/analyses/${analysisId}/pdfs/${fileId}`, {method:'DELETE'});
+    await loadAnalysisPdfs(analysisId);
+  } catch(e) { console.error(e); }
+}
+
+// Загружаем PDF списки после рендера анализов
+function loadAllAnalysisPdfs() {
+  (S.analyses||[]).forEach(an => loadAnalysisPdfs(an.id));
 }
 
 // ===================== DISEASES =====================
