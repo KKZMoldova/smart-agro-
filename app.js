@@ -203,7 +203,15 @@ app.post('/api/state/vegetable', async (req, res) => {
 
 app.get('/api/state/orchard', async (req, res) => {
   try {
-    const r = await db.query(`SELECT value FROM settings WHERE key='orchard_full_state'`);
+    const tenantId = req.headers['x-tenant-id'] || 'kkz';
+    const key = `orchard_full_state_${tenantId}`;
+    const r = await db.query(`SELECT value FROM settings WHERE key=$1`, [key]);
+    // Fallback на старый ключ для kkz
+    if (!r.rows.length && tenantId === 'kkz') {
+      const r2 = await db.query(`SELECT value FROM settings WHERE key='orchard_full_state'`);
+      if (!r2.rows.length) return res.json({ ok: false });
+      return res.json({ ok: true, data: r2.rows[0].value });
+    }
     if (!r.rows.length) return res.json({ ok: false });
     res.json({ ok: true, data: r.rows[0].value });
   } catch(e) { res.status(500).json({ error: e.message }); }
@@ -211,12 +219,13 @@ app.get('/api/state/orchard', async (req, res) => {
 
 app.post('/api/state/orchard', async (req, res) => {
   try {
+    const tenantId = req.headers['x-tenant-id'] || 'kkz';
+    const key = `orchard_full_state_${tenantId}`;
     const body = req.body;
-    const r = await db.query(`SELECT value FROM settings WHERE key='orchard_full_state'`);
+    const r = await db.query(`SELECT value FROM settings WHERE key=$1`, [key]);
     let state = r.rows.length ? (typeof r.rows[0].value === 'string' ? JSON.parse(r.rows[0].value) : r.rows[0].value) : {};
-    // Merge — обновляем только переданные поля
     Object.keys(body).forEach(k => { state[k] = body[k]; });
-    await db.query(`INSERT INTO settings (key,value) VALUES ('orchard_full_state',$1) ON CONFLICT (key) DO UPDATE SET value=$1, updated_at=NOW()`, [JSON.stringify(state)]);
+    await db.query(`INSERT INTO settings (key,value) VALUES ($1,$2) ON CONFLICT (key) DO UPDATE SET value=$2, updated_at=NOW()`, [key, JSON.stringify(state)]);
     res.json({ ok: true });
   } catch(e) { res.status(500).json({ ok: false, error: e.message }); }
 });
@@ -235,7 +244,9 @@ app.get('/orchard', (req, res) => {
   res.set('Expires', '0');
   res.sendFile(path.join(__dirname, 'public', 'cherry-orchard-passport.html'));
 });
-app.get('/',         (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+app.get('/login',    (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
+app.get('/admin',    (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
+app.get('/',         (req, res) => res.redirect('/login'));
 
 // ═══ CRON ═════════════════════════════════════════════════════════════════
 const fc = require('./cron/fieldclimate');
