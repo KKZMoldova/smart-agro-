@@ -592,8 +592,9 @@ tbody td{padding:10px 12px;vertical-align:middle;}
         <button class="btn btn-secondary" onclick="calcWaterBalance()">🔄 Пересчитать</button>
       </div>
       <div id="irrig-actions-fertigation" style="display:none;gap:8px;">
-        <button class="btn btn-primary" onclick="openFertigationModal()">+ Программа</button>
-        <button class="btn btn-secondary" onclick="const t=document.querySelector('[onclick*=\'switchTab(\\\'analysis\\\'\')]\');if(t){switchTab('analysis',t);}setTimeout(()=>openAnalysisModal('water'),200);">💧 + Анализ воды</button>
+        <button class="btn btn-secondary btn-sm" onclick="openFertCalcModal()">🧮 Расчёт дозы</button>
+        <button class="btn btn-primary btn-sm" onclick="openFertigationModal()">+ Программа</button>
+        <button class="btn btn-secondary btn-sm" onclick="const t=document.querySelector('[onclick*=\'switchTab(\\\'analysis\\\'\')]\');if(t){switchTab('analysis',t);}setTimeout(()=>openAnalysisModal('water'),200);">💧 + Анализ воды</button>
       </div>
     </div>
 
@@ -3119,6 +3120,55 @@ tbody td{padding:10px 12px;vertical-align:middle;}
       <button class="btn btn-secondary" onclick="closeModal('modal-irrig-event')">Отмена</button>
       <button class="btn btn-primary" onclick="saveIrrigEvent()">💾 Сохранить</button>
     </div>
+  </div>
+</div>
+
+<!-- MODAL: Расчёт дозы фертигации -->
+<div class="modal-overlay" id="modal-fert-calc">
+  <div class="modal" style="max-width:720px;width:96%;max-height:92vh;overflow-y:auto;">
+    <h2>🧮 Расчёт дозы фертигации</h2>
+    <div class="form-grid">
+      <div class="ff"><label>Зона полива</label>
+        <select id="fc-zone" onchange="onFertCalcZoneChange()" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);"></select>
+      </div>
+      <div class="ff"><label>Фаза / цель</label>
+        <select id="fc-phase" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+          <option value="veg">🌿 Вегетация (N-старт)</option>
+          <option value="flower">🌸 Цветение (Ca+B)</option>
+          <option value="fruit_set">🍒 Завязь (Ca-программа)</option>
+          <option value="fruit_growth">📈 Рост плода (K+Ca)</option>
+          <option value="ripening">🍎 Созревание (K)</option>
+          <option value="post_harvest">🍂 После сбора (P+K)</option>
+          <option value="custom">✏️ Вручную</option>
+        </select>
+      </div>
+      <div class="ff"><label>Объём бака фертигатора (л)</label>
+        <input type="number" id="fc-tank" value="200" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);"></div>
+      <div class="ff"><label>Объём воды за цикл (м³)</label>
+        <input type="number" id="fc-water-vol" step="0.1" placeholder="авто из зоны" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);"></div>
+    </div>
+
+    <!-- Источник данных -->
+    <div style="margin:14px 0 8px;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;">📊 Источник данных для расчёта</div>
+    <div id="fc-analysis-source" style="padding:10px 14px;background:var(--surface2);border-radius:8px;font-size:11px;color:var(--text2);margin-bottom:14px;"></div>
+
+    <!-- Потребности N-P-K-Ca-Mg -->
+    <div style="margin-bottom:8px;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;">🎯 Целевые значения (ppm в рабочем растворе)</div>
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:14px;">
+      ${['N','P','K','Ca','Mg'].map(el=>`
+        <div style="text-align:center;">
+          <div style="font-size:10px;color:var(--text3);margin-bottom:4px;">${el}</div>
+          <input type="number" id="fc-ppm-${el.toLowerCase()}" step="1" placeholder="ppm"
+            style="width:100%;padding:6px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--accent);font-weight:600;text-align:center;font-size:13px;">
+          <div style="font-size:9px;color:var(--text3);margin-top:2px;" id="fc-water-${el.toLowerCase()}">из воды: —</div>
+        </div>`).join('')}
+    </div>
+
+    <!-- Кнопка расчёта -->
+    <button class="btn btn-primary" style="width:100%;margin-bottom:14px;" onclick="calcFertDose()">🧮 Рассчитать</button>
+
+    <!-- Результат -->
+    <div id="fc-result" style="display:none;"></div>
   </div>
 </div>
 
@@ -7290,6 +7340,308 @@ function getIrrigSumForCell(cellKey, dateFrom, dateTo) {
     count: evts.length,
     events: evts,
   };
+}
+
+// ═══ РАСЧЁТ ДОЗЫ ФЕРТИГАЦИИ ══════════════════════════════════════════════
+
+// Целевые ppm по фазам (рабочий раствор капельного полива)
+const FERT_PHASE_TARGETS = {
+  veg:          {N:150, P:40,  K:120, Ca:80,  Mg:30},
+  flower:       {N:80,  P:30,  K:100, Ca:120, Mg:30},
+  fruit_set:    {N:80,  P:25,  K:120, Ca:150, Mg:30},
+  fruit_growth: {N:100, P:30,  K:180, Ca:120, Mg:40},
+  ripening:     {N:60,  P:20,  K:200, Ca:80,  Mg:30},
+  post_harvest: {N:80,  P:60,  K:150, Ca:60,  Mg:40},
+  custom:       {N:0,   P:0,   K:0,   Ca:0,   Mg:0},
+};
+
+// Элементы в удобрениях %
+const FERT_DB_EXTENDED = [
+  {name:'Кальциевая селитра',   N:15.5, P:0,  K:0,  Ca:26,  Mg:0,   S:0,  mol:236, solMax:1200, bak:'A'},
+  {name:'Нитрат калия',         N:13,   P:0,  K:38, Ca:0,   Mg:0,   S:0,  mol:101, solMax:316,  bak:'B'},
+  {name:'Монофосфат калия',     N:0,    P:52, K:34, Ca:0,   Mg:0,   S:0,  mol:136, solMax:230,  bak:'B'},
+  {name:'Сульфат магния',       N:0,    P:0,  K:0,  Ca:0,   Mg:9.6, S:13, mol:120, solMax:710,  bak:'B'},
+  {name:'Сульфат калия',        N:0,    P:0,  K:50, Ca:0,   Mg:0,   S:17, mol:174, solMax:120,  bak:'B'},
+  {name:'MAP (Монофосфат аммония)', N:12, P:61,K:0, Ca:0,   Mg:0,   S:0,  mol:115, solMax:400,  bak:'B'},
+  {name:'Карбамид',             N:46,   P:0,  K:0,  Ca:0,   Mg:0,   S:0,  mol:60,  solMax:1080, bak:'B'},
+  {name:'Нитрат аммония',       N:34,   P:0,  K:0,  Ca:0,   Mg:0,   S:0,  mol:80,  solMax:1920, bak:'B'},
+  {name:'Хелат Ca (EDTA)',      N:0,    P:0,  K:0,  Ca:10,  Mg:0,   S:0,  mol:0,   solMax:500,  bak:'A'},
+  {name:'Хелат Fe (EDTA)',      N:0,    P:0,  K:0,  Ca:0,   Mg:0,   S:0,  mol:0,   solMax:200,  bak:'B'},
+];
+
+// Несовместимые пары (по баку)
+const FERT_INCOMPAT_PAIRS = [
+  ['Кальциевая селитра', 'Монофосфат калия'],
+  ['Кальциевая селитра', 'Сульфат магния'],
+  ['Кальциевая селитра', 'Сульфат калия'],
+  ['Кальциевая селитра', 'MAP (Монофосфат аммония)'],
+  ['Карбамид', 'Кальциевая селитра'],
+];
+
+function openFertCalcModal() {
+  // Заполняем зоны
+  const zoneSel = document.getElementById('fc-zone');
+  if(zoneSel) {
+    zoneSel.innerHTML = '<option value="">— весь сад —</option>' +
+      (S.irrigation.zones||[]).map(z=>
+        `<option value="${z.id}">${z.name} (${z.area?.toFixed(1)||'?'}га)</option>`
+      ).join('');
+  }
+
+  // Загружаем анализы
+  onFertCalcZoneChange();
+  openModal('modal-fert-calc');
+}
+
+function onFertCalcZoneChange() {
+  const zoneId = document.getElementById('fc-zone')?.value;
+  const zone = (S.irrigation.zones||[]).find(z=>z.id===zoneId);
+
+  // Объём воды из зоны
+  if(zone?.flowRate && zone?.area) {
+    // ETc примерно 5 мм/день → 50 м³/га/день
+    const vol = Math.round(zone.area * 50 * 10)/10;
+    const el = document.getElementById('fc-water-vol');
+    if(el && !el.value) el.value = vol;
+  }
+
+  // Загружаем последний анализ воды
+  const srcEl = document.getElementById('fc-analysis-source');
+  const waterAn = [...(S.analyses||[])].filter(a=>a.type==='water').sort((a,b)=>b.date.localeCompare(a.date))[0];
+  const leafAn  = [...(S.analyses||[])].filter(a=>a.type==='leaf').sort((a,b)=>b.date.localeCompare(a.date))[0];
+  const soilAn  = [...(S.analyses||[])].filter(a=>a.type==='soil').sort((a,b)=>b.date.localeCompare(a.date))[0];
+
+  if(srcEl) {
+    let html = '';
+    if(waterAn) html += `💧 Анализ воды (${waterAn.date}): EC ${waterAn.ec||'—'} mS/cm · pH ${waterAn.ph||'—'} · Ca ${waterAn.ca||'—'}ppm · Mg ${waterAn.mg||'—'}ppm · HCO₃ ${waterAn.hco3||'—'}ppm<br>`;
+    if(leafAn)  html += `🌿 Анализ листа (${leafAn.date}): N ${leafAn.n||'—'}% · P ${leafAn.p||'—'}% · K ${leafAn.k||'—'}% · Ca ${leafAn.ca||'—'}% · Mg ${leafAn.mg||'—'}%<br>`;
+    if(soilAn)  html += `🌱 Анализ почвы (${soilAn.date}): pH ${soilAn.ph||'—'} · N ${soilAn.n||'—'} · P ${soilAn.p||'—'} · K ${soilAn.k||'—'}`;
+    srcEl.innerHTML = html || '⚠️ Анализы не найдены. Данные берутся из целевых норм фазы.';
+
+    // Заполняем ppm воды
+    if(waterAn) {
+      const setWater = (el,val) => { const d=document.getElementById(el); if(d) d.textContent=`из воды: ${val||0}ppm`; };
+      setWater('fc-water-ca', waterAn.ca);
+      setWater('fc-water-mg', waterAn.mg);
+      setWater('fc-water-n',  waterAn.no3||0);
+    }
+  }
+
+  // Устанавливаем целевые ppm из фазы
+  onFertPhaseChange();
+}
+
+function onFertPhaseChange() {
+  const phase = document.getElementById('fc-phase')?.value || 'veg';
+  const targets = FERT_PHASE_TARGETS[phase] || FERT_PHASE_TARGETS.veg;
+
+  // Вычитаем что даёт вода
+  const waterAn = [...(S.analyses||[])].filter(a=>a.type==='water').sort((a,b)=>b.date.localeCompare(a.date))[0];
+  const waterCa = parseFloat(waterAn?.ca||0);
+  const waterMg = parseFloat(waterAn?.mg||0);
+  const waterN  = parseFloat(waterAn?.no3||0);
+
+  ['n','p','k','ca','mg'].forEach(el => {
+    const inp = document.getElementById(`fc-ppm-${el}`);
+    if(!inp) return;
+    const key = el.toUpperCase();
+    let target = targets[key] || 0;
+    // Вычитаем вклад воды
+    if(el==='ca') target = Math.max(0, target - waterCa);
+    if(el==='mg') target = Math.max(0, target - waterMg);
+    if(el==='n')  target = Math.max(0, target - waterN);
+    inp.value = Math.round(target);
+  });
+}
+
+// Подключаем onchange к select фазы
+document.addEventListener('DOMContentLoaded', () => {
+  const ph = document.getElementById('fc-phase');
+  if(ph) ph.onchange = onFertPhaseChange;
+});
+
+function calcFertDose() {
+  const zoneId   = document.getElementById('fc-zone')?.value;
+  const waterVol = parseFloat(document.getElementById('fc-water-vol')?.value)||50;
+  const tankL    = parseFloat(document.getElementById('fc-tank')?.value)||200;
+  const zone     = (S.irrigation.zones||[]).find(z=>z.id===zoneId);
+  const areaHa   = zone?.area || Object.values(S.cells).reduce((s,cd)=>s+calcCellTotals(cd).totalHa,0) || 1;
+
+  // Читаем целевые ppm
+  const ppm = {};
+  ['n','p','k','ca','mg'].forEach(el => {
+    ppm[el.toUpperCase()] = parseFloat(document.getElementById(`fc-ppm-${el}`)?.value)||0;
+  });
+
+  // Вода из анализа
+  const waterAn = [...(S.analyses||[])].filter(a=>a.type==='water').sort((a,b)=>b.date.localeCompare(a.date))[0];
+  const waterCa = parseFloat(waterAn?.ca||0);
+  const waterMg = parseFloat(waterAn?.mg||0);
+  const waterEC = parseFloat(waterAn?.ec||0);
+
+  // Потребности в г/м³ (ppm = г/м³)
+  const need = {...ppm};
+
+  // Подбираем удобрения жадным алгоритмом
+  const selected = [];
+  const ELEMS = ['Ca','N','P','K','Mg'];
+
+  // Порядок подбора: сначала Ca (несовместима с другими), потом N, P, K, Mg
+  const sorted = [...FERT_DB_EXTENDED].sort((a,b) => {
+    const priorityA = a.Ca>0 ? 0 : a.N>0 ? 1 : a.P>0 ? 2 : a.K>0 ? 3 : 4;
+    const priorityB = b.Ca>0 ? 0 : b.N>0 ? 1 : b.P>0 ? 2 : b.K>0 ? 3 : 4;
+    return priorityA - priorityB;
+  });
+
+  const remain = {...need};
+  const usedFerts = [];
+
+  for(const fert of sorted) {
+    if(Object.values(remain).every(v=>v<=0)) break;
+
+    // Находим главный элемент этого удобрения
+    const mainEl = ELEMS.find(e => fert[e]>0 && remain[e]>0);
+    if(!mainEl) continue;
+
+    // Сколько нужно г/л в баке чтобы покрыть потребность
+    // need г/м³ воды → при объёме waterVol м³ нужно need*waterVol г всего
+    // концентрация в баке = need*waterVol/tankL г/л
+    const needTotalG = remain[mainEl] * waterVol;
+    const contentPct = fert[mainEl] / 100;
+    const fertG = needTotalG / contentPct; // г удобрения всего
+    const concGL = fertG / tankL; // г/л в баке
+
+    if(concGL < 0.1) continue; // слишком мало — не добавляем
+
+    // Добавляем удобрение
+    const fertKg = Math.round(fertG / 1000 * 100) / 100;
+    const fertKgHa = Math.round(fertKg / areaHa * 100) / 100;
+    usedFerts.push({
+      fert, fertG, fertKg, fertKgHa,
+      concGL: Math.round(concGL*10)/10,
+      bak: fert.bak,
+      covers: {},
+    });
+
+    // Вычитаем покрытые потребности
+    ELEMS.forEach(e => {
+      const covered = (fertG * fert[e] / 100) / waterVol; // ppm
+      if(fert[e]>0) usedFerts[usedFerts.length-1].covers[e] = Math.round(covered*10)/10;
+      remain[e] = Math.max(0, remain[e] - covered);
+    });
+  }
+
+  // Проверяем несовместимость
+  const incompatWarnings = [];
+  for(let i=0;i<usedFerts.length;i++) {
+    for(let j=i+1;j<usedFerts.length;j++) {
+      const a = usedFerts[i].fert.name;
+      const b = usedFerts[j].fert.name;
+      if(FERT_INCOMPAT_PAIRS.some(p=>(p[0]===a&&p[1]===b)||(p[0]===b&&p[1]===a))) {
+        incompatWarnings.push(`❌ ${a} + ${b} — несовместимы! Разные баки.`);
+        usedFerts[j].bak = usedFerts[i].bak==='A' ? 'B' : 'A';
+      }
+    }
+  }
+
+  // EC раствора (приблизительно)
+  const addedEC = usedFerts.reduce((s,f)=>s+(f.fertG/waterVol/1000*10),0);
+  const totalEC = Math.round((waterEC + addedEC)*10)/10;
+
+  // Группируем по бакам
+  const bakA = usedFerts.filter(f=>f.bak==='A');
+  const bakB = usedFerts.filter(f=>f.bak==='B');
+
+  // Рендерим результат
+  const resEl = document.getElementById('fc-result');
+  resEl.style.display = 'block';
+  resEl.innerHTML = `
+    <div style="padding:14px;background:rgba(74,222,128,.06);border:1px solid rgba(74,222,128,.2);border-radius:10px;margin-bottom:14px;">
+      <div style="font-size:13px;font-weight:700;color:var(--accent);margin-bottom:10px;">
+        📋 Программа фертигации — ${zone?.name||'Весь сад'} · ${areaHa.toFixed(1)}га · ${waterVol}м³ воды
+      </div>
+
+      ${incompatWarnings.length ? `<div style="margin-bottom:10px;">${incompatWarnings.map(w=>`<div style="font-size:11px;color:var(--red);padding:3px 0;">${w}</div>`).join('')}</div>` : ''}
+
+      <!-- Баки -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+        ${[{label:'Бак A', ferts:bakA, color:'var(--blue)'},{label:'Бак B', ferts:bakB, color:'var(--yellow)'}].map(({label,ferts,color})=>
+          ferts.length ? `<div style="padding:10px;background:var(--surface);border-radius:8px;border-left:3px solid ${color};">
+            <div style="font-size:11px;font-weight:700;color:${color};margin-bottom:8px;">${label}</div>
+            ${ferts.map(f=>`<div style="margin-bottom:6px;">
+              <div style="font-size:12px;font-weight:600;">${f.fert.name}</div>
+              <div style="font-size:11px;color:var(--text3);">
+                ${f.concGL} г/л · ${f.fertKg} кг всего · ${f.fertKgHa} кг/га
+              </div>
+              <div style="font-size:10px;color:var(--text3);">
+                Покрывает: ${Object.entries(f.covers).map(([e,v])=>`${e}: ${v}ppm`).join(' · ')}
+              </div>
+            </div>`).join('')}
+          </div>` : ''
+        ).join('')}
+      </div>
+
+      <!-- EC и проверки -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;">
+        <div style="text-align:center;padding:8px;background:var(--surface);border-radius:8px;">
+          <div style="font-size:14px;font-weight:700;color:${totalEC<3?'var(--accent)':'var(--red)'};">${totalEC}</div>
+          <div style="font-size:9px;color:var(--text3);">EC mS/cm ${totalEC<3?'✅':'⚠️ >3!'}</div>
+        </div>
+        <div style="text-align:center;padding:8px;background:var(--surface);border-radius:8px;">
+          <div style="font-size:14px;font-weight:700;color:var(--blue);">${usedFerts.reduce((s,f)=>s+f.fertKg,0).toFixed(1)}</div>
+          <div style="font-size:9px;color:var(--text3);">кг всего</div>
+        </div>
+        <div style="text-align:center;padding:8px;background:var(--surface);border-radius:8px;">
+          <div style="font-size:14px;font-weight:700;color:var(--yellow);">${tankL}</div>
+          <div style="font-size:9px;color:var(--text3);">л бак</div>
+        </div>
+      </div>
+
+      <!-- Непокрытые потребности -->
+      ${Object.entries(remain).some(([,v])=>v>0) ? `
+        <div style="padding:8px 12px;background:rgba(251,146,60,.08);border-radius:8px;font-size:11px;color:var(--orange);">
+          ⚠️ Не покрыто: ${Object.entries(remain).filter(([,v])=>v>0).map(([e,v])=>`${e}: ${Math.round(v)}ppm`).join(' · ')}
+          — добавьте микроэлементы или скорректируйте дозу
+        </div>` : `<div style="padding:8px 12px;background:rgba(74,222,128,.06);border-radius:8px;font-size:11px;color:var(--accent);">✅ Все потребности покрыты</div>`}
+
+      <button class="btn btn-primary btn-sm" style="margin-top:12px;width:100%;" onclick="saveFertCalcAsProgram()">💾 Сохранить как программу фертигации</button>
+    </div>`;
+
+  // Сохраняем для последующего использования
+  window._lastFertCalc = {usedFerts, zone, areaHa, waterVol, tankL, totalEC};
+}
+
+function saveFertCalcAsProgram() {
+  if(!window._lastFertCalc) return;
+  const {usedFerts, zone, areaHa, waterVol} = window._lastFertCalc;
+  const phase = document.getElementById('fc-phase')?.value;
+  const phaseLabel = document.getElementById('fc-phase')?.selectedOptions[0]?.text || phase;
+
+  if(!S.irrigation.fertigation) S.irrigation.fertigation = {programs:[]};
+  if(!S.irrigation.fertigation.programs) S.irrigation.fertigation.programs = [];
+
+  const prog = {
+    id: uid(),
+    name: `${phaseLabel} — ${zone?.name||'Весь сад'} — ${new Date().toLocaleDateString('ru-RU')}`,
+    phase: phaseLabel,
+    zone: zone?.name||'',
+    areaHa, waterVol,
+    fertilizers: usedFerts.map(f=>({
+      name: f.fert.name,
+      kgTotal: f.fertKg,
+      kgHa: f.fertKgHa,
+      concGL: f.concGL,
+      bak: f.bak,
+    })),
+    date: new Date().toISOString().split('T')[0],
+    note: `Рассчитано автоматически`,
+  };
+
+  S.irrigation.fertigation.programs.unshift(prog);
+  save();
+  closeModal('modal-fert-calc');
+  switchIrrigSub('fertigation');
+  alert('✅ Программа сохранена в Фертигация');
 }
 
 // ═══ ИРРИГАЦИОННОЕ ОБОРУДОВАНИЕ ═════════════════════════════════════════
