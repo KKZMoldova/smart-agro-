@@ -956,10 +956,14 @@ tbody td{padding:10px 12px;vertical-align:middle;}
     <div class="section-hdr">
       <h2>📦 Справочник препаратов</h2>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-secondary" onclick="showMoaAnalysis()">🔄 МОА-ротация</button>
         <button class="btn btn-secondary" onclick="syncCatalogFromTreatments()">🔄 Синхр. из обработок</button>
         <button class="btn btn-primary" onclick="openCatalogAddModal()">+ Добавить препарат</button>
       </div>
     </div>
+
+    <!-- МОА анализ ротации -->
+    <div id="moa-analysis-panel" style="display:none;margin-bottom:16px;"></div>
     <!-- Filters -->
     <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
       <select id="cat-type-filter" onchange="renderCatalog()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:'Inter',sans-serif;">
@@ -1724,6 +1728,12 @@ tbody td{padding:10px 12px;vertical-align:middle;}
         </select>
       </div>
       <div class="ff full"><label>Активное вещество</label><input type="text" id="cp-active" placeholder="Ципродинил + Флудиоксонил..."></div>
+      <div class="ff"><label>FRAC / IRAC код <span style="color:var(--text3);font-size:10px;">(группа МОА)</span></label>
+        <input type="text" id="cp-frac" placeholder="напр. 9+12, 11, 3, 4a..." style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+      </div>
+      <div class="ff"><label>Группа МОА</label>
+        <input type="text" id="cp-moa-group" placeholder="напр. Аниламиды, Стробилурины..." style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+      </div>
       <div class="ff"><label>Доза по умолчанию (кг или л/га)</label><input type="number" id="cp-dose" step="0.001" min="0" placeholder="0.2"></div>
       <div class="ff"><label>Расход воды (л/га)</label><input type="number" id="cp-water" value="400" min="0"></div>
       <div class="ff"><label>Срок действия на дереве (дней)</label><input type="number" id="cp-duration" value="14" min="1"></div>
@@ -4139,7 +4149,7 @@ function renderCatalog(){
     return`<div class="prod-card">
       <div class="pc-type ${p.type}">${TYPE_LABELS[p.type]||p.type}</div>
       <div class="pc-name">${p.name}</div>
-      <div class="pc-active">${p.activeSubstance}</div>
+      <div class="pc-active">${p.activeSubstance}${(p.fracCode||p.moaGroup)?` · <span style="color:${(MOA_DB.frac[p.fracCode]||MOA_DB.irac[p.fracCode]||{}).color||'var(--text3)'};font-weight:600;">FRAC ${p.fracCode||'?'}</span> ${p.moaGroup||''}`:''}</div>
       <div class="pc-row"><span class="pc-lbl">Доза</span><span class="pc-val">${p.dose} кг/л·га</span></div>
       <div class="pc-row"><span class="pc-lbl">Расход воды</span><span class="pc-val">${p.water} л/га</span></div>
       <div class="pc-row"><span class="pc-lbl">Способ внесения</span><span class="pc-val" style="padding:2px 8px;border-radius:10px;font-size:10px;background:${METHOD_COLORS[p.method||'foliar']||'rgba(74,222,128,.15)'};">${METHOD_LABELS[p.method||'foliar']||'—'}</span></div>
@@ -4219,6 +4229,8 @@ function editCatalogProduct(id){
   document.getElementById('cp-del-btn').style.display='inline-flex';
   document.getElementById('cp-name').value=p.name;
   document.getElementById('cp-active').value=p.activeSubstance;
+  document.getElementById('cp-frac').value=p.fracCode||p.fracGroup||MOA_PRODUCTS[p.name]?.frac||MOA_PRODUCTS[p.name]?.irac||'';
+  document.getElementById('cp-moa-group').value=p.moaGroup||p.fracGroup||MOA_PRODUCTS[p.name]?.fracGroup||MOA_PRODUCTS[p.name]?.iracGroup||'';
   document.getElementById('cp-type').value=p.type;
   document.getElementById('cp-dose').value=p.dose;
   document.getElementById('cp-water').value=p.water;
@@ -4241,6 +4253,8 @@ function saveCatalogProduct(){
     name,
     type:document.getElementById('cp-type').value,
     activeSubstance:document.getElementById('cp-active').value,
+    fracCode: document.getElementById('cp-frac').value.trim(),
+    moaGroup: document.getElementById('cp-moa-group').value.trim(),
     dose:parseFloat(document.getElementById('cp-dose').value)||0,
     water:parseFloat(document.getElementById('cp-water').value)||400,
     duration:parseInt(document.getElementById('cp-duration').value)||14,
@@ -7827,6 +7841,222 @@ function saveFertCalcAsProgram() {
   closeModal('modal-fert-calc');
   switchIrrigSub('fertigation');
   alert('✅ Программа сохранена в Фертигация');
+}
+
+// ═══ МОА-РОТАЦИЯ (контроль резистентности) ══════════════════════════════
+
+// Полная FRAC/IRAC база для черешни/садоводства
+const MOA_DB = {
+  // FRAC — фунгициды
+  frac: {
+    '1':  {name:'Бензимидазолы', risk:'ВЫСОКИЙ', color:'#dc2626', examples:'Топсин-М, Дерозал', note:'Быстрое развитие резистентности у Botrytis. Не более 2 обр./сезон'},
+    '2':  {name:'Дикарбоксимиды', risk:'ВЫСОКИЙ', color:'#dc2626', examples:'Ровраль, Суммилекс', note:'Резистентность у серой гнили'},
+    '3':  {name:'ДМИ Триазолы', risk:'СРЕДНИЙ', color:'#f59e0b', examples:'Скор, Топаз, Делан, Тилт', note:'Чередовать с группами 7, 11, 9. Не более 3 обр./сезон'},
+    '7':  {name:'SDHI Карбоксамиды', risk:'СРЕДНИЙ', color:'#f59e0b', examples:'Луна Сенсейшн, Белис, Пиктор', note:'Чередовать с группой 3 и 11. Нельзя 2 SDHI подряд'},
+    '9':  {name:'Аниламиды (Анилинопиримидины)', risk:'СРЕДНИЙ', color:'#f59e0b', examples:'Хорус, Свитч (компонент)', note:'Эффективен при低 температурах. Макс 2 обр.'},
+    '11': {name:'QoI Стробилурины', risk:'ВЫСОКИЙ', color:'#dc2626', examples:'Квадрис, Строби, Свитч (нет)', note:'Резистентность широко распространена у Botrytis и Uncinula. Макс 2 обр./сезон'},
+    '12': {name:'Фенилпирролы', risk:'НИЗКИЙ', color:'#16a34a', examples:'Свитч (компонент)', note:'Низкий риск резистентности. Можно использовать шире'},
+    '4':  {name:'Фениламиды', risk:'ВЫСОКИЙ', color:'#dc2626', examples:'Ридомил Голд', note:'Только против оомицетов (ложная мучнистая роса). Высокий риск'},
+    '33': {name:'Многоцелевые контактные', risk:'НИЗКИЙ', color:'#16a34a', examples:'Медь, Бордоская смесь, Делан', note:'Нет риска резистентности. Основа программы'},
+    'M':  {name:'Многоцелевые (Multisite)', risk:'НИЗКИЙ', color:'#16a34a', examples:'Зинеб, Манкоцеб, Каптан', note:'Используются как "якорные" препараты в ротации'},
+  },
+  // IRAC — инсектициды/акарициды
+  irac: {
+    '1a': {name:'Органофосфаты', risk:'СРЕДНИЙ', color:'#f59e0b', examples:'Золон, Дурсбан', note:''},
+    '1b': {name:'Органофосфаты II', risk:'СРЕДНИЙ', color:'#f59e0b', examples:'Актеллик', note:''},
+    '3':  {name:'Пиретроиды', risk:'ВЫСОКИЙ', color:'#dc2626', examples:'Децис, Каратэ, Фастак', note:'Резистентность у Panonychus и Tetranychus'},
+    '4a': {name:'Неоникотиноиды', risk:'ВЫСОКИЙ', color:'#dc2626', examples:'Актара, Конфидор, Имидор', note:'Токсично для пчёл. Высокий риск резистентности у тли'},
+    '4c': {name:'Неоникотиноиды (тиаклоприд)', risk:'ВЫСОКИЙ', color:'#dc2626', examples:'Калипсо', note:'Токсично для пчёл. Не применять в цветение'},
+    '5':  {name:'Спинозины', risk:'СРЕДНИЙ', color:'#f59e0b', examples:'Спинтор, Успин', note:'Осторожно в цветение — токсичен для пчёл'},
+    '6':  {name:'Авермектины', risk:'НИЗКИЙ', color:'#16a34a', examples:'Вертимек, Актофит', note:'Хороший для ротации с пиретроидами'},
+    '10a':{name:'Клофентезин', risk:'НИЗКИЙ', color:'#16a34a', examples:'Ниссоран', note:'Только против яиц и ранних личинок клеща'},
+    '21a':{name:'METI-акарициды', risk:'НИЗКИЙ', color:'#16a34a', examples:'Санмайт, Ортус', note:'Эффективны против всех стадий клеща'},
+    '28': {name:'Диамиды', risk:'НИЗКИЙ', color:'#16a34a', examples:'Коряген, Амплиго', note:'Эффективны против гусениц. Низкий риск резистентности'},
+  }
+};
+
+// Расширенная база препарат → FRAC/IRAC
+const MOA_PRODUCTS = {
+  'Хорус':          {frac:'9',   fracGroup:'Аниламиды'},
+  'Свитч':          {frac:'9+12',fracGroup:'Аниламиды+Фенилпирролы'},
+  'Скор':           {frac:'3',   fracGroup:'ДМИ Триазолы'},
+  'Топаз':          {frac:'3',   fracGroup:'ДМИ Триазолы'},
+  'Делан':          {frac:'3',   fracGroup:'ДМИ Триазолы'},
+  'Тилт':           {frac:'3',   fracGroup:'ДМИ Триазолы'},
+  'Фалькон':        {frac:'3+7', fracGroup:'ДМИ+SDHI'},
+  'Луна Сенсейшн':  {frac:'7+9', fracGroup:'SDHI+Аниламиды'},
+  'Луна Транквилити':{frac:'7+9',fracGroup:'SDHI+Аниламиды'},
+  'Белис':          {frac:'7+11',fracGroup:'SDHI+Стробилурины'},
+  'Пиктор':         {frac:'7+11',fracGroup:'SDHI+Стробилурины'},
+  'Квадрис':        {frac:'11',  fracGroup:'QoI Стробилурины'},
+  'Строби':         {frac:'11',  fracGroup:'QoI Стробилурины'},
+  'Ридомил Голд':   {frac:'4',   fracGroup:'Фениламиды'},
+  'Тельдор':        {frac:'17',  fracGroup:'Боскалид (SDHI)'},
+  'Топсин':         {frac:'1',   fracGroup:'Бензимидазолы'},
+  'Дерозал':        {frac:'1',   fracGroup:'Бензимидазолы'},
+  'Актара':         {irac:'4a',  iracGroup:'Неоникотиноиды'},
+  'Конфидор':       {irac:'4a',  iracGroup:'Неоникотиноиды'},
+  'Калипсо':        {irac:'4c',  iracGroup:'Неоникотиноиды'},
+  'Спинтор':        {irac:'5',   iracGroup:'Спинозины'},
+  'Вертимек':       {irac:'6',   iracGroup:'Авермектины'},
+  'Актеллик':       {irac:'1b',  iracGroup:'Органофосфаты'},
+  'Децис':          {irac:'3',   iracGroup:'Пиретроиды'},
+  'Каратэ':         {irac:'3',   iracGroup:'Пиретроиды'},
+  'Фастак':         {irac:'3',   iracGroup:'Пиретроиды'},
+  'Коряген':        {irac:'28',  iracGroup:'Диамиды'},
+  'Ниссоран':       {irac:'10a', iracGroup:'Клофентезин'},
+  'Санмайт':        {irac:'21a', iracGroup:'METI-акарицид'},
+  'Омайт':          {irac:'1a',  iracGroup:'Органофосфаты'},
+};
+
+function getMoaForProduct(p) {
+  // 1. Из самого препарата если есть поле fracGroup
+  if(p.fracGroup) return {frac: p.fracGroup, code: p.fracCode||p.fracGroup};
+  // 2. Из базы по названию
+  const key = Object.keys(MOA_PRODUCTS).find(k => p.name?.includes(k));
+  if(key) return MOA_PRODUCTS[key];
+  // 3. Из базы ORCHARD_FRAC_IRAC по названию
+  const legacy = Object.entries(ORCHARD_FRAC_IRAC||{}).find(([k]) => p.name?.includes(k));
+  if(legacy) return legacy[1];
+  return null;
+}
+
+function showMoaAnalysis() {
+  const panel = document.getElementById('moa-analysis-panel');
+  if(!panel) return;
+  if(panel.style.display !== 'none') { panel.style.display='none'; return; }
+  panel.style.display = 'block';
+  renderMoaAnalysis();
+}
+
+function renderMoaAnalysis() {
+  const panel = document.getElementById('moa-analysis-panel');
+  if(!panel) return;
+
+  // Берём обработки за последние 90 дней
+  const cutoff = new Date(Date.now() - 90*864e5).toISOString().split('T')[0];
+  const recentTreatments = (S.treatments||[]).filter(t => t.date >= cutoff).sort((a,b)=>a.date.localeCompare(b.date));
+
+  // Группируем по FRAC коду
+  const fracUsage = {}; // {fracCode: [{date, product, name}]}
+  const catalog = S.catalog||[];
+
+  recentTreatments.forEach(t => {
+    const prodName = t.product || t.products?.map(x=>x.name).join('+') || '';
+    // Ищем препарат в каталоге
+    const catProduct = catalog.find(c => prodName.includes(c.name) || c.name.includes(prodName.split('+')[0]));
+    const moa = getMoaForProduct(catProduct||{name:prodName});
+
+    const code = moa?.frac || moa?.fracGroup || moa?.irac || moa?.iracGroup || '?';
+    if(!fracUsage[code]) fracUsage[code] = [];
+    fracUsage[code].push({date:t.date, name:prodName, product:catProduct});
+  });
+
+  // Проверяем повторное применение одной группы подряд
+  const warnings = [];
+  Object.entries(fracUsage).forEach(([code, uses]) => {
+    if(uses.length >= 2 && code !== '?' && code !== 'M' && code !== '33') {
+      const moaInfo = MOA_DB.frac[code] || MOA_DB.irac[code] || {};
+      if(moaInfo.risk === 'ВЫСОКИЙ') {
+        warnings.push({
+          level: 'danger',
+          code, uses, moaInfo,
+          msg: `Группа ${code} (${moaInfo.name||code}) применена ${uses.length} раз — ВЫСОКИЙ риск резистентности!`,
+        });
+      } else if(moaInfo.risk === 'СРЕДНИЙ' && uses.length >= 3) {
+        warnings.push({
+          level: 'warn',
+          code, uses, moaInfo,
+          msg: `Группа ${code} (${moaInfo.name||code}) применена ${uses.length} раз — риск накопления резистентности.`,
+        });
+      }
+    }
+  });
+
+  // Рекомендации по ротации
+  const usedFracCodes = new Set(Object.keys(fracUsage).filter(c=>c!=='?'));
+  const recommendations = [];
+
+  // Если много стробилуринов (11)
+  if((fracUsage['11']||[]).length >= 2) {
+    recommendations.push('⚠️ Стробилурины (FRAC 11) применены 2+ раз — заменить на SDHI (гр.7) или ДМИ (гр.3)');
+  }
+  // Если нет "якорного" препарата
+  if(!usedFracCodes.has('M') && !usedFracCodes.has('33')) {
+    recommendations.push('💡 Добавить "якорный" препарат без риска резистентности (медь, манкоцеб, каптан) в программу');
+  }
+  // Следующий рекомендуемый класс
+  const avoidNext = [...usedFracCodes].slice(-2);
+  const allFrac = Object.keys(MOA_DB.frac);
+  const nextRec = allFrac.find(c => !avoidNext.includes(c) && MOA_DB.frac[c].risk !== 'ВЫСОКИЙ');
+  if(nextRec) {
+    recommendations.push(`✅ Следующая обработка: рекомендуется группа FRAC ${nextRec} — ${MOA_DB.frac[nextRec].name} (${MOA_DB.frac[nextRec].examples})`);
+  }
+
+  // Строим временную шкалу
+  const timelineHtml = recentTreatments.slice(0,15).map(t => {
+    const prodName = t.product || t.products?.map(x=>x.name).join('+') || '—';
+    const catProduct = catalog.find(c => prodName.includes(c.name));
+    const moa = getMoaForProduct(catProduct||{name:prodName});
+    const code = moa?.frac || moa?.fracGroup || moa?.irac || moa?.iracGroup || '?';
+    const moaInfo = MOA_DB.frac[code] || MOA_DB.irac[code] || {};
+    const color = moaInfo.color || 'var(--text3)';
+    const riskColor = moaInfo.risk==='ВЫСОКИЙ'?'#dc2626':moaInfo.risk==='СРЕДНИЙ'?'#f59e0b':moaInfo.risk==='НИЗКИЙ'?'#16a34a':'var(--text3)';
+    return `<div style="display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:6px;background:var(--surface2);margin-bottom:4px;font-size:11px;">
+      <span style="color:var(--text3);min-width:40px;">${t.date?.slice(5)}</span>
+      <span style="flex:1;font-weight:600;">${prodName}</span>
+      <span style="padding:1px 8px;border-radius:6px;font-size:10px;background:${riskColor}22;color:${riskColor};font-weight:600;">FRAC ${code}</span>
+      <span style="font-size:10px;color:var(--text3);">${moaInfo.name||''}</span>
+      ${moaInfo.risk?`<span style="font-size:10px;padding:1px 6px;border-radius:4px;background:${riskColor}15;color:${riskColor};">${moaInfo.risk}</span>`:''}
+    </div>`;
+  }).join('');
+
+  panel.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <div style="font-family:'Unbounded',sans-serif;font-size:11px;font-weight:700;">🔄 МОА-ротация — анализ резистентности (90 дней)</div>
+        <button onclick="showMoaAnalysis()" style="border:none;background:none;color:var(--text3);cursor:pointer;font-size:18px;">×</button>
+      </div>
+
+      ${warnings.length ? `
+        <div style="margin-bottom:12px;">
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">⚠️ Предупреждения о резистентности</div>
+          ${warnings.map(w=>`<div style="padding:8px 12px;border-radius:8px;margin-bottom:5px;font-size:11px;
+            background:${w.level==='danger'?'rgba(220,38,38,.08)':'rgba(245,158,11,.08)'};
+            border-left:3px solid ${w.level==='danger'?'#dc2626':'#f59e0b'};">
+            <div style="font-weight:600;margin-bottom:3px;">${w.msg}</div>
+            <div style="color:var(--text3);">Применения: ${w.uses.map(u=>`${u.date.slice(5)} ${u.name}`).join(' → ')}</div>
+            ${w.moaInfo.note?`<div style="color:var(--text3);margin-top:2px;">📋 ${w.moaInfo.note}</div>`:''}
+          </div>`).join('')}
+        </div>` : `<div style="padding:8px 12px;border-radius:8px;background:rgba(22,163,74,.08);border-left:3px solid #16a34a;font-size:11px;margin-bottom:12px;">✅ Ротация удовлетворительная — нарушений не обнаружено</div>`}
+
+      ${recommendations.length ? `
+        <div style="margin-bottom:12px;">
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">💡 Рекомендации</div>
+          ${recommendations.map(r=>`<div style="font-size:11px;padding:5px 0;color:var(--text2);">${r}</div>`).join('')}
+        </div>` : ''}
+
+      <div>
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">📅 Хронология обработок (последние 90 дней)</div>
+        ${timelineHtml || '<div style="font-size:11px;color:var(--text3);">Обработок не найдено</div>'}
+      </div>
+
+      <!-- Справочник FRAC групп -->
+      <details style="margin-top:14px;">
+        <summary style="font-size:11px;color:var(--text3);cursor:pointer;padding:6px 0;">📚 Справочник FRAC групп (риски резистентности)</summary>
+        <div style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+          ${Object.entries(MOA_DB.frac).map(([code,m])=>`
+            <div style="padding:8px;border-radius:6px;background:var(--surface2);font-size:10px;">
+              <div style="display:flex;gap:6px;align-items:center;margin-bottom:3px;">
+                <span style="font-weight:700;">FRAC ${code}</span>
+                <span style="padding:1px 6px;border-radius:4px;background:${m.color}22;color:${m.color};font-size:9px;">${m.risk}</span>
+              </div>
+              <div style="color:var(--text2);margin-bottom:2px;">${m.name}</div>
+              <div style="color:var(--text3);">${m.examples}</div>
+            </div>`).join('')}
+        </div>
+      </details>
+    </div>`;
 }
 
 // ═══ ИРРИГАЦИОННОЕ ОБОРУДОВАНИЕ ═════════════════════════════════════════
