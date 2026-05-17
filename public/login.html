@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Smart Agro — Вход</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{min-height:100vh;background:#0a0f0a;display:flex;align-items:center;justify-content:center;font-family:'Inter',system-ui,sans-serif;color:#e2e8e2}
+.card{background:#111811;border:1px solid #1e2e1e;border-radius:16px;padding:40px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.logo{text-align:center;margin-bottom:32px}
+.logo-icon{font-size:40px;margin-bottom:8px}
+.logo h1{font-size:20px;font-weight:700;color:#4ade80;letter-spacing:-0.5px}
+.logo p{font-size:12px;color:#6b7a6b;margin-top:4px}
+.field{margin-bottom:16px}
+label{display:block;font-size:12px;color:#8a9a8a;margin-bottom:6px;font-weight:500}
+input{width:100%;padding:10px 14px;background:#0d140d;border:1px solid #1e2e1e;border-radius:8px;color:#e2e8e2;font-size:14px;outline:none;transition:border-color .2s}
+input:focus{border-color:#4ade80}
+input::placeholder{color:#3a4a3a}
+.btn{width:100%;padding:11px;background:#4ade80;color:#051005;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;transition:background .2s;margin-top:8px}
+.btn:hover{background:#22c55e}
+.btn:disabled{background:#1e3020;color:#3a4a3a;cursor:not-allowed}
+.error{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);color:#f87171;border-radius:8px;padding:10px 14px;font-size:12px;margin-bottom:16px;display:none}
+.apps{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:20px}
+.app-btn{padding:10px;background:#0d140d;border:1px solid #1e2e1e;border-radius:8px;color:#8a9a8a;font-size:12px;cursor:pointer;text-align:center;transition:all .2s}
+.app-btn:hover{border-color:#4ade80;color:#4ade80}
+.app-btn .app-icon{font-size:20px;margin-bottom:4px}
+.sep{text-align:center;color:#3a4a3a;font-size:11px;margin:16px 0;position:relative}
+.sep::before,.sep::after{content:'';position:absolute;top:50%;width:40%;height:1px;background:#1e2e1e}
+.sep::before{left:0}.sep::after{right:0}
+.tenant-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;background:rgba(74,222,128,.1);color:#4ade80;border:1px solid rgba(74,222,128,.2);margin-bottom:16px}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">
+    <div class="logo-icon">🌿</div>
+    <h1>Smart Agro</h1>
+    <p>Система управления садом и полем</p>
+  </div>
+
+  <div id="error-msg" class="error"></div>
+  <div id="tenant-badge" class="tenant-badge" style="display:none"></div>
+
+  <div class="field">
+    <label>Логин</label>
+    <input type="text" id="login" placeholder="agronomist" autocomplete="username">
+  </div>
+  <div class="field">
+    <label>Пароль</label>
+    <input type="password" id="password" placeholder="••••••••" autocomplete="current-password">
+  </div>
+
+  <button class="btn" id="login-btn" onclick="doLogin()">Войти</button>
+
+  <div class="sep">перейти в модуль</div>
+
+  <div class="apps" id="app-buttons" style="display:none">
+    <div class="app-btn" onclick="goApp('orchard')">
+      <div class="app-icon">🍒</div>
+      Smart Orchard
+    </div>
+    <div class="app-btn" onclick="goApp('vegetable')">
+      <div class="app-icon">🥕</div>
+      Smart Vegetable
+    </div>
+  </div>
+  <div id="app-hint" style="text-align:center;font-size:11px;color:#3a4a3a;margin-top:12px">
+    Войдите чтобы выбрать модуль
+  </div>
+</div>
+
+<script>
+const TOKEN_KEY = 'agro_jwt';
+const TENANT_KEY = 'agro_tenant';
+
+// Проверяем есть ли уже токен
+const saved = sessionStorage.getItem(TOKEN_KEY) || localStorage.getItem(TOKEN_KEY);
+if (saved) {
+  showLoggedIn();
+}
+
+function showLoggedIn() {
+  const info = parseJwt(sessionStorage.getItem(TOKEN_KEY) || localStorage.getItem(TOKEN_KEY));
+  if (!info) return;
+  document.getElementById('login').value = info.login || '';
+  document.getElementById('tenant-badge').textContent = '✓ ' + (sessionStorage.getItem('agro_tenant_name') || info.tenantId);
+  document.getElementById('tenant-badge').style.display = 'inline-block';
+  document.getElementById('app-buttons').style.display = 'grid';
+  document.getElementById('app-hint').style.display = 'none';
+  document.getElementById('login-btn').textContent = 'Войти снова';
+}
+
+async function doLogin() {
+  const login = document.getElementById('login').value.trim();
+  const password = document.getElementById('password').value;
+  const btn = document.getElementById('login-btn');
+  const errEl = document.getElementById('error-msg');
+
+  if (!login || !password) { showError('Введите логин и пароль'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Вхожу...';
+  errEl.style.display = 'none';
+
+  try {
+    const r = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ login, password })
+    });
+    const data = await r.json();
+
+    if (!r.ok || !data.ok) {
+      showError(data.error || 'Ошибка авторизации');
+      btn.disabled = false;
+      btn.textContent = 'Войти';
+      return;
+    }
+
+    // Сохраняем токен
+    sessionStorage.setItem(TOKEN_KEY, data.token);
+    sessionStorage.setItem('agro_role', data.role);
+    sessionStorage.setItem('agro_tenant', data.tenantId);
+    sessionStorage.setItem('agro_tenant_name', data.tenantName || data.tenantId);
+    sessionStorage.setItem('agro_user_name', data.name || login);
+    // Настройки метеостанций для этого тенанта
+    if (data.fcOrchard) sessionStorage.setItem('agro_fc_orchard', data.fcOrchard);
+    if (data.fcVeg)     sessionStorage.setItem('agro_fc_veg', data.fcVeg);
+    if (data.lat)       sessionStorage.setItem('agro_lat', data.lat);
+    if (data.lon)       sessionStorage.setItem('agro_lon', data.lon);
+
+    btn.textContent = '✓ Добро пожаловать!';
+    showLoggedIn();
+  } catch(e) {
+    showError('Сервер недоступен: ' + e.message);
+    btn.disabled = false;
+    btn.textContent = 'Войти';
+  }
+}
+
+function goApp(module) {
+  const token = sessionStorage.getItem(TOKEN_KEY);
+  if (!token) { showError('Сначала войдите'); return; }
+  window.location.href = '/' + module;
+}
+
+function showError(msg) {
+  const el = document.getElementById('error-msg');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function parseJwt(token) {
+  if (!token) return null;
+  try {
+    return JSON.parse(atob(token.split('.')[1]));
+  } catch(e) { return null; }
+}
+
+// Enter для входа
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin();
+});
+</script>
+</body>
+</html>
