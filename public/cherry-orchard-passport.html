@@ -938,8 +938,11 @@ tbody td{padding:10px 12px;vertical-align:middle;}
   <!-- SUB: Технологическая карта -->
   <div id="gddsub-panel-techmap" style="display:none;">
     <div style="margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-      <span style="font-size:12px;color:var(--text2);">Культура:</span>
-      <select id="techmap-crop-select" onchange="renderTechmap()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:'Inter',sans-serif;"></select>
+      <span style="font-size:12px;color:var(--text2);">Участок:</span>
+      <select id="techmap-cell-select" onchange="onTechmapCellChange()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:'Inter',sans-serif;"></select>
+      <span style="font-size:12px;color:var(--text2);">Сорт:</span>
+      <select id="techmap-variety-select" onchange="renderTechmap()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:'Inter',sans-serif;"></select>
+      <div id="techmap-cell-info" style="font-size:11px;color:var(--text3);"></div>
     </div>
     <div id="techmap-content"></div>
   </div>
@@ -7460,12 +7463,54 @@ function switchGddSub(sub) {
     btn.style.fontWeight  = active ? '700' : '400';
   });
   if(sub==='techmap') {
-    const sel = document.getElementById('techmap-crop-select');
-    if(sel && !sel.options.length) {
-      sel.innerHTML = S.crops.map(c=>`<option value="${c.id}">${c.emoji||''} ${c.name}</option>`).join('');
-    }
+    fillTechmapCellSelect();
     renderTechmap();
   }
+}
+
+function fillTechmapCellSelect() {
+  const sel = document.getElementById('techmap-cell-select');
+  if(!sel) return;
+  const cells = Object.entries(S.cells);
+  if(!cells.length) {
+    sel.innerHTML = '<option value="">— нет клеток —</option>';
+    return;
+  }
+  sel.innerHTML = cells.map(([key, cd]) => {
+    const crop = getCropById(cd.cropId||'crop_cherry');
+    const tot = calcCellTotals(cd);
+    return `<option value="${key}">${crop?.emoji||'🌱'} Клетка ${key} — ${crop?.name||'?'} (${tot.totalHa.toFixed(2)} га)</option>`;
+  }).join('');
+  onTechmapCellChange();
+}
+
+function onTechmapCellChange() {
+  const cellKey = document.getElementById('techmap-cell-select')?.value;
+  if(!cellKey) return;
+  const cd = S.cells[cellKey];
+  if(!cd) return;
+  const cropId = cd.cropId || 'crop_cherry';
+
+  // Заполняем сорта этой культуры
+  const varSel = document.getElementById('techmap-variety-select');
+  if(varSel) {
+    const vars = S.varieties.filter(v=>(v.cropId||'crop_cherry')===cropId);
+    varSel.innerHTML = vars.map(v=>`<option value="${v.id}">${v.name}</option>`).join('');
+    // Выбираем первый сорт
+    if(vars.length) varSel.value = vars[0].id;
+  }
+
+  // Показываем инфо о клетке
+  const infoEl = document.getElementById('techmap-cell-info');
+  if(infoEl) {
+    const gdd = getCurrentGdd(getCropById(cropId)?.baseTemp||4.5);
+    const varId = varSel?.value;
+    const phase = varId ? getPhaseByGdd(varId, gdd) : null;
+    const cover = cd.cover && cd.cover!=='none' ? {net:'🕸 Сетка',film:'🎪 Плёнка',both:'🎪🕸 Плёнка+сетка'}[cd.cover] : '';
+    infoEl.innerHTML = `GDD: <strong>${gdd.toFixed(0)}</strong> · Фаза: <strong style="color:var(--accent);">${phase?.name||'—'}</strong>${cover?' · '+cover:''}${cd.rootstock?' · 🌳 '+cd.rootstock:''}`;
+  }
+
+  renderTechmap();
 }
 
 const TECHMAP = {
@@ -7513,69 +7558,77 @@ const TECHMAP = {
   ],
 };
 
-function getTechmapAutoData(p, idx) {
+function getTechmapAutoData(p, idx, cellKey) {
   const parts = [];
   const w7 = S.weather.slice(0, 7);
   if(!w7.length) return '';
-
-  // Данные из метеостанции
   const totalRain = w7.reduce((s,w)=>s+parseFloat(w.precip||0),0).toFixed(1);
   const avgTmax = (w7.reduce((s,w)=>s+parseFloat(w.tmax||0),0)/w7.length).toFixed(1);
   const avgRH   = (w7.reduce((s,w)=>s+parseFloat(w.humidity||0),0)/w7.length).toFixed(0);
-  parts.push(`🌡️ Последние 7 дней: T°макс ${avgTmax}°C · RH ${avgRH}% · осадки ${totalRain}мм`);
-
-  // Данные из Water Balance
+  parts.push(`🌡️ Метеостанция (7 дней): T°макс ${avgTmax}°C · RH ${avgRH}% · осадки ${totalRain}мм`);
   const wbLog = S.irrigation?.waterBalance?.log || [];
   const lastWb = wbLog[wbLog.length-1];
   if(lastWb) {
     const sp = S.irrigation?.waterBalance?.soilParams || {};
     const taw = ((sp.fc||32)-(sp.pwp||14))*(sp.rootDepth||60)*0.1;
     const pct = taw>0 ? Math.round(lastWb.balance/taw*100) : '?';
-    const status = lastWb.status==='ok'?'✅ Норма' : lastWb.status==='watch'?'👀 Внимание' : lastWb.status==='stress'?'⚠️ Стресс' : '⛔ Критично';
-    parts.push(`💧 Water Balance: ${lastWb.balance}мм (${pct}% TAW) · ETc ${lastWb.etc}мм/день · ${status}`);
+    const statusLabel = {ok:'✅ Достаточно',watch:'👀 Внимание',stress:'⚠️ Стресс',critical:'⛔ Критично'}[lastWb.status]||lastWb.status;
+    const normaNote = lastWb.status==='ok' ? ' — норма полива соблюдается' : ' — требуется корректировка';
+    parts.push(`💧 Влага почвы: ${lastWb.balance}мм (${pct}% TAW) · ETc ${lastWb.etc}мм/день · ${statusLabel}${normaNote}`);
   }
-
-  // Обработки в этой фазе
-  const phaseNames = [p.phase];
-  const relTreatments = (S.treatments||[]).filter(t => {
-    if(!t.endDate) return false;
-    // Ищем обработки которые есть в рекомендованных препаратах фазы
-    const recNames = p.protection.join(' ').toLowerCase();
-    const tName = (t.product||t.products?.map(x=>x.name).join(' ')||'').toLowerCase();
-    // Или просто показываем последние 5 обработок
-    return true;
-  }).slice(0,3);
-
-  if(relTreatments.length) {
-    parts.push(`💊 Обработки (последние): ${relTreatments.map(t=>`${t.date} ${t.product||t.products?.[0]?.name||'?'}`).join(', ')}`);
+  if(cellKey) {
+    const cellSensors = (S.irrigation?.sensors||[]).filter(s=>s.cellKey===cellKey);
+    const cellReadings = (S.irrigation?.readings||[]).filter(r=>cellSensors.find(s=>s.id===r.sensorId)).slice(0,1);
+    if(cellReadings.length) {
+      const lastR = cellReadings[0];
+      const sensor = cellSensors.find(s=>s.id===lastR.sensorId);
+      parts.push(`📡 Датчик${sensor?' ('+sensor.depth+'см)':''}: ${lastR.value}% VWC · ${lastR.date}`);
+    }
+    const cd = S.cells[cellKey];
+    if(cd) {
+      const coverInfo = {none:'',net:'🕸 Сетка',film:'🎪 Плёнка',both:'🎪🕸 Плёнка+сетка'}[cd.cover||'none'];
+      if(coverInfo) parts.push(`${coverInfo}${cd.rootstock?' · 🌳 '+cd.rootstock:''}${cd.plantingScheme?' · 📐 '+cd.plantingScheme:''}`);
+    }
   }
-
+  const treatments = (S.treatments||[]).slice(0,3);
+  if(treatments.length) {
+    parts.push(`💊 Последние обработки: ${treatments.map(t=>`${t.date} ${t.product||t.products?.[0]?.name||'?'}`).join(' · ')}`);
+  }
   return parts.join('<br>');
 }
-
 function renderTechmap() {
   const el = document.getElementById('techmap-content');
   if(!el) return;
-  const cropId = document.getElementById('techmap-crop-select')?.value || 'crop_cherry';
+
+  // Берём клетку и сорт
+  const cellKey = document.getElementById('techmap-cell-select')?.value;
+  const varId   = document.getElementById('techmap-variety-select')?.value;
+  const cd = cellKey ? S.cells[cellKey] : null;
+  const cropId = cd?.cropId || 'crop_cherry';
+  const crop = getCropById(cropId);
+  const variety = S.varieties.find(v=>v.id===varId);
+
   const phases = TECHMAP[cropId];
   if(!phases) {
-    el.innerHTML = `<div style="padding:30px;text-align:center;color:var(--text3);"><div style="font-size:32px;margin-bottom:12px;">🚧</div><div>Технологическая карта для этой культуры в разработке</div></div>`;
+    el.innerHTML = `<div style="padding:30px;text-align:center;color:var(--text3);"><div style="font-size:32px;margin-bottom:12px;">🚧</div><div>Технологическая карта для культуры <strong>${crop?.name||cropId}</strong> в разработке</div></div>`;
     return;
   }
-  const gdd = getCurrentGdd(4.5);
-  const firstVar = S.varieties.find(v=>(v.cropId||'crop_cherry')===cropId);
-  const currentPhase = firstVar ? getPhaseByGdd(firstVar.id, gdd) : null;
+
+  // GDD для конкретного сорта этой клетки
+  const tbase = crop?.baseTemp || 4.5;
+  const gdd = getCurrentGdd(tbase);
+  const currentPhase = varId ? getPhaseByGdd(varId, gdd) : null;
   const FILM_COLOR = t => t.includes('ЗАКРЫТЬ')||t.includes('Закрыта') ? 'var(--orange)' : t.includes('ОТКРЫТА')||t.includes('Открыта') ? 'var(--accent)' : 'var(--text3)';
   if(!S.techLog) S.techLog = {};
 
   el.innerHTML = phases.map((p, idx) => {
     const isCurrent = currentPhase?.name === p.phase;
-    const phaseKey = `${cropId}_${idx}`;
+    const phaseKey = `${cellKey||cropId}_${varId||'v1'}_${idx}`;
     const log = S.techLog[phaseKey] || {};
     const doneTasks = p.tasks.filter((_, ti) => log.tasks?.[ti]?.done).length;
     const pct = Math.round(doneTasks / p.tasks.length * 100);
     const pctColor = pct===100?'var(--accent)':pct>50?'var(--yellow)':'var(--text3)';
-    const autoData = isCurrent ? getTechmapAutoData(p, idx) : '';
+    const autoData = isCurrent ? getTechmapAutoData(p, idx, cellKey) : '';
 
     // Данные обработок для этой фазы
     const treatments = (S.treatments||[]).slice(0,5);
