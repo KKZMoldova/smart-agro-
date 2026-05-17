@@ -238,7 +238,6 @@ app.get('/api/setup-once', async (req, res) => {
     const bcrypt = require('bcryptjs');
     const results = [];
 
-    // 1. Создаём таблицы
     await db.query(`CREATE TABLE IF NOT EXISTS tenants (
       id TEXT PRIMARY KEY, name TEXT NOT NULL, plan TEXT DEFAULT 'basic',
       fc_station_orchard TEXT DEFAULT '', fc_station_veg TEXT DEFAULT '',
@@ -247,7 +246,9 @@ app.get('/api/setup-once', async (req, res) => {
       timezone TEXT DEFAULT 'Europe/Chisinau', active BOOLEAN DEFAULT TRUE,
       created_at TIMESTAMPTZ DEFAULT NOW()
     )`);
-    await db.query(`CREATE TABLE IF NOT EXISTS users (
+    // Пересоздаём users с правильной схемой
+    await db.query(`DROP TABLE IF EXISTS users CASCADE`);
+    await db.query(`CREATE TABLE users (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       tenant_id TEXT NOT NULL REFERENCES tenants(id),
       login TEXT NOT NULL, password_hash TEXT NOT NULL,
