@@ -1,6 +1,6 @@
 {
   "name": "smart-agro",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Smart Orchard & Smart Vegetable — Agricultural Management System",
   "main": "app.js",
   "scripts": {
