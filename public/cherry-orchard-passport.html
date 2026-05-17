@@ -7915,9 +7915,6 @@ function getMoaForProduct(p) {
   // 2. Из базы по названию
   const key = Object.keys(MOA_PRODUCTS).find(k => p.name?.includes(k));
   if(key) return MOA_PRODUCTS[key];
-  // 3. Из базы ORCHARD_FRAC_IRAC по названию
-  const legacy = Object.entries(ORCHARD_FRAC_IRAC||{}).find(([k]) => p.name?.includes(k));
-  if(legacy) return legacy[1];
   return null;
 }
 
