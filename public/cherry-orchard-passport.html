@@ -13157,14 +13157,15 @@ async function loadCherryForecast() {
 
   try {
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${CHERRY_LAT}&longitude=${CHERRY_LON}` +
-      `&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,weathercode,windspeed_10m_max,precipitation_hours` +
-      `&timezone=Europe%2FChisinau&forecast_days=7`;
+      `&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,` +
+      `weathercode,windspeed_10m_max,precipitation_hours,et0_fao_evapotranspiration,` +
+      `relativehumidity_2m_max,relativehumidity_2m_min,vapor_pressure_deficit_max` +
+      `&timezone=Europe%2FChisinau&forecast_days=14`;
     const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const data = await r.json();
     const f = data.daily;
 
-    // Рендер карточек прогноза
     const days = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
     grid.innerHTML = f.time.map((date, i) => {
       const tmax = f.temperature_2m_max[i];
@@ -13174,34 +13175,48 @@ async function loadCherryForecast() {
       const wcode = f.weathercode[i] || 0;
       const wind = f.windspeed_10m_max[i] || 0;
       const precipHours = f.precipitation_hours[i] || 0;
+      const et0 = f.et0_fao_evapotranspiration?.[i] || 0;
+      const rhMax = f.relativehumidity_2m_max?.[i] || 0;
+      const rhMin = f.relativehumidity_2m_min?.[i] || 0;
+      const vpd = f.vapor_pressure_deficit_max?.[i] || 0;
 
       const d = new Date(date);
       const dayName = i===0 ? 'Сегодня' : i===1 ? 'Завтра' : days[d.getDay()];
       const dayNum = d.getDate() + '.' + String(d.getMonth()+1).padStart(2,'0');
 
-      // Определить риски для черешни
       const isFrost = tmin <= 0;
       const isHeat = tmax >= 32;
       const isRain = precip > 5 || precipProb > 60;
-      const isSprayOk = precip < 2 && precipProb < 40 && wind < 15 && !isFrost;
+      const isDry = rhMin < 40 && vpd > 2.5;
+      const isSprayOk = precip < 2 && precipProb < 40 && wind < 15 && !isFrost && tmax >= 8 && tmax <= 30;
 
       let borderColor = 'var(--border)';
-      if (isFrost) borderColor = 'var(--red)';
+      if (isFrost) borderColor = '#4fc3f7';
       else if (isRain) borderColor = 'var(--blue)';
       else if (isHeat) borderColor = 'var(--orange)';
+      else if (isDry) borderColor = 'var(--yellow)';
       else if (isSprayOk) borderColor = 'var(--accent)';
 
-      return `<div style="background:var(--surface2);border:1px solid ${borderColor};border-radius:10px;padding:10px 8px;text-align:center;position:relative;">
-        ${i===0?'<div style="position:absolute;top:-1px;left:50%;transform:translateX(-50%);background:var(--accent);color:#000;font-size:8px;font-family:\'Unbounded\',sans-serif;padding:1px 8px;border-radius:0 0 6px 6px;">СЕГОДНЯ</div>':''}
-        <div style="font-size:9px;color:var(--text3);font-family:'Unbounded',sans-serif;margin-bottom:4px;margin-top:${i===0?'8px':'0'}">${dayName}</div>
-        <div style="font-size:9px;color:var(--text3);margin-bottom:6px;">${dayNum}</div>
-        <div style="font-size:22px;margin-bottom:6px;">${FORECAST_ICONS[wcode]||'🌡️'}</div>
-        <div style="font-size:11px;font-weight:700;color:var(--text);">${Math.round(tmax)}°</div>
+      // Kc текущей фазы
+      const gdd = getCurrentGdd(4.5);
+      const phase = getPhaseByGdd(S.varieties[0]?.id, gdd);
+      const kc = phase?.kc || 1.0;
+      const etc = et0 > 0 ? (et0 * kc).toFixed(1) : null;
+
+      return `<div style="background:var(--surface2);border:1px solid ${borderColor};border-radius:10px;padding:10px 6px;text-align:center;position:relative;min-width:0;">
+        ${i===0?'<div style="position:absolute;top:-1px;left:50%;transform:translateX(-50%);background:var(--accent);color:#000;font-size:8px;font-family:\'Unbounded\',sans-serif;padding:1px 6px;border-radius:0 0 6px 6px;">СЕГОДНЯ</div>':''}
+        ${i===7?'<div style="position:absolute;top:-1px;left:50%;transform:translateX(-50%);background:var(--blue);color:#fff;font-size:8px;padding:1px 6px;border-radius:0 0 6px 6px;">+7</div>':''}
+        <div style="font-size:9px;color:var(--text3);font-family:'Unbounded',sans-serif;margin-bottom:2px;margin-top:${i===0?'8px':'0'}">${dayName}</div>
+        <div style="font-size:9px;color:var(--text3);margin-bottom:4px;">${dayNum}</div>
+        <div style="font-size:20px;margin-bottom:4px;">${FORECAST_ICONS[wcode]||'🌡️'}</div>
+        <div style="font-size:12px;font-weight:700;color:var(--text);">${Math.round(tmax)}°</div>
         <div style="font-size:10px;color:var(--text3);">${Math.round(tmin)}°</div>
-        ${precip>0.1?`<div style="font-size:10px;color:var(--blue);margin-top:4px;">💧 ${precip.toFixed(1)}мм</div>`:''}
+        ${precip>0.1?`<div style="font-size:9px;color:var(--blue);margin-top:3px;">💧${precip.toFixed(1)}мм</div>`:''}
         ${precipProb>20?`<div style="font-size:9px;color:var(--text3);">${precipProb}%</div>`:''}
-        ${isSprayOk?'<div style="font-size:9px;color:var(--accent);margin-top:4px;">✅ Обработка</div>':''}
-        ${isFrost?'<div style="font-size:9px;color:var(--red);margin-top:4px;">❄️ Заморозок</div>':''}
+        ${etc?`<div style="font-size:9px;color:var(--orange);margin-top:2px;">ET${etc}мм</div>`:''}
+        ${isSprayOk?'<div style="font-size:9px;color:var(--accent);margin-top:3px;">✅ Обр.</div>':''}
+        ${isFrost?'<div style="font-size:9px;color:#4fc3f7;margin-top:3px;">❄️ Мороз</div>':''}
+        ${isDry?'<div style="font-size:9px;color:var(--yellow);margin-top:2px;">🌵 Сухо</div>':''}
       </div>`;
     }).join('');
 
@@ -13221,49 +13236,113 @@ function renderCherryForecastRecs(f) {
   if (!el) return;
   const alerts = [];
 
+  const gdd = getCurrentGdd(4.5);
+  const phase = getPhaseByGdd(S.varieties[0]?.id, gdd);
+  const phaseName = phase?.name || '';
+  const kc = phase?.kc || 1.0;
+
+  const sprayWindows = [];
   f.time.forEach((date, i) => {
     const tmax = f.temperature_2m_max[i];
     const tmin = f.temperature_2m_min[i];
     const precip = f.precipitation_sum[i] || 0;
     const precipProb = f.precipitation_probability_max[i] || 0;
-    const precipHours = f.precipitation_hours[i] || 0;
     const wind = f.windspeed_10m_max[i] || 0;
+    const precipHours = f.precipitation_hours[i] || 0;
+    const et0 = f.et0_fao_evapotranspiration?.[i] || 0;
+    const rhMin = f.relativehumidity_2m_min?.[i] || 40;
+    const vpd = f.vapor_pressure_deficit_max?.[i] || 0;
     const d = new Date(date);
     const dayStr = d.getDate() + '.' + String(d.getMonth()+1).padStart(2,'0');
+    const etc = (et0 * kc).toFixed(1);
 
-    // Заморозок
-    if (tmin <= 0) {
-      alerts.push({ type: 'danger', icon: '❄️', text: `<b>${dayStr}</b> — Заморозок T°мин ${Math.round(tmin)}°C. Риск повреждения цветков и завязей черешни!` });
-    }
-    // Монилиоз/серая гниль — дождь + тепло во время цветения
-    if (precip >= 3 && tmax >= 10 && precipHours >= 4) {
-      alerts.push({ type: 'warn', icon: '🍄', text: `<b>${dayStr}</b> — Дождь ${precip.toFixed(1)}мм · ${precipHours}ч осадков. Высокий риск монилиоза. Обработка фунгицидом ДО дождя.` });
-    }
-    // Хорошее окно для обработки
-    if (precip < 1 && precipProb < 30 && wind < 12 && tmax >= 10 && tmax <= 28 && i <= 4) {
-      alerts.push({ type: 'good', icon: '✅', text: `<b>${dayStr}</b> — Оптимальное окно для опрыскивания. T° ${Math.round(tmin)}–${Math.round(tmax)}°C, осадков нет, ветер ${Math.round(wind)} км/ч.` });
-    }
-    // Жара
-    if (tmax >= 35) {
-      alerts.push({ type: 'warn', icon: '🌡️', text: `<b>${dayStr}</b> — Жара ${Math.round(tmax)}°C. Избегать обработок в дневные часы. Полив рано утром.` });
-    }
+    if (tmin <= 0) alerts.push({type:'danger',icon:'❄️',
+      text:`<b>${dayStr}</b> — Заморозок T°мин ${Math.round(tmin)}°C. Риск повреждения${phaseName.includes('Цвет')?' цветков':phaseName.includes('Завязь')?' завязей':' плодов'} черешни!`});
+    if (tmin <= -2 && phaseName.includes('Цвет')) alerts.push({type:'danger',icon:'🚨',
+      text:`<b>${dayStr}</b> — КРИТИЧНО: ${Math.round(tmin)}°C в цветение. 100% гибель цветков. Антизаморозковое дождевание!`});
+    if (precip >= 3 && tmax >= 10 && precipHours >= 4) alerts.push({type:'warn',icon:'🍄',
+      text:`<b>${dayStr}</b> — Дождь ${precip.toFixed(1)}мм · ${precipHours}ч. Риск монилиоза. Хорус или Свитч ДО дождя.`});
+    if (precipHours >= 6 && tmax >= 15) alerts.push({type:'warn',icon:'🍂',
+      text:`<b>${dayStr}</b> — ${precipHours}ч дождя при ${Math.round(tmax)}°C. Риск коккомикоза. Луна Сенсейшн после дождя.`});
+    if (rhMin < 40 && vpd > 2.5 && phaseName.includes('Цвет')) alerts.push({type:'warn',icon:'🌵',
+      text:`<b>${dayStr}</b> — Суховей: RH мин ${rhMin}% · VPD ${vpd.toFixed(1)} кПа. Дождевание кроны 6:00–9:00.`});
+    if (tmax >= 35) alerts.push({type:'warn',icon:'🌡️',
+      text:`<b>${dayStr}</b> — Жара ${Math.round(tmax)}°C. ETc ${etc}мм/день. Обработки только до 9:00 или после 19:00.`});
+    if (precip < 1 && precipProb < 30 && wind < 12 && tmax >= 10 && tmax <= 28 && i <= 6) sprayWindows.push(dayStr);
   });
 
-  if (!alerts.length) {
-    el.innerHTML = '<div style="font-size:12px;color:var(--text3);padding:8px;">Погодных предупреждений нет.</div>';
-    return;
+  const et7 = f.et0_fao_evapotranspiration?.slice(0,7).reduce((s,v)=>s+(v||0),0) || 0;
+  const etc7 = (et7 * kc).toFixed(1);
+  const rain7 = f.precipitation_sum.slice(0,7).reduce((s,v)=>s+(v||0),0).toFixed(1);
+  alerts.unshift({type:'info',icon:'📊',
+    text:`Прогноз 7 дней: ETc <b>${etc7}мм</b> · Осадки <b>${rain7}мм</b> · Баланс: <b>${(parseFloat(rain7)-parseFloat(etc7)).toFixed(1)}мм</b>. Фаза: <b>${phaseName}</b>, Kc ${kc}`});
+
+  if (sprayWindows.length) alerts.push({type:'good',icon:'✅',
+    text:`Оптимальные окна для опрыскивания: <b>${sprayWindows.slice(0,5).join(', ')}</b>. Без дождя, ветер <12км/ч, T 10–28°C.`});
+
+  // Авто-рекомендации по анализу листа
+  const lastLeaf = [...(S.analyses||[])].filter(a=>a.type==='leaf').sort((a,b)=>b.date.localeCompare(a.date))[0];
+  const waterAn = [...(S.analyses||[])].filter(a=>a.type==='water').sort((a,b)=>b.date.localeCompare(a.date))[0];
+  const wCa = parseFloat(waterAn?.Ca||waterAn?.ca||0);
+  const wMg = parseFloat(waterAn?.Mg||waterAn?.mg||0);
+  const wPh = parseFloat(waterAn?.pH||waterAn?.ph||0);
+  const nextSpray = sprayWindows[0] || 'нет окна в 7 дней';
+
+  if (lastLeaf) {
+    const leafDate = lastLeaf.date;
+    const checks = [
+      {el:'N', found:parseFloat(lastLeaf.N||lastLeaf.n), min:2.4, max:3.0, unit:'%',
+        low:`Дефицит N (<2.4%). Ca(NO₃)₂ 84ppm через капельницу 8 нед. от опадания лепестков. Листовая: мочевина 0.5% ранним утром. Окно: <b>${nextSpray}</b>`,
+        high:`Избыток N (>3.0%). Прекратить N-удобрения! Риск мельчания плода (Neilsen 2007).`},
+      {el:'P', found:parseFloat(lastLeaf.P||lastLeaf.p), min:0.14, max:0.25, unit:'%',
+        low:`Дефицит P (<0.14%). MAP 20г/дерево при цветении. Листовая: МКФ 0.3% 2–3 обработки. Окно: <b>${nextSpray}</b>`,
+        high:`Избыток P. Снизить дозы фосфора.`},
+      {el:'K', found:parseFloat(lastLeaf.K||lastLeaf.k), min:1.5, max:2.5, unit:'%',
+        low:`Дефицит K (<1.5%). Нитрат калия 20г/дерево в июне. Листовая: KNO₃ 0.5–1%. Критично для Brix! Окно: <b>${nextSpray}</b>`,
+        high:`Избыток K — антагонизм с Ca и Mg. Снизить K, добавить Ca.`},
+      {el:'Ca', found:parseFloat(lastLeaf.Ca||lastLeaf.ca), min:1.0, max:2.0, unit:'%',
+        low:`Дефицит Ca (<1.0%). Хелат Ca 3–5 кг/га каждые 7–10 дней. При жаре: CaCl₂ 0.3% листовая. Вода: ${wCa}ppm Ca уже есть.`,
+        high:`Ca в норме.`},
+      {el:'Mg', found:parseFloat(lastLeaf.Mg||lastLeaf.mg), min:0.25, max:0.5, unit:'%',
+        low:`Дефицит Mg (<0.25%). Листовая: MgSO₄ 1–2% 2–3 обработки. Вода даёт ${wMg}мг/л — учесть! Окно: <b>${nextSpray}</b>`,
+        high:`Высокий Mg — не вносить MgSO₄! Вода уже ${wMg}мг/л.`},
+      {el:'Fe', found:parseFloat(lastLeaf.Fe||lastLeaf.fe), min:60, max:200, unit:'ppm',
+        low:`Дефицит Fe (<60ppm). pH воды ${wPh} >7.5 блокирует Fe. Хелат Fe-DTPA 0.5–1кг/1000л капельно. Листовая: Fe-EDTA 0.1–0.2%.`,
+        high:`Fe в норме.`},
+      {el:'B', found:parseFloat(lastLeaf.B||lastLeaf.b), min:25, max:60, unit:'ppm',
+        low:`Дефицит B (<25ppm). Борная кислота 0.15–0.2% ДО цветения и после. НЕ в цветение! Окно: <b>${nextSpray}</b>`,
+        high:`Избыток B — токсичен! Прекратить бор.`},
+    ];
+
+    const leafIssues = checks.filter(c => !isNaN(c.found) && c.found > 0 && (c.found < c.min || c.found > c.max));
+    if (leafIssues.length) {
+      alerts.push({type:'leaf',icon:'🍃',text:`<b>Анализ листа (${leafDate}) — требует действий по ${leafIssues.length} элементам:</b>`});
+      leafIssues.forEach(c => {
+        const isLow = c.found < c.min;
+        alerts.push({
+          type: isLow ? (c.found < c.min*0.7 ? 'danger':'warn') : 'excess',
+          icon: isLow ? '📉':'📈',
+          text: `<b>${c.el} = ${c.found}${c.unit}</b> (норма ${c.min}–${c.max}): ` + (isLow ? c.low : c.high),
+        });
+      });
+    } else {
+      alerts.push({type:'good',icon:'🍃',text:`Анализ листа (${leafDate}) — все показатели в норме по Neilsen et al. (CAB 2017).`});
+    }
+  } else {
+    alerts.push({type:'info',icon:'🍃',text:'Анализ листа не найден. Добавьте анализ в блоке 🔬 Анализы для авто-рекомендаций.'});
   }
 
   el.innerHTML = `
     <div style="font-family:'Unbounded',sans-serif;font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🌿 Рекомендации агронома</div>
-    ${alerts.map(a => `
-      <div style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;margin-bottom:6px;border-radius:8px;font-size:11px;
-        background:${a.type==='danger'?'rgba(255,85,85,.08)':a.type==='warn'?'rgba(255,200,0,.08)':'rgba(107,221,107,.08)'};
-        border-left:3px solid ${a.type==='danger'?'var(--red)':a.type==='warn'?'var(--yellow)':'var(--accent)'};">
-        <span style="font-size:16px;">${a.icon}</span>
+    ${alerts.map(a=>`
+      <div style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;margin-bottom:5px;border-radius:8px;font-size:11px;line-height:1.5;
+        background:${a.type==='danger'?'rgba(226,75,74,.08)':a.type==='warn'?'rgba(251,146,60,.08)':a.type==='good'?'rgba(74,222,128,.08)':a.type==='leaf'?'rgba(96,165,250,.06)':a.type==='excess'?'rgba(234,179,8,.08)':'rgba(96,165,250,.05)'};
+        border-left:3px solid ${a.type==='danger'?'var(--red)':a.type==='warn'?'var(--orange)':a.type==='good'?'var(--accent)':a.type==='leaf'?'var(--blue)':a.type==='excess'?'var(--yellow)':'var(--blue)'};">
+        <span style="font-size:14px;flex-shrink:0;">${a.icon}</span>
         <span>${a.text}</span>
       </div>`).join('')}`;
 }
+
 
 // ═══ ЖУРНАЛ AI РЕКОМЕНДАЦИЙ ══════════════════════════════════════════════
 
