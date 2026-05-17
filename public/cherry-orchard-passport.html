@@ -3044,7 +3044,8 @@ let S = {
   warehouse: { chemicals: [], parts: [], seeds: [], history: [] },
   irrigEquip: { pumps: [], valves: [], drip: [], frost: [] },
   rootstocks: [],
-  aiLog: [], // [{id, date, type, prompt_summary, ai_text, photo_base64, comments:[{date,author,role,text}]}]
+  aiLog: [],
+  techLog: {}, // {phaseKey: {tasks:{taskIdx:{done,date,comment}}, irrigNote, weatherNote, agronNote}} // [{id, date, type, prompt_summary, ai_text, photo_base64, comments:[{date,author,role,text}]}]
   varieties:[
     {id:'v1',name:'Регина',  ripening:'Поздний',pollType:'cross',pollinators:'Кордия, Наполеон, Карина',color:'vc0',note:'',cropId:'crop_cherry'},
     {id:'v2', name:'Кордия (Kordia)', ripening:'Средне-поздний', pollType:'cross',
@@ -7512,6 +7513,46 @@ const TECHMAP = {
   ],
 };
 
+function getTechmapAutoData(p, idx) {
+  const parts = [];
+  const w7 = S.weather.slice(0, 7);
+  if(!w7.length) return '';
+
+  // Данные из метеостанции
+  const totalRain = w7.reduce((s,w)=>s+parseFloat(w.precip||0),0).toFixed(1);
+  const avgTmax = (w7.reduce((s,w)=>s+parseFloat(w.tmax||0),0)/w7.length).toFixed(1);
+  const avgRH   = (w7.reduce((s,w)=>s+parseFloat(w.humidity||0),0)/w7.length).toFixed(0);
+  parts.push(`🌡️ Последние 7 дней: T°макс ${avgTmax}°C · RH ${avgRH}% · осадки ${totalRain}мм`);
+
+  // Данные из Water Balance
+  const wbLog = S.irrigation?.waterBalance?.log || [];
+  const lastWb = wbLog[wbLog.length-1];
+  if(lastWb) {
+    const sp = S.irrigation?.waterBalance?.soilParams || {};
+    const taw = ((sp.fc||32)-(sp.pwp||14))*(sp.rootDepth||60)*0.1;
+    const pct = taw>0 ? Math.round(lastWb.balance/taw*100) : '?';
+    const status = lastWb.status==='ok'?'✅ Норма' : lastWb.status==='watch'?'👀 Внимание' : lastWb.status==='stress'?'⚠️ Стресс' : '⛔ Критично';
+    parts.push(`💧 Water Balance: ${lastWb.balance}мм (${pct}% TAW) · ETc ${lastWb.etc}мм/день · ${status}`);
+  }
+
+  // Обработки в этой фазе
+  const phaseNames = [p.phase];
+  const relTreatments = (S.treatments||[]).filter(t => {
+    if(!t.endDate) return false;
+    // Ищем обработки которые есть в рекомендованных препаратах фазы
+    const recNames = p.protection.join(' ').toLowerCase();
+    const tName = (t.product||t.products?.map(x=>x.name).join(' ')||'').toLowerCase();
+    // Или просто показываем последние 5 обработок
+    return true;
+  }).slice(0,3);
+
+  if(relTreatments.length) {
+    parts.push(`💊 Обработки (последние): ${relTreatments.map(t=>`${t.date} ${t.product||t.products?.[0]?.name||'?'}`).join(', ')}`);
+  }
+
+  return parts.join('<br>');
+}
+
 function renderTechmap() {
   const el = document.getElementById('techmap-content');
   if(!el) return;
@@ -7525,32 +7566,130 @@ function renderTechmap() {
   const firstVar = S.varieties.find(v=>(v.cropId||'crop_cherry')===cropId);
   const currentPhase = firstVar ? getPhaseByGdd(firstVar.id, gdd) : null;
   const FILM_COLOR = t => t.includes('ЗАКРЫТЬ')||t.includes('Закрыта') ? 'var(--orange)' : t.includes('ОТКРЫТА')||t.includes('Открыта') ? 'var(--accent)' : 'var(--text3)';
+  if(!S.techLog) S.techLog = {};
 
   el.innerHTML = phases.map((p, idx) => {
     const isCurrent = currentPhase?.name === p.phase;
+    const phaseKey = `${cropId}_${idx}`;
+    const log = S.techLog[phaseKey] || {};
+    const doneTasks = p.tasks.filter((_, ti) => log.tasks?.[ti]?.done).length;
+    const pct = Math.round(doneTasks / p.tasks.length * 100);
+    const pctColor = pct===100?'var(--accent)':pct>50?'var(--yellow)':'var(--text3)';
+    const autoData = isCurrent ? getTechmapAutoData(p, idx) : '';
+
+    // Данные обработок для этой фазы
+    const treatments = (S.treatments||[]).slice(0,5);
+    const treatmentHtml = treatments.length ? `
+      <div style="margin-bottom:12px;">
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">💊 Выполненные обработки</div>
+        ${treatments.map(t=>{
+          const prod = t.product || t.products?.map(x=>x.name).join(', ') || '—';
+          const recMatch = p.protection.some(r=>r.toLowerCase().includes(prod.toLowerCase().split(' ')[0]));
+          return `<div style="padding:6px 10px;border-radius:6px;background:var(--surface2);margin-bottom:4px;font-size:11px;display:flex;gap:8px;align-items:center;">
+            <span style="color:var(--text3);">${t.date||'—'}</span>
+            <span style="font-weight:600;color:var(--text);">${prod}</span>
+            ${t.dose?`<span style="color:var(--text3);">${t.dose}</span>`:''}
+            ${recMatch?`<span style="color:var(--accent);font-size:10px;">✓ по рекомендации</span>`:''}
+            ${t.note?`<span style="color:var(--text3);font-style:italic;">${t.note}</span>`:''}
+          </div>`;
+        }).join('')}
+      </div>` : '';
+
     return `<div style="margin-bottom:8px;border:1px solid ${isCurrent?'var(--accent)':'var(--border)'};border-radius:12px;overflow:hidden;${isCurrent?'box-shadow:0 0 0 2px rgba(74,222,128,.2);':''}">
-      <div style="padding:12px 16px;background:${isCurrent?'rgba(74,222,128,.06)':'var(--surface2)'};display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'':'none'">
+      <div style="padding:12px 16px;background:${isCurrent?'rgba(74,222,128,.06)':'var(--surface2)'};display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="toggleTechmapPhase('${phaseKey}')">
         <div style="width:12px;height:12px;border-radius:50%;background:${S.gddDb.standardPhases[idx]?.color||'var(--text3)'};flex-shrink:0;"></div>
         <div style="flex:1;">
           <span style="font-size:13px;font-weight:700;color:${isCurrent?'var(--accent)':'var(--text)'};">${p.phase}</span>
           <span style="font-size:11px;color:var(--text3);margin-left:8px;">${p.bbch} · ${p.period}</span>
           ${isCurrent?`<span style="margin-left:8px;padding:1px 8px;border-radius:8px;font-size:10px;background:var(--accent);color:#000;font-weight:700;">▶ СЕЙЧАС</span>`:''}
         </div>
-        <span style="font-size:11px;color:var(--blue);">Kc ${p.kc}</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          ${doneTasks>0?`<span style="font-size:11px;font-weight:600;color:${pctColor};">${doneTasks}/${p.tasks.length} ✓</span>`:''}
+          <span style="font-size:11px;color:var(--blue);">Kc ${p.kc}</span>
+        </div>
       </div>
-      <div style="${isCurrent?'':'display:none;'}padding:16px;background:var(--surface);">
+      <div id="techmap-body-${phaseKey}" style="${isCurrent?'':'display:none;'}padding:16px;background:var(--surface);">
+
+        ${autoData?`<div style="padding:10px 14px;background:rgba(96,165,250,.06);border:1px solid rgba(96,165,250,.15);border-radius:8px;margin-bottom:12px;font-size:11px;line-height:1.7;color:var(--text2);">
+          <strong style="color:var(--blue);">📊 Данные системы</strong><br>${autoData}</div>`:''}
+
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
           <div style="padding:10px;background:var(--surface2);border-radius:8px;"><div style="font-size:10px;color:var(--text3);margin-bottom:3px;">🎪 Укрытие</div><div style="font-size:12px;color:${FILM_COLOR(p.film)};font-weight:600;">${p.film}</div></div>
           <div style="padding:10px;background:var(--surface2);border-radius:8px;"><div style="font-size:10px;color:var(--text3);margin-bottom:3px;">💧 Ирригация</div><div style="font-size:12px;color:var(--blue);">${p.irrigation}</div></div>
         </div>
-        <div style="padding:10px;background:var(--surface2);border-radius:8px;margin-bottom:10px;"><div style="font-size:10px;color:var(--text3);margin-bottom:3px;">🌱 Питание / Фертигация</div><div style="font-size:12px;color:var(--yellow);">${p.nutrition}</div></div>
-        <div style="margin-bottom:10px;"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">🛡️ Защита растений</div>${p.protection.map(t=>`<div style="font-size:12px;color:var(--text2);padding:3px 0 3px 12px;border-left:2px solid var(--border);">${t}</div>`).join('')}</div>
-        <div style="margin-bottom:${p.alert?'10px':'0'};"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">✅ Задачи агронома</div>${p.tasks.map(t=>`<div style="font-size:12px;color:var(--text2);padding:3px 0 3px 12px;display:flex;gap:6px;"><span style="color:var(--text3);">□</span><span>${t}</span></div>`).join('')}</div>
+        <div style="padding:10px;background:var(--surface2);border-radius:8px;margin-bottom:12px;">
+          <div style="font-size:10px;color:var(--text3);margin-bottom:3px;">🌱 Питание / Фертигация</div>
+          <div style="font-size:12px;color:var(--yellow);">${p.nutrition}</div>
+        </div>
+        <div style="margin-bottom:12px;">
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">🛡️ Рекомендации по защите</div>
+          ${p.protection.map(t=>`<div style="font-size:12px;color:var(--text2);padding:3px 0 3px 12px;border-left:2px solid var(--border);">${t}</div>`).join('')}
+        </div>
+
+        ${treatmentHtml}
+
+        <div style="margin-bottom:12px;">
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">✅ Задачи агронома</div>
+          ${p.tasks.map((t, ti) => {
+            const taskLog = log.tasks?.[ti] || {};
+            const done = taskLog.done || false;
+            return `<div style="display:flex;gap:8px;align-items:flex-start;padding:6px 8px;border-radius:6px;margin-bottom:4px;background:${done?'rgba(74,222,128,.06)':'var(--surface2)'};cursor:pointer;" onclick="toggleTechmapTask('${phaseKey}',${ti})">
+              <div style="width:18px;height:18px;border-radius:4px;border:2px solid ${done?'var(--accent)':'var(--border)'};background:${done?'var(--accent)':'transparent'};flex-shrink:0;display:flex;align-items:center;justify-content:center;margin-top:1px;">
+                ${done?'<span style="color:#000;font-size:11px;font-weight:700;">✓</span>':''}
+              </div>
+              <div style="flex:1;">
+                <div style="font-size:12px;color:${done?'var(--text3)':'var(--text2)'};${done?'text-decoration:line-through;':''}">${t}</div>
+                ${taskLog.date?`<div style="font-size:10px;color:var(--text3);">📅 ${taskLog.date}${taskLog.comment?' · '+taskLog.comment:''}</div>`:''}
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+
+        <div style="margin-bottom:12px;">
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">💬 Комментарий агронома</div>
+          <textarea id="techmap-note-${phaseKey}" rows="2" placeholder="Наблюдения, отклонения от нормы, особенности сезона..."
+            style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:12px;resize:vertical;box-sizing:border-box;">${log.agronNote||''}</textarea>
+          <button class="btn btn-primary btn-sm" style="margin-top:6px;" onclick="saveTechmapNote('${phaseKey}',this)">💾 Сохранить комментарий</button>
+          ${log.noteDate?`<span style="font-size:10px;color:var(--text3);margin-left:8px;">Сохранено: ${log.noteDate}</span>`:''}
+        </div>
+
         ${p.alert?`<div style="padding:10px 14px;background:rgba(251,146,60,.08);border:1px solid rgba(251,146,60,.2);border-radius:8px;font-size:12px;color:var(--orange);font-weight:600;">${p.alert}</div>`:''}
       </div>
     </div>`;
   }).join('');
 }
+
+function toggleTechmapPhase(phaseKey) {
+  const body = document.getElementById('techmap-body-'+phaseKey);
+  if(body) body.style.display = body.style.display==='none' ? '' : 'none';
+}
+
+function toggleTechmapTask(phaseKey, taskIdx) {
+  if(!S.techLog) S.techLog={};
+  if(!S.techLog[phaseKey]) S.techLog[phaseKey]={};
+  if(!S.techLog[phaseKey].tasks) S.techLog[phaseKey].tasks={};
+  const cur = S.techLog[phaseKey].tasks[taskIdx];
+  S.techLog[phaseKey].tasks[taskIdx] = {
+    done: !cur?.done,
+    date: !cur?.done ? new Date().toLocaleDateString('ru-RU') : null,
+    comment: cur?.comment||'',
+  };
+  save();
+  renderTechmap();
+}
+
+function saveTechmapNote(phaseKey, btn) {
+  if(!S.techLog) S.techLog={};
+  if(!S.techLog[phaseKey]) S.techLog[phaseKey]={};
+  const ta = document.getElementById('techmap-note-'+phaseKey);
+  if(ta) {
+    S.techLog[phaseKey].agronNote = ta.value;
+    S.techLog[phaseKey].noteDate  = new Date().toLocaleDateString('ru-RU');
+  }
+  save();
+  if(btn){const orig=btn.textContent;btn.textContent='✅ Сохранено!';btn.style.background='var(--accent)';setTimeout(()=>{btn.textContent=orig;btn.style.background='';},2000);}
+}
+
 
 function buildGddSeries(tbase, varietyId) {
   const start = getGddStartDate(varietyId);
