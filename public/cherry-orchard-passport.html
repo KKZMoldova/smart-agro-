@@ -3165,6 +3165,7 @@ tbody td{padding:10px 12px;vertical-align:middle;}
     </div>
 
     <!-- Кнопка расчёта -->
+    <div id="fc-phase-note" style="display:none;padding:10px 14px;border-radius:8px;border:1px solid;font-size:11px;color:var(--color-text-secondary);margin-bottom:10px;line-height:1.6;"></div>
     <button class="btn btn-primary" style="width:100%;margin-bottom:14px;" onclick="calcFertDose()">🧮 Рассчитать</button>
 
     <!-- Результат -->
@@ -7345,14 +7346,65 @@ function getIrrigSumForCell(cellKey, dateFrom, dateTo) {
 // ═══ РАСЧЁТ ДОЗЫ ФЕРТИГАЦИИ ══════════════════════════════════════════════
 
 // Целевые ppm по фазам (рабочий раствор капельного полива)
+// Источник: Neilsen G.H., Neilsen D., Forge T. — HortScience 2007-2018
+// Черешня на Gisela 5, схема 4×2м, капельный полив
+// ВАЖНО: N только 8 недель после цветения (не весь сезон!)
+// Стоп фертигации за 30 дней до сбора урожая
 const FERT_PHASE_TARGETS = {
-  veg:          {N:150, P:40,  K:120, Ca:80,  Mg:30},
-  flower:       {N:80,  P:30,  K:100, Ca:120, Mg:30},
-  fruit_set:    {N:80,  P:25,  K:120, Ca:150, Mg:30},
-  fruit_growth: {N:100, P:30,  K:180, Ca:120, Mg:40},
-  ripening:     {N:60,  P:20,  K:200, Ca:80,  Mg:30},
-  post_harvest: {N:80,  P:60,  K:150, Ca:60,  Mg:40},
-  custom:       {N:0,   P:0,   K:0,   Ca:0,   Mg:0},
+  // Вегетация (набухание почек → до цветения)
+  // N минимальный — дерево использует запасы из прошлого года
+  veg: {
+    N:40, P:40, K:80, Ca:80, Mg:20,
+    note:'До цветения: минимум N — дерево использует осенние запасы. P при цветении стимулирует закладку плодов (Neilsen 2008).',
+    nFertPeriod: 'только при дефиците по анализу листа',
+  },
+  // Цветение (BBCH 61-69) — ЗАПРЕТ N, только P и Ca
+  flower: {
+    N:0, P:60, K:60, Ca:100, Mg:20,
+    note:'BBCH 61-69: N не вносить! P 20г/дерево при полном цветении (ammonium polyphosphate) — ускоряет завязывание. Ca+B для качества плода.',
+    nFertPeriod: 'НЕ ВНОСИТЬ в период цветения',
+    pNote: '20г P/дерево при полном цветении — научно подтверждено (Neilsen 2008, 2014)',
+  },
+  // Завязь (BBCH 71-75) — СТАРТ N-программы (8 нед после цветения)
+  fruit_set: {
+    N:84, P:25, K:120, Ca:150, Mg:30,
+    note:'Старт N-программы: 84 mg/L Ca(NO₃)₂ через капельницу — ОПТИМУМ по Neilsen 2007. Высокий N (>168ppm) = мельчание плода! Ca-программа каждые 7-10 дней.',
+    nFertPeriod: '8 недель начиная с опадания лепестков',
+    nWarning: 'Никогда не превышать 120 ppm N — снижает Brix и размер плода',
+  },
+  // Рост плода (BBCH 75-81) — K+Ca приоритет
+  fruit_growth: {
+    N:84, P:20, K:180, Ca:120, Mg:35,
+    note:'N продолжаем 84 ppm (в рамках 8-недельной программы). K усиливаем — критично для налива и Brix. Ca каждые 7-10 дней защищает от растрескивания.',
+    nFertPeriod: 'продолжение 8-недельной программы',
+  },
+  // Созревание (BBCH 81-89) — СТОП N за 30 дней до сбора!
+  ripening: {
+    N:0, P:0, K:80, Ca:40, Mg:20,
+    note:'СТОП ФЕРТИГАЦИИ за 30 дней до сбора! N полностью прекратить — ускоряет созревание и повышает Brix. Только K для накопления сахара. Листовой Ca последний раз.',
+    nFertPeriod: 'СТОП — прекратить за 30 дней до уборки',
+    stopNote: 'Продолжение N перед сбором: мягкость плода, снижение лёжкости, потеря Brix (Neilsen 2007)',
+  },
+  // После сбора (BBCH 91-97) — закладка почек
+  post_harvest: {
+    N:60, P:60, K:120, Ca:40, Mg:40,
+    note:'После сбора: P+K+N для закладки плодовых почек на следующий год. Листья должны работать до октября. N умеренный — не стимулировать рост побегов.',
+    nFertPeriod: 'после уборки урожая до конца августа',
+  },
+  // Вручную
+  custom: {N:0, P:0, K:0, Ca:0, Mg:0},
+};
+
+// Листовые нормы черешни (% сухого вещества, середина лета)
+// Источник: Neilsen et al., Cherries CAB 2017, гл. 9
+const LEAF_NORMS_CHERRY = {
+  N:  {min:2.4, opt:2.7, max:3.0, unit:'%', action:'Ca(NO₃)₂ 84ppm — 8 нед. после цветения'},
+  P:  {min:0.14,opt:0.18,max:0.25,unit:'%', action:'MAP 20г/дерево при цветении'},
+  K:  {min:1.5, opt:2.0, max:2.5, unit:'%', action:'Нитрат калия в июне'},
+  Ca: {min:1.0, opt:1.5, max:2.0, unit:'%', action:'Хелат Ca 3-5 кг/га после цветения'},
+  Mg: {min:0.25,opt:0.35,max:0.50,unit:'%', action:'Сульфат магния'},
+  Fe: {min:60,  opt:100, max:200, unit:'ppm',action:'Хелат Fe (EDTA)'},
+  B:  {min:25,  opt:35,  max:60,  unit:'ppm',action:'Бор 0.3% листовая до цветения'},
 };
 
 // Элементы в удобрениях %
@@ -7446,12 +7498,28 @@ function onFertPhaseChange() {
     if(!inp) return;
     const key = el.toUpperCase();
     let target = targets[key] || 0;
-    // Вычитаем вклад воды
     if(el==='ca') target = Math.max(0, target - waterCa);
     if(el==='mg') target = Math.max(0, target - waterMg);
     if(el==='n')  target = Math.max(0, target - waterN);
     inp.value = Math.round(target);
+    // Подсвечиваем N=0 в цветение и созревание
+    inp.style.color = (el==='n' && target===0) ? 'var(--color-text-danger)' : 'var(--color-text-info)';
   });
+
+  // Показываем научное примечание фазы
+  const noteEl = document.getElementById('fc-phase-note');
+  if(noteEl && targets.note) {
+    noteEl.style.display = 'block';
+    const isStop = targets.nFertPeriod?.includes('СТОП') || targets.nFertPeriod?.includes('НЕ ВНОСИТЬ');
+    noteEl.style.background = isStop ? 'rgba(226,75,74,.06)' : 'rgba(96,165,250,.06)';
+    noteEl.style.borderColor = isStop ? 'rgba(226,75,74,.2)' : 'rgba(96,165,250,.15)';
+    const stopHtml = targets.stopNote ? `<br><span style="color:var(--color-text-danger);">⛔ ${targets.stopNote}</span>` : '';
+    const warnHtml = targets.nWarning ? `<br><span style="color:var(--color-text-warning);">⚠️ ${targets.nWarning}</span>` : '';
+    const pHtml   = targets.pNote    ? `<br><span style="color:var(--color-text-success);">📋 ${targets.pNote}</span>`   : '';
+    noteEl.innerHTML = `<strong>📚 Neilsen et al. (CAB 2017):</strong> ${targets.note}
+      ${targets.nFertPeriod?`<br>⏰ N-внесение: <strong>${targets.nFertPeriod}</strong>`:''}
+      ${stopHtml}${warnHtml}${pHtml}`;
+  }
 }
 
 // Подключаем onchange к select фазы
@@ -7467,8 +7535,15 @@ function calcFertDose() {
   const zone     = (S.irrigation.zones||[]).find(z=>z.id===zoneId);
   const areaHa   = zone?.area || Object.values(S.cells).reduce((s,cd)=>s+calcCellTotals(cd).totalHa,0) || 1;
 
-  // Читаем целевые ppm
-  const ppm = {};
+  // Научные алерты Neilsen et al.
+  const sciAlerts = [];
+  const ppmN = parseFloat(document.getElementById('fc-ppm-n')?.value)||0;
+  if(ppmN > 120) sciAlerts.push(`⚠️ N ${ppmN}ppm превышает оптимум! Neilsen 2007: N &gt;168ppm → мельчание плода, задержка созревания, снижение Brix. Рекомендуется 84 ppm.`);
+
+  const phase = document.getElementById('fc-phase')?.value;
+  const phaseTargets = FERT_PHASE_TARGETS[phase];
+  if(phaseTargets?.nFertPeriod?.includes('СТОП')) sciAlerts.push(`⛔ ${phaseTargets.stopNote||'Стоп фертигации за 30 дней до сбора!'}`);
+  if(phaseTargets?.nFertPeriod?.includes('НЕ ВНОСИТЬ')) sciAlerts.push(`🚫 В период цветения N НЕ вносить! Только P при цветении (20г/дерево).`);
   ['n','p','k','ca','mg'].forEach(el => {
     ppm[el.toUpperCase()] = parseFloat(document.getElementById(`fc-ppm-${el}`)?.value)||0;
   });
@@ -7561,7 +7636,11 @@ function calcFertDose() {
         📋 Программа фертигации — ${zone?.name||'Весь сад'} · ${areaHa.toFixed(1)}га · ${waterVol}м³ воды
       </div>
 
-      ${incompatWarnings.length ? `<div style="margin-bottom:10px;">${incompatWarnings.map(w=>`<div style="font-size:11px;color:var(--red);padding:3px 0;">${w}</div>`).join('')}</div>` : ''}
+      ${sciAlerts.length ? `<div style="margin-bottom:12px;padding:10px 14px;background:rgba(226,75,74,.06);border:1px solid rgba(226,75,74,.2);border-radius:8px;">
+        ${sciAlerts.map(a=>`<div style="font-size:11px;color:var(--color-text-danger);padding:2px 0;">${a}</div>`).join('')}
+      </div>` : ''}
+
+      ${incompatWarnings.length ? `<div style="margin-bottom:10px;">${incompatWarnings.map(w=>`<div style="font-size:11px;color:var(--color-text-danger);padding:3px 0;">${w}</div>`).join('')}</div>` : ''}
 
       <!-- Баки -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
@@ -8163,11 +8242,11 @@ const TECHMAP = {
       protection:['Хорус WG 75 — последняя обработка до цветения (монилиоз)','Контактный инсектицид против долгоносика (обработать ДО распускания цветков)'],
       tasks:['Завезти ульи с пчёлами к саду (минимум 3–4 семьи/га)','Подготовить шмелиные ульи для работы под плёнкой','Раскатать и проверить антидождевую плёнку','Настроить алерт суховея (RH < 40%)'],
       alert:'🐝 Не обрабатывать инсектицидами после начала цветения!' },
-    { phase:'Цветение', bbch:'BBCH 61–69', period:'Апрель', kc:0.6, film:'⚡ ОТКРЫТА — макс. доступ пчёл. Закрыть только при дожде', irrigation:'15–20 мм/неделю. Дождевание для повышения RH при суховее', nutrition:'Только листовые аминокислоты (Мегафол) — стресс-протектор. Без N и K!',
+    { phase:'Цветение', bbch:'BBCH 61–69', period:'Апрель', kc:0.6, film:'⚡ ОТКРЫТА — макс. доступ пчёл. Закрыть только при дожде', irrigation:'15–20 мм/неделю. Дождевание для повышения RH при суховее', nutrition:'P 20г/дерево при полном цветении (ammonium polyphosphate) — ускоряет завязывание, Neilsen 2008. N ЗАПРЕЩЁН! Аминокислоты (Мегафол) стресс-протектор.',
       protection:['🚫 ЗАПРЕЩЕНЫ инсектициды и большинство фунгицидов!','При дожде во время цветения: Свитч или Тельдор (безопасны для пчёл)','Мониторинг монилиального ожога (T 12–24°C + влажность)'],
       tasks:['Контролировать RH: при < 40% — утреннее дождевание кроны (6:00–9:00)','Наблюдать за лётом пчёл — минимум 5–6 пчёл на дерево','Фиксировать дату начала и конца цветения для калибровки GDD','Кордия цветёт на 2–3 дня раньше — первая пыльца для Регины'],
       alert:'🐝 Суховей RH<40% → рыльце пестика пересыхает → массовое бесплодие' },
-    { phase:'Завязь', bbch:'BBCH 71–75', period:'Май', kc:0.8, film:'⚡ ОТКРЫТА — сквозное проветривание. Парниковый эффект = сброс завязи', irrigation:'20–25 мм/неделю. Gisela 5: датчик 20 и 40 см, 75–80% НВ', nutrition:'Ca (хелат кальция 3–5 кг/га) каждые 7–10 дней. N снижать!',
+    { phase:'Завязь', bbch:'BBCH 71–75', period:'Май', kc:0.8, film:'⚡ ОТКРЫТА — сквозное проветривание. Парниковый эффект = сброс завязи', irrigation:'20–25 мм/неделю. Gisela 5: датчик 20 и 40 см, 75–80% НВ. Пульс 4× в день', nutrition:'СТАРТ N-программы: Ca(NO₃)₂ 84 ppm через капельницу — 8 недель от опадания лепестков (Neilsen 2007). Ca хелат каждые 7-10 дней. N не превышать 120ppm!',
       protection:['Хорус WG 75 или Луна Сенсейшн — коккомикоз, монилиоз','Калипсо или Конфидор — вишнёвая муха (при обнаружении в ловушках)','Акарицид при T > 20°C'],
       tasks:['Контроль нагрузки урожаем (особенно Скина — самоплодная)','Мульчирование приствольной полосы (снижение T почвы на 6–8°C)','Запустить программу фертигации Ca','Мониторинг жёлтых ловушек вишнёвой мухи'],
       alert:'🧪 Жара >30°C + фаза завязи → листья перехватывают Ca → некорневая CaCl₂ 0.3%' },
@@ -8175,7 +8254,7 @@ const TECHMAP = {
       protection:['Луна Сенсейшн или Белис — мучнистая роса + монилиоз','Калипсо — вишнёвая муха (критический период)','При T > 30°C: антистрессант Изабион 1–1.5 л/га'],
       tasks:['Установить сети от птиц (скворцы, дрозды)','Гидрокулинг в готовности для Кордии (созревает первой)','Подготовить ящики и холодильную камеру для хранения','Закрыть плёнку над Кордией (BBCH 81 наступит раньше)'],
       alert:'💧 ETc до 6–7 мм/день в жару. Gisela 5 пересыхает за 2–3 часа!' },
-    { phase:'Начало окрашивания', bbch:'BBCH 81', period:'Середина – конец июня', kc:0.9, film:'⚡ ЗАКРЫТЬ крышу! Боковые пологи открыть для вентиляции', irrigation:'20–25 мм/неделю. Равномерный — резкие колебания влажности = трещины', nutrition:'Только K (сульфат калия) — накопление сахара и антоцианов. Ca листовой последний раз',
+    { phase:'Начало окрашивания', bbch:'BBCH 81', period:'Середина – конец июня', kc:0.9, film:'⚡ ЗАКРЫТЬ крышу! Боковые пологи открыть для вентиляции', irrigation:'20–25 мм/неделю. Равномерный — резкие колебания влажности = трещины', nutrition:'⛔ СТОП N за 30 дней до сбора! Только K (сульфат калия) — накопление сахара. Ca листовой последний раз. (Neilsen 2007: продолжение N → мягкость плода, снижение Brix)',
       protection:['Только разрешённые в период созревания — Свитч (7 дней до сбора)','ПАВ при обработках — улучшает покрытие'],
       tasks:['Кордия: Brix контроль (цель 18°+) — при достижении убирать','Гидрокулинг сразу после сбора (охладить до 4°C в течение часа)','Проверить холодильные камеры','Кордию убирать рано утром до жары'],
       alert:'🎪 Закрыть плёнку! Каждый день промедления = риск растрескивания при дожде' },
