@@ -872,6 +872,17 @@ tbody td{padding:10px 12px;vertical-align:middle;}
       </div>
     </div>
 
+    <!-- Внутренние вкладки GDD -->
+    <div style="display:flex;gap:4px;margin-bottom:18px;border-bottom:1px solid var(--border);">
+      <button id="gddsub-gdd" onclick="switchGddSub('gdd')"
+        style="padding:7px 16px;border:none;border-bottom:2px solid var(--accent);background:transparent;color:var(--accent);font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;">📈 GDD / Фазы</button>
+      <button id="gddsub-techmap" onclick="switchGddSub('techmap')"
+        style="padding:7px 16px;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--text3);font-size:12px;cursor:pointer;font-family:'Inter',sans-serif;">📋 Технокарта</button>
+    </div>
+
+    <!-- SUB: GDD (основное содержимое) -->
+    <div id="gddsub-panel-gdd">
+
     <!-- Crop + Variety selector -->
     <div class="variety-gdd-select">
       <span style="font-size:12px;color:var(--text2);">Культура:</span>
@@ -922,6 +933,18 @@ tbody td{padding:10px 12px;vertical-align:middle;}
       </table>
     </div>
   </div>
+  </div><!-- end gddsub-panel-gdd -->
+
+  <!-- SUB: Технологическая карта -->
+  <div id="gddsub-panel-techmap" style="display:none;">
+    <div style="margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+      <span style="font-size:12px;color:var(--text2);">Культура:</span>
+      <select id="techmap-crop-select" onchange="renderTechmap()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:'Inter',sans-serif;"></select>
+    </div>
+    <div id="techmap-content"></div>
+  </div>
+
+</div><!-- end panel-gdd -->
 
   <!-- CATALOG -->
   <div class="panel" id="panel-catalog">
@@ -3918,6 +3941,7 @@ function switchTab(tab,el){
   if(tab==='gdd'){
     populateGddVarietySelect();
     renderGdd();
+    switchGddSub('gdd');
   }
   if(tab==='catalog')renderCatalog();
   if(tab==='diseases'){popDFilter();renderDiseaseRisks();}
@@ -7421,6 +7445,113 @@ function getGddStartDate(varietyId) {
 }
 
 /** Step 3: Build cumulative GDD series from weather log */
+// ═══ ТЕХНОЛОГИЧЕСКАЯ КАРТА BBCH ════════════════════════════════════════
+
+function switchGddSub(sub) {
+  ['gdd','techmap'].forEach(s => {
+    const panel = document.getElementById('gddsub-panel-'+s);
+    const btn   = document.getElementById('gddsub-'+s);
+    if(!panel||!btn) return;
+    const active = s===sub;
+    panel.style.display = active ? '' : 'none';
+    btn.style.color       = active ? 'var(--accent)' : 'var(--text3)';
+    btn.style.borderBottom= active ? '2px solid var(--accent)' : '2px solid transparent';
+    btn.style.fontWeight  = active ? '700' : '400';
+  });
+  if(sub==='techmap') {
+    const sel = document.getElementById('techmap-crop-select');
+    if(sel && !sel.options.length) {
+      sel.innerHTML = S.crops.map(c=>`<option value="${c.id}">${c.emoji||''} ${c.name}</option>`).join('');
+    }
+    renderTechmap();
+  }
+}
+
+const TECHMAP = {
+  crop_cherry: [
+    { phase:'Покой', bbch:'BBCH 00–01', period:'Ноябрь – Февраль', kc:0, film:'Открыта (законсервирована)', irrigation:'Не нужен', nutrition:'Нет',
+      protection:['Побелка штамбов и скелетных ветвей (известь + CuSO₄) — защита от солнечных ожогов и бактериального рака','Обрезка (декабрь–январь) — санитарная + формировочная','Уборка опавших листьев — снижение инфекционного фона'],
+      tasks:['Проверить и отремонтировать шпалеры и укрытие','Пополнить запасы препаратов на сезон','Провести аудит техники и оборудования полива','Настроить метеостанцию: старт GDD с 1 марта'],
+      alert:'' },
+    { phase:'Набухание почек', bbch:'BBCH 01–03', period:'Начало марта', kc:0.3, film:'Открыта', irrigation:'Минимальный — 5–8 мм/неделю', nutrition:'Некорневая: мочевина 3–5% (азотный старт)',
+      protection:['Медьсодержащий препарат (бордоская смесь 3% или Купроксат) — профилактика монилиоза и коккомикоза','Первая обработка против клещей при T° >10°C'],
+      tasks:['Установить феромонные ловушки для мониторинга вредителей','Проверить датчики метеостанции после зимы','Запустить Water Balance расчёт','Завести пчелиные семьи на пасеку рядом с садом'],
+      alert:'❄️ Контролировать ночные заморозки — почки уязвимы при -2°C' },
+    { phase:'Зелёный конус', bbch:'BBCH 07–09', period:'Середина марта', kc:0.4, film:'Открыта', irrigation:'8–12 мм/неделю', nutrition:'N-старт: нитрат кальция 5–8 кг/га или карбамид 10–15 кг/га',
+      protection:['Системный фунгицид (Хорус WG 75) против монилиоза и клястероспориоза','Инсектицид против долгоносика и тли','Акарицид при наличии клеща (Аполло, Ниссоран)'],
+      tasks:['Финальная обрезка если не сделана зимой','Проверить работу капельной системы после зимы','Откалибровать датчики влажности почвы'],
+      alert:'🌡️ Мониторинг заморозков — антизаморозка в готовности' },
+    { phase:'Розовый бутон', bbch:'BBCH 55–57', period:'Конец марта – начало апреля', kc:0.5, film:'Открыта', irrigation:'10–15 мм/неделю', nutrition:'Ca + B: борная кислота 0.3% + хелат Ca — закладка качества плода',
+      protection:['Хорус WG 75 — последняя обработка до цветения (монилиоз)','Контактный инсектицид против долгоносика (обработать ДО распускания цветков)'],
+      tasks:['Завезти ульи с пчёлами к саду (минимум 3–4 семьи/га)','Подготовить шмелиные ульи для работы под плёнкой','Раскатать и проверить антидождевую плёнку','Настроить алерт суховея (RH < 40%)'],
+      alert:'🐝 Не обрабатывать инсектицидами после начала цветения!' },
+    { phase:'Цветение', bbch:'BBCH 61–69', period:'Апрель', kc:0.6, film:'⚡ ОТКРЫТА — макс. доступ пчёл. Закрыть только при дожде', irrigation:'15–20 мм/неделю. Дождевание для повышения RH при суховее', nutrition:'Только листовые аминокислоты (Мегафол) — стресс-протектор. Без N и K!',
+      protection:['🚫 ЗАПРЕЩЕНЫ инсектициды и большинство фунгицидов!','При дожде во время цветения: Свитч или Тельдор (безопасны для пчёл)','Мониторинг монилиального ожога (T 12–24°C + влажность)'],
+      tasks:['Контролировать RH: при < 40% — утреннее дождевание кроны (6:00–9:00)','Наблюдать за лётом пчёл — минимум 5–6 пчёл на дерево','Фиксировать дату начала и конца цветения для калибровки GDD','Кордия цветёт на 2–3 дня раньше — первая пыльца для Регины'],
+      alert:'🐝 Суховей RH<40% → рыльце пестика пересыхает → массовое бесплодие' },
+    { phase:'Завязь', bbch:'BBCH 71–75', period:'Май', kc:0.8, film:'⚡ ОТКРЫТА — сквозное проветривание. Парниковый эффект = сброс завязи', irrigation:'20–25 мм/неделю. Gisela 5: датчик 20 и 40 см, 75–80% НВ', nutrition:'Ca (хелат кальция 3–5 кг/га) каждые 7–10 дней. N снижать!',
+      protection:['Хорус WG 75 или Луна Сенсейшн — коккомикоз, монилиоз','Калипсо или Конфидор — вишнёвая муха (при обнаружении в ловушках)','Акарицид при T > 20°C'],
+      tasks:['Контроль нагрузки урожаем (особенно Скина — самоплодная)','Мульчирование приствольной полосы (снижение T почвы на 6–8°C)','Запустить программу фертигации Ca','Мониторинг жёлтых ловушек вишнёвой мухи'],
+      alert:'🧪 Жара >30°C + фаза завязи → листья перехватывают Ca → некорневая CaCl₂ 0.3%' },
+    { phase:'Рост плода', bbch:'BBCH 75–81', period:'Конец мая – начало июня', kc:1.0, film:'Открыта — защита от перегрева', irrigation:'25–35 мм/неделю. Пульсирующий: 2–3 цикла по 20 мин/день', nutrition:'K + Ca: нитрат калия 8–12 кг/га + хелат Ca. Brix контроль — цель 17°+ к сбору',
+      protection:['Луна Сенсейшн или Белис — мучнистая роса + монилиоз','Калипсо — вишнёвая муха (критический период)','При T > 30°C: антистрессант Изабион 1–1.5 л/га'],
+      tasks:['Установить сети от птиц (скворцы, дрозды)','Гидрокулинг в готовности для Кордии (созревает первой)','Подготовить ящики и холодильную камеру для хранения','Закрыть плёнку над Кордией (BBCH 81 наступит раньше)'],
+      alert:'💧 ETc до 6–7 мм/день в жару. Gisela 5 пересыхает за 2–3 часа!' },
+    { phase:'Начало окрашивания', bbch:'BBCH 81', period:'Середина – конец июня', kc:0.9, film:'⚡ ЗАКРЫТЬ крышу! Боковые пологи открыть для вентиляции', irrigation:'20–25 мм/неделю. Равномерный — резкие колебания влажности = трещины', nutrition:'Только K (сульфат калия) — накопление сахара и антоцианов. Ca листовой последний раз',
+      protection:['Только разрешённые в период созревания — Свитч (7 дней до сбора)','ПАВ при обработках — улучшает покрытие'],
+      tasks:['Кордия: Brix контроль (цель 18°+) — при достижении убирать','Гидрокулинг сразу после сбора (охладить до 4°C в течение часа)','Проверить холодильные камеры','Кордию убирать рано утром до жары'],
+      alert:'🎪 Закрыть плёнку! Каждый день промедления = риск растрескивания при дожде' },
+    { phase:'Созревание', bbch:'BBCH 85–89', period:'Конец июня – начало июля', kc:0.8, film:'Закрыта крыша, боковые открыты', irrigation:'15–20 мм/неделю. Осторожно — избыток воды снижает Brix', nutrition:'Не применять — карантинный период ближе к сбору',
+      protection:['Только при острой необходимости — препараты с PHI ≤ 7 дней','Защитные сети от птиц и ос'],
+      tasks:['Скина: Brix контроль (цель 18–19°) — убирать между Кордией и Региной','Регина: убирать при Brix 17°+ и полном окрашивании','Сбор утром (6:00–11:00) — ягода холодная, меньше повреждений','Гидрокулинг всего урожая в течение часа после сбора'],
+      alert:'🚛 Конвейер: Кордия (20-25.06) → Скина (25-30.06) → Регина (01-05.07)' },
+    { phase:'После сбора', bbch:'BBCH 91–97', period:'Июль – Октябрь', kc:0.5, film:'⚡ Свернуть и законсервировать плёнку', irrigation:'12–15 мм/неделю до конца августа, потом снижать', nutrition:'P + K (суперфосфат + сульфат калия) — закладка плодовых почек на следующий год',
+      protection:['Хорус или Дерозал — коккомикоз (листья работают до октября!)', 'Побелка штамбов в октябре–ноябре','Обработка Cu-содержащим препаратом перед листопадом'],
+      tasks:['Летняя обрезка сразу после уборки (Кордия — раскидистая, Скина — умеренная)','Анализ почвы и листьев — планирование питания на следующий год','Ревизия системы капельного полива','Подготовка системы антизаморозки к зиме'],
+      alert:'🍂 Листья — фотосинтез до листопада = закладка почек следующего года' },
+  ],
+};
+
+function renderTechmap() {
+  const el = document.getElementById('techmap-content');
+  if(!el) return;
+  const cropId = document.getElementById('techmap-crop-select')?.value || 'crop_cherry';
+  const phases = TECHMAP[cropId];
+  if(!phases) {
+    el.innerHTML = `<div style="padding:30px;text-align:center;color:var(--text3);"><div style="font-size:32px;margin-bottom:12px;">🚧</div><div>Технологическая карта для этой культуры в разработке</div></div>`;
+    return;
+  }
+  const gdd = getCurrentGdd(4.5);
+  const firstVar = S.varieties.find(v=>(v.cropId||'crop_cherry')===cropId);
+  const currentPhase = firstVar ? getPhaseByGdd(firstVar.id, gdd) : null;
+  const FILM_COLOR = t => t.includes('ЗАКРЫТЬ')||t.includes('Закрыта') ? 'var(--orange)' : t.includes('ОТКРЫТА')||t.includes('Открыта') ? 'var(--accent)' : 'var(--text3)';
+
+  el.innerHTML = phases.map((p, idx) => {
+    const isCurrent = currentPhase?.name === p.phase;
+    return `<div style="margin-bottom:8px;border:1px solid ${isCurrent?'var(--accent)':'var(--border)'};border-radius:12px;overflow:hidden;${isCurrent?'box-shadow:0 0 0 2px rgba(74,222,128,.2);':''}">
+      <div style="padding:12px 16px;background:${isCurrent?'rgba(74,222,128,.06)':'var(--surface2)'};display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'':'none'">
+        <div style="width:12px;height:12px;border-radius:50%;background:${S.gddDb.standardPhases[idx]?.color||'var(--text3)'};flex-shrink:0;"></div>
+        <div style="flex:1;">
+          <span style="font-size:13px;font-weight:700;color:${isCurrent?'var(--accent)':'var(--text)'};">${p.phase}</span>
+          <span style="font-size:11px;color:var(--text3);margin-left:8px;">${p.bbch} · ${p.period}</span>
+          ${isCurrent?`<span style="margin-left:8px;padding:1px 8px;border-radius:8px;font-size:10px;background:var(--accent);color:#000;font-weight:700;">▶ СЕЙЧАС</span>`:''}
+        </div>
+        <span style="font-size:11px;color:var(--blue);">Kc ${p.kc}</span>
+      </div>
+      <div style="${isCurrent?'':'display:none;'}padding:16px;background:var(--surface);">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+          <div style="padding:10px;background:var(--surface2);border-radius:8px;"><div style="font-size:10px;color:var(--text3);margin-bottom:3px;">🎪 Укрытие</div><div style="font-size:12px;color:${FILM_COLOR(p.film)};font-weight:600;">${p.film}</div></div>
+          <div style="padding:10px;background:var(--surface2);border-radius:8px;"><div style="font-size:10px;color:var(--text3);margin-bottom:3px;">💧 Ирригация</div><div style="font-size:12px;color:var(--blue);">${p.irrigation}</div></div>
+        </div>
+        <div style="padding:10px;background:var(--surface2);border-radius:8px;margin-bottom:10px;"><div style="font-size:10px;color:var(--text3);margin-bottom:3px;">🌱 Питание / Фертигация</div><div style="font-size:12px;color:var(--yellow);">${p.nutrition}</div></div>
+        <div style="margin-bottom:10px;"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">🛡️ Защита растений</div>${p.protection.map(t=>`<div style="font-size:12px;color:var(--text2);padding:3px 0 3px 12px;border-left:2px solid var(--border);">${t}</div>`).join('')}</div>
+        <div style="margin-bottom:${p.alert?'10px':'0'};"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">✅ Задачи агронома</div>${p.tasks.map(t=>`<div style="font-size:12px;color:var(--text2);padding:3px 0 3px 12px;display:flex;gap:6px;"><span style="color:var(--text3);">□</span><span>${t}</span></div>`).join('')}</div>
+        ${p.alert?`<div style="padding:10px 14px;background:rgba(251,146,60,.08);border:1px solid rgba(251,146,60,.2);border-radius:8px;font-size:12px;color:var(--orange);font-weight:600;">${p.alert}</div>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
 function buildGddSeries(tbase, varietyId) {
   const start = getGddStartDate(varietyId);
   const sorted = [...S.weather]
