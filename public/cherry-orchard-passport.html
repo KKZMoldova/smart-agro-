@@ -6157,6 +6157,7 @@ function renderAnalysis() {
           <div style="font-size:10px;color:var(--text3);">${cell}</div>
           ${an.lab?`<div style="font-size:10px;color:var(--text3);">${an.lab}</div>`:''}
           <button class="btn btn-secondary btn-xs" style="margin-top:4px;" onclick="openAnalysisModal('${an.type}','${an.id}');event.stopPropagation();">✏️</button>
+          <button class="btn btn-danger btn-xs" style="margin-top:4px;" onclick="if(confirm('Удалить анализ?')){S.analyses=S.analyses.filter(a=>a.id!=='${an.id}'&&a.id!==${an.id});save();renderAnalysis();}event.stopPropagation();">🗑</button>
         </div>
       </div>
       ${elemRows}
