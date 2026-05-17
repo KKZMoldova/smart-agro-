@@ -230,6 +230,69 @@ app.post('/api/state/orchard', async (req, res) => {
   } catch(e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
+// ── ВРЕМЕННЫЙ endpoint для первоначальной миграции (удалить после использования)
+app.get('/api/setup-once', async (req, res) => {
+  const secret = req.query.secret;
+  if(secret !== 'setup2026kkz') return res.status(403).json({error:'Неверный ключ'});
+  try {
+    const bcrypt = require('bcryptjs');
+    const results = [];
+
+    // 1. Создаём таблицы
+    await db.query(`CREATE TABLE IF NOT EXISTS tenants (
+      id TEXT PRIMARY KEY, name TEXT NOT NULL, plan TEXT DEFAULT 'basic',
+      fc_station_orchard TEXT DEFAULT '', fc_station_veg TEXT DEFAULT '',
+      fc_public_key TEXT DEFAULT '', fc_private_key TEXT DEFAULT '',
+      lat FLOAT DEFAULT 48.0167, lon FLOAT DEFAULT 28.7,
+      timezone TEXT DEFAULT 'Europe/Chisinau', active BOOLEAN DEFAULT TRUE,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`);
+    await db.query(`CREATE TABLE IF NOT EXISTS users (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      tenant_id TEXT NOT NULL REFERENCES tenants(id),
+      login TEXT NOT NULL, password_hash TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'agronomist', name TEXT,
+      active BOOLEAN DEFAULT TRUE, last_login TIMESTAMPTZ,
+      created_at TIMESTAMPTZ DEFAULT NOW(), UNIQUE(tenant_id, login)
+    )`);
+    await db.query(`CREATE TABLE IF NOT EXISTS super_admins (
+      login TEXT PRIMARY KEY, password_hash TEXT NOT NULL
+    )`);
+    await db.query(`ALTER TABLE settings ADD COLUMN IF NOT EXISTS tenant_id TEXT DEFAULT 'kkz'`);
+    results.push('✓ Таблицы созданы');
+
+    // 2. Superadmin
+    const saHash = await bcrypt.hash('SmartAgro2026!', 10);
+    await db.query(`INSERT INTO super_admins (login,password_hash) VALUES ('superadmin',$1) ON CONFLICT(login) DO UPDATE SET password_hash=$1`, [saHash]);
+    results.push('✓ superadmin создан (пароль: SmartAgro2026!)');
+
+    // 3. Тенант ККЗ
+    await db.query(`INSERT INTO tenants (id,name,plan,fc_station_orchard,fc_station_veg,lat,lon)
+      VALUES ('kkz','ККЗ Молдова (Каменка)','pro','00002158','0020BCDC',48.0167,28.7)
+      ON CONFLICT(id) DO NOTHING`);
+    results.push('✓ Тенант kkz создан');
+
+    // 4. Пользователи ККЗ
+    const users = [
+      {login:'kkz_owner',   pw:'kkz2026!',  role:'owner',      name:'Владелец ККЗ'},
+      {login:'agronomist',  pw:'agro2026!', role:'agronomist', name:'Агроном'},
+      {login:'director',    pw:'dir2026!',  role:'director',   name:'Директор'},
+      {login:'operator',    pw:'op2026!',   role:'operator',   name:'Оператор'},
+    ];
+    for(const u of users) {
+      const h = await bcrypt.hash(u.pw, 10);
+      await db.query(`INSERT INTO users (tenant_id,login,password_hash,role,name)
+        VALUES ('kkz',$1,$2,$3,$4) ON CONFLICT(tenant_id,login) DO NOTHING`,
+        [u.login, h, u.role, u.name]);
+      results.push(`✓ ${u.role}: ${u.login} / ${u.pw}`);
+    }
+
+    res.json({ok:true, results});
+  } catch(e) {
+    res.status(500).json({ok:false, error:e.message});
+  }
+});
+
 app.get('/api/test-telegram', async (req, res) => {
   try { await sendTelegram(TELEGRAM_GROUP_ID, '🌿 <b>Smart Agro</b> — тест ✅'); res.json({ ok: true }); }
   catch(e) { res.status(500).json({ error: e.message }); }
