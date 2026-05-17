@@ -1,169 +1,238 @@
--- ============================================================
--- Smart Agro · Блок 3: Анализы
--- Добавить в конец schema.sql (или выполнить отдельно)
--- ============================================================
+-- ═══════════════════════════════════════════════════════════════════════
+-- Smart Agro — полная схема базы данных
+-- Версия: 2.0 (мультитенантность)
+-- ═══════════════════════════════════════════════════════════════════════
 
--- Таблица анализов
-CREATE TABLE IF NOT EXISTS public.analyses (
-  id               SERIAL PRIMARY KEY,
-  type             VARCHAR(20) NOT NULL CHECK (type IN ('soil','leaf','water')),
-  parcel_name      VARCHAR(255),
-  culture          VARCHAR(100),
-  growth_phase     VARCHAR(100),
-  lab_name         VARCHAR(255),
-  analysis_date    DATE NOT NULL,
-  water_source     VARCHAR(255),
-  results          JSONB NOT NULL DEFAULT '{}',
-  pdf_url          TEXT,
-  recommendations  JSONB DEFAULT '[]',
-  notes            TEXT,
-  created_at       TIMESTAMP DEFAULT NOW()
+-- Расширения
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+-- ═══ МУЛЬТИТЕНАНТНОСТЬ ══════════════════════════════════════════════════
+
+-- Таблица хозяйств (тенантов)
+CREATE TABLE IF NOT EXISTS tenants (
+  id                    TEXT PRIMARY KEY,
+  name                  TEXT NOT NULL,
+  plan                  TEXT DEFAULT 'basic',
+  fc_station_orchard    TEXT DEFAULT '',
+  fc_station_veg        TEXT DEFAULT '',
+  fc_public_key         TEXT DEFAULT '',
+  fc_private_key        TEXT DEFAULT '',
+  lat                   FLOAT DEFAULT 48.0167,
+  lon                   FLOAT DEFAULT 28.7,
+  timezone              TEXT DEFAULT 'Europe/Chisinau',
+  active                BOOLEAN DEFAULT TRUE,
+  created_at            TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Таблица норм FAO
-CREATE TABLE IF NOT EXISTS public.fao_norms (
-  id              SERIAL PRIMARY KEY,
-  analysis_type   VARCHAR(20) NOT NULL CHECK (analysis_type IN ('soil','leaf','water')),
-  culture         VARCHAR(100) NOT NULL,
-  parameter       VARCHAR(100) NOT NULL,
-  min_val         NUMERIC,
-  max_val         NUMERIC,
-  unit            VARCHAR(50),
-  rec_low         TEXT,
-  rec_high        TEXT,
-  source          VARCHAR(100) DEFAULT 'FAO'
+-- Таблица суперадминов
+CREATE TABLE IF NOT EXISTS super_admins (
+  login                 TEXT PRIMARY KEY,
+  password_hash         TEXT NOT NULL
 );
 
--- Уникальный индекс чтобы не дублировать нормы при повторном запуске
-CREATE UNIQUE INDEX IF NOT EXISTS fao_norms_unique
-  ON public.fao_norms (analysis_type, culture, parameter);
+-- Таблица пользователей
+DO $$ BEGIN
+  -- Пересоздаём таблицу users с правильной схемой если нет tenant_id
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name='users' AND column_name='tenant_id'
+  ) THEN
+    DROP TABLE IF EXISTS users CASCADE;
+    CREATE TABLE users (
+      id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      tenant_id         TEXT NOT NULL REFERENCES tenants(id),
+      login             TEXT NOT NULL,
+      password_hash     TEXT NOT NULL,
+      role              TEXT NOT NULL DEFAULT 'agronomist',
+      name              TEXT,
+      active            BOOLEAN DEFAULT TRUE,
+      last_login        TIMESTAMPTZ,
+      created_at        TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(tenant_id, login)
+    );
+  END IF;
+END $$;
 
--- ============================================================
--- НОРМЫ ПОЧВЫ (FAO / Maynard & Hochmuth)
--- ============================================================
-INSERT INTO public.fao_norms (analysis_type,culture,parameter,min_val,max_val,unit,rec_low,rec_high)
-VALUES
--- ТОМАТ
-('soil','tomato','pH',              6.0, 6.8, 'pH',    'Внести известь 2–4 т/га (доломитовая мука). Повторный анализ через 3 месяца.', 'Подкислить серой элементарной 200–300 кг/га или сульфатом железа.'),
-('soil','tomato','humus',           2.5, 4.0, '%',     'Внести перегной 20–30 т/га или компост. Увеличить долю органики в севообороте.', 'Норма. Следить за структурой почвы.'),
-('soil','tomato','N',             100.0,150.0,'мг/кг', 'Внести аммиачную селитру 150–200 кг/га или КАС-32 в подкормку.', 'Снизить азотные подкормки. Риск полегания, избыток нитратов.'),
-('soil','tomato','P2O5',          150.0,200.0,'мг/кг', 'Внести суперфосфат 200–300 кг/га или аммофос при посадке.', 'Фосфор в норме. Следить за балансом с цинком.'),
-('soil','tomato','K2O',           200.0,300.0,'мг/кг', 'Внести сульфат калия 150–200 кг/га. Калий критичен для качества плода.', 'Снизить калийные удобрения. Возможно угнетение магния.'),
-('soil','tomato','EC',              0.5,  1.5,'мСм/см','Почва истощена. Внести комплексные удобрения.', 'Высокая засолённость. Промывной полив, снизить дозы удобрений.'),
--- ПЕРЕЦ
-('soil','pepper','pH',             6.0, 6.8, 'pH',    'Внести известь 2–3 т/га.', 'Подкислить серой или гипсом.'),
-('soil','pepper','humus',          2.5, 4.0, '%',     'Органические удобрения 20–25 т/га.', 'Норма.'),
-('soil','pepper','N',            100.0,140.0,'мг/кг', 'Аммиачная селитра 130–180 кг/га.', 'Снизить азотные подкормки.'),
-('soil','pepper','P2O5',         140.0,190.0,'мг/кг', 'Суперфосфат 180–250 кг/га.', 'Норма. Контроль цинка.'),
-('soil','pepper','K2O',          180.0,280.0,'мг/кг', 'Сульфат калия 130–180 кг/га.', 'Снизить калийные удобрения.'),
-('soil','pepper','EC',             0.5,  1.5,'мСм/см','Внести комплекс NPK.', 'Промывной полив.'),
--- ОГУРЕЦ
-('soil','cucumber','pH',           6.0, 7.0, 'pH',    'Известь 1.5–3 т/га.', 'Подкислить.'),
-('soil','cucumber','humus',        2.0, 3.5, '%',     'Органика 15–25 т/га.', 'Норма.'),
-('soil','cucumber','N',           80.0,120.0,'мг/кг', 'Мочевина 100–150 кг/га.', 'Снизить азот.'),
-('soil','cucumber','P2O5',       120.0,170.0,'мг/кг', 'Аммофос 150–200 кг/га.', 'Норма.'),
-('soil','cucumber','K2O',        180.0,260.0,'мг/кг', 'Калийная селитра 120–160 кг/га.', 'Снизить калий.'),
-('soil','cucumber','EC',           0.5,  1.5,'мСм/см','NPK комплекс.', 'Промывной полив.'),
--- ГОРОХ
-('soil','pea','pH',                6.0, 7.0, 'pH',    'Известь 2–3 т/га. Горох чувствителен к кислотности.', 'Подкислить.'),
-('soil','pea','humus',             2.0, 3.5, '%',     'Органика 15–20 т/га.', 'Норма.'),
-('soil','pea','N',                60.0,100.0,'мг/кг', 'Стартовая доза азота 60–80 кг/га. Горох фиксирует N сам.', 'Снизить азот — угнетение клубеньков.'),
-('soil','pea','P2O5',            100.0,150.0,'мг/кг', 'Суперфосфат 150–200 кг/га.', 'Норма.'),
-('soil','pea','K2O',             120.0,200.0,'мг/кг', 'Хлористый калий 100–140 кг/га.', 'Снизить калий.'),
-('soil','pea','EC',                0.3,  1.0,'мСм/см','Внести NPK.', 'Промывной полив.'),
--- ВИШНЯ
-('soil','cherry','pH',             6.0, 7.0, 'pH',    'Известь 2–3 т/га. Косточковые плохо переносят кислотность.', 'Гипс 3–4 т/га для снижения pH.'),
-('soil','cherry','humus',          2.0, 3.5, '%',     'Перегной 15–20 т/га, мульчирование приствольных кругов.', 'Норма.'),
-('soil','cherry','N',             80.0,120.0,'мг/кг', 'Аммиачная селитра 100–150 кг/га весной.', 'Снизить азот — риск камедетечения.'),
-('soil','cherry','P2O5',         100.0,150.0,'мг/кг', 'Суперфосфат 120–180 кг/га осенью.', 'Норма.'),
-('soil','cherry','K2O',          150.0,250.0,'мг/кг', 'Сульфат калия 100–150 кг/га.', 'Снизить калий.'),
-('soil','cherry','EC',             0.3,  1.0,'мСм/см','Комплексные удобрения.', 'Промывной полив.'),
--- ЯБЛОНЯ
-('soil','apple','pH',              6.0, 7.0, 'pH',    'Известь 2–4 т/га.', 'Подкислить серой.'),
-('soil','apple','humus',           2.0, 3.5, '%',     'Перегной 20 т/га, задернение в рядах.', 'Норма.'),
-('soil','apple','N',              80.0,120.0,'мг/кг', 'Аммиачная селитра 100–150 кг/га весной дробно.', 'Снизить азот.'),
-('soil','apple','P2O5',          100.0,150.0,'мг/кг', 'Суперфосфат 120–160 кг/га.', 'Норма.'),
-('soil','apple','K2O',           150.0,250.0,'мг/кг', 'Сульфат калия 100–140 кг/га.', 'Снизить калий.'),
-('soil','apple','EC',              0.3,  1.0,'мСм/см','Комплексные удобрения.', 'Промывной полив.')
-ON CONFLICT (analysis_type,culture,parameter) DO NOTHING;
+-- ═══ ОСНОВНЫЕ ТАБЛИЦЫ ═══════════════════════════════════════════════════
 
--- ============================================================
--- НОРМЫ ЛИСТА (FAO / IPNI Leaf Analysis Standards)
--- ============================================================
-INSERT INTO public.fao_norms (analysis_type,culture,parameter,min_val,max_val,unit,rec_low,rec_high)
-VALUES
--- ТОМАТ
-('leaf','tomato','N',   3.5, 5.0,'%', 'Листовая подкормка: мочевина 0.5–1% р-р. Корневая: КАС или аммиачная 100–150 кг/га.', 'Избыток азота. Тёмно-зелёные листья, риск вершинной гнили. Снизить подкормки.'),
-('leaf','tomato','P',   0.3, 0.6,'%', 'Монокалийфосфат 0.3% р-р листовая. Корневая: суперфосфат.', 'Снизить фосфорные подкормки.'),
-('leaf','tomato','K',   3.5, 5.5,'%', 'Нитрат калия 0.5% листовая. Корневая: сульфат калия 2–3 кг/сотку.', 'Снизить калий.'),
-('leaf','tomato','Ca',  1.5, 3.0,'%', 'Кальциевая селитра 0.4% листовая 2–3 раза. Помогает при вершинной гнили.', 'Норма.'),
-('leaf','tomato','Mg',  0.3, 0.6,'%', 'Сульфат магния 0.5% листовая. Корневая: кизерит 100 кг/га.', 'Норма.'),
-('leaf','tomato','Fe', 60.0,200.0,'мг/кг','Хелат железа EDDHA 0.05% листовая. Проверить pH почвы (>7 блокирует Fe).', 'Норма.'),
-('leaf','tomato','Zn', 25.0,100.0,'мг/кг','Сульфат цинка 0.2% листовая. Вносить при температуре <25°C.', 'Норма.'),
--- ПЕРЕЦ
-('leaf','pepper','N',   3.0, 4.5,'%', 'КАС или мочевина листовая 0.5%.', 'Снизить азот.'),
-('leaf','pepper','P',   0.3, 0.6,'%', 'МКФ 0.3% листовая.', 'Норма.'),
-('leaf','pepper','K',   3.0, 5.0,'%', 'Нитрат калия 0.5% листовая.', 'Снизить калий.'),
-('leaf','pepper','Ca',  1.5, 3.0,'%', 'Кальциевая селитра 0.4%.', 'Норма.'),
-('leaf','pepper','Mg',  0.3, 0.6,'%', 'Сульфат магния 0.5%.', 'Норма.'),
-('leaf','pepper','Fe', 60.0,200.0,'мг/кг','Хелат железа 0.05%.', 'Норма.'),
-('leaf','pepper','Zn', 25.0,100.0,'мг/кг','Сульфат цинка 0.2%.', 'Норма.'),
--- ОГУРЕЦ
-('leaf','cucumber','N', 3.5, 5.0,'%', 'Мочевина 0.5% листовая.', 'Снизить азот.'),
-('leaf','cucumber','P', 0.3, 0.6,'%', 'МКФ 0.3%.', 'Норма.'),
-('leaf','cucumber','K', 3.0, 5.0,'%', 'Нитрат калия 0.5%.', 'Снизить калий.'),
-('leaf','cucumber','Ca',2.0, 3.5,'%', 'Кальциевая селитра 0.4%.', 'Норма.'),
-('leaf','cucumber','Mg',0.3, 0.6,'%', 'Сульфат магния 0.5%.', 'Норма.'),
-('leaf','cucumber','Fe',60.0,200.0,'мг/кг','Хелат железа 0.05%.', 'Норма.'),
-('leaf','cucumber','Zn',25.0,100.0,'мг/кг','Сульфат цинка 0.2%.', 'Норма.'),
--- ГОРОХ
-('leaf','pea','N',      3.5, 5.0,'%', 'Мочевина 0.3% листовая (осторожно — горох фиксирует сам).', 'Снизить азот.'),
-('leaf','pea','P',      0.25,0.5,'%', 'МКФ 0.3%.', 'Норма.'),
-('leaf','pea','K',      2.0, 3.5,'%', 'Нитрат калия 0.4%.', 'Норма.'),
-('leaf','pea','Ca',     1.0, 2.5,'%', 'Кальциевая селитра 0.3%.', 'Норма.'),
-('leaf','pea','Mg',     0.2, 0.5,'%', 'Сульфат магния 0.4%.', 'Норма.'),
-('leaf','pea','Fe',    60.0,200.0,'мг/кг','Хелат железа 0.05%.', 'Норма.'),
-('leaf','pea','Zn',    20.0, 80.0,'мг/кг','Сульфат цинка 0.15%.', 'Норма.'),
--- ВИШНЯ
-('leaf','cherry','N',   2.2, 3.2,'%', 'Аммиачная селитра 0.3% листовая или мочевина 0.5% (до цветения / после сбора).', 'Снизить азот — риск камедетечения и болезней.'),
-('leaf','cherry','P',   0.14,0.25,'%','МКФ 0.2% листовая.', 'Норма.'),
-('leaf','cherry','K',   1.5, 2.5,'%', 'Нитрат калия 0.4% листовая.', 'Снизить калий.'),
-('leaf','cherry','Ca',  1.5, 2.5,'%', 'Кальциевая селитра 0.4%. Важно для упругости плода.', 'Норма.'),
-('leaf','cherry','Mg',  0.25,0.5,'%', 'Сульфат магния 0.5% листовая.', 'Норма.'),
-('leaf','cherry','Fe', 60.0,200.0,'мг/кг','Хелат железа EDDHA 0.05% ранней весной.', 'Норма.'),
-('leaf','cherry','Zn', 20.0, 60.0,'мг/кг','Сульфат цинка 0.2% ранней весной.', 'Норма.'),
--- ЯБЛОНЯ
-('leaf','apple','N',    2.0, 2.8,'%', 'Мочевина 0.5% листовая весной.', 'Снизить азот — риск горькой ямчатости.'),
-('leaf','apple','P',    0.14,0.20,'%','МКФ 0.2% листовая.', 'Норма.'),
-('leaf','apple','K',    1.5, 2.2,'%', 'Нитрат калия 0.4% листовая.', 'Снизить калий.'),
-('leaf','apple','Ca',   1.2, 2.0,'%', 'Хлорид кальция 0.4% листовая 3–4 раза за сезон. Профилактика горькой ямчатости.', 'Норма.'),
-('leaf','apple','Mg',   0.25,0.5,'%', 'Сульфат магния 0.5% листовая.', 'Норма.'),
-('leaf','apple','Fe',  60.0,200.0,'мг/кг','Хелат железа EDDHA 0.05%.', 'Норма.'),
-('leaf','apple','Zn',  20.0, 60.0,'мг/кг','Сульфат цинка 0.2% ранней весной.', 'Норма.')
-ON CONFLICT (analysis_type,culture,parameter) DO NOTHING;
+-- Настройки и состояния (orchard/vegetable state)
+CREATE TABLE IF NOT EXISTS settings (
+  key                   TEXT PRIMARY KEY,
+  value                 JSONB,
+  tenant_id             TEXT DEFAULT 'kkz',
+  updated_at            TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS tenant_id TEXT DEFAULT 'kkz';
+CREATE INDEX IF NOT EXISTS idx_settings_tenant ON settings(tenant_id);
 
--- ============================================================
--- НОРМЫ ВОДЫ (FAO Irrigation Water Quality Guidelines)
--- Культура = 'all' — нормы едины для всех культур
--- ============================================================
-INSERT INTO public.fao_norms (analysis_type,culture,parameter,min_val,max_val,unit,rec_low,rec_high)
-VALUES
-('water','all','pH',     6.5, 7.5,'pH',
- 'Вода кислая. Риск коррозии трубопроводов. Добавить кальциевую селитру для нейтрализации.',
- 'Вода щелочная. Добавить азотную или фосфорную кислоту 0.1–0.3 мл/л. Проверить карбонаты.'),
-('water','all','EC',     0.0, 0.75,'мСм/см',
- 'Вода очень мягкая — добавить удобрения при поливе (фертигация).',
- 'Высокая засолённость. Снизить частоту/норму полива. При EC>2 — смешивать с чистой водой.'),
-('water','all','HCO3',   0.0, 2.0,'мэкв/л',
- 'Норма.',
- 'Высокие карбонаты. Подкислить воду азотной/фосфорной кислотой. Контроль pH после подкисления.'),
-('water','all','Cl',     0.0,140.0,'мг/л',
- 'Норма.',
- 'Хлориды выше нормы. Ограничить норму полива. Усилить дренаж. При >350 — поменять источник.'),
-('water','all','Na',     0.0,  3.0,'SAR',
- 'Норма.',
- 'Натрий разрушает структуру почвы. Внести гипс 1–2 т/га. Улучшить дренаж.'),
-('water','all','Fe',     0.0,  0.1,'мг/л',
- 'Норма.',
- 'Железо закупоривает капельницы. Фильтрация + хлорирование 1 мг/л. Проверить фильтры.')
-ON CONFLICT (analysis_type,culture,parameter) DO NOTHING;
+-- Погода
+CREATE TABLE IF NOT EXISTS weather (
+  id                    SERIAL PRIMARY KEY,
+  date                  DATE NOT NULL,
+  station               TEXT DEFAULT 'orchard',
+  tmin                  FLOAT,
+  tmax                  FLOAT,
+  tavg                  FLOAT,
+  humidity              FLOAT,
+  precip                FLOAT DEFAULT 0,
+  wind                  FLOAT DEFAULT 0,
+  leaf_wet              FLOAT DEFAULT 0,
+  et0                   FLOAT DEFAULT 0,
+  solar                 FLOAT DEFAULT 0,
+  dewpoint              FLOAT,
+  vpd                   FLOAT,
+  tenant_id             TEXT DEFAULT 'kkz',
+  UNIQUE(date, station, tenant_id)
+);
+ALTER TABLE weather ADD COLUMN IF NOT EXISTS tenant_id TEXT DEFAULT 'kkz';
+CREATE INDEX IF NOT EXISTS idx_weather_date ON weather(date DESC);
+CREATE INDEX IF NOT EXISTS idx_weather_station ON weather(station);
+CREATE INDEX IF NOT EXISTS idx_weather_tenant ON weather(tenant_id);
+
+-- Обработки
+CREATE TABLE IF NOT EXISTS treatments (
+  id                    TEXT PRIMARY KEY,
+  date                  DATE,
+  parcel_name           TEXT,
+  products              JSONB,
+  method                TEXT DEFAULT 'foliar',
+  volume                FLOAT DEFAULT 400,
+  max_whi               INTEGER DEFAULT 14,
+  whi_date              DATE,
+  note                  TEXT,
+  tenant_id             TEXT DEFAULT 'kkz',
+  created_at            TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE treatments ADD COLUMN IF NOT EXISTS tenant_id TEXT DEFAULT 'kkz';
+CREATE INDEX IF NOT EXISTS idx_treatments_tenant ON treatments(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_treatments_date ON treatments(date DESC);
+
+-- Анализы
+CREATE TABLE IF NOT EXISTS analyses (
+  id                    TEXT PRIMARY KEY,
+  type                  TEXT,
+  date                  DATE,
+  data                  JSONB,
+  tenant_id             TEXT DEFAULT 'kkz',
+  created_at            TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE analyses ADD COLUMN IF NOT EXISTS tenant_id TEXT DEFAULT 'kkz';
+CREATE INDEX IF NOT EXISTS idx_analyses_tenant ON analyses(tenant_id);
+
+-- PDF файлы к анализам
+CREATE TABLE IF NOT EXISTS analysis_files (
+  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  analysis_id           TEXT NOT NULL,
+  filename              TEXT NOT NULL,
+  mimetype              TEXT NOT NULL DEFAULT 'application/pdf',
+  size                  INTEGER NOT NULL,
+  data                  BYTEA NOT NULL,
+  tenant_id             TEXT DEFAULT 'kkz',
+  uploaded_at           TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE analysis_files ADD COLUMN IF NOT EXISTS tenant_id TEXT DEFAULT 'kkz';
+CREATE INDEX IF NOT EXISTS idx_analysis_files_analysis_id ON analysis_files(analysis_id);
+
+-- Каталог препаратов
+CREATE TABLE IF NOT EXISTS public.catalog (
+  id                    TEXT PRIMARY KEY,
+  name                  TEXT NOT NULL,
+  type                  TEXT,
+  active_substance      TEXT,
+  frac_code             TEXT,
+  moa_group             TEXT,
+  data                  JSONB,
+  tenant_id             TEXT DEFAULT 'kkz',
+  created_at            TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE public.catalog ADD COLUMN IF NOT EXISTS tenant_id TEXT DEFAULT 'kkz';
+ALTER TABLE public.catalog ADD COLUMN IF NOT EXISTS frac_code TEXT;
+ALTER TABLE public.catalog ADD COLUMN IF NOT EXISTS moa_group TEXT;
+CREATE INDEX IF NOT EXISTS idx_catalog_tenant ON public.catalog(tenant_id);
+
+-- Участки/поля (vegetable)
+CREATE TABLE IF NOT EXISTS parcels (
+  id                    TEXT PRIMARY KEY,
+  name                  TEXT,
+  area                  FLOAT,
+  crop                  TEXT,
+  data                  JSONB,
+  tenant_id             TEXT DEFAULT 'kkz',
+  created_at            TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE parcels ADD COLUMN IF NOT EXISTS tenant_id TEXT DEFAULT 'kkz';
+
+-- Персонал
+CREATE TABLE IF NOT EXISTS staff (
+  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name                  TEXT NOT NULL,
+  role                  TEXT,
+  phone                 TEXT,
+  pin                   TEXT,
+  data                  JSONB,
+  tenant_id             TEXT DEFAULT 'kkz',
+  created_at            TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE staff ADD COLUMN IF NOT EXISTS tenant_id TEXT DEFAULT 'kkz';
+
+-- Задания
+CREATE TABLE IF NOT EXISTS tasks (
+  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title                 TEXT NOT NULL,
+  status                TEXT DEFAULT 'pending',
+  assigned_to           TEXT,
+  due_date              DATE,
+  data                  JSONB,
+  tenant_id             TEXT DEFAULT 'kkz',
+  created_at            TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS tenant_id TEXT DEFAULT 'kkz';
+
+-- Типы работ
+CREATE TABLE IF NOT EXISTS work_types (
+  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name                  TEXT NOT NULL,
+  tenant_id             TEXT DEFAULT 'kkz'
+);
+
+-- Оборудование
+CREATE TABLE IF NOT EXISTS equipment (
+  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name                  TEXT NOT NULL,
+  type                  TEXT,
+  data                  JSONB,
+  tenant_id             TEXT DEFAULT 'kkz',
+  created_at            TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE equipment ADD COLUMN IF NOT EXISTS tenant_id TEXT DEFAULT 'kkz';
+
+-- Ирригация
+CREATE TABLE IF NOT EXISTS irrigations (
+  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  date                  DATE,
+  zone                  TEXT,
+  duration_min          INTEGER,
+  volume_m3             FLOAT,
+  mm                    FLOAT,
+  data                  JSONB,
+  tenant_id             TEXT DEFAULT 'kkz',
+  created_at            TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE irrigations ADD COLUMN IF NOT EXISTS tenant_id TEXT DEFAULT 'kkz';
+
+-- Вложения
+CREATE TABLE IF NOT EXISTS attachments (
+  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  entity_type           TEXT,
+  entity_id             TEXT,
+  filename              TEXT,
+  data                  BYTEA,
+  tenant_id             TEXT DEFAULT 'kkz',
+  created_at            TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE attachments ADD COLUMN IF NOT EXISTS tenant_id TEXT DEFAULT 'kkz';
+
+-- ═══ ДЕФОЛТНЫЙ ТЕНАНТ ═══════════════════════════════════════════════════
+INSERT INTO tenants (id, name, plan, fc_station_orchard, fc_station_veg, lat, lon)
+VALUES ('kkz', 'ККЗ Молдова (Каменка)', 'pro', '00002158', '0020BCDC', 48.0167, 28.7)
+ON CONFLICT (id) DO NOTHING;
