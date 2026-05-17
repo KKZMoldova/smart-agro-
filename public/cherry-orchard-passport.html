@@ -12032,7 +12032,81 @@ function detectStress(weatherArr, forecast) {
     }
   }
 
-  // ── 13. Анализ прогноза (следующие 3 дня) ────────────────────────────
+  // ── 13. Анализ воды — риск засоления и pH ────────────────────────────
+  const waterAn = [...(S.analyses||[])].filter(a=>a.type==='water').sort((a,b)=>b.date.localeCompare(a.date))[0];
+  if(waterAn) {
+    const wNa  = parseFloat(waterAn.Na||waterAn.na||0);
+    const wPh  = parseFloat(waterAn.pH||waterAn.ph||0);
+    const wEc  = parseFloat(waterAn.EC||waterAn.ec||0);
+    const wFe  = parseFloat(waterAn.Fe||waterAn.fe||0);
+    const wMg  = parseFloat(waterAn.Mg||waterAn.mg||0);
+    const wSar = parseFloat(waterAn.SAR||waterAn.sar||0);
+
+    // Высокий Na — риск засоления почвы
+    if(wNa > 100) {
+      alerts.push({
+        level: 'critical',
+        icon: '🧂',
+        title: `Высокий Na в воде — ${wNa} мг/л (норма <50)`,
+        body: `Риск засоления почвы при капельном поливе. Gisela 5 особенно чувствителен. SAR=${wSar.toFixed(1)} — структура чернозема деградирует. Меры: гипсование 1–2 т/га, промывной полив после сезона, мониторинг EC почвы.`,
+        tags: ['Вода', 'Засоление', 'Na'],
+      });
+    } else if(wNa > 50) {
+      alerts.push({
+        level: 'warning',
+        icon: '🧂',
+        title: `Na в воде повышен — ${wNa} мг/л (норма <50)`,
+        body: `Умеренный риск засоления. Контролировать EC почвенного раствора ежемесячно. SAR=${wSar.toFixed(1)}.`,
+        tags: ['Вода', 'Na'],
+      });
+    }
+
+    // pH воды — блокировка микроэлементов
+    if(wPh > 7.5) {
+      alerts.push({
+        level: wPh > 8.0 ? 'warning' : 'watch',
+        icon: '⚗️',
+        title: `pH воды ${wPh} — блокировка Fe, Mn, Zn, B`,
+        body: `При pH >7.5 в зоне корней Gisela 5 блокируется усвоение Fe, Mn, Zn, B. Подкисление ортофосфорной кислотой H₃PO₄ до pH 6.5–7.0 перед подачей в систему. Доза ~0.8–1.2 мл/л воды. Бонус: P из кислоты ~5–8 ppm — учесть в программе фертигации.`,
+        tags: ['Вода', 'pH', 'Подкисление'],
+      });
+    }
+
+    // Высокий EC воды
+    if(wEc > 1.0) {
+      alerts.push({
+        level: wEc > 1.5 ? 'warning' : 'watch',
+        icon: '⚡',
+        title: `EC воды ${wEc} mS/cm — ограниченный запас для удобрений`,
+        body: `Исходный EC воды уже ${wEc} mS/cm. При добавлении удобрений суммарный EC не должен превышать 2.5 mS/cm для черешни (Gisela 5). Максимальный EC от удобрений: ${(2.5-wEc).toFixed(1)} mS/cm.`,
+        tags: ['Вода', 'EC', 'Фертигация'],
+      });
+    }
+
+    // Высокий Fe — риск засорения капельниц
+    if(wFe > 0.3) {
+      alerts.push({
+        level: 'watch',
+        icon: '🔧',
+        title: `Fe в воде ${wFe} мг/л — риск засорения капельниц`,
+        body: `При pH >7 железо осаждается в форме гидроксида Fe(OH)₃ и засоряет эмиттеры. Промывать систему кислотным раствором (H₃PO₄ 0.1%) раз в 2–4 недели. Дисковые фильтры обязательны.`,
+        tags: ['Вода', 'Fe', 'Капельницы'],
+      });
+    }
+
+    // Высокий Mg — не вносить сульфат магния
+    if(wMg > 20) {
+      alerts.push({
+        level: 'watch',
+        icon: '🧪',
+        title: `Mg в воде ${wMg} мг/л — сульфат магния не вносить`,
+        body: `Вода уже содержит ${wMg} мг/л Mg — норма для черешни. Сульфат магния в программе фертигации исключить или минимизировать чтобы не создавать антагонизм с Ca и K.`,
+        tags: ['Вода', 'Mg', 'Фертигация'],
+      });
+    }
+  }
+
+  // ── 14. Анализ прогноза (следующие 3 дня) ────────────────────────────
   if(forecast && forecast.length) {
     const next3 = forecast.slice(0,3);
     const frostDay = next3.find(d=>parseFloat(d.tmin)<=0);
