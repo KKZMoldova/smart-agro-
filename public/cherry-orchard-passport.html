@@ -7459,8 +7459,33 @@ function openFertCalcModal() {
   }
 
   // Загружаем анализы
-  onFertCalcZoneChange();
-  openModal('modal-fert-calc');
+  const srcEl = document.getElementById('fc-analysis-source');
+  const waterAn = [...(S.analyses||[])].filter(a=>a.type==='water').sort((a,b)=>b.date.localeCompare(a.date))[0];
+  const leafAn  = [...(S.analyses||[])].filter(a=>a.type==='leaf').sort((a,b)=>b.date.localeCompare(a.date))[0];
+  const soilAn  = [...(S.analyses||[])].filter(a=>a.type==='soil').sort((a,b)=>b.date.localeCompare(a.date))[0];
+
+  if(srcEl) {
+    let html = '';
+    if(waterAn) {
+      html += `<div style="margin-bottom:4px;">💧 <strong>Анализ воды (${waterAn.date}):</strong> EC ${waterAn.EC||waterAn.ec||'—'} mS/cm · pH ${waterAn.pH||waterAn.ph||'—'} · NO₃ ${waterAn.NO3||waterAn.no3||'0'}ppm · Ca ${waterAn.Ca||waterAn.ca||'0'}ppm · Mg ${waterAn.Mg||waterAn.mg||'0'}ppm</div>`;
+    } else {
+      html += `<div style="color:var(--color-text-warning);margin-bottom:6px;">⚠️ Анализ воды не найден — Ca и Mg из воды не вычитаются из расчёта.
+        <button class="btn btn-secondary btn-sm" style="margin-left:8px;" onclick="closeModal('modal-fert-calc');switchTab('analysis',document.querySelector('[onclick*=switchTab][onclick*=analysis]'));setTimeout(()=>openAnalysisModal('water'),300);">+ Добавить анализ воды</button>
+      </div>`;
+    }
+    if(leafAn)  html += `<div style="margin-bottom:2px;">🌿 <strong>Анализ листа (${leafAn.date}):</strong> N ${leafAn.N||leafAn.n||'—'}% · P ${leafAn.P||leafAn.p||'—'}% · K ${leafAn.K||leafAn.k||'—'}% · Ca ${leafAn.Ca||leafAn.ca||'—'}% · Mg ${leafAn.Mg||leafAn.mg||'—'}%</div>`;
+    if(soilAn)  html += `<div>🌱 <strong>Анализ почвы (${soilAn.date}):</strong> pH ${soilAn.pH||soilAn.ph||'—'} · NO₃ ${soilAn.NO3||soilAn.no3||'—'} · P ${soilAn.P||soilAn.p||'—'} · K ${soilAn.K||soilAn.k||'—'}</div>`;
+    if(!waterAn && !leafAn && !soilAn) html += `<div style="color:var(--color-text-secondary);">Анализы не внесены. Расчёт по целевым нормам фазы.</div>`;
+    srcEl.innerHTML = html;
+
+    // Заполняем ppm воды для отображения
+    if(waterAn) {
+      const setWater = (id, val) => { const d=document.getElementById(id); if(d) d.textContent=`из воды: ${parseFloat(val||0)}ppm`; };
+      setWater('fc-water-ca', waterAn.Ca||waterAn.ca||0);
+      setWater('fc-water-mg', waterAn.Mg||waterAn.mg||0);
+      setWater('fc-water-n',  waterAn.NO3||waterAn.no3||0);
+    }
+  }
 }
 
 function onFertCalcZoneChange() {
@@ -7477,26 +7502,6 @@ function onFertCalcZoneChange() {
 
   // Загружаем последний анализ воды
   const srcEl = document.getElementById('fc-analysis-source');
-  const waterAn = [...(S.analyses||[])].filter(a=>a.type==='water').sort((a,b)=>b.date.localeCompare(a.date))[0];
-  const leafAn  = [...(S.analyses||[])].filter(a=>a.type==='leaf').sort((a,b)=>b.date.localeCompare(a.date))[0];
-  const soilAn  = [...(S.analyses||[])].filter(a=>a.type==='soil').sort((a,b)=>b.date.localeCompare(a.date))[0];
-
-  if(srcEl) {
-    let html = '';
-    if(waterAn) html += `💧 Анализ воды (${waterAn.date}): EC ${waterAn.ec||'—'} mS/cm · pH ${waterAn.ph||'—'} · Ca ${waterAn.ca||'—'}ppm · Mg ${waterAn.mg||'—'}ppm · HCO₃ ${waterAn.hco3||'—'}ppm<br>`;
-    if(leafAn)  html += `🌿 Анализ листа (${leafAn.date}): N ${leafAn.n||'—'}% · P ${leafAn.p||'—'}% · K ${leafAn.k||'—'}% · Ca ${leafAn.ca||'—'}% · Mg ${leafAn.mg||'—'}%<br>`;
-    if(soilAn)  html += `🌱 Анализ почвы (${soilAn.date}): pH ${soilAn.ph||'—'} · N ${soilAn.n||'—'} · P ${soilAn.p||'—'} · K ${soilAn.k||'—'}`;
-    srcEl.innerHTML = html || '⚠️ Анализы не найдены. Данные берутся из целевых норм фазы.';
-
-    // Заполняем ppm воды
-    if(waterAn) {
-      const setWater = (el,val) => { const d=document.getElementById(el); if(d) d.textContent=`из воды: ${val||0}ppm`; };
-      setWater('fc-water-ca', waterAn.ca);
-      setWater('fc-water-mg', waterAn.mg);
-      setWater('fc-water-n',  waterAn.no3||0);
-    }
-  }
-
   // Устанавливаем целевые ppm из фазы
   onFertPhaseChange();
 }
@@ -7507,9 +7512,9 @@ function onFertPhaseChange() {
 
   // Вычитаем что даёт вода
   const waterAn = [...(S.analyses||[])].filter(a=>a.type==='water').sort((a,b)=>b.date.localeCompare(a.date))[0];
-  const waterCa = parseFloat(waterAn?.ca||0);
-  const waterMg = parseFloat(waterAn?.mg||0);
-  const waterN  = parseFloat(waterAn?.no3||0);
+  const waterCa = parseFloat(waterAn?.Ca||waterAn?.ca||0);
+  const waterMg = parseFloat(waterAn?.Mg||waterAn?.mg||0);
+  const waterN  = parseFloat(waterAn?.NO3||waterAn?.no3||0);
 
   ['n','p','k','ca','mg'].forEach(el => {
     const inp = document.getElementById(`fc-ppm-${el}`);
@@ -7569,11 +7574,12 @@ function calcFertDose() {
   if(phaseTargets?.nFertPeriod?.includes('СТОП')) sciAlerts.push(`⛔ ${phaseTargets.stopNote||'Стоп фертигации за 30 дней до сбора!'}`);
   if(phaseTargets?.nFertPeriod?.includes('НЕ ВНОСИТЬ')) sciAlerts.push(`🚫 В период цветения N НЕ вносить! Только P при цветении (20г/дерево).`);
 
-  // Вода из анализа
+  // Вода из анализа — поля хранятся с большой буквы (Ca, Mg, NO3, EC)
   const waterAn = [...(S.analyses||[])].filter(a=>a.type==='water').sort((a,b)=>b.date.localeCompare(a.date))[0];
-  const waterCa = parseFloat(waterAn?.ca||0);
-  const waterMg = parseFloat(waterAn?.mg||0);
-  const waterEC = parseFloat(waterAn?.ec||0);
+  const waterCa = parseFloat(waterAn?.Ca||waterAn?.ca||0);
+  const waterMg = parseFloat(waterAn?.Mg||waterAn?.mg||0);
+  const waterN  = parseFloat(waterAn?.NO3||waterAn?.no3||0);
+  const waterEC = parseFloat(waterAn?.EC||waterAn?.ec||0);
 
   // Потребности в г/м³ (ppm = г/м³)
   const need = {...ppm};
