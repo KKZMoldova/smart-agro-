@@ -230,6 +230,15 @@ app.post('/api/state/orchard', async (req, res) => {
   } catch(e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
+app.post('/api/send-irrigation-task', async (req, res) => {
+  try {
+    const { message } = req.body;
+    if(!message) return res.status(400).json({error:'Нет сообщения'});
+    await sendTelegram(TELEGRAM_GROUP_ID, message);
+    res.json({ok:true});
+  } catch(e) { res.status(500).json({ok:false, error:e.message}); }
+});
+
 app.get('/api/test-telegram', async (req, res) => {
   try { await sendTelegram(TELEGRAM_GROUP_ID, '🌿 <b>Smart Agro</b> — тест ✅'); res.json({ ok: true }); }
   catch(e) { res.status(500).json({ error: e.message }); }
