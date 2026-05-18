@@ -1217,6 +1217,11 @@ body[data-readonly="true"] .parcel-card { cursor: default; pointer-events: none;
   <!-- ═══ SETTINGS ═══ -->
 <div class="panel" id="panel-settings">
   <div class="section-hdr"><h2>⚙️ Настройки</h2></div>
+  <!-- Управление ролями -->
+  <div class="card" style="margin-bottom:16px;">
+    <div class="card-title" style="margin-bottom:12px;">👥 Пользователи и роли</div>
+    <div id="roles-settings-veg"><div style="font-size:12px;color:var(--text3);">⏳ Загрузка...</div></div>
+  </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:600px;">
     <div class="ff full"><label>Название хозяйства</label><input type="text" id="set-farm-name" placeholder="ООО Агро" oninput="saveSetting('farmName',this.value)"></div>
     <div class="ff"><label>Регион</label><input type="text" id="set-region" placeholder="Молдова" oninput="saveSetting('region',this.value)"></div>
@@ -2349,7 +2354,10 @@ let _vServerAvailable = false;
 
 async function checkVServer() {
   try {
-    const r = await fetch('/api/weather?days=1', { signal: AbortSignal.timeout(4000) });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 4000);
+    const r = await fetch('/api/weather?days=1', { signal: controller.signal });
+    clearTimeout(timer);
     _vServerAvailable = r.ok || r.status === 401;
   } catch { _vServerAvailable = false; }
   // Update server indicator
@@ -3281,6 +3289,7 @@ function showTab(id) {
     tasks:renderTasks, varieties:renderVarieties
   };
   if (renders[id]) renders[id]();
+  if (id === 'settings') renderRolesSettingsVeg();
 }
 
 function openModal(id) { document.getElementById(id).classList.add('open'); }
@@ -6626,239 +6635,264 @@ const labels = {eur:'Курс EUR → '+curName, usd:'Курс USD → '+curName
 
 
 // ─── ROLE SYSTEM ──────────────────────────────────────────────────────────
-const ROLES = {
-  owner: {
-    label:'👑 Владелец',
-    pinKey:'pin_owner',
-    defaultPin:'1111',
-    color:'#fbbf24',
-    tabs:['parcels','weather','gdd','diseases','irrigation','treatments','catalog','varieties','settings'],
-    canEdit: true,
-    canDelete: true,
-    canSettings: true,
-    description:'Полный доступ ко всем разделам и настройкам'
-  },
-  agronomist: {
-    label:'👨‍🌾 Агроном',
-    pinKey:'pin_agronomist',
-    defaultPin:'2222',
-    color:'#4ade80',
-    tabs:['parcels','weather','gdd','diseases','irrigation','treatments','catalog','varieties'],
-    canEdit: true,
-    canDelete: false,
-    canSettings: false,
-    description:'Полный рабочий доступ, без настроек и удаления'
-  },
-  operator: {
-    label:'📋 Оператор',
-    pinKey:'pin_operator',
-    defaultPin:'4444',
-    color:'#a78bfa',
-    tabs:['weather','irrigation','treatments'],
-    canEdit: true,
-    canDelete: false,
-    canSettings: false,
-    description:'Ввод данных: погода, поливы, обработки'
-  },
-  factory: {
-    label:'🏭 Директор завода',
-    pinKey:'pin_factory',
-    defaultPin:'3333',
-    color:'#60a5fa',
-    tabs:['parcels','gdd','irrigation'],
-    canEdit: false,
-    canDelete: false,
-    canSettings: false,
-    description:'Только участки, GDD/фазы и ирригация — мониторинг уборки'
-  },
+
+// ═══ СИСТЕМА РОЛЕЙ И ДОСТУПОВ (JWT) ═════════════════════════════════════
+
+const ROLE_ACCESS_VEG = {
+  agronomist: ['parcels','weather','gdd','diseases','irrigation','varieties','fields',
+               'equipment','treatments','analyses','catalog','settings','warehouse','sowing','workplan','tasks'],
+  owner:      ['parcels','weather','gdd','diseases','irrigation','varieties','fields',
+               'equipment','treatments','analyses','catalog','settings','warehouse','sowing','workplan','tasks'],
+  shareholder:['parcels','weather','gdd','diseases','irrigation','varieties','fields',
+               'equipment','treatments','analyses','catalog','warehouse','sowing','workplan','tasks'],
+  director:   ['parcels','weather','gdd','diseases','irrigation','varieties','fields',
+               'equipment','treatments','analyses','catalog','warehouse','sowing','workplan','tasks'],
+  accountant: ['parcels','weather','gdd','diseases','irrigation','varieties','fields',
+               'equipment','treatments','analyses','catalog','warehouse','sowing','workplan','tasks'],
+  engineer:   ['parcels','irrigation','equipment','warehouse','tasks','workplan','settings'],
+  irrigation_engineer: ['parcels','weather','irrigation','equipment','analyses'],
+  operator:   ['treatments','warehouse','tasks','workplan'],
+  superadmin: ['parcels','weather','gdd','diseases','irrigation','varieties','fields',
+               'equipment','treatments','analyses','catalog','settings','warehouse','sowing','workplan','tasks'],
+};
+
+const ROLE_READONLY_VEG = ['shareholder','director','accountant','irrigation_engineer'];
+
+const ROLE_LABELS_VEG = {
+  agronomist:          '🌱 Агроном',
+  owner:               '👑 Владелец',
+  shareholder:         '📊 Акционер',
+  director:            '📋 Директор',
+  accountant:          '💼 Бухгалтер',
+  engineer:            '🔧 Инженер',
+  irrigation_engineer: '💧 Инж. ирригации',
+  operator:            '⚙️ Оператор',
+  superadmin:          '🔑 Суперадмин',
 };
 
 let _currentRole = null;
 
 function initRoleSystem() {
-  // Check if already logged in this session
-  const sessionRole = sessionStorage.getItem('sveg_role');
-  if (sessionRole && ROLES[sessionRole]) {
-    applyRole(sessionRole);
+  // Проверяем JWT токен из login страницы
+  const token = sessionStorage.getItem('agro_jwt') || localStorage.getItem('agro_jwt');
+  const role = sessionStorage.getItem('agro_role') || 'agronomist';
+  
+  if(token) {
+    // JWT авторизация — применяем роль без PIN экрана
+    _currentRole = role;
+    applyRole(role);
     return;
   }
+  
+  // Fallback — показываем экран входа
   showLoginScreen();
 }
 
 function showLoginScreen() {
-  const overlay = document.createElement('div');
-  overlay.id = 'login-overlay';
-  overlay.style.cssText = `
-    position:fixed;inset:0;background:#0a0f0a;z-index:9999;
-    display:flex;align-items:center;justify-content:center;
-    font-family:'Inter',sans-serif;
-  `;
-  overlay.innerHTML = `
-    <div style="width:100%;max-width:480px;padding:24px;">
-      <!-- Logo -->
-      <div style="text-align:center;margin-bottom:32px;">
-        <div style="font-size:48px;margin-bottom:8px;">🥦</div>
-        <div style="font-family:'Unbounded',sans-serif;font-size:18px;font-weight:700;color:#6bdd6b;letter-spacing:3px;">SMART VEGETABLE</div>
-        <div style="font-size:11px;color:#5a7a5a;letter-spacing:4px;text-transform:uppercase;margin-top:4px;">System · Digital Agronomist</div>
-      </div>
-
-      <!-- Role selection -->
-      <div style="font-size:11px;color:#5a7a5a;text-transform:uppercase;letter-spacing:2px;margin-bottom:12px;font-family:'Unbounded',sans-serif;">Выберите роль</div>
-      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:24px;" id="role-btns">
-        ${Object.entries(ROLES).map(([key, r]) => `
-          <button onclick="selectLoginRole('${key}')" id="rolebtn-${key}"
-            style="padding:14px 16px;border:1px solid #2a3a2a;border-radius:10px;background:#101810;
-              color:#a8c8a8;cursor:pointer;text-align:left;transition:all .2s;display:flex;align-items:center;gap:12px;">
-            <span style="font-size:22px;">${r.label.split(' ')[0]}</span>
-            <div>
-              <div style="font-size:13px;font-weight:600;color:#e8f5e8;">${r.label.split(' ').slice(1).join(' ')}</div>
-              <div style="font-size:10px;color:#5a7a5a;margin-top:2px;">${r.description}</div>
-            </div>
-          </button>`).join('')}
-      </div>
-
-      <!-- PIN input -->
-      <div id="pin-block" style="display:none;">
-        <div style="font-size:11px;color:#5a7a5a;text-transform:uppercase;letter-spacing:2px;margin-bottom:8px;font-family:'Unbounded',sans-serif;" id="pin-role-label"></div>
-        <div style="display:flex;gap:8px;">
-          <input type="password" id="pin-input" maxlength="4" placeholder="••••"
-            style="flex:1;background:#182018;border:1px solid #2a3a2a;border-radius:8px;padding:12px 16px;
-              color:#e8f5e8;font-size:20px;letter-spacing:8px;text-align:center;outline:none;"
-            onkeydown="if(event.key==='Enter')doLogin()"
-            oninput="document.getElementById('pin-error').textContent=''">
-          <button onclick="doLogin()"
-            style="padding:12px 20px;background:#6bdd6b;color:#0a0f0a;border:none;border-radius:8px;
-              font-weight:700;cursor:pointer;font-size:13px;">Войти</button>
-        </div>
-        <div id="pin-error" style="color:#ff5555;font-size:11px;margin-top:8px;min-height:16px;"></div>
-        <button onclick="backToRoles()"
-          style="margin-top:12px;background:none;border:none;color:#5a7a5a;cursor:pointer;font-size:11px;">← Назад</button>
-      </div>
-
-      <!-- First time hint -->
-      <div id="first-time-hint" style="margin-top:20px;padding:10px 14px;background:rgba(96,165,250,.06);border:1px solid rgba(96,165,250,.15);border-radius:8px;font-size:11px;color:#a8c8a8;line-height:1.7;">
-        💡 <strong>PIN по умолчанию:</strong><br>
-        👑 Владелец: <strong>1111</strong> &nbsp;·&nbsp; 👨‍🌾 Агроном: <strong>2222</strong><br>
-        🏭 Завод: <strong>3333</strong> &nbsp;·&nbsp; 📋 Оператор: <strong>4444</strong><br>
-        Изменить PIN можно в ⚙️ Настройки после входа как Владелец.
-      </div>
-    </div>`;
-  document.body.appendChild(overlay);
-}
-
-let _selectedLoginRole = null;
-function selectLoginRole(roleKey) {
-  _selectedLoginRole = roleKey;
-  const role = ROLES[roleKey];
-  // Highlight selected
-  Object.keys(ROLES).forEach(k => {
-    const btn = document.getElementById('rolebtn-'+k);
-    if (btn) btn.style.borderColor = k===roleKey ? role.color : '#2a3a2a';
-  });
-  document.getElementById('pin-block').style.display = 'block';
-  document.getElementById('pin-role-label').textContent = role.label + ' — введите PIN';
-  document.getElementById('pin-role-label').style.color = role.color;
-  document.getElementById('pin-input').value = '';
-  document.getElementById('pin-input').focus();
-  document.getElementById('first-time-hint').style.display = 'none';
-}
-
-function backToRoles() {
-  _selectedLoginRole = null;
-  document.getElementById('pin-block').style.display = 'none';
-  document.getElementById('first-time-hint').style.display = 'block';
-  Object.keys(ROLES).forEach(k => {
-    const btn = document.getElementById('rolebtn-'+k);
-    if (btn) btn.style.borderColor = '#2a3a2a';
-  });
-}
-
-function doLogin() {
-  if (!_selectedLoginRole) return;
-  const role = ROLES[_selectedLoginRole];
-  const enteredPin = document.getElementById('pin-input').value;
-  const savedPin = localStorage.getItem(role.pinKey) || role.defaultPin;
-  if (enteredPin === savedPin) {
-    sessionStorage.setItem('sveg_role', _selectedLoginRole);
-    document.getElementById('login-overlay').remove();
-    applyRole(_selectedLoginRole);
-  } else {
-    document.getElementById('pin-error').textContent = '❌ Неверный PIN';
-    document.getElementById('pin-input').value = '';
-    document.getElementById('pin-input').focus();
-  }
+  // Редирект на /login если нет токена
+  window.location.href = '/login';
 }
 
 function applyRole(roleKey) {
   _currentRole = roleKey;
-  const role = ROLES[roleKey];
+  const allowed = ROLE_ACCESS_VEG[roleKey] || ROLE_ACCESS_VEG.agronomist;
+  const isReadonly = ROLE_READONLY_VEG.includes(roleKey);
+  const userName = sessionStorage.getItem('agro_user_name') || '';
 
-  // Show role badge in header
+  // Показываем бейдж роли в шапке
+  const existingBadge = document.getElementById('role-badge');
+  if(existingBadge) existingBadge.remove();
+
   const badge = document.createElement('div');
   badge.id = 'role-badge';
-  badge.style.cssText = `display:flex;align-items:center;gap:8px;`;
+  badge.style.cssText = 'display:flex;align-items:center;gap:8px;';
   badge.innerHTML = `
     <div style="font-size:11px;padding:5px 12px;border-radius:20px;
-      background:${role.color}22;border:1px solid ${role.color}44;color:${role.color};
-      font-weight:600;cursor:pointer;" onclick="logout()" title="Нажмите чтобы сменить роль">
-      ${role.label} &nbsp;·&nbsp; Выйти
-    </div>`;
-  document.querySelector('.header-stats').prepend(badge);
+      background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.3);color:#4ade80;
+      font-weight:600;">
+      ${ROLE_LABELS_VEG[roleKey]||roleKey}${userName?' · '+userName:''}
+    </div>
+    <button onclick="logout()" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);
+      background:transparent;color:var(--text3);font-size:10px;cursor:pointer;">Выйти</button>
+    ${roleKey==='agronomist'?`<button onclick="openSendIrrigTaskModalVeg()" style="padding:4px 10px;border-radius:6px;border:1px solid rgba(96,165,250,.4);background:transparent;color:var(--blue);font-size:10px;cursor:pointer;">📱 Задание</button>`:''}
+  `;
+  const hdrStats = document.querySelector('.header-stats');
+  if(hdrStats) hdrStats.prepend(badge);
 
-  // Show/hide tabs based on role
-  const allTabs = ['parcels','weather','gdd','diseases','irrigation','treatments','catalog','settings'];
-  const tabEls = document.querySelectorAll('.tab');
-  allTabs.forEach((tabId, i) => {
-    if (tabEls[i]) {
-      tabEls[i].style.display = role.tabs.includes(tabId) ? '' : 'none';
-    }
+  // Скрываем/показываем табы
+  document.querySelectorAll('.tab[onclick*="showTab"]').forEach(tab => {
+    const m = tab.getAttribute('onclick').match(/showTab\('(\w+)'/);
+    if(!m) return;
+    tab.style.display = allowed.includes(m[1]) ? '' : 'none';
   });
 
-  // Show/hide edit controls based on role
-  if (!role.canEdit) {
-    // Factory role: mark read-only mode (checked dynamically in modals)
-    document.body.setAttribute('data-readonly', 'true');
+  // Режим только чтение
+  if(isReadonly) {
+    document.body.setAttribute('data-readonly','true');
+    const style = document.createElement('style');
+    style.id = 'readonly-style';
+    style.textContent = `
+      button.btn-primary:not(.allow-readonly) { display:none!important; }
+      #add-treatment-btn, #open-treatment-btn { display:none!important; }
+    `;
+    document.head.appendChild(style);
   } else {
     document.body.removeAttribute('data-readonly');
   }
 
-  // Show first allowed tab
-  const firstTab = role.tabs[0];
-  showTab(firstTab);
-
-  // Operator: show quick-entry banner
-  if (roleKey === 'operator') {
+  // Инженер ирригации — быстрая кнопка полива
+  if(roleKey === 'irrigation_engineer') {
     const banner = document.createElement('div');
-    banner.id = 'operator-banner';
+    banner.style.cssText = 'background:rgba(96,165,250,.08);border-bottom:1px solid rgba(96,165,250,.2);padding:8px 24px;font-size:11px;color:#60a5fa;display:flex;align-items:center;gap:16px;flex-wrap:wrap;';
+    banner.innerHTML = `
+      <span>💧 <strong>Инженер ирригации</strong></span>
+      <button class="btn btn-sm" style="background:rgba(96,165,250,.15);color:#60a5fa;border:1px solid rgba(96,165,250,.3);" onclick="showTab('irrigation');setTimeout(openIrrigModal,300)">+ Записать полив</button>`;
+    const nav = document.querySelector('.nav');
+    if(nav) nav.after(banner);
+  }
+
+  // Оператор
+  if(roleKey === 'operator') {
+    const banner = document.createElement('div');
     banner.style.cssText = 'background:rgba(167,139,250,.08);border-bottom:1px solid rgba(167,139,250,.2);padding:8px 24px;font-size:11px;color:#a78bfa;display:flex;align-items:center;gap:16px;flex-wrap:wrap;';
     banner.innerHTML = `
-      <span>📋 <strong>Режим оператора</strong> — ввод данных</span>
-      <button class="btn btn-sm" style="background:rgba(167,139,250,.15);color:#a78bfa;border:1px solid rgba(167,139,250,.3);" onclick="showTab('weather');openWeatherModal()">+ День вручную</button>
-      <button class="btn btn-sm" style="background:rgba(96,165,250,.2);color:#60a5fa;border:1px solid rgba(96,165,250,.4);font-weight:700;" onclick="showTab('weather');document.getElementById('meteo-input').click()">📂 Импорт XLS метеостанции</button>
-      <button class="btn btn-sm" style="background:rgba(167,139,250,.15);color:#a78bfa;border:1px solid rgba(167,139,250,.3);" onclick="showTab('irrigation');openIrrigModal()">+ Полив</button>
-      <button class="btn btn-sm" style="background:rgba(167,139,250,.15);color:#a78bfa;border:1px solid rgba(167,139,250,.3);" onclick="showTab('treatments');openTreatmentModal()">+ Обработка</button>`;
-    document.querySelector('.nav').after(banner);
+      <span>📋 <strong>Режим оператора</strong></span>
+      <button class="btn btn-sm" style="background:rgba(167,139,250,.15);color:#a78bfa;border:1px solid rgba(167,139,250,.3);" onclick="showTab('treatments');openTreatmentModal()">+ Обработка</button>
+      <button class="btn btn-sm" style="background:rgba(167,139,250,.15);color:#a78bfa;border:1px solid rgba(167,139,250,.3);" onclick="showTab('irrigation');openIrrigModal()">+ Полив</button>`;
+    const nav = document.querySelector('.nav');
+    if(nav) nav.after(banner);
   }
 
-  // Add PIN change to settings if owner
-  if (roleKey === 'owner') {
-    renderPinSettings();
-  }
-
-  // Render main view
-  renderParcels();
+  // Показываем первый доступный таб
+  const firstTab = allowed[0];
+  if(firstTab) showTab(firstTab);
 }
 
+// Задание инженеру ирригации (из Vegetable)
+async function sendIrrigTaskVeg(instruction, deadline) {
+  const msg = `💧 <b>Задание на полив (Овощи)</b>
+
+` +
+    `📋 ${instruction}
+⏰ Срок: ${deadline||'сегодня'}
+` +
+    `👤 Агроном: ${sessionStorage.getItem('agro_user_name')||'Агроном'}
+` +
+    `📱 Войдите в систему → 💧 Ирригация → Записать полив`;
+  try {
+    const r = await fetch('/api/send-irrigation-task',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':`Bearer ${sessionStorage.getItem('agro_jwt')||''}`},
+      body:JSON.stringify({message:msg,instruction,deadline})
+    });
+    return await r.json();
+  } catch(e){return {ok:false,error:e.message};}
+}
+
+function openSendIrrigTaskModalVeg() {
+  const modal = document.createElement('div');
+  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center;';
+  modal.innerHTML=`
+    <div style="background:var(--surface);border-radius:16px;padding:24px;width:420px;max-width:94vw;">
+      <h3 style="margin-bottom:16px;font-size:14px;">📱 Задание инженеру ирригации (Овощи)</h3>
+      <div style="margin-bottom:10px;">
+        <label style="font-size:11px;color:var(--text3);">Инструкция</label>
+        <textarea id="veg-irrig-task" placeholder="Полить участок А, норма 25мм..." style="width:100%;height:80px;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);resize:none;margin-top:4px;font-family:inherit;font-size:12px;"></textarea>
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="font-size:11px;color:var(--text3);">Срок</label>
+        <input type="text" id="veg-irrig-deadline" value="${new Date().toLocaleDateString('ru-RU')}" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);margin-top:4px;">
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button onclick="this.closest('div[style*=fixed]').remove()" style="padding:7px 16px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text3);cursor:pointer;">Отмена</button>
+        <button onclick="
+          const t=document.getElementById('veg-irrig-task').value;
+          const d=document.getElementById('veg-irrig-deadline').value;
+          if(!t){alert('Введите инструкцию');return;}
+          sendIrrigTaskVeg(t,d).then(r=>{
+            if(r.ok){alert('✅ Задание отправлено');this.closest('div[style*=fixed]').remove();}
+            else alert('Ошибка: '+(r.error||'нет'));
+          });" style="padding:7px 16px;border-radius:8px;background:#4ade80;color:#000;border:none;font-weight:600;cursor:pointer;">📱 Отправить</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+// Управление ролями в настройках
+async function renderRolesSettingsVeg() {
+  const el = document.getElementById('roles-settings-veg');
+  if(!el) return;
+  const myRole = sessionStorage.getItem('agro_role');
+  if(!['owner','agronomist','superadmin'].includes(myRole)){
+    el.innerHTML='<div style="font-size:12px;color:var(--text3);">Только для владельца и агронома.</div>';
+    return;
+  }
+  try {
+    const token = sessionStorage.getItem('agro_jwt')||'';
+    const r = await fetch('/api/auth/users',{headers:{'Authorization':`Bearer ${token}`,'x-tenant-id':sessionStorage.getItem('agro_tenant')||'kkz'}});
+    const data = await r.json();
+    const users = data.users||[];
+    el.innerHTML = `
+      <div style="margin-bottom:10px;font-size:12px;color:var(--text3);">${users.length} пользователей</div>
+      ${users.map(u=>`
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface2);border-radius:8px;margin-bottom:6px;">
+          <div style="flex:1;">
+            <div style="font-size:12px;font-weight:600;">${u.name||u.login}</div>
+            <div style="font-size:10px;color:var(--text3);">@${u.login}</div>
+          </div>
+          <select onchange="changeUserRoleVeg('${u.id}',this.value)"
+            style="padding:4px 8px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px;">
+            ${Object.entries(ROLE_LABELS_VEG).map(([k,v])=>`<option value="${k}" ${u.role===k?'selected':''}>${v}</option>`).join('')}
+          </select>
+        </div>`).join('')}
+      <button onclick="addUserVeg()" style="margin-top:8px;padding:6px 14px;background:var(--accent);color:#000;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">+ Пользователь</button>
+    `;
+  } catch(e){el.innerHTML='<div style="color:var(--red);font-size:12px;">Ошибка загрузки</div>';}
+}
+
+async function changeUserRoleVeg(userId, newRole) {
+  const token = sessionStorage.getItem('agro_jwt')||'';
+  const r = await fetch(`/api/auth/users/${userId}`,{
+    method:'PUT',
+    headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},
+    body:JSON.stringify({role:newRole,active:true})
+  });
+  const d = await r.json();
+  if(d.ok){
+    const msg=document.createElement('div');
+    msg.style.cssText='position:fixed;top:20px;right:20px;padding:10px 18px;background:var(--accent);color:#000;border-radius:8px;font-size:12px;z-index:9999;font-weight:600;';
+    msg.textContent=`✅ Роль → ${ROLE_LABELS_VEG[newRole]||newRole}`;
+    document.body.appendChild(msg);
+    setTimeout(()=>msg.remove(),2500);
+  }
+}
+
+async function addUserVeg() {
+  const login=prompt('Логин:'); if(!login)return;
+  const pw=prompt('Пароль (мин 6):'); if(!pw||pw.length<6){alert('Минимум 6 символов');return;}
+  const name=prompt('Имя:')||login;
+  const keys=Object.keys(ROLE_LABELS_VEG);
+  const list=keys.map((k,i)=>`${i+1}. ${ROLE_LABELS_VEG[k]}`).join('\n');
+  const idx=parseInt(prompt(`Роль:\n${list}`))-1;
+  const role=keys[idx]||'operator';
+  const token=sessionStorage.getItem('agro_jwt')||'';
+  const r=await fetch('/api/auth/users',{method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},
+    body:JSON.stringify({login,password:pw,role,name,tenantId:sessionStorage.getItem('agro_tenant')||'kkz'})
+  });
+  const d=await r.json();
+  if(d.ok){alert(`✅ Создан ${login} · ${ROLE_LABELS_VEG[role]}`);renderRolesSettingsVeg();}
+  else alert('Ошибка: '+d.error);
+}
+
+
 function logout() {
-  if (!confirm('Сменить роль?')) return;
-  sessionStorage.removeItem('sveg_role');
-  _currentRole = null;
-  const badge = document.getElementById('role-badge');
-  if (badge) badge.remove();
-  const banner = document.getElementById('operator-banner');
-  if (banner) banner.remove();
-  // Restore all tabs
-  document.querySelectorAll('.tab').forEach(t => t.style.display = '');
+  if (!confirm('Выйти из системы?')) return;
+  sessionStorage.clear();
+  localStorage.removeItem('agro_jwt');
+  window.location.href = '/login';
+}
+function _logoutOld() {
   showLoginScreen();
 }
 
@@ -7930,13 +7964,15 @@ async function fetchForecast() {
   try {
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${FORECAST_LAT}&longitude=${FORECAST_LON}` +
   `&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,` +
-  `precipitation_probability_max,weathercode,precipitation_hours` +
-  `&timezone=Europe%2FChisinau&forecast_days=7`;
-    const r = await fetch(url, { signal: AbortSignal.timeout(6000) });
+  `precipitation_probability_max,weathercode,precipitation_hours,et0_fao_evapotranspiration` +
+  `&timezone=Europe%2FChisinau&forecast_days=14`;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 6000);
+    const r = await fetch(url, { signal: controller.signal });
+    clearTimeout(timer);
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const data = await r.json();
     _forecast = data.daily;
-    // Добавляем влажность из реальной метеостанции (последние данные)
     if (_forecast && S.weather?.length) {
       const recentHum = S.weather.slice(0, 7).map(w => parseFloat(w.humidity)||60);
       _forecast.relativehumidity_2m_max = _forecast.time.map((_, i) => recentHum[i] || recentHum[0] || 60);
@@ -7945,7 +7981,7 @@ async function fetchForecast() {
     }
     return _forecast;
   } catch(e) {
-    console.warn('[Forecast] Failed:', e.message);
+    if(e.name !== 'AbortError') console.warn('[Forecast] Failed:', e.message);
     return null;
   }
 }
