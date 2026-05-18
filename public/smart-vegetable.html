@@ -4809,10 +4809,15 @@ function openTreatmentModal(treatId) {
   const dd = document.getElementById('t-parcel-dropdown');
   dd.innerHTML = S.parcels.map(p => {
     const c = getCropById(p.cropId);
+    const variety = p.variety || p.varietyName || '';
+    const ha = p.ha ? ` · ${p.ha}га` : '';
     const sel = _selectedParcels.includes(p.id);
-    return `<div style="padding:6px 10px;border-radius:6px;cursor:pointer;background:${sel?'rgba(107,221,107,.15)':'transparent'};display:flex;align-items:center;gap:8px;" onclick="toggleParcelSelect('${p.id}')" id="parcel-opt-${p.id}">
-      <span style="color:${sel?'var(--accent)':'var(--text3)'};">${sel?'✅':'⬜'}</span>
-      <span>${p.name}${c?' · '+c.emoji:''}</span>
+    return `<div style="padding:7px 10px;border-radius:6px;cursor:pointer;background:${sel?'rgba(107,221,107,.15)':'transparent'};display:flex;align-items:center;gap:8px;" onclick="toggleParcelSelect('${p.id}')" id="parcel-opt-${p.id}">
+      <span style="color:${sel?'var(--accent)':'var(--text3)'};font-size:14px;">${sel?'✅':'⬜'}</span>
+      <div style="flex:1;">
+        <div style="font-size:12px;font-weight:600;">${p.name}${ha}</div>
+        <div style="font-size:10px;color:var(--text3);">${c?c.emoji+' '+c.name:''}${variety?' · 🌱 '+variety:''}</div>
+      </div>
     </div>`;
   }).join('');
   renderParcelList();
@@ -5016,10 +5021,19 @@ function renderParcelList() {
     el.innerHTML = '<span style="color:var(--text3);font-size:12px;">— нажмите чтобы выбрать участки —</span>';
     return;
   }
+  const totalHa = _selectedParcels.reduce((s,id)=>{
+    const p=S.parcels.find(x=>x.id===id);
+    return s+(parseFloat(p?.ha)||0);
+  },0);
   el.innerHTML = _selectedParcels.map(id => {
     const p = S.parcels.find(x => x.id === id);
-    return p ? '<span style="padding:3px 8px;border-radius:6px;background:rgba(107,221,107,.15);color:var(--accent);font-size:11px;">'+p.name+'</span>' : '';
-  }).join('');
+    if(!p) return '';
+    const variety = p.variety||p.varietyName||'';
+    const crop = getCropById(p.cropId);
+    return `<span style="padding:3px 10px;border-radius:6px;background:rgba(107,221,107,.15);color:var(--accent);font-size:11px;display:inline-flex;align-items:center;gap:4px;">
+      ${crop?.emoji||'🌱'} ${p.name}${p.ha?' ('+p.ha+'га)':''}${variety?' · '+variety:''}
+    </span>`;
+  }).join('') + (totalHa>0?`<span style="font-size:11px;color:var(--text3);margin-left:6px;">Итого: ${totalHa.toFixed(2)} га</span>`:'');
 }
 function saveTreatment(){
   const date=document.getElementById('t-date').value;
@@ -5048,23 +5062,33 @@ function saveTreatment(){
   if (_editTreatId && S.warehouse?.chemicals?.length) {
     const oldTreat = S.treatments.find(t => t.id === _editTreatId);
     if (oldTreat) {
-      // Вернуть старые списания
-      const oldParcel = S.parcels.find(p => p.id === oldTreat.parcelId);
-      const oldHa = parseFloat(oldParcel?.ha) || 1;
+      // Находим ВСЕ связанные обработки (тот же день + те же препараты)
+      const mixKey = (oldTreat.products||[]).map(p=>p.name+'_'+p.dose).sort().join('|');
+      const relatedTreats = S.treatments.filter(x => {
+        const xKey = (x.products||[]).map(p=>p.name+'_'+p.dose).sort().join('|');
+        return x.date===oldTreat.date && xKey===mixKey;
+      });
+
+      // Считаем общую площадь всех связанных полей
+      const totalOldHa = relatedTreats.reduce((sum,x)=>{
+        const pc = S.parcels.find(p=>p.id===x.parcelId);
+        return sum + (parseFloat(pc?.ha)||0);
+      }, 0) || 1;
+
+      // Возвращаем на склад всё что было списано
       (oldTreat.products || []).forEach(p => {
         if (!p.dose) return;
         const stock = S.warehouse.chemicals.find(c =>
-          c.catId === p.catId ||
-          c.name.toLowerCase() === p.name.toLowerCase()
+          c.catId === p.catId || c.name.toLowerCase() === p.name.toLowerCase()
         );
         if (stock) {
           const doseNum = parseFloat(p.dose) || 0;
-          const returned = Math.round(doseNum * oldHa * 1000) / 1000;
+          const returned = Math.round(doseNum * totalOldHa * 1000) / 1000;
           stock.qty = Math.round((stock.qty + returned) * 1000) / 1000;
-          // Удалить старую запись из истории
+          // Удаляем ВСЕ старые записи этой обработки из истории
           S.warehouse.history = S.warehouse.history.filter(h =>
             !(h.operation === 'out' && h.name.toLowerCase() === p.name.toLowerCase() &&
-              h.note?.includes('Обработка') && Math.abs(h.qty - returned) < 0.01)
+              h.note?.includes('Обработка') && h.date === oldTreat.date)
           );
         }
       });
@@ -5091,18 +5115,29 @@ function saveTreatment(){
 
   // ── Списание со склада (новая ИЛИ исправленная обработка) ─────────────
   if (S.warehouse?.chemicals?.length) {
-    const parcelsForSpend = _editTreatId ? [parcelId] : _selectedParcels;
+    let parcelsForSpend;
+    if (_editTreatId) {
+      // При редактировании — находим ВСЕ связанные поля (тот же день + те же препараты)
+      const mixKey = products.map(p=>p.name+'_'+p.dose).sort().join('|');
+      const relatedIds = S.treatments
+        .filter(x => {
+          const xKey = (x.products||[]).map(p=>p.name+'_'+p.dose).sort().join('|');
+          return x.date===date && xKey===mixKey;
+        })
+        .map(x=>x.parcelId).filter(Boolean);
+      parcelsForSpend = relatedIds.length ? relatedIds : [parcelId];
+    } else {
+      parcelsForSpend = _selectedParcels;
+    }
     const totalHaAll = parcelsForSpend.reduce((sum, pid) => {
       const pc = S.parcels.find(p=>p.id===pid);
       return sum + (parseFloat(pc?.ha)||0);
     }, 0) || 1;
     const parcelNamesAll = parcelsForSpend.map(pid => S.parcels.find(p=>p.id===pid)?.name||'—').join(', ');
-
     products.forEach(p => {
       if (!p.dose) return;
       const stock = S.warehouse.chemicals.find(c =>
-        c.catId === p.catId ||
-        c.name.toLowerCase() === p.name.toLowerCase()
+        c.catId === p.catId || c.name.toLowerCase() === p.name.toLowerCase()
       );
       if (stock) {
         const doseNum = parseFloat(p.dose) || 0;
@@ -5114,7 +5149,7 @@ function saveTreatment(){
             operation: 'out', qty: spent, unit: stock.unit||'л',
             price: stock.price||0, total: Math.round(spent*(stock.price||0)),
             parcelName: parcelNamesAll,
-            note: (_editTreatId?'[Ред] ':'')+'Обработка ('+totalHaAll.toFixed(1)+' га)'
+            note: (_editTreatId?'[Ред] ':'')+'Обработка ('+totalHaAll.toFixed(1)+' га): '+parcelNamesAll
           });
         }
       }
@@ -5127,7 +5162,6 @@ function saveTreatment(){
       }).catch(e => console.warn('Warehouse sync failed:', e));
     }
   }
-
   if (_vServerAvailable) {
     fetch('/api/state/vegetable', {
       method: 'POST',
@@ -5248,7 +5282,11 @@ function deleteRelatedTreatments(id) {
   const pf=document.getElementById('tr-parcel-filter');
   const tf=document.getElementById('tr-type-filter');
   const curP=pf?.value||'';
-  if(pf){pf.innerHTML='<option value="">Все участки</option>';S.parcels.forEach(p=>pf.innerHTML+=`<option value="${p.id}" ${curP===p.id?'selected':''}>${p.name}</option>`);}
+  if(pf){pf.innerHTML='<option value="">Все участки</option>';S.parcels.forEach(p=>{
+    const variety = p.variety||p.varietyName||'';
+    const crop = getCropById(p.cropId);
+    pf.innerHTML+=`<option value="${p.id}" ${curP===p.id?'selected':''}>${p.name}${p.ha?' ('+p.ha+'га)':''}${variety?' · '+variety:''}${crop?' · '+crop.emoji:''}`;
+  });}
   const typeFilter=tf?.value||'';
   const parcelFilter=pf?.value||'';
   let treatments=[...S.treatments];
@@ -7794,10 +7832,63 @@ function showTreatmentCost() {
       </div>`).join('')}
     </div>
 
+    <!-- Сводка по препаратам -->
+    <div style="padding:16px;border-top:1px solid var(--border);">
+      <div style="font-family:'Unbounded',sans-serif;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:2px;margin-bottom:12px;">📦 Расход препаратов по полям</div>
+      ${(() => {
+        // Собираем расход каждого препарата по каждому полю
+        const byProduct = {};
+        S.treatments.forEach(t => {
+          const parcel = S.parcels.find(p=>p.id===t.parcelId);
+          const ha = parseFloat(parcel?.ha)||1;
+          (t.products||[]).forEach(p => {
+            if(!p.name) return;
+            if(!byProduct[p.name]) byProduct[p.name] = {name:p.name, parcels:{}, totalQty:0, totalCost:0, unit:'', type:''};
+            const cat = S.catalog.find(c=>c.name.toLowerCase()===p.name.toLowerCase());
+            const stock = S.warehouse?.chemicals?.find(c=>c.name.toLowerCase()===p.name.toLowerCase());
+            const price = stock?.price || cat?.price || 0;
+            const dose = parseFloat(p.dose)||0;
+            const qty = Math.round(dose * ha * 1000)/1000;
+            const cost = Math.round(price * qty * 100)/100;
+            byProduct[p.name].unit = stock?.unit || cat?.unit || 'л';
+            byProduct[p.name].type = cat?.type || p.type || 'other';
+            byProduct[p.name].totalQty += qty;
+            byProduct[p.name].totalCost += cost;
+            const pName = t.parcelName || '—';
+            if(!byProduct[p.name].parcels[pName]) byProduct[p.name].parcels[pName] = {qty:0, cost:0, ha};
+            byProduct[p.name].parcels[pName].qty = Math.round((byProduct[p.name].parcels[pName].qty + qty)*1000)/1000;
+            byProduct[p.name].parcels[pName].cost += cost;
+          });
+        });
+        return Object.values(byProduct).sort((a,b)=>b.totalCost-a.totalCost).map(prod => {
+          const parcelRows = Object.entries(prod.parcels).map(([pName, pd]) =>
+            `<tr>
+              <td style="padding-left:24px;font-size:11px;color:var(--text2);">${pName}</td>
+              <td style="font-family:'JetBrains Mono',monospace;font-size:11px;">${pd.ha} га</td>
+              <td style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--blue);">${pd.qty} ${prod.unit}</td>
+              <td style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--accent);">${pd.cost>0?formatPrice(pd.cost):'нет цены'}</td>
+            </tr>`
+          ).join('');
+          return `<div style="margin-bottom:10px;background:var(--surface2);border-radius:8px;overflow:hidden;">
+            <div style="padding:8px 14px;background:var(--surface3);display:flex;justify-content:space-between;align-items:center;">
+              <div style="font-size:12px;font-weight:700;">${prod.name}</div>
+              <div style="display:flex;gap:16px;font-size:11px;">
+                <span style="color:var(--blue);">Всего: <strong>${Math.round(prod.totalQty*1000)/1000} ${prod.unit}</strong></span>
+                <span style="color:var(--accent);">Сумма: <strong>${prod.totalCost>0?formatPrice(prod.totalCost):'нет цены'}</strong></span>
+              </div>
+            </div>
+            <table class="data-table" style="font-size:11px;">
+              <thead><tr><th>Поле</th><th>Площадь</th><th>Расход</th><th>Стоимость</th></tr></thead>
+              <tbody>${parcelRows}</tbody>
+            </table>
+          </div>`;
+        }).join('');
+      })()}
+    </div>
+
     ${grandTotal===0?`<div style="padding:12px 16px;background:rgba(255,216,77,.08);border-top:1px solid var(--border);font-size:11px;color:var(--yellow);">
       ⚠️ Цены не найдены — добавьте цены в 📦 Справочник препаратов или 🏪 Склад
-    </div>`:''}
-  </div>`;
+    </div>`:''}</div>`; 
 
   el.innerHTML = html;
   el.style.display = 'block';
