@@ -5176,34 +5176,72 @@ function saveTreatment(){
 
 function deleteTreatmentFromModal(){
   if(!_editTreatId||!confirm('Удалить обработку?'))return;
+  const t = S.treatments.find(x=>x.id===_editTreatId);
+  if(t) _returnTreatmentToWarehouse(t);
   S.treatments=S.treatments.filter(t=>t.id!==_editTreatId);
   save();closeModal('modal-treatment');renderTreatments();
 }
 
 function deleteTreatment(id){
   if(!confirm('Удалить?'))return;
+  const t = S.treatments.find(x=>x.id===id);
+  if(t) _returnTreatmentToWarehouse(t);
   S.treatments=S.treatments.filter(t=>t.id!==id);
   save();
   if (_vServerAvailable) {
     fetch('/api/state/vegetable', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ treatments: S.treatments })
+      body: JSON.stringify({ treatments: S.treatments, warehouse: S.warehouse })
     }).catch(e => console.warn('Treatments sync failed:', e));
   }
   renderTreatments();
+}
+
+// Возврат препаратов на склад при удалении обработки
+function _returnTreatmentToWarehouse(t) {
+  if(!t||!S.warehouse?.chemicals?.length) return;
+  const parcel = S.parcels.find(p=>p.id===t.parcelId);
+  const ha = parseFloat(parcel?.ha)||1;
+  (t.products||[]).forEach(p => {
+    if(!p.dose) return;
+    const stock = S.warehouse.chemicals.find(c=>
+      c.catId===p.catId || c.name.toLowerCase()===p.name.toLowerCase()
+    );
+    if(stock) {
+      const doseNum = parseFloat(p.dose)||0;
+      const returned = Math.round(doseNum * ha * 1000) / 1000;
+      stock.qty = Math.round((parseFloat(stock.qty||0) + returned) * 1000) / 1000;
+      if(!S.warehouse.history) S.warehouse.history=[];
+      S.warehouse.history.unshift({
+        date: new Date().toISOString().split('T')[0],
+        operation: 'in',
+        type: 'return',
+        name: p.name,
+        qty: returned,
+        unit: stock.unit||'кг',
+        note: `Возврат: удалена обработка ${t.date} (${parcel?.name||'участок'})`,
+      });
+    }
+  });
 }
 
 function deleteRelatedTreatments(id) {
   const t = S.treatments.find(x=>x.id===id);
   if(!t||!confirm('Удалить обработку для всех участков?')) return;
   const mixKey = (t.products||[]).map(p=>p.name+'_'+p.dose).sort().join('|');
+  const toDelete = S.treatments.filter(x => {
+    const xKey = (x.products||[]).map(p=>p.name+'_'+p.dose).sort().join('|');
+    return x.date===t.date && xKey===mixKey;
+  });
+  // Возвращаем все на склад
+  toDelete.forEach(x => _returnTreatmentToWarehouse(x));
   S.treatments = S.treatments.filter(x => {
     const xKey = (x.products||[]).map(p=>p.name+'_'+p.dose).sort().join('|');
     return !(x.date===t.date && xKey===mixKey);
   });
   save();
-  fetch('/api/state/vegetable',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({treatments:S.treatments})}).catch(()=>{});
+  fetch('/api/state/vegetable',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({treatments:S.treatments,warehouse:S.warehouse})}).catch(()=>{});
   renderTreatments();
 }
   function renderTreatments(){
