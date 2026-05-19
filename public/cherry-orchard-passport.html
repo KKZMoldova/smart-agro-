@@ -1645,11 +1645,19 @@ tbody td{padding:10px 12px;vertical-align:middle;}
     </div>
 
     <!-- Type selector tabs -->
-    <div style="display:flex;gap:4px;margin-bottom:16px;">
+    <div style="display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap;align-items:center;">
       <button class="an-tab-btn active" id="amodal-leaf"  onclick="switchAnModalTab('leaf')" >🍃 Лист</button>
       <button class="an-tab-btn"        id="amodal-soil"  onclick="switchAnModalTab('soil')" >🌱 Почва</button>
       <button class="an-tab-btn"        id="amodal-water" onclick="switchAnModalTab('water')">💧 Вода</button>
+      <label style="margin-left:auto;display:inline-flex;align-items:center;gap:6px;padding:5px 12px;
+        border-radius:8px;border:1px solid var(--border);background:var(--surface2);
+        font-size:11px;cursor:pointer;color:var(--accent);font-weight:600;">
+        🤖 Загрузить файл → AI заполнит
+        <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv" style="display:none;"
+          onchange="parseAnalysisFileWithAI(this)">
+      </label>
     </div>
+    <div id="ai-parse-status" style="display:none;padding:8px 12px;border-radius:8px;font-size:11px;margin-bottom:10px;"></div>
     <input type="hidden" id="a-type" value="leaf" oninput="this.value=this.value.replace(',','.')">
 
     <!-- LEAF analysis fields -->
@@ -6527,6 +6535,146 @@ function renderAnalysis() {
       </div>
     </div>`;
   }).join('');
+}
+
+async function parseAnalysisFileWithAI(input) {
+  const file = input.files[0];
+  if(!file) return;
+
+  const statusEl = document.getElementById('ai-parse-status');
+  statusEl.style.display = 'block';
+  statusEl.style.background = 'rgba(96,165,250,.08)';
+  statusEl.style.border = '1px solid rgba(96,165,250,.2)';
+  statusEl.style.color = 'var(--blue)';
+  statusEl.innerHTML = `⏳ Читаю файл <strong>${file.name}</strong>...`;
+
+  try {
+    // Читаем файл как base64
+    const base64 = await new Promise((res, rej) => {
+      const reader = new FileReader();
+      reader.onload = () => res(reader.result.split(',')[1]);
+      reader.onerror = () => rej(new Error('Ошибка чтения файла'));
+      reader.readAsDataURL(file);
+    });
+
+    const ext = file.name.split('.').pop().toLowerCase();
+    const isPdf = ext === 'pdf';
+    const isExcel = ['xls','xlsx','csv'].includes(ext);
+    const isWord = ['doc','docx'].includes(ext);
+
+    statusEl.innerHTML = `⏳ Анализирую через AI... Это займёт 10-30 секунд.`;
+
+    // Формируем запрос к Claude
+    const prompt = `Ты лаборант-агроном. Перед тобой лабораторный протокол анализа ${isPdf?'почвы/листа/воды':isExcel?'таблица данных анализа':'документ анализа'}.
+
+Извлеки все числовые значения и верни их СТРОГО в JSON формате без пояснений:
+
+{
+  "type": "leaf" | "soil" | "water",
+  "date": "YYYY-MM-DD или null",
+  "lab": "название лаборатории или null",
+  "values": {
+    "N": число или null,
+    "P": число или null,
+    "K": число или null,
+    "Ca": число или null,
+    "Mg": число или null,
+    "S": число или null,
+    "Fe": число или null,
+    "Mn": число или null,
+    "Zn": число или null,
+    "B": число или null,
+    "Cu": число или null,
+    "Mo": число или null,
+    "pH": число или null,
+    "EC": число или null,
+    "NO3": число или null,
+    "Na": число или null,
+    "Cl": число или null,
+    "OM": число или null,
+    "CEC": число или null,
+    "TDS": число или null,
+    "SAR": число или null,
+    "hard": число или null,
+    "H2S": число или null
+  }
+}
+
+Верни только JSON без markdown блоков. Если значение не найдено — null.`;
+
+    const messages = isPdf ? [{
+      role: 'user',
+      content: [
+        { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } },
+        { type: 'text', text: prompt }
+      ]
+    }] : [{
+      role: 'user',
+      content: prompt + '\n\nСодержимое файла (base64): ' + base64.slice(0, 2000)
+    }];
+
+    const resp = await fetch('/api/ai/parse-pdf', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model: 'claude-opus-4-5',
+        max_tokens: 1000,
+        messages
+      })
+    });
+
+    if(!resp.ok) throw new Error('AI недоступен: ' + resp.status);
+    const data = await resp.json();
+    const text = data.content?.map(c=>c.text||'').join('') || '';
+
+    // Парсим JSON из ответа
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if(!jsonMatch) throw new Error('AI не смог извлечь данные из файла');
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    const vals = parsed.values || {};
+
+    // Заполняем поля модала
+    let filled = 0;
+
+    // Определяем тип анализа
+    if(parsed.type) switchAnModalTab(parsed.type);
+
+    // Дата и лаборатория
+    if(parsed.date) document.getElementById('a-date').value = parsed.date;
+    if(parsed.lab) document.getElementById('a-lab').value = parsed.lab;
+
+    // Поля листа
+    ['N','P','K','Ca','Mg','S','Fe','Mn','Zn','B','Cu','Mo'].forEach(f => {
+      const el = document.getElementById('a-'+f);
+      if(el && vals[f] != null) { el.value = vals[f]; filled++; }
+    });
+
+    // Поля почвы
+    ['pH','OM','CEC','NO3','K','Ca','Mg','B','Fe','Mn','Zn','Cu'].forEach(f => {
+      const el = document.getElementById('s-'+f);
+      if(el && vals[f] != null) { el.value = vals[f]; filled++; }
+    });
+
+    // Поля воды
+    ['pH','EC','TDS','hard','SAR','Cl','NO3','Ca','Mg','Na','B','Fe','Mn','H2S'].forEach(f => {
+      const el = document.getElementById('w-'+f);
+      if(el && vals[f] != null) { el.value = vals[f]; filled++; }
+    });
+
+    statusEl.style.background = 'rgba(74,222,128,.08)';
+    statusEl.style.border = '1px solid rgba(74,222,128,.2)';
+    statusEl.style.color = 'var(--accent)';
+    statusEl.innerHTML = `✅ AI заполнил <strong>${filled} полей</strong> из файла <strong>${file.name}</strong>. Проверьте и скорректируйте данные.`;
+
+  } catch(e) {
+    statusEl.style.background = 'rgba(220,38,38,.08)';
+    statusEl.style.border = '1px solid rgba(220,38,38,.2)';
+    statusEl.style.color = 'var(--red)';
+    statusEl.innerHTML = `❌ Ошибка: ${e.message}. Попробуйте другой файл или заполните вручную.`;
+  }
+
+  input.value = '';
 }
 
 function deleteAnalysisById(id) {
