@@ -18282,30 +18282,21 @@ init();
 // ═══ СИСТЕМА РОЛЕЙ И ДОСТУПОВ ════════════════════════════════════════════
 
 const ROLE_ACCESS = {
-  // Агроном — полный доступ
-  agronomist: ['dashboard','map','crops','weather','gdd','irrigation','catalog','treatments',
-               'analysis','diseases','warehouse','tasks','ailog','doses','settings'],
-  // Владелец — полный доступ
-  owner:      ['map','crops','weather','gdd','irrigation','catalog','treatments',
-               'analysis','diseases','warehouse','tasks','ailog','doses','settings'],
-  // Акционер — всё, только просмотр
-  shareholder:['map','crops','weather','gdd','irrigation','catalog','treatments',
-               'analysis','diseases','warehouse','tasks'],
-  // Директор — всё, только просмотр
-  director:   ['map','crops','weather','gdd','irrigation','catalog','treatments',
-               'analysis','diseases','warehouse','tasks'],
-  // Бухгалтер — всё + склад полный
-  accountant: ['map','crops','weather','gdd','irrigation','catalog','treatments',
-               'analysis','diseases','warehouse','tasks'],
-  // Инженер — техника, склад, оборудование ирригации, журнал работ
-  engineer:   ['map','irrigation','warehouse','tasks','settings'],
-  // Инженер ирригации — карта, погода, ирригация, анализ воды
+  agronomist:          ['dashboard','map','crops','weather','gdd','irrigation','catalog','treatments',
+                        'analysis','diseases','warehouse','tasks','ailog','doses','settings'],
+  owner:               ['dashboard','map','crops','weather','gdd','irrigation','catalog','treatments',
+                        'analysis','diseases','warehouse','tasks','ailog','doses','settings'],
+  shareholder:         ['dashboard','map','crops','weather','gdd','irrigation','catalog','treatments',
+                        'analysis','diseases','warehouse','tasks'],
+  director:            ['dashboard','map','crops','weather','gdd','irrigation','catalog','treatments',
+                        'analysis','diseases','warehouse','tasks'],
+  accountant:          ['dashboard','map','crops','weather','gdd','irrigation','catalog','treatments',
+                        'analysis','diseases','warehouse','tasks'],
+  engineer:            ['map','irrigation','warehouse','tasks','settings'],
   irrigation_engineer: ['map','weather','irrigation','analysis'],
-  // Оператор — обработки, журнал
-  operator:   ['treatments','warehouse','tasks'],
-  // Суперадмин
-  superadmin: ['map','crops','weather','gdd','irrigation','catalog','treatments',
-               'analysis','diseases','warehouse','tasks','ailog','doses','settings'],
+  operator:            ['treatments','warehouse','tasks'],
+  superadmin:          ['dashboard','map','crops','weather','gdd','irrigation','catalog','treatments',
+                        'analysis','diseases','warehouse','tasks','ailog','doses','settings'],
 };
 
 // Только просмотр для этих ролей (кнопки редактирования скрыты)
