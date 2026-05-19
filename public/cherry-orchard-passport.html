@@ -2471,36 +2471,20 @@ tbody td{padding:10px 12px;vertical-align:middle;}
       </div>
     </div>
 
-    <!-- Секция 2: Техника и механизатор -->
-    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🚜 Техника и механизатор</div>
-    <div class="form-grid" style="margin-bottom:14px;">
-      <div class="ff">
-        <label>Техника</label>
-        <select id="nt-equip" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
-          <option value="">— не выбрана —</option>
-        </select>
-      </div>
-      <div class="ff">
-        <label>Навесное оборудование</label>
-        <select id="nt-attach" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
-          <option value="">— не выбрано —</option>
-        </select>
-      </div>
-      <div class="ff">
-        <label>Механизатор</label>
-        <select id="nt-mechanic" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
-          <option value="">— не назначен —</option>
-        </select>
-      </div>
-      <div class="ff">
-        <label>Скорость агрегата (км/ч)</label>
-        <input type="number" id="nt-speed" placeholder="5" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
-      </div>
-    </div>
+    <!-- Секция 2: Техника и механизаторы -->
+    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🚜 Техника и механизаторы</div>
+    <div id="nt-machines-list" style="margin-bottom:8px;"></div>
+    <button class="btn btn-secondary btn-sm" onclick="addNtMachine()" style="margin-bottom:14px;width:100%;">+ Добавить агрегат</button>
 
-    <!-- Секция 3: Клетки -->
-    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🌳 Клетки сада</div>
-    <div id="nt-parcel-list" style="max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:6px;margin-bottom:6px;"></div>
+    <!-- Скрытые поля для совместимости -->
+    <select id="nt-equip" style="display:none;"></select>
+    <select id="nt-attach" style="display:none;"></select>
+    <select id="nt-mechanic" style="display:none;"></select>
+    <input type="number" id="nt-speed" style="display:none;">
+
+    <!-- Секция 3: Клетки и зоны -->
+    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🌳 Клетки сада и зоны полива</div>
+    <div id="nt-parcel-list" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:6px;margin-bottom:6px;"></div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:4px;" id="nt-selected-tags"></div>
     <div id="nt-area-info" style="font-size:11px;color:var(--accent);margin-bottom:14px;font-weight:600;"></div>
 
@@ -8671,7 +8655,126 @@ const MOA_PRODUCTS = {
   'Омайт':          {irac:'1a',  iracGroup:'Органофосфаты'},
 };
 
-let _izSelectedVarieties = new Set();
+// ── МУЛЬТИ-АГРЕГАТНАЯ СИСТЕМА ────────────────────────────────────────────
+let _ntMachines = []; // [{id, equipId, equipName, attachId, attachName, mechanicId, mechanicName, speed, parcelIds, zoneIds}]
+
+function renderNtMachines() {
+  const el = document.getElementById('nt-machines-list');
+  if(!el) return;
+  if(!_ntMachines.length) {
+    el.innerHTML = '<div style="font-size:11px;color:var(--text3);padding:8px;border:1px dashed var(--border);border-radius:8px;text-align:center;">Нажмите "+ Добавить агрегат" чтобы назначить технику и механизаторов</div>';
+    return;
+  }
+  el.innerHTML = _ntMachines.map((m,i) => `
+    <div style="padding:10px 12px;background:var(--surface2);border-radius:8px;border-left:3px solid var(--blue);margin-bottom:6px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <div style="font-size:12px;font-weight:700;color:var(--blue);">Агрегат ${i+1}</div>
+        <button onclick="_ntMachines.splice(${i},1);renderNtMachines();"
+          style="border:none;background:none;color:var(--red);cursor:pointer;font-size:14px;">🗑</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;">
+        <div>
+          <div style="font-size:10px;color:var(--text3);margin-bottom:2px;">🚜 Техника</div>
+          <select onchange="_ntMachines[${i}].equipId=this.value;_ntMachines[${i}].equipName=this.selectedOptions[0]?.dataset.name||'';renderNtMachines();"
+            style="width:100%;padding:6px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;">
+            <option value="">— не выбрана —</option>
+            ${(_allEquip||[]).map(e=>`<option value="${e.id}" data-name="${e.name}" ${m.equipId===e.id?'selected':''}>${e.name}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--text3);margin-bottom:2px;">🔧 Навесное</div>
+          <select onchange="_ntMachines[${i}].attachId=this.value;_ntMachines[${i}].attachName=this.selectedOptions[0]?.dataset.name||'';renderNtMachines();"
+            style="width:100%;padding:6px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;">
+            <option value="">— не выбрано —</option>
+            ${(_allAttach||[]).map(a=>`<option value="${a.id}" data-name="${a.name}" ${m.attachId===a.id?'selected':''}>${a.name}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--text3);margin-bottom:2px;">👤 Механизатор</div>
+          <select onchange="_ntMachines[${i}].mechanicId=this.value;_ntMachines[${i}].mechanicName=this.selectedOptions[0]?.dataset.name||'';renderNtMachines();"
+            style="width:100%;padding:6px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;">
+            <option value="">— не назначен —</option>
+            ${(_taskStaff||[]).map(s=>`<option value="${s.id}" data-name="${s.name}" ${m.mechanicId===s.id?'selected':''}>${s.name}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--text3);margin-bottom:2px;">⚡ Скорость (км/ч)</div>
+          <input type="number" value="${m.speed||''}" placeholder="5"
+            onchange="_ntMachines[${i}].speed=parseFloat(this.value)||0;"
+            style="width:100%;padding:6px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;">
+        </div>
+      </div>
+      <!-- Привязка клеток и зон к агрегату -->
+      <div style="font-size:10px;color:var(--text3);margin-bottom:4px;">🌳 Клетки / зоны для этого агрегата</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;">
+        ${Object.entries(S.cells||{}).map(([key,cd])=>{
+          const crop = getCropById(cd.cropId||'crop_cherry');
+          const ha = calcCellTotals(cd)?.totalHa||0;
+          const selParcel = (m.parcelIds||[]).includes(key);
+          const cellZones = (S.irrigation?.zones||[]).filter(z=>(z.cellKeys||[]).includes(key));
+          return `<div style="margin-bottom:4px;width:100%;">
+            <div onclick="_ntToggleParcel(${i},'${key}',${ha})" id="ntm-${i}-${key}"
+              style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:6px;cursor:pointer;
+                background:${selParcel?'rgba(96,165,250,.15)':'var(--surface3)'};
+                border:1px solid ${selParcel?'var(--blue)':'var(--border)'};
+                color:${selParcel?'var(--blue)':'var(--text3)'};font-size:11px;">
+              ${selParcel?'☑':'☐'} ${crop?.emoji||'🌳'} ${key} (${ha.toFixed(2)}га)
+            </div>
+            ${cellZones.length?cellZones.map(z=>{
+              const selZone=(m.zoneIds||[]).includes(z.id);
+              return `<span onclick="_ntToggleZone(${i},'${z.id}')" id="ntmz-${i}-${z.id}"
+                style="margin-left:6px;padding:2px 8px;border-radius:6px;cursor:pointer;font-size:10px;
+                  background:${selZone?'rgba(96,165,250,.15)':'transparent'};
+                  border:1px solid ${selZone?'var(--blue)':'var(--border)'};
+                  color:${selZone?'var(--blue)':'var(--text3)'};">
+                💧 ${z.name}
+              </span>`;
+            }).join(''):''}
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`).join('');
+}
+
+function addNtMachine() {
+  _ntMachines.push({
+    id: uid(),
+    equipId:'', equipName:'', attachId:'', attachName:'',
+    mechanicId:'', mechanicName:'', speed:0,
+    parcelIds:[], zoneIds:[],
+  });
+  renderNtMachines();
+}
+
+function _ntToggleParcel(machineIdx, parcelKey, ha) {
+  const m = _ntMachines[machineIdx];
+  if(!m) return;
+  const idx = m.parcelIds.indexOf(parcelKey);
+  if(idx>=0) {
+    m.parcelIds.splice(idx,1);
+    // Снимаем зоны этой клетки
+    const cellZones = (S.irrigation?.zones||[]).filter(z=>(z.cellKeys||[]).includes(parcelKey)).map(z=>z.id);
+    m.zoneIds = m.zoneIds.filter(zid=>!cellZones.includes(zid));
+  } else {
+    m.parcelIds.push(parcelKey);
+    // Автовыбор зон клетки
+    const cellZones = (S.irrigation?.zones||[]).filter(z=>(z.cellKeys||[]).includes(parcelKey)).map(z=>z.id);
+    cellZones.forEach(zid=>{ if(!m.zoneIds.includes(zid)) m.zoneIds.push(zid); });
+  }
+  renderNtMachines();
+  ntUpdateCalc();
+}
+
+function _ntToggleZone(machineIdx, zoneId) {
+  const m = _ntMachines[machineIdx];
+  if(!m) return;
+  const idx = m.zoneIds.indexOf(zoneId);
+  if(idx>=0) m.zoneIds.splice(idx,1);
+  else m.zoneIds.push(zoneId);
+  renderNtMachines();
+}
+
+let _allEquip = [], _allAttach = [];
 
 function toggleIzVariety(id, el) {
   if(_izSelectedVarieties.has(id)) {
@@ -14546,6 +14649,20 @@ async function renderTasks() {
         <div><div class="tl">Навесное</div><div class="tv">${t.attachment||'—'}</div></div>
         ${t.closed_by_name?`<div><div class="tl">Закрыл</div><div class="tv">${t.closed_by_name}</div></div>`:''}
       </div>
+      ${(() => {
+        const machines = t.machines_json ? (typeof t.machines_json==='string'?JSON.parse(t.machines_json):t.machines_json) : [];
+        if(!machines.length) return '';
+        return `<div style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px;">
+          <div style="font-size:11px;color:var(--text3);margin-bottom:4px;">🚜 АГРЕГАТЫ:</div>
+          ${machines.map((m,i)=>`<div style="font-size:11px;padding:4px 8px;background:var(--surface2);border-radius:6px;margin-bottom:3px;">
+            <strong>Агрегат ${i+1}:</strong> ${m.equipName||'—'} · ${m.attachName||'—'} · 
+            👤 ${m.mechanicName||'—'}
+            ${m.parcelIds?.length?` · 🌳 ${m.parcelIds.join(', ')}`:''} 
+            ${m.zoneIds?.length?` · 💧 ${m.zoneIds.map(zid=>(S.irrigation?.zones||[]).find(z=>z.id===zid)?.name||zid).join(', ')}`:''} 
+          </div>`).join('')}
+        </div>`;
+      })()}
+      </div>
       ${chems.length?`<div style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px;">
         <div style="font-size:11px;color:var(--text3);margin-bottom:4px;">💊 ПРЕПАРАТЫ:</div>
         ${chems.map(c=>`<div class="task-chem">
@@ -14621,6 +14738,10 @@ async function openNewTask() {
 
   _newTaskParcels = [];
   _newTaskChems = [];
+  _ntMachines = [];
+  _allEquip = allEquip;
+  _allAttach = attachArr;
+  renderNtMachines();
 
   document.getElementById('nt-wt').innerHTML = _taskWorkTypes.map(w=>`<option value="${w.id}" data-name="${w.name}">${w.name}</option>`).join('');
 
@@ -14966,15 +15087,14 @@ async function saveNewTask() {
   const asName = asSel.options[asSel.selectedIndex]?.dataset?.name || asSel.options[asSel.selectedIndex]?.textContent || '';
   if(!crId||!asId){alert('Выберите агронома и исполнителя');return;}
 
-  const eqSel = document.getElementById('nt-equip');
-  const eqId = eqSel.value;
-  const eqName = eqSel.options[eqSel.selectedIndex]?.dataset?.name || '';
-  const atSel = document.getElementById('nt-attach');
-  const atName = atSel.options[atSel.selectedIndex]?.dataset?.name || '';
-  const meSel = document.getElementById('nt-mechanic');
-  const meId = meSel.value;
-  const meName = meSel.options[meSel.selectedIndex]?.dataset?.name || meSel.options[meSel.selectedIndex]?.textContent || '';
-  const speed = parseFloat(document.getElementById('nt-speed').value)||null;
+  // Берём первый агрегат для совместимости
+  const firstMachine = _ntMachines[0];
+  const eqId = firstMachine?.equipId||'';
+  const eqName = firstMachine?.equipName||'';
+  const atName = firstMachine?.attachName||'';
+  const meId = firstMachine?.mechanicId||'';
+  const meName = firstMachine?.mechanicName||'';
+  const speed = firstMachine?.speed||null;
   const waterPerHa = parseFloat(document.getElementById('nt-water').value)||400;
   const method = document.getElementById('nt-method').value;
 
@@ -18144,11 +18264,17 @@ async function init(){
   // Применяем роль
   applyRoleAccess();
 
-  // Открываем дашборд если агроном/владелец
+  // Открываем дашборд после применения ролей
   const role = sessionStorage.getItem('agro_role')||'agronomist';
-  if(['agronomist','owner','shareholder','director'].includes(role)) {
-    const dashTab = document.querySelector('.tab[onclick*="dashboard"]');
-    if(dashTab) setTimeout(()=>dashTab.click(), 600);
+  if(['agronomist','owner','shareholder','director','superadmin'].includes(role)) {
+    setTimeout(()=>{
+      const dashTab = document.querySelector('.tab[onclick*="dashboard"]');
+      if(dashTab && dashTab.style.display !== 'none') {
+        switchTab('dashboard', dashTab);
+        dashTab.classList.add('active');
+        document.querySelectorAll('.tab').forEach(t=>{ if(t!==dashTab) t.classList.remove('active'); });
+      }
+    }, 200);
   }
 }
 init();
@@ -18253,11 +18379,11 @@ function applyRoleAccess() {
     if(irrigTab) setTimeout(()=>irrigTab.click(), 500);
   }
 
-  // Первый доступный таб — активируем если текущий недоступен
+  // Первый доступный таб — активируем только если текущий недоступен и это не dashboard
   const activeTab = document.querySelector('.tab.active');
   if(activeTab) {
     const m = activeTab.getAttribute('onclick').match(/switchTab\('(\w+)'/);
-    if(m && !allowed.includes(m[1])) {
+    if(m && m[1] !== 'dashboard' && !allowed.includes(m[1])) {
       const firstAllowed = document.querySelector('.tab[onclick*="switchTab"]:not([style*="none"])');
       if(firstAllowed) setTimeout(()=>firstAllowed.click(), 100);
     }
