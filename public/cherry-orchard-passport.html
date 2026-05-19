@@ -435,6 +435,9 @@ tbody td{padding:10px 12px;vertical-align:middle;}
       <h2>🌿 Культуры хозяйства</h2>
       <div style="display:flex;gap:6px;" id="crops-header-btns">
         <button class="btn btn-secondary" id="crops-btn-add-variety" onclick="openVarietyEditModal()" style="display:none;">+ Сорт</button>
+        <button class="btn btn-secondary" id="crops-btn-variety-template" onclick="downloadVarietiesTemplate()" style="display:none;">📋 Шаблон XLS</button>
+        <button class="btn btn-secondary" id="crops-btn-variety-import" onclick="document.getElementById('varieties-import-input').click()" style="display:none;">📥 Импорт XLS</button>
+        <input type="file" id="varieties-import-input" accept=".xls,.xlsx,.csv" style="display:none" onchange="importVarietiesFromExcel(event)">
         <button class="btn btn-secondary" id="crops-btn-add-rootstock" onclick="openRootstockModal()" style="display:none;">+ Подвой</button>
         <button class="btn btn-primary" id="crops-btn-add-crop" onclick="openCropEditModal()">+ Культура</button>
       </div>
@@ -12252,6 +12255,8 @@ function switchCropsSub(sub) {
   // Показываем нужные кнопки в header
   document.getElementById('crops-btn-add-crop').style.display     = sub==='overview'    ? '' : 'none';
   document.getElementById('crops-btn-add-variety').style.display  = sub==='varieties'   ? '' : 'none';
+  document.getElementById('crops-btn-variety-template').style.display = sub==='varieties' ? '' : 'none';
+  document.getElementById('crops-btn-variety-import').style.display   = sub==='varieties' ? '' : 'none';
   document.getElementById('crops-btn-add-rootstock').style.display= sub==='rootstocks'  ? '' : 'none';
   if(sub==='varieties')  renderVarietiesCatalog();
   if(sub==='rootstocks') renderRootstocksCatalog();
@@ -14610,6 +14615,181 @@ function exportToExcel(){
   const fname=`Обработки_сад_${from}_${to}.xlsx`;
   XLSX.writeFile(wb,fname);
   closeModal('modal-export');
+}
+
+// ===================== VARIETIES XLS IMPORT =====================
+
+function downloadVarietiesTemplate() {
+  const headers = [
+    'Культура (ID)', 'Название сорта', 'Происхождение (страна)',
+    'Год выведения', 'Срок созревания', 'Опыление (self/cross)',
+    'Опылители', 'Вес плода (г)', 'Цвет плода', 'Плотность плода',
+    'Сахар Brix (%)', 'Устойчивость к растрескиванию (1-5)',
+    'Сила роста', 'Год плодоношения', 'Урожай (т/га)',
+    'Схема посадки', 'Рекомендуемый подвой',
+    'Монилиоз (1-5)', 'Коккомикоз (1-5)', 'Клястероспориоз (1-5)',
+    'Морозостойкость (1-5)', 'Chill hours (CP)', 'Примечание'
+  ];
+  const cropIds = (S.crops||[]).map(c=>`${c.id}=${c.name}`).join(' | ');
+  const examples = [
+    ['crop_cherry','Регина','Германия',1981,'Поздний','cross','Кордия, Наполеон',8,'Тёмно-красный','Очень плотная',18,4,'Среднерослый',4,14,'4×2','Гизела 5',3,4,3,4,1200,''],
+    ['crop_cherry','Кордия (Kordia)','Чехия',1963,'Средне-поздний','cross','Регина, Скина',10,'Тёмно-бордовый','Очень плотная',19.5,3,'Сильнорослый',3,14,'4×2','Гизела 5',3,3,3,4,1100,''],
+    ['crop_cherry','Скина (Skeena)','Канада',1997,'Средний','self','',10,'Тёмно-красный','Плотная',17,4,'Среднерослый',3,12,'4×2','Гизела 5',3,4,3,4,1050,'Самоопыляемый'],
+    ['crop_cherry','Наполеон','Франция',1800,'Средний','cross','Коралл, Регина',8,'Жёлто-красный','Плотная',17,3,'Сильнорослый',4,12,'5×3','Гизела 5',3,3,3,3,1200,''],
+    ['crop_apple','Голден Делишес','США',1890,'Средне-поздний','cross','Ред Делишес, Джонаголд',180,'Жёлто-зелёный','Плотная',14,4,'Среднерослый',3,40,'3×1','М9',4,3,3,3,1200,''],
+  ];
+  const infoRows = [
+    [],
+    ['Культуры (cropId):'], [cropIds],
+    [],
+    ['Срок созревания: Ранний | Средне-ранний | Средний | Средне-поздний | Поздний'],
+    ['Опыление: self = самоопыляемый, cross = перекрёстное'],
+    ['Устойчивость 1=очень чувствительный, 5=очень устойчивый'],
+  ];
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...examples, ...infoRows]);
+  ws['!cols'] = [16,22,16,10,16,14,25,10,18,16,10,16,14,12,10,12,16,12,12,16,14,10,20].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws, 'Сорта');
+  XLSX.writeFile(wb, 'шаблон_сорта.xlsx');
+}
+
+function importVarietiesFromExcel(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  event.target.value = '';
+
+  const RIPENING_MAP = {
+    'ранний':'Ранний','early':'Ранний','timpuriu':'Ранний',
+    'средне-ранний':'Средне-ранний','medio-timpuriu':'Средне-ранний',
+    'средний':'Средний','mediu':'Средний','mid':'Средний','medium':'Средний',
+    'средне-поздний':'Средне-поздний','medio-târziu':'Средне-поздний',
+    'поздний':'Поздний','târziu':'Поздний','late':'Поздний',
+  };
+  const COLORS = ['vc0','vc1','vc2','vc3','vc4','vc5','vc6','vc7'];
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+
+      // Найти строку заголовков
+      let hi = 0;
+      for (let i = 0; i < Math.min(5, rows.length); i++) {
+        const r = rows[i].map(c => String(c).toLowerCase());
+        if (r.some(c => c.includes('назван') || c.includes('сорт') || c.includes('name') || c.includes('soi'))) { hi = i; break; }
+      }
+      const H = rows[hi].map(c => String(c).toLowerCase().trim());
+      const col = (...kws) => { for (const kw of kws) { const i = H.findIndex(h=>h.includes(kw)); if(i>=0) return i; } return -1; };
+
+      const iCrop    = col('культур','crop','cultură');
+      const iName    = col('назван','name','soi','сорт');
+      const iOrigin  = col('происх','origin','ţară','tara','country');
+      const iYear    = col('год выв','year','an');
+      const iRipen   = col('срок','ripening','coacere','maturar');
+      const iPoll    = col('опылен','poll','poleniz');
+      const iPollin  = col('опылит','pollinator','poleniz cu');
+      const iWeight  = col('вес плода','fruit weight','masa');
+      const iColor   = col('цвет плода','fruit color','culoare');
+      const iFirm    = col('плотн','firmness','consistenţ');
+      const iBrix    = col('brix','сахар','zahar');
+      const iCrack   = col('растрескив','crack','crăpare');
+      const iVigor   = col('сила роста','vigor','vigoare');
+      const iBear    = col('год плодон','bearing','rodire');
+      const iYield   = col('урожай','yield','producţ');
+      const iSpacing = col('схема','spacing','schemă');
+      const iRootRec = col('подвой','rootstock','portaltoi');
+      const iMon     = col('монилиоз','monilia','мон');
+      const iCoc     = col('коккомик','cocco','кок');
+      const iClas    = col('клястер','claster','кляс');
+      const iFrost   = col('морозост','frost','ger');
+      const iCp      = col('chill','cp','холод');
+      const iNote    = col('примеч','note','observ');
+
+      if (iName < 0) {
+        alert('Не найдена колонка «Название сорта». Используйте шаблон.');
+        return;
+      }
+
+      const builtinIds = new Set(S.varieties.map(v=>v.id));
+      let added = 0, skipped = 0;
+      let colorIdx = S.varieties.filter(v=>v.cropId==='crop_cherry').length % COLORS.length;
+
+      for (let i = hi + 1; i < rows.length; i++) {
+        const r = rows[i];
+        const name = String(r[iName]||'').trim();
+        if (!name) continue;
+
+        if (S.varieties.some(v=>v.name.toLowerCase()===name.toLowerCase())) { skipped++; continue; }
+
+        const cropId = iCrop >= 0 ? String(r[iCrop]||'crop_cherry').trim() : 'crop_cherry';
+        const rawRip = String(r[iRipen]||'').toLowerCase().trim();
+        let ripening = 'Средний';
+        for (const [k,v] of Object.entries(RIPENING_MAP)) { if (rawRip.includes(k)) { ripening=v; break; } }
+
+        const rawPoll = String(r[iPoll]||'').toLowerCase();
+        const pollType = rawPoll.includes('self')||rawPoll.includes('само') ? 'self' : 'cross';
+
+        const obj = {
+          id: 'v_imp_' + Date.now() + '_' + i,
+          cropId,
+          name,
+          origin:       iOrigin  >= 0 ? String(r[iOrigin]||'').trim()  : '',
+          year:         iYear    >= 0 ? parseInt(r[iYear])  || null     : null,
+          ripening,
+          pollType,
+          pollinators:  iPollin  >= 0 ? String(r[iPollin]||'').trim()  : '',
+          fruitWeight:  iWeight  >= 0 ? parseFloat(String(r[iWeight]).replace(',','.')) || null : null,
+          fruitColor:   iColor   >= 0 ? String(r[iColor]||'').trim()   : '',
+          fruitFirmness:iFirm    >= 0 ? String(r[iFirm]||'Плотная').trim() : 'Плотная',
+          brix:         iBrix    >= 0 ? parseFloat(String(r[iBrix]).replace(',','.'))   || null : null,
+          crackResistance: iCrack >= 0 ? String(parseInt(r[iCrack])||'3') : '3',
+          vigor:        iVigor   >= 0 ? String(r[iVigor]||'Среднерослый').trim() : 'Среднерослый',
+          bearingYear:  iBear    >= 0 ? parseInt(r[iBear])  || null     : null,
+          yield:        iYield   >= 0 ? parseFloat(String(r[iYield]).replace(',','.'))  || null : null,
+          spacing:      iSpacing >= 0 ? String(r[iSpacing]||'').trim()  : '',
+          rootstockRec: iRootRec >= 0 ? String(r[iRootRec]||'').trim()  : '',
+          resMonilia:   iMon     >= 0 ? String(parseInt(r[iMon])||'3')  : '3',
+          resCocco:     iCoc     >= 0 ? String(parseInt(r[iCoc])||'3')  : '3',
+          resClaster:   iClas    >= 0 ? String(parseInt(r[iClas])||'3') : '3',
+          resScab: '3',
+          frost:        iFrost   >= 0 ? String(parseInt(r[iFrost])||'3'): '3',
+          cp:           iCp      >= 0 ? parseInt(r[iCp])    || null     : null,
+          color: COLORS[colorIdx % COLORS.length],
+          note:         iNote    >= 0 ? String(r[iNote]||'').trim()     : '',
+        };
+        S.varieties.push(obj);
+        colorIdx++;
+        added++;
+      }
+
+      save();
+      if (typeof renderVarietiesCatalog === 'function') renderVarietiesCatalog();
+
+      // Статус под заголовком панели
+      let statusEl = document.getElementById('varieties-import-status');
+      if (!statusEl) {
+        statusEl = document.createElement('div');
+        statusEl.id = 'varieties-import-status';
+        statusEl.style.cssText = 'margin-bottom:14px;';
+        const panel = document.getElementById('csub-panel-varieties');
+        if (panel) panel.insertAdjacentElement('afterbegin', statusEl);
+      }
+      statusEl.innerHTML = `<div style="padding:12px 16px;background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.3);border-radius:8px;font-size:12px;">
+        ✅ <strong>Импорт сортов завершён</strong><br>
+        • Добавлено: <strong style="color:var(--accent)">${added}</strong> сортов<br>
+        ${skipped ? `• Пропущено (дубликаты): ${skipped}` : ''}
+        <div style="margin-top:6px;color:var(--text3);">Откройте каждый сорт (✏️) для уточнения деталей.</div>
+      </div>`;
+      statusEl.style.display = 'block';
+      setTimeout(() => statusEl.style.display = 'none', 10000);
+
+    } catch(err) {
+      alert('Ошибка чтения файла: ' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
 }
 
 // ===================== CELLS (УЧАСТКИ) XLS IMPORT =====================
