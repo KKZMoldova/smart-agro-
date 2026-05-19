@@ -1050,6 +1050,7 @@ tbody td{padding:10px 12px;vertical-align:middle;}
         </div>
         <span class="rain-badge" id="rain-badge" style="display:none;"></span>
         <button class="btn btn-secondary" onclick="openExportModal()">📊 Отчёт Excel</button>
+        <button class="btn btn-secondary" onclick="downloadTreatmentsTemplate()">📋 Шаблон XLS</button>
         <button class="btn btn-secondary" onclick="document.getElementById('treatments-import-input').click()">📥 Импорт XLS</button>
         <input type="file" id="treatments-import-input" accept=".xls,.xlsx,.csv" style="display:none" onchange="importTreatmentsFile(event)">
       </div>
@@ -14617,6 +14618,138 @@ function exportToExcel(){
   closeModal('modal-export');
 }
 
+function downloadTreatmentsTemplate() {
+  // Собираем справочные данные из текущего состояния
+  const cellKeys   = Object.keys(S.cells||{}).sort();
+  const varieties  = (S.varieties||[]).map(v=>`${v.name}`);
+  const products   = (S.catalog||[]).map(p=>p.name);
+  const cropNames  = (S.crops||[]).map(c=>`${c.id}=${c.name}`).join(' | ');
+
+  // ── Лист 1: Журнал обработок (баковые смеси) ──
+  const mainHeaders = [
+    'Дата (ДД.ММ.ГГГГ)',
+    'Участок (ключ или "all")',
+    'Сорт (название или пусто=все)',
+    'Метод (foliar/drip/soil)',
+    'Расход воды (л/га)',
+    // Препарат 1
+    'Препарат 1 (название)',
+    'Доза 1 (л/га или кг/га)',
+    'Тип 1 (fungicide/insecticide/herbicide/fertilizer)',
+    'Д.В. 1',
+    // Препарат 2
+    'Препарат 2',
+    'Доза 2',
+    'Тип 2',
+    'Д.В. 2',
+    // Препарат 3
+    'Препарат 3',
+    'Доза 3',
+    'Тип 3',
+    'Д.В. 3',
+    // Препарат 4
+    'Препарат 4',
+    'Доза 4',
+    'Тип 4',
+    'Д.В. 4',
+    'Примечание',
+  ];
+
+  // Примеры — типичный сезон черешни с баковыми смесями
+  const mainExamples = [
+    // Ранняя весна
+    ['15.03.2025','all','','foliar',600,
+     'Бордоская смесь 3%',6,'fungicide','сульфат меди',
+     '','','','',
+     '','','','',
+     '','','','',
+     'До набухания почек — профилактика'],
+    // Зелёный конус
+    ['05.04.2025','1-1','','foliar',600,
+     'Хорус 75WG',0.2,'fungicide','ципродинил',
+     'Актара 25WG',0.14,'insecticide','тиаметоксам',
+     '','','','',
+     '','','','',
+     'Зелёный конус — смесь фунгицид+инсектицид'],
+    // Цветение — только фунгицид, NO инсектицид
+    ['20.04.2025','all','','foliar',600,
+     'Свитч 62.5WG',0.8,'fungicide','ципродинил+флудиоксонил',
+     'Борная кислота',0.3,'fertilizer','B',
+     '','','','',
+     '','','','',
+     'Цветение — бор для завязи, NO инсектицид!'],
+    // Завязь — Ca-программа
+    ['10.05.2025','1-1','Кордия (Kordia)','foliar',600,
+     'Делан WG',0.3,'fungicide','дифеноконазол',
+     'Калипсо SC',0.24,'insecticide','тиаклоприд',
+     'Кальцифол',3,'fertilizer','Ca',
+     '','','','',
+     'Завязь — Ca-программа против растрескивания'],
+    // Рост плода — тройная смесь
+    ['01.06.2025','1-1','','foliar',600,
+     'Хорус 75WG',0.2,'fungicide','ципродинил',
+     'Калипсо SC',0.24,'insecticide','тиаклоприд',
+     'Кальцифол',3,'fertilizer','Ca',
+     'ПАВ Тренд 90',0.05,'surfactant','изодецилспирт',
+     'Рост плода — 4 компонента'],
+    // Созревание — стоп инсектициды
+    ['20.06.2025','all','','foliar',600,
+     'Тиовит Джет',3,'fungicide','сера',
+     '','','','',
+     '','','','',
+     '','','','',
+     'Созревание — только сера, ПХИ мин.'],
+    // Фертигация
+    ['15.05.2025','1-2','','drip',50,
+     'Кальциевая селитра',5,'fertilizer','Ca(NO3)2',
+     'Нитрат калия',3,'fertilizer','KNO3',
+     '','','','',
+     '','','','',
+     'Фертигация — капельный полив'],
+  ];
+
+  // ── Лист 2: Инструкция ──
+  const instrHeaders = ['Поле','Пояснение','Допустимые значения'];
+  const instrRows = [
+    ['Дата','Обязательное поле','ДД.ММ.ГГГГ  или  ГГГГ-ММ-ДД'],
+    ['Участок','Ключ участка с карты или "all"',cellKeys.length ? cellKeys.join(', ')+', all' : 'all'],
+    ['Сорт','Название сорта или пусто = все сорта',varieties.slice(0,8).join(', ')],
+    ['Метод','Способ нанесения','foliar (опрыскивание), drip (капля), soil (почва)'],
+    ['Расход воды','Литров на гектар','обычно 400–800 (опрыск), 30–80 (капля)'],
+    ['Препарат','Точное название из справочника — или любое новое',''],
+    ['Доза','Литров или кг на гектар','числовое значение, например 0.3'],
+    ['Тип','Тип препарата','fungicide, insecticide, herbicide, fertilizer, surfactant, bio, regulator'],
+    ['Д.В.','Действующее вещество (необязательно)',''],
+    ['Примечание','Любой текст',''],
+    [],
+    ['БАКОВАЯ СМЕСЬ','Записывать в одну строку — до 4 препаратов в колонках Препарат1…Препарат4',''],
+    ['ОДИН УЧАСТОК','Каждая строка = одна обработка',''],
+    ['НЕСКОЛЬКО УЧАСТКОВ','Скопировать строку, изменить только колонку «Участок»',''],
+    [],
+    ['Справочник препаратов (из базы):','',''],
+    ...products.slice(0,20).map(p=>['',p,'']),
+    [],
+    ['Культуры (cropId):',cropNames,''],
+  ];
+
+  // ── Создаём файл ──
+  const wb = XLSX.utils.book_new();
+
+  const ws1 = XLSX.utils.aoa_to_sheet([mainHeaders, ...mainExamples]);
+  // Ширины колонок
+  const w1 = [16,16,18,10,12, 22,8,14,18, 22,8,14,18, 22,8,14,18, 22,8,14,18, 28];
+  ws1['!cols'] = w1.map(w=>({wch:w}));
+  // Заморозить первую строку
+  ws1['!freeze'] = {xSplit:0, ySplit:1};
+  XLSX.utils.book_append_sheet(wb, ws1, 'Обработки');
+
+  const ws2 = XLSX.utils.aoa_to_sheet([instrHeaders, ...instrRows]);
+  ws2['!cols'] = [{wch:24},{wch:50},{wch:40}];
+  XLSX.utils.book_append_sheet(wb, ws2, 'Инструкция');
+
+  XLSX.writeFile(wb, 'шаблон_обработки.xlsx');
+}
+
 // ===================== VARIETIES XLS IMPORT =====================
 
 function downloadVarietiesTemplate() {
@@ -15395,25 +15528,143 @@ function parseTreatmentRows(rows, cellTarget, importNote) {
     if (t.includes('fungicide') || t.includes('фунгицид')) return 'fungicide';
     if (t.includes('insecticide') || t.includes('инсектицид')) return 'insecticide';
     if (t.includes('erbicide') || t.includes('гербицид')) return 'herbicide';
-    if (t.includes('fertiliz') || t.includes('удобрен')) return 'fertilizer';
+    if (t.includes('fertiliz') || t.includes('удобрен') || t.includes('fertilizer')) return 'fertilizer';
+    if (t.includes('surfactant') || t.includes('пав')) return 'surfactant';
+    if (t.includes('bio')) return 'bio';
+    if (t.includes('regulator')) return 'regulator';
     if (t.includes('materiale')) return 'other';
     return 'fertilizer';
   }
+
+  function parseDate(str) {
+    const s = String(str).trim();
+    const m1 = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+    if (m1) return `${m1[3]}-${m1[2].padStart(2,'0')}-${m1[1].padStart(2,'0')}`;
+    if (s.match(/^\d{4}-\d{2}-\d{2}/)) return s.slice(0,10);
+    // Excel serial date number
+    if (/^\d{5}$/.test(s)) {
+      const d = new Date(Math.round((parseInt(s) - 25569) * 86400 * 1000));
+      return d.toISOString().split('T')[0];
+    }
+    return null;
+  }
+
+  // ── Определяем формат: наш шаблон или румынский секционный ──
+  let headerRow = -1;
+  for (let i = 0; i < Math.min(5, rows.length); i++) {
+    const r = rows[i].map(c => String(c||'').toLowerCase());
+    if (r.some(c => c.includes('дата') || c.includes('date') || c.includes('data'))) {
+      // Проверяем что это строка с нашими заголовками (есть "препарат" или "метод")
+      if (r.some(c => c.includes('препарат') || c.includes('метод') || c.includes('method') || c.includes('produs'))) {
+        headerRow = i;
+        break;
+      }
+    }
+  }
+
+  // ── Наш формат: строка = одна обработка с баковой смесью ──
+  if (headerRow >= 0) {
+    const H = rows[headerRow].map(c => String(c||'').toLowerCase().trim());
+    const col = (...kws) => { for (const kw of kws) { const i = H.findIndex(h=>h.includes(kw)); if(i>=0) return i; } return -1; };
+
+    const iDate    = col('дата','date','data');
+    const iCell    = col('участок','cell','parcel','клетка');
+    const iVar     = col('сорт','variety','soi');
+    const iMethod  = col('метод','method','metod','способ');
+    const iWater   = col('расход воды','water','apă');
+    const iNote    = col('примеч','note','observ');
+
+    // Препараты 1..4: ищем по паттерну "препарат N" / "product N"
+    const prodCols = []; // [{name, dose, type, active}]
+    for (let n = 1; n <= 4; n++) {
+      const iN   = col(`препарат ${n}`, `product ${n}`, `produs ${n}`);
+      const iD   = col(`доза ${n}`, `dose ${n}`, `doza ${n}`);
+      const iT   = col(`тип ${n}`, `type ${n}`, `tip ${n}`);
+      const iAI  = col(`д.в. ${n}`, `a.i. ${n}`, `active ${n}`);
+      if (iN >= 0) prodCols.push({iN, iD, iT, iAI});
+    }
+
+    const treats = [];
+    let baseId = Date.now();
+
+    for (let i = headerRow + 1; i < rows.length; i++) {
+      const r = rows[i];
+      const dateRaw = iDate >= 0 ? r[iDate] : r[0];
+      const date = parseDate(dateRaw);
+      if (!date) continue;
+
+      // Читаем участок из файла, но если пришёл cellTarget из пикера — он приоритетнее
+      const fileCellRaw = iCell >= 0 ? String(r[iCell]||'').trim() : '';
+      const resolvedCell = (cellTarget && cellTarget !== 'all') ? cellTarget : (fileCellRaw || 'all');
+
+      const method = iMethod >= 0 ? String(r[iMethod]||'foliar').trim() : 'foliar';
+      const water  = iWater  >= 0 ? parseFloat(String(r[iWater]).replace(',','.')) || 400 : 400;
+      const varT   = iVar    >= 0 ? String(r[iVar]||'').trim() : '';
+      const note   = iNote   >= 0 ? String(r[iNote]||importNote).trim() : importNote;
+
+      // Собираем баковую смесь
+      const products = [];
+      for (const {iN, iD, iT, iAI} of prodCols) {
+        const name = String(r[iN]||'').trim();
+        if (!name) continue;
+        const doseVal = iD >= 0 ? parseFloat(String(r[iD]).replace(',','.')) || 0 : 0;
+        const typeRaw = iT >= 0 ? String(r[iT]||'').trim() : '';
+        const active  = iAI >= 0 ? String(r[iAI]||'').trim() : '';
+        // Ищем в каталоге
+        const cat = S.catalog.find(p => p.name.toLowerCase() === name.toLowerCase());
+        products.push({
+          name,
+          dose: doseVal || cat?.dose || 0,
+          type: typeRaw ? detectType(typeRaw) : (cat?.type || 'fungicide'),
+          active: active || cat?.activeSubstance || '',
+          dur: cat?.duration || 14,
+          washMm: cat?.washMm || 15,
+          catId: cat?.id || null,
+        });
+      }
+
+      if (!products.length) continue;
+
+      const maxDur = Math.max(...products.map(p=>p.dur||14));
+      const minWash = Math.min(...products.map(p=>p.washMm||15));
+      const endDt = new Date(date);
+      endDt.setDate(endDt.getDate() + maxDur);
+
+      // cropId из участка
+      const cd = S.cells[resolvedCell];
+      const cropId = cd?.cropId || null;
+
+      baseId++;
+      treats.push({
+        id: baseId,
+        date,
+        product: products.map(p=>p.name).join(' + '),
+        products,
+        activeSubstance: products.map(p=>p.active).filter(Boolean).join(', '),
+        type: products[0].type,
+        method,
+        dose: products[0].dose,
+        water,
+        duration: maxDur,
+        washMm: minWash,
+        catalogId: products[0].catId || null,
+        endDate: endDt.toISOString().split('T')[0],
+        cellsTarget: resolvedCell !== 'all' ? [resolvedCell] : [],
+        cellTarget: resolvedCell,
+        cropId,
+        varietyTarget: varT,
+        note,
+      });
+    }
+    return treats;
+  }
+
+  // ── Румынский секционный формат (оригинальный парсер) ──
 
   function detectMethod(section) {
     const m = {'Stropire livada':'foliar','Fertigare':'drip',
                'Erbecidare':'soil','Incorporarea ingrasaminte':'soil'};
     return m[section] || 'foliar';
-  }
-
-  function parseDate(str) {
-    const s = String(str).trim();
-    // DD.MM.YYYY
-    const m1 = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
-    if (m1) return `${m1[3]}-${m1[2].padStart(2,'0')}-${m1[1].padStart(2,'0')}`;
-    // YYYY-MM-DD
-    if (s.match(/^\d{4}-\d{2}-\d{2}/)) return s.slice(0,10);
-    return null;
   }
 
   const treats = [];
