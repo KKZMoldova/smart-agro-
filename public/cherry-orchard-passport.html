@@ -6565,42 +6565,17 @@ async function parseAnalysisFileWithAI(input) {
     statusEl.innerHTML = `⏳ Анализирую через AI... Это займёт 10-30 секунд.`;
 
     // Формируем запрос к Claude
-    const prompt = `Ты лаборант-агроном. Перед тобой лабораторный протокол анализа ${isPdf?'почвы/листа/воды':isExcel?'таблица данных анализа':'документ анализа'}.
+    const prompt = `Извлеки числовые значения из лабораторного протокола анализа и верни ТОЛЬКО валидный JSON без комментариев и markdown.
 
-Извлеки все числовые значения и верни их СТРОГО в JSON формате без пояснений:
+Формат ответа (только JSON, ничего лишнего):
+{"type":"leaf","date":null,"lab":null,"values":{"N":null,"P":null,"K":null,"Ca":null,"Mg":null,"S":null,"Fe":null,"Mn":null,"Zn":null,"B":null,"Cu":null,"Mo":null,"pH":null,"EC":null,"NO3":null,"Na":null,"Cl":null,"OM":null,"CEC":null,"TDS":null,"SAR":null,"hard":null,"H2S":null}}
 
-{
-  "type": "leaf" | "soil" | "water",
-  "date": "YYYY-MM-DD или null",
-  "lab": "название лаборатории или null",
-  "values": {
-    "N": число или null,
-    "P": число или null,
-    "K": число или null,
-    "Ca": число или null,
-    "Mg": число или null,
-    "S": число или null,
-    "Fe": число или null,
-    "Mn": число или null,
-    "Zn": число или null,
-    "B": число или null,
-    "Cu": число или null,
-    "Mo": число или null,
-    "pH": число или null,
-    "EC": число или null,
-    "NO3": число или null,
-    "Na": число или null,
-    "Cl": число или null,
-    "OM": число или null,
-    "CEC": число или null,
-    "TDS": число или null,
-    "SAR": число или null,
-    "hard": число или null,
-    "H2S": число или null
-  }
-}
-
-Верни только JSON без markdown блоков. Если значение не найдено — null.`;
+Правила:
+- type: "leaf" если анализ листа, "soil" если почвы, "water" если воды
+- date: формат YYYY-MM-DD если найдена дата, иначе null
+- lab: название лаборатории если найдено, иначе null  
+- values: числа с точкой как разделитель (не запятая), null если не найдено
+- Верни ТОЛЬКО JSON без пояснений`;
 
     const messages = isPdf ? [{
       role: 'user',
@@ -6628,10 +6603,37 @@ async function parseAnalysisFileWithAI(input) {
     const text = data.content?.map(c=>c.text||'').join('') || '';
 
     // Парсим JSON из ответа
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if(!jsonMatch) throw new Error('AI не смог извлечь данные из файла');
-
-    const parsed = JSON.parse(jsonMatch[0]);
+    let parsed;
+    try {
+      // Чистим markdown блоки и лишние символы
+      let clean = text
+        .replace(/```json/gi, '')
+        .replace(/```/g, '')
+        .replace(/[\u0000-\u001F\u007F-\u009F]/g, ' ') // контрольные символы
+        .trim();
+      const jsonMatch = clean.match(/\{[\s\S]*\}/);
+      if(!jsonMatch) throw new Error('JSON не найден');
+      parsed = JSON.parse(jsonMatch[0]);
+    } catch(parseErr) {
+      // Пробуем извлечь значения напрямую из текста через regex
+      console.warn('[AI Parse] JSON error, trying regex extraction:', parseErr.message);
+      parsed = { type: 'leaf', values: {} };
+      const pairs = [
+        ['N','N'], ['P','P'], ['K','K'], ['Ca','Ca'], ['Mg','Mg'],
+        ['Fe','Fe'], ['B','B'], ['pH','pH'], ['EC','EC'], ['NO3','NO3'],
+        ['Na','Na'], ['Mn','Mn'], ['Zn','Zn'], ['Cu','Cu'], ['S','S']
+      ];
+      pairs.forEach(([key]) => {
+        const m = text.match(new RegExp(`"${key}"\\s*:\\s*([0-9]+\\.?[0-9]*)`));
+        if(m) parsed.values[key] = parseFloat(m[1]);
+      });
+      // Тип анализа
+      if(text.includes('"water"')) parsed.type = 'water';
+      else if(text.includes('"soil"')) parsed.type = 'soil';
+      // Дата
+      const dateM = text.match(/(\d{4}-\d{2}-\d{2})/);
+      if(dateM) parsed.date = dateM[1];
+    }
     const vals = parsed.values || {};
 
     // Заполняем поля модала
