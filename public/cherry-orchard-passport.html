@@ -6437,7 +6437,7 @@ function renderAnalysis() {
           ${an.lab?`<div style="font-size:10px;color:var(--text3);">${an.lab}</div>`:''}
           <div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap;justify-content:flex-end;">
             <button class="btn btn-secondary btn-xs" onclick="openAnalysisModal('${an.type}','${an.id}');event.stopPropagation();">✏️</button>
-            <button class="btn btn-danger btn-xs" onclick="if(confirm('Удалить анализ?')){S.analyses=S.analyses.filter(a=>a.id!=='${an.id}'&&a.id!==${an.id});save();renderAnalysis();}event.stopPropagation();">🗑</button>
+            <button class="btn btn-danger btn-xs" onclick="deleteAnalysisById('${an.id}');event.stopPropagation();">🗑</button>
             ${an.type==='leaf'||an.type==='water' ? `<button class="btn btn-secondary btn-xs" style="color:var(--teal);" onclick="openFertCalcFromAnalysis('${an.id}');event.stopPropagation();">🌱 Фертигация</button>` : ''}
           </div>
         </div>
@@ -6454,6 +6454,13 @@ function renderAnalysis() {
       </div>
     </div>`;
   }).join('');
+}
+
+function deleteAnalysisById(id) {
+  if(!confirm('Удалить анализ?')) return;
+  S.analyses = S.analyses.filter(a => String(a.id) !== String(id));
+  save();
+  renderAnalysis();
 }
 
 function openFertCalcFromAnalysis(analysisId) {
