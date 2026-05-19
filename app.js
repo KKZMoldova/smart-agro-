@@ -50,6 +50,21 @@ app.use('/api/parcels',     require('./routes/parcels'));
 app.use('/api/treatments',  require('./routes/treatments'));
 app.use('/api/irrigations', require('./routes/irrigations'));
 app.use('/api/analyses',    require('./routes/analyses'));
+
+// Fallback для сохранения анализов орчарда (если routes/analyses требует строгие поля)
+app.post('/api/orchard-analyses', async (req, res) => {
+  try {
+    const tenantId = req.headers['x-tenant-id'] || 'kkz';
+    const { id, type, date, values, lab, note, parcel_id } = req.body;
+    if(!id || !type) return res.status(400).json({error:'id и type обязательны'});
+    await db.query(`
+      INSERT INTO analyses (id, type, date, parcel_id, lab, values, note, tenant_id)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+      ON CONFLICT (id) DO UPDATE SET type=$2,date=$3,parcel_id=$4,lab=$5,values=$6,note=$7
+    `, [String(id), type, date||new Date().toISOString().split('T')[0], parcel_id||null, lab||'', JSON.stringify(values||{}), note||'', tenantId]);
+    res.json({ok:true, id});
+  } catch(e) { res.status(500).json({ok:false, error:e.message}); }
+});
 app.use('/api/catalog',     require('./routes/catalog'));
 app.use('/api/settings',    require('./routes/settings'));
 app.use('/api/staff',       require('./routes/staff'));
