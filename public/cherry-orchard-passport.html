@@ -4064,7 +4064,7 @@ const API = (() => {
     saveTreatment: (t) => post('/api/treatments', t),
     deleteTreatment: (id) => del(`/api/treatments/${id}`),
     getAnalyses: () => get('/api/analyses'),
-    saveAnalysis: (a) => post('/api/orchard-analyses', a),
+    saveAnalysis: (a) => post('/api/analyses', a),
     deleteAnalysis: (id) => del(`/api/analyses/${id}`),
     getSetting: (key) => get(`/api/settings/${key}`),
     setSetting: (key, value) => post(`/api/settings/${key}`, { value }),
@@ -4145,13 +4145,26 @@ async function save() {
   // Save analyses
   for (const a of (S.analyses || [])) {
     const values = {};
+    // Листовой анализ
     ['N','P','K','Ca','Mg','Fe','Mn','Zn','B','Cu','Mo','S'].forEach(el => {
       if (a[el] !== undefined) values[el] = a[el];
     });
+    // Почвенный анализ
+    ['pH','OM','CEC','BS','depth','NO3','B','Fe','Mn','Zn','Cu'].forEach(el => {
+      if (a[el] !== undefined) values[el] = a[el];
+    });
+    // Анализ воды
+    ['EC','TDS','hard','SAR','Cl','Na','H2S'].forEach(el => {
+      if (a[el] !== undefined) values[el] = a[el];
+    });
     await API.saveAnalysis({
-      id: String(a.id || a.date + '_leaf'), type: a.type || 'leaf',
-      date: a.date, parcel_id: null,
-      lab: a.lab || '', values, note: a.note || '',
+      id: String(a.id || a.date + '_' + (a.type||'leaf')),
+      type: a.type || 'leaf',
+      date: a.date,
+      parcel_id: a.cellKey || null,
+      lab: a.lab || '',
+      values,
+      note: a.note || '',
     });
   }
 
@@ -4220,7 +4233,9 @@ async function load() {
     if (aRes?.data?.length) {
       S.analyses = aRes.data.map(a => ({
         id: a.id, type: a.type, date: a.date,
-        ...( a.values || {}), lab: a.lab, note: a.note,
+        cellKey: a.parcel_id || '',
+        lab: a.lab || '', note: a.note || '',
+        ...( a.values || {}),
       }));
     }
 
@@ -4306,6 +4321,10 @@ function _mergeState(parsed) {
   if(parsed.gddDb && parsed.gddDb.varietyGdd){
     // parsed (saved) имеет приоритет над встроенными S.gddDb.varietyGdd
     parsed.gddDb.varietyGdd = Object.assign({}, S.gddDb.varietyGdd, parsed.gddDb.varietyGdd);
+  }
+  // Защита анализов: не перезаписывать пустым массивом
+  if (Array.isArray(parsed.analyses) && parsed.analyses.length === 0 && S.analyses?.length > 0) {
+    delete parsed.analyses; // сохраняем что уже есть в S
   }
   Object.assign(S, parsed);
 }
