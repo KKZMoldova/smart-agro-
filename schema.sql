@@ -186,6 +186,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   tenant_id             TEXT DEFAULT 'kkz',
   created_at            TIMESTAMPTZ DEFAULT NOW()
 );
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS zones_json JSONB;
 ALTER TABLE tasks ADD COLUMN IF NOT EXISTS tenant_id TEXT DEFAULT 'kkz';
 
 -- Типы работ
