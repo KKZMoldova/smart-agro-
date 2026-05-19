@@ -613,6 +613,9 @@ tbody td{padding:10px 12px;vertical-align:middle;}
       </div>
       <div id="irrig-actions-balance" style="display:none;gap:8px;">
         <button class="btn btn-secondary" onclick="openSoilParamsModal()">⚙️ Параметры почвы</button>
+        <button class="btn btn-secondary" onclick="downloadIrrigTemplate()">📋 Шаблон XLS</button>
+        <button class="btn btn-secondary" onclick="document.getElementById('irrig-import-input').click()">📥 Импорт XLS</button>
+        <input type="file" id="irrig-import-input" accept=".xls,.xlsx,.csv" style="display:none" onchange="importIrrigFromExcel(event)">
         <button class="btn btn-primary btn-sm" onclick="openIrrigEventModal()">💧 Записать полив</button>
         <button class="btn btn-secondary" onclick="calcWaterBalance()">🔄 Пересчитать</button>
       </div>
@@ -15206,6 +15209,226 @@ function importZonesFromExcel(event) {
 
     } catch(err) {
       alert('Ошибка чтения файла: ' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ===================== IRRIGATION LOG XLS IMPORT =====================
+
+function downloadIrrigTemplate() {
+  const zones   = (S.irrigation?.zones||[]);
+  const cells   = Object.keys(S.cells||{}).sort();
+
+  // ── Лист 1: Журнал полива ──
+  const headers = [
+    'Дата (ДД.ММ.ГГГГ)',
+    'Зона полива (название)',
+    'Участок (ключ, если без зоны)',
+    'Продолжительность (мин)',
+    'Объём воды (м³)',
+    'Норма (мм)',
+    'Примечание',
+  ];
+
+  // Примеры — заполняем реальными зонами если есть
+  const zEx = zones.length ? zones[0].name : 'Черешня valva 1';
+  const zEx2 = zones.length > 1 ? zones[1].name : 'Черешня valva 2';
+  const cEx  = cells.length ? cells[0] : '1-1';
+
+  const examples = [
+    ['01.04.2025', zEx,  '',   120, 18,   15, 'Плановый'],
+    ['03.04.2025', zEx,  '',   90,  13.5, 11, ''],
+    ['05.04.2025', zEx2, '',   120, 15,   12, 'Плановый'],
+    ['07.04.2025', zEx,  '',   150, 22.5, 18, 'После жары'],
+    ['10.04.2025', '',   cEx,  '',  10,   8,  'Ручной полив без зоны'],
+    ['12.04.2025', zEx,  '',   '',  '',   20, 'Только мм'],
+    ['15.04.2025', zEx,  '',   120, '',   '',  'Только минуты — объём рассчитается'],
+    ['20.04.2025', zEx2, '',   90,  '',   '',  ''],
+  ];
+
+  // ── Лист 2: Справочник зон (для заполнения) ──
+  const zoneHeaders = ['Название зоны', 'Участки', 'Расход (м³/ч)', 'Площадь (га)', 'ID'];
+  const zoneRows = zones.length
+    ? zones.map(z=>[z.name, (z.cellKeys||[]).join(', '), z.flowRate||'', (z.area||0).toFixed(2), z.id])
+    : [['(зоны не настроены — введите название вручную)', '', '', '', '']];
+
+  // Подсказки
+  const noteRows = [
+    [],
+    ['ПРАВИЛА ЗАПОЛНЕНИЯ:'],
+    ['• Зона полива — скопируйте точное название из листа «Зоны» ниже'],
+    ['• Или укажите Участок (ключ: 1-1, 2-3 и т.д.) если без зоны'],
+    ['• Продолжительность (мин) — если указана и зона имеет расход, объём рассчитается авто'],
+    ['• Объём (м³) — если указан, мм рассчитается авто из площади зоны'],
+    ['• Норма (мм) — можно указать напрямую (например из счётчика)'],
+    ['• Достаточно заполнить одно из трёх: минуты / м³ / мм'],
+    [],
+    ['Участки (ключи):'],
+    [cells.join(', ') || 'нет участков — добавьте на карте'],
+  ];
+
+  const wb = XLSX.utils.book_new();
+
+  const ws1 = XLSX.utils.aoa_to_sheet([headers, ...examples, ...noteRows]);
+  ws1['!cols'] = [{wch:16},{wch:22},{wch:14},{wch:16},{wch:14},{wch:12},{wch:30}];
+  ws1['!freeze'] = {xSplit:0, ySplit:1};
+  XLSX.utils.book_append_sheet(wb, ws1, 'Журнал полива');
+
+  const ws2 = XLSX.utils.aoa_to_sheet([zoneHeaders, ...zoneRows]);
+  ws2['!cols'] = [{wch:24},{wch:20},{wch:14},{wch:12},{wch:20}];
+  XLSX.utils.book_append_sheet(wb, ws2, 'Зоны');
+
+  XLSX.writeFile(wb, 'шаблон_журнал_полива.xlsx');
+}
+
+function importIrrigFromExcel(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  event.target.value = '';
+
+  // Показываем статус
+  let statusEl = document.getElementById('irrig-import-status');
+  if (!statusEl) {
+    statusEl = document.createElement('div');
+    statusEl.id = 'irrig-import-status';
+    statusEl.style.cssText = 'margin:8px 0 12px;';
+    const actionsDiv = document.getElementById('irrig-actions-balance');
+    actionsDiv?.insertAdjacentElement('afterend', statusEl);
+  }
+  statusEl.style.display = 'block';
+  statusEl.innerHTML = `<div style="padding:10px 14px;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.3);border-radius:8px;font-size:12px;color:var(--yellow);">⏳ Читаю ${file.name}...</div>`;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+      // Читаем первый лист (журнал полива)
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+
+      // Найти строку заголовков
+      let hi = 0;
+      for (let i = 0; i < Math.min(5, rows.length); i++) {
+        const r = rows[i].map(c => String(c||'').toLowerCase());
+        if (r.some(c => c.includes('дата') || c.includes('date') || c.includes('data'))) { hi = i; break; }
+      }
+      const H = rows[hi].map(c => String(c||'').toLowerCase().trim());
+      const col = (...kws) => { for (const kw of kws) { const i = H.findIndex(h=>h.includes(kw)); if(i>=0) return i; } return -1; };
+
+      const iDate  = col('дата','date','data');
+      const iZone  = col('зона','zone','zonă');
+      const iCell  = col('участок','cell','parcela','клетка');
+      const iDur   = col('продолж','дурат','minut','duration','min');
+      const iVol   = col('объём','volume','м³','m3','volum');
+      const iMm    = col('норма','мм','mm','norme');
+      const iNote  = col('примеч','note','observ');
+
+      if (iDate < 0) {
+        statusEl.innerHTML = `<div style="padding:10px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);border-radius:8px;font-size:12px;color:var(--red);">❌ Не найдена колонка «Дата». Используйте шаблон.</div>`;
+        return;
+      }
+
+      if (!S.irrigation) S.irrigation = {};
+      if (!S.irrigation.events) S.irrigation.events = [];
+
+      const zones = S.irrigation.zones || [];
+      let added = 0, skipped = 0, errors = [];
+
+      for (let i = hi + 1; i < rows.length; i++) {
+        const r = rows[i];
+        const rawDate = r[iDate];
+        if (!rawDate) continue;
+
+        // Парсим дату (DD.MM.YYYY / YYYY-MM-DD / Excel serial)
+        let date = null;
+        const ds = String(rawDate).trim();
+        const m1 = ds.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+        if (m1) date = `${m1[3]}-${m1[2].padStart(2,'0')}-${m1[1].padStart(2,'0')}`;
+        else if (ds.match(/^\d{4}-\d{2}-\d{2}/)) date = ds.slice(0,10);
+        else if (/^\d{5}$/.test(ds)) {
+          const d = new Date(Math.round((parseInt(ds)-25569)*86400*1000));
+          date = d.toISOString().split('T')[0];
+        }
+        if (!date) { errors.push(`Строка ${i+1}: не распознана дата "${ds}"`); continue; }
+
+        // Зона — по названию
+        const zoneName = iZone >= 0 ? String(r[iZone]||'').trim() : '';
+        const zone = zoneName ? zones.find(z => z.name.toLowerCase() === zoneName.toLowerCase()
+          || z.name.toLowerCase().includes(zoneName.toLowerCase())) : null;
+
+        // Участок — если нет зоны
+        const cellRaw = iCell >= 0 ? String(r[iCell]||'').trim() : '';
+        const cellKeys = zone ? (zone.cellKeys||[])
+          : (cellRaw && S.cells[cellRaw] ? [cellRaw] : []);
+
+        // Числовые значения
+        const durationMin = iDur >= 0 ? parseFloat(String(r[iDur]).replace(',','.')) || 0 : 0;
+        let volumeM3      = iVol >= 0 ? parseFloat(String(r[iVol]).replace(',','.')) || 0 : 0;
+        let mm            = iMm  >= 0 ? parseFloat(String(r[iMm]).replace(',','.'))  || 0 : 0;
+
+        // Авто-расчёт недостающих значений
+        const areaHa = zone?.area || cellKeys.reduce((s,k)=>s+(calcCellTotals(S.cells[k]||{}).totalHa||0), 0) || 1;
+        if (!volumeM3 && durationMin && zone?.flowRate) {
+          volumeM3 = Math.round(zone.flowRate * durationMin / 60 * 10) / 10;
+        }
+        if (!mm && volumeM3 && areaHa) {
+          mm = Math.round(volumeM3 / areaHa / 10 * 10) / 10;
+        }
+        if (!volumeM3 && mm && areaHa) {
+          volumeM3 = Math.round(mm * areaHa * 10 * 10) / 10;
+        }
+
+        if (!mm && !volumeM3 && !durationMin) { skipped++; continue; }
+
+        // Проверяем дубликат (та же дата + та же зона)
+        const isDup = S.irrigation.events.some(ev =>
+          ev.date === date &&
+          ev.zoneId === (zone?.id||'') &&
+          ev.cellKeys?.join(',') === cellKeys.join(',')
+        );
+        if (isDup) { skipped++; continue; }
+
+        // GDD фаза
+        const phase = (() => {
+          try { return getPhaseByGdd(S.varieties[0]?.id, getCurrentGdd(5))?.name || ''; }
+          catch { return ''; }
+        })();
+
+        S.irrigation.events.unshift({
+          id: uid(),
+          date,
+          zoneId:   zone?.id || '',
+          zoneName: zone?.name || zoneName || cellRaw || 'Ручной ввод',
+          cellKeys,
+          durationMin,
+          volumeM3,
+          mm,
+          phase,
+          note: iNote >= 0 ? String(r[iNote]||'').trim() : '',
+        });
+        added++;
+      }
+
+      // Сортируем по дате убыванию
+      S.irrigation.events.sort((a,b) => b.date.localeCompare(a.date));
+      save();
+      calcWaterBalance();
+
+      const errHtml = errors.length
+        ? `<br><span style="color:var(--orange);">⚠️ Пропущено строк с ошибкой даты: ${errors.length}</span>`
+        : '';
+      statusEl.innerHTML = `<div style="padding:12px 16px;background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.3);border-radius:8px;font-size:12px;">
+        ✅ <strong>Журнал полива импортирован</strong><br>
+        • Добавлено записей: <strong style="color:var(--accent)">${added}</strong><br>
+        ${skipped ? `• Пропущено (дубликаты / пустые): ${skipped}<br>` : ''}
+        ${errHtml}
+        <div style="margin-top:6px;color:var(--text3);">Water Balance пересчитан автоматически.</div>
+      </div>`;
+      setTimeout(() => statusEl.style.display = 'none', 10000);
+
+    } catch(err) {
+      statusEl.innerHTML = `<div style="padding:10px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);border-radius:8px;font-size:12px;color:var(--red);">❌ Ошибка: ${err.message}</div>`;
     }
   };
   reader.readAsArrayBuffer(file);
