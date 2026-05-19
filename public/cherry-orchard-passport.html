@@ -6683,33 +6683,17 @@ async function parseAnalysisFileWithAI(input) {
       content: prompt + '\n\nСодержимое файла (base64): ' + base64.slice(0, 2000)
     }];
 
-    // Пробуем прямой вызов Anthropic API (работает через браузер)
-    // Сначала пробуем через сервер-прокси, если недоступен — прямой вызов
-    let resp, data;
-    try {
-      resp = await fetch('/api/ai/parse-pdf', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1000, messages })
-      });
-      if (!resp.ok) throw new Error('proxy_fail');
-      data = await resp.json();
-    } catch(proxyErr) {
-      // Прокси недоступен — вызываем Anthropic напрямую
-      resp = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'anthropic-version': '2023-06-01',
-          'anthropic-dangerous-direct-browser-access': 'true',
-        },
-        body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1000, messages })
-      });
-      if (!resp.ok) throw new Error('AI недоступен: ' + resp.status);
-      data = await resp.json();
-    }
+    // Вызов через сервер (Railway)
+    const resp = await fetch('/api/ai/parse-pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'claude-opus-4-5', max_tokens: 1000, messages })
+    });
 
-    if(!data) throw new Error('Нет ответа от AI');
+    if (!resp.ok) throw new Error('AI недоступен: ' + resp.status);
+    const data = await resp.json();
+
+    if (!data) throw new Error('Нет ответа от AI');
     const text = data.content?.map(c=>c.text||'').join('') || '';
 
     // Парсим JSON из ответа
