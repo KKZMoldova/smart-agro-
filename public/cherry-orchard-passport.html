@@ -603,6 +603,9 @@ tbody td{padding:10px 12px;vertical-align:middle;}
       </div>
       <div id="irrig-actions-zones" style="display:none;gap:8px;">
         <button class="btn btn-secondary" onclick="startMultiIrrig()">💧💧 Полить несколько зон</button>
+        <button class="btn btn-secondary" onclick="downloadZonesTemplate()">📋 Шаблон XLS</button>
+        <button class="btn btn-secondary" onclick="document.getElementById('zones-import-input').click()">📥 Импорт XLS</button>
+        <input type="file" id="zones-import-input" accept=".xls,.xlsx,.csv" style="display:none" onchange="importZonesFromExcel(event)">
         <button class="btn btn-primary" onclick="openIrrigZoneModal()">+ Зона полива</button>
       </div>
       <div id="irrig-actions-balance" style="display:none;gap:8px;">
@@ -984,6 +987,9 @@ tbody td{padding:10px 12px;vertical-align:middle;}
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <button class="btn btn-secondary" onclick="showMoaAnalysis()">🔄 МОА-ротация</button>
         <button class="btn btn-secondary" onclick="syncCatalogFromTreatments()">🔄 Синхр. из обработок</button>
+        <button class="btn btn-secondary" onclick="downloadCatalogTemplate()">📋 Шаблон XLS</button>
+        <button class="btn btn-secondary" onclick="document.getElementById('catalog-import-input').click()">📥 Импорт XLS</button>
+        <input type="file" id="catalog-import-input" accept=".xls,.xlsx,.csv" style="display:none" onchange="importCatalogFromExcel(event)">
         <button class="btn btn-primary" onclick="openCatalogAddModal()">+ Добавить препарат</button>
       </div>
     </div>
@@ -1012,7 +1018,11 @@ tbody td{padding:10px 12px;vertical-align:middle;}
     <div class="map-controls">
       <button class="btn btn-primary" onclick="openCellModal()">+ Добавить / изменить клетку</button>
       <button class="btn btn-secondary" onclick="openVarietyModal()">🌿 Сорта</button>
+      <button class="btn btn-secondary" onclick="downloadCellsTemplate()">📋 Шаблон XLS</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('cells-import-input').click()">📥 Импорт XLS</button>
+      <input type="file" id="cells-import-input" accept=".xls,.xlsx,.csv" style="display:none" onchange="importCellsFromExcel(event)">
     </div>
+    <div id="cells-import-status" style="display:none;margin-bottom:12px;"></div>
     <div class="map-wrap">
       <div>
         <div class="map-area" id="map-area"></div>
@@ -1037,6 +1047,8 @@ tbody td{padding:10px 12px;vertical-align:middle;}
         </div>
         <span class="rain-badge" id="rain-badge" style="display:none;"></span>
         <button class="btn btn-secondary" onclick="openExportModal()">📊 Отчёт Excel</button>
+        <button class="btn btn-secondary" onclick="document.getElementById('treatments-import-input').click()">📥 Импорт XLS</button>
+        <input type="file" id="treatments-import-input" accept=".xls,.xlsx,.csv" style="display:none" onchange="importTreatmentsFile(event)">
       </div>
     </div>
     <div id="treatments-import-status" style="display:none;margin-bottom:12px;"></div>
@@ -14598,6 +14610,441 @@ function exportToExcel(){
   const fname=`Обработки_сад_${from}_${to}.xlsx`;
   XLSX.writeFile(wb,fname);
   closeModal('modal-export');
+}
+
+// ===================== CELLS (УЧАСТКИ) XLS IMPORT =====================
+
+function downloadCellsTemplate() {
+  const headers = [
+    'Участок (строка)', 'Участок (колонка)', 'Культура (ID)',
+    'Расст. между рядами (м)', 'Расст. между дер. (м)',
+    'Год посадки', 'Подвой', 'Схема посадки', 'Укрытие',
+    'Ряды С (от)', 'Ряды С (до)', 'Длина ряда (м)', 'Сорт (ID)',
+    'Примечание'
+  ];
+  const cropIds = (S.crops||[]).map(c=>`${c.id} = ${c.name}`).join(' | ');
+  const varIds  = (S.varieties||[]).map(v=>`${v.id} = ${v.name}`).join(' | ');
+
+  const examples = [
+    [1, 1, 'crop_cherry', 5, 3, 2018, 'Гизела 5', '4×2', 'none', 1, 25, 200, 'v2', 'Кордия'],
+    [1, 1, 'crop_cherry', 5, 3, 2018, 'Гизела 5', '4×2', 'none', 26, 50, 200, 'v1', ''],
+    [1, 2, 'crop_cherry', 5, 3, 2019, 'Гизела 5', '4×2', 'film',  1, 30, 180, 'v4', 'Скина'],
+    [2, 1, 'crop_apple',  4, 2, 2020, 'М9',       '3×1', 'none',  1, 40, 250, 'va1',''],
+  ];
+
+  const infoRows = [
+    [], ['СПРАВОЧНИК культур (cropId):'], [cropIds],
+    [], ['СПРАВОЧНИК сортов (varietyId):'], [varIds],
+    [], ['ВНИМАНИЕ: Один участок (строка+колонка) может занимать несколько строк — по одной строке на каждую группу рядов с одним сортом.'],
+    ['Укрытие: none | film | net | hail_net'],
+  ];
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...examples, ...infoRows]);
+  ws['!cols'] = [6,8,16,12,12,10,14,14,10,8,8,12,12,20].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws, 'Участки');
+  XLSX.writeFile(wb, 'шаблон_участки.xlsx');
+}
+
+function importCellsFromExcel(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  event.target.value = '';
+
+  const statusEl = document.getElementById('cells-import-status');
+  statusEl.style.display = 'block';
+  statusEl.innerHTML = `<div style="padding:10px 14px;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.3);border-radius:8px;font-size:12px;color:var(--yellow);">⏳ Читаю ${file.name}...</div>`;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+
+      // Найти строку заголовков
+      let hi = 0;
+      for (let i = 0; i < Math.min(5, rows.length); i++) {
+        const r = rows[i].map(c => String(c).toLowerCase());
+        if (r.some(c => c.includes('участ') || c.includes('строк') || c.includes('row') || c.includes('rând'))) { hi = i; break; }
+      }
+      const H = rows[hi].map(c => String(c).toLowerCase().trim());
+      const col = (...kws) => { for (const kw of kws) { const i = H.findIndex(h=>h.includes(kw)); if(i>=0) return i; } return -1; };
+
+      const iRow    = col('строк','row','rând','участок (с');
+      const iCol    = col('колон','col','valvă','участок (к');
+      const iCrop   = col('культур','crop','cultură');
+      const iRSp    = col('между рядами','row spac','distanţa r');
+      const iTSp    = col('между дер','tree spac','distanţa t');
+      const iYear   = col('год посадки','plant year','an');
+      const iRoot   = col('подвой','rootstock','portaltoi');
+      const iScheme = col('схема','scheme','schemă');
+      const iCover  = col('укрытие','cover','acoper');
+      const iFrom   = col('от','from','de la','ряды с (от');
+      const iTo     = col('до','to','până','ряды с (до');
+      const iLen    = col('длина','length','lungim');
+      const iVar    = col('сорт','variety','soi','varietate');
+      const iNote   = col('примеч','note','observ');
+
+      if (iRow < 0 || iCol < 0) {
+        statusEl.innerHTML = `<div style="padding:10px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);border-radius:8px;font-size:12px;color:var(--red);">❌ Не найдены колонки «Участок (строка)» и «Участок (колонка)». Используйте шаблон.</div>`;
+        return;
+      }
+
+      // Группируем строки по ключу участка
+      const cellMap = {}; // key → {meta, rows[]}
+      let addedCells = 0, addedRows = 0, skipped = 0;
+
+      for (let i = hi + 1; i < rows.length; i++) {
+        const r = rows[i];
+        const rn = parseInt(r[iRow]);
+        const cn = parseInt(r[iCol]);
+        if (!rn || !cn) continue;
+        const key = `${rn}-${cn}`;
+        if (!cellMap[key]) {
+          cellMap[key] = {
+            cropId:   iCrop  >= 0 ? String(r[iCrop]).trim()  : 'crop_cherry',
+            rowSpacing: iRSp  >= 0 ? parseFloat(String(r[iRSp]).replace(',','.'))  || 5 : 5,
+            treeSpacing:iTSp  >= 0 ? parseFloat(String(r[iTSp]).replace(',','.'))  || 3 : 3,
+            plantYear:  iYear >= 0 ? parseInt(r[iYear]) || null : null,
+            rootstock:  iRoot >= 0 ? String(r[iRoot]).trim() : '',
+            plantingScheme: iScheme >= 0 ? String(r[iScheme]).trim() : '',
+            cover:      iCover >= 0 ? String(r[iCover]).trim() || 'none' : 'none',
+            note:       iNote >= 0 ? String(r[iNote]).trim() : '',
+            rows: [],
+          };
+        }
+        const fromV = iFrom >= 0 ? parseInt(r[iFrom]) : null;
+        const toV   = iTo   >= 0 ? parseInt(r[iTo])   : null;
+        const lenV  = iLen  >= 0 ? parseFloat(String(r[iLen]).replace(',','.')) : null;
+        const varV  = iVar  >= 0 ? String(r[iVar]).trim() : '';
+        if (fromV && lenV) {
+          // Найти varietyId по имени или ID
+          let vid = varV;
+          if (varV && !S.varieties.find(v=>v.id===varV)) {
+            const found = S.varieties.find(v=>v.name.toLowerCase().includes(varV.toLowerCase()));
+            vid = found ? found.id : '';
+          }
+          cellMap[key].rows.push({from: fromV, to: toV||fromV, rowLength: lenV, varietyId: vid});
+          addedRows++;
+        }
+      }
+
+      // Записываем в S.cells
+      for (const [key, data] of Object.entries(cellMap)) {
+        if (S.cells[key]) { skipped++; continue; } // не перезаписываем существующие
+        S.cells[key] = data;
+        addedCells++;
+      }
+
+      save(); renderMap(); updateHdr();
+
+      statusEl.innerHTML = `<div style="padding:12px 16px;background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.3);border-radius:8px;font-size:12px;">
+        ✅ <strong>Импорт участков завершён</strong><br>
+        • Добавлено участков: <strong style="color:var(--accent)">${addedCells}</strong><br>
+        • Строк рядов: <strong style="color:var(--accent)">${addedRows}</strong><br>
+        ${skipped ? `• Пропущено (уже существуют): ${skipped}` : ''}
+        <div style="margin-top:6px;color:var(--text3);">Проверьте участки на карте. Нажмите клетку для редактирования.</div>
+      </div>`;
+      setTimeout(() => statusEl.style.display = 'none', 10000);
+
+    } catch(err) {
+      statusEl.innerHTML = `<div style="padding:10px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);border-radius:8px;font-size:12px;color:var(--red);">❌ Ошибка: ${err.message}</div>`;
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ===================== IRRIGATION ZONES XLS IMPORT =====================
+
+function downloadZonesTemplate() {
+  const headers = [
+    'Название зоны', 'Участки (ключи через запятую)',
+    'Тип полива', 'Расход воды (м³/ч)', 'Давление (бар)',
+    'Расст. капельниц (см)', 'Расход капельницы (л/ч)', 'Капельниц/дерево',
+    'Тип почвы', 'Глубина корней (см)', 'Макс. длит. (мин)', 'Мин. интервал (ч)',
+    'Время старта', 'Примечание'
+  ];
+  const cellKeys = Object.keys(S.cells||{}).slice(0,8).join(', ') || '1-1, 1-2, 2-1';
+  const examples = [
+    ['Черешня valva 1', '1-1, 1-2', 'drip', 15, 2.5, 50, 1.6, 2, 'clay_loam', 50, 120, 12, '06:00', ''],
+    ['Черешня valva 2', '2-1',      'drip', 12, 2.0, 50, 1.6, 2, 'clay_loam', 50, 90,  12, '08:00', ''],
+    ['Яблоня',         '3-1, 3-2', 'sprinkler', 20, 3, '', '', '', 'loam', 60, 60, 24, '05:00', ''],
+  ];
+  const infoRows = [
+    [],
+    ['Тип полива: drip | sprinkler | micro_sprinkler | surface'],
+    ['Тип почвы: clay_loam | loam | sandy_loam | clay | sand'],
+    [`Доступные участки (ключи): ${cellKeys}`],
+  ];
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...examples, ...infoRows]);
+  ws['!cols'] = [20,25,14,14,12,15,16,14,14,14,14,14,12,20].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws, 'Зоны полива');
+  XLSX.writeFile(wb, 'шаблон_зоны_полива.xlsx');
+}
+
+function importZonesFromExcel(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  event.target.value = '';
+
+  if (!S.irrigation) S.irrigation = {};
+  if (!S.irrigation.zones) S.irrigation.zones = [];
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+
+      // Найти строку заголовков
+      let hi = 0;
+      for (let i = 0; i < Math.min(5, rows.length); i++) {
+        const r = rows[i].map(c => String(c).toLowerCase());
+        if (r.some(c => c.includes('назван') || c.includes('zone') || c.includes('zonă') || c.includes('зона'))) { hi = i; break; }
+      }
+      const H = rows[hi].map(c => String(c).toLowerCase().trim());
+      const col = (...kws) => { for (const kw of kws) { const i = H.findIndex(h=>h.includes(kw)); if(i>=0) return i; } return -1; };
+
+      const iName    = col('назван','name','zonă','зона');
+      const iCells   = col('участ','cell','parcelă','keys');
+      const iType    = col('тип полива','type','tip irig');
+      const iFlow    = col('расход воды','flow','debit');
+      const iPress   = col('давлен','press','presiu');
+      const iEmSp    = col('расст. кап','emitter','distanţa');
+      const iDrFlow  = col('расход кап','dripper flow','debit pic');
+      const iDrTree  = col('кап/дер','drippers per','picurăt');
+      const iSoil    = col('тип почв','soil','sol');
+      const iRoot    = col('глубина','root','rădăcin');
+      const iMaxDur  = col('макс','max dur','durată');
+      const iMinInt  = col('мин. инт','min int','interval');
+      const iStart   = col('время ст','start','pornire');
+      const iNote    = col('примеч','note','observ');
+
+      if (iName < 0) {
+        alert('Не найдена колонка «Название зоны». Используйте шаблон.');
+        return;
+      }
+
+      let added = 0, skipped = 0;
+
+      for (let i = hi + 1; i < rows.length; i++) {
+        const r = rows[i];
+        const name = String(r[iName]||'').trim();
+        if (!name) continue;
+
+        // Пропускаем дубликаты по имени
+        if (S.irrigation.zones.some(z => z.name.toLowerCase() === name.toLowerCase())) { skipped++; continue; }
+
+        // Участки: "1-1, 1-2" → ['1-1','1-2']
+        const cellRaw = iCells >= 0 ? String(r[iCells]||'') : '';
+        const cellKeys = cellRaw.split(/[,;]+/).map(k=>k.trim()).filter(k=>k && /^\d+-\d+$/.test(k));
+
+        const zone = {
+          id: uid(),
+          name,
+          cellKeys,
+          irrigType:    iType   >= 0 ? String(r[iType]||'drip').trim() : 'drip',
+          flowRate:     iFlow   >= 0 ? parseFloat(String(r[iFlow]).replace(',','.'))   || null : null,
+          pressure:     iPress  >= 0 ? parseFloat(String(r[iPress]).replace(',','.'))  || null : null,
+          emitterSpacing: iEmSp >= 0 ? parseInt(r[iEmSp])   || null : null,
+          dripperFlow:  iDrFlow >= 0 ? parseFloat(String(r[iDrFlow]).replace(',','.')) || null : null,
+          drippersPerTree: iDrTree >= 0 ? parseInt(r[iDrTree]) || null : null,
+          soilType:     iSoil   >= 0 ? String(r[iSoil]||'clay_loam').trim() : 'clay_loam',
+          rootDepth:    iRoot   >= 0 ? parseInt(r[iRoot])   || 50  : 50,
+          maxDuration:  iMaxDur >= 0 ? parseInt(r[iMaxDur]) || 120 : 120,
+          minInterval:  iMinInt >= 0 ? parseInt(r[iMinInt]) || 12  : 12,
+          startTime:    iStart  >= 0 ? String(r[iStart]||'06:00').trim() : '06:00',
+          note:         iNote   >= 0 ? String(r[iNote]||'').trim() : '',
+          // вычисляем площадь из участков
+          area: cellKeys.reduce((s,k)=>{ const cd=S.cells[k]; return s+(cd?calcCellTotals(cd).totalHa:0); },0),
+          varietyIds: [],
+          valveId:'', pumpId:'', dripperType:'',
+          station:'00002158',
+          irrigMode:'deficit', targetMoisture:80, stressThreshold:50,
+          wettedArea:35,
+        };
+        S.irrigation.zones.push(zone);
+        added++;
+      }
+
+      save(); renderIrrigZones();
+
+      // Показываем статус в панели ирригации
+      let statusEl = document.getElementById('zones-import-status');
+      if (!statusEl) {
+        statusEl = document.createElement('div');
+        statusEl.id = 'zones-import-status';
+        statusEl.style.cssText = 'margin:8px 0 12px;';
+        const actionsDiv = document.getElementById('irrig-actions-zones');
+        actionsDiv?.insertAdjacentElement('afterend', statusEl);
+      }
+      statusEl.innerHTML = `<div style="padding:12px 16px;background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.3);border-radius:8px;font-size:12px;">
+        ✅ <strong>Импорт зон полива завершён</strong><br>
+        • Добавлено зон: <strong style="color:var(--accent)">${added}</strong><br>
+        ${skipped ? `• Пропущено (дубликаты): ${skipped}` : ''}
+        <div style="margin-top:6px;color:var(--text3);">Откройте каждую зону для проверки и уточнения параметров.</div>
+      </div>`;
+      statusEl.style.display = 'block';
+      setTimeout(() => statusEl.style.display = 'none', 10000);
+
+    } catch(err) {
+      alert('Ошибка чтения файла: ' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ===================== CATALOG XLS IMPORT =====================
+
+function importCatalogFromExcel(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  event.target.value = '';
+
+  const TYPE_MAP = {
+    'фунгицид':'fungicide','fungicide':'fungicide','fungicid':'fungicide',
+    'инсектицид':'insecticide','insecticide':'insecticide','insecticid':'insecticide',
+    'гербицид':'herbicide','herbicide':'herbicide','erbicid':'herbicide',
+    'регулятор':'regulator','growth regulator':'regulator','регулятор роста':'regulator',
+    'листовое питание':'foliar_nutrition','удобрение листовое':'foliar_nutrition','foliar':'foliar_nutrition',
+    'пав':'surfactant','surfactant':'surfactant','adjuvant':'surfactant',
+    'биопрепарат':'bio','bio':'bio','biological':'bio',
+  };
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+
+      // Найти строку заголовков (первая строка с "название" или "name")
+      let headerRow = 0;
+      for (let i = 0; i < Math.min(5, rows.length); i++) {
+        const r = rows[i].map(c => String(c).toLowerCase());
+        if (r.some(c => c.includes('назван') || c.includes('name') || c.includes('препарат') || c.includes('produs'))) {
+          headerRow = i; break;
+        }
+      }
+
+      const headers = rows[headerRow].map(c => String(c).toLowerCase().trim());
+      const col = (keywords) => {
+        for (const kw of keywords) {
+          const idx = headers.findIndex(h => h.includes(kw));
+          if (idx >= 0) return idx;
+        }
+        return -1;
+      };
+
+      const iName    = col(['назван','name','препарат','produs','denumire']);
+      const iType    = col(['тип','type','tip','категор','categ']);
+      const iActive  = col(['д.в','active','substanţ','вещест','a.i.','действ']);
+      const iDose    = col(['доза','dose','doza','норма','rate','л/га','кг/га']);
+      const iWater   = col(['вода','water','apă','расход воды','л/га воды']);
+      const iDur     = col(['срок','duration','period','защит','interval','кзр']);
+      const iPhi     = col(['пхи','phi','пред уб','harvest','сбор']);
+      const iHazard  = col(['класс','hazard','hazard','опасн','danger']);
+      const iTargets = col(['культур','target','crop','объект','против']);
+      const iNote    = col(['примеч','note','observ','коммент']);
+
+      if (iName < 0) {
+        alert('Не найдена колонка с названием препарата.\nПроверьте что в файле есть заголовок: Название / Name / Препарат');
+        return;
+      }
+
+      const imported = [];
+      const skipped = [];
+
+      for (let i = headerRow + 1; i < rows.length; i++) {
+        const row = rows[i];
+        const name = String(row[iName] || '').trim();
+        if (!name) continue;
+
+        // Пропускаем дубликаты
+        if (S.catalog.some(p => p.name.toLowerCase() === name.toLowerCase())) {
+          skipped.push(name);
+          continue;
+        }
+
+        const rawType = String(row[iType] || '').toLowerCase().trim();
+        let type = 'fungicide';
+        for (const [key, val] of Object.entries(TYPE_MAP)) {
+          if (rawType.includes(key)) { type = val; break; }
+        }
+
+        const prod = {
+          id: 'imp_' + Date.now() + '_' + i,
+          name,
+          type,
+          activeSubstance: iActive >= 0 ? String(row[iActive] || '').trim() : '',
+          fracCode: '',
+          moaGroup: '',
+          dose:     iDose   >= 0 ? parseFloat(String(row[iDose]).replace(',','.'))   || 0   : 0,
+          water:    iWater  >= 0 ? parseFloat(String(row[iWater]).replace(',','.'))  || 400 : 400,
+          duration: iDur    >= 0 ? parseInt(row[iDur])    || 14  : 14,
+          washMm:   15,
+          washType: 'partial',
+          method:   'foliar',
+          phi:      iPhi    >= 0 ? parseInt(row[iPhi])    || 7   : 7,
+          hazard:   iHazard >= 0 ? parseInt(row[iHazard]) || 3   : 3,
+          targets:  iTargets >= 0 ? String(row[iTargets] || '').trim() : '',
+          compatibility: '',
+          note:     iNote   >= 0 ? String(row[iNote]   || '').trim() : '',
+        };
+        S.catalog.push(prod);
+        imported.push(name);
+      }
+
+      save();
+      renderCatalog();
+
+      // Показываем результат
+      const statusHtml = `
+        <div style="padding:12px 16px;background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.3);border-radius:8px;font-size:12px;">
+          ✅ <strong>Импорт завершён</strong> из ${file.name}<br>
+          • Добавлено: <strong style="color:var(--accent)">${imported.length}</strong> препаратов<br>
+          ${skipped.length ? `• Пропущено (дубликаты): ${skipped.length} — ${skipped.slice(0,5).join(', ')}${skipped.length>5?'…':''}` : ''}
+          ${imported.length ? `<div style="margin-top:6px;color:var(--text3);">Проверьте типы и дозы — при необходимости отредактируйте вручную.</div>` : ''}
+        </div>`;
+      // Показать статус под заголовком каталога
+      let statusEl = document.getElementById('catalog-import-status');
+      if (!statusEl) {
+        statusEl = document.createElement('div');
+        statusEl.id = 'catalog-import-status';
+        statusEl.style.marginBottom = '14px';
+        const panel = document.getElementById('panel-catalog');
+        const sectionHdr = panel?.querySelector('.section-hdr');
+        if (sectionHdr) sectionHdr.insertAdjacentElement('afterend', statusEl);
+      }
+      statusEl.innerHTML = statusHtml;
+      statusEl.style.display = 'block';
+      setTimeout(() => { statusEl.style.display = 'none'; }, 8000);
+
+    } catch(err) {
+      alert('Ошибка чтения файла: ' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function downloadCatalogTemplate() {
+  const headers = ['Название','Тип','Д.В. (действующее вещество)','Доза (л/га или кг/га)','Расход воды (л/га)','Срок защиты (дней)','ПХИ (дней до сбора)','Класс опасности (1-4)','Культуры / Цели','Примечание'];
+  const examples = [
+    ['Делан WG','фунгицид','дифеноконазол','0.3','600','14','7','3','черешня, яблоня','парша, монилиоз'],
+    ['Хорус 75WG','фунгицид','ципродинил','0.2','600','10','7','3','черешня','монилиоз, коккомикоз'],
+    ['Актара 25WG','инсектицид','тиаметоксам','0.14','600','21','14','2','черешня, яблоня','тля, долгоносик'],
+    ['Калипсо SC','инсектицид','тиаклоприд','0.24','600','14','7','3','черешня','вишнёвая муха'],
+    ['Свитч 62.5WG','фунгицид','ципродинил + флудиоксонил','0.8','600','14','7','3','черешня','серая гниль, монилиоз'],
+  ];
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...examples]);
+  ws['!cols'] = headers.map((h,i) => ({wch: [25,15,30,18,18,18,18,18,25,25][i]}));
+  XLSX.utils.book_append_sheet(wb, ws, 'Препараты');
+  XLSX.writeFile(wb, 'шаблон_препараты.xlsx');
 }
 
 // ===================== TREATMENTS XLS IMPORT =====================
