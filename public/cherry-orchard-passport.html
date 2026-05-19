@@ -3283,7 +3283,7 @@ tbody td{padding:10px 12px;vertical-align:middle;}
     </div>
 
     <!-- Кнопка расчёта -->
-    <div id="fc-phase-note" style="display:none;padding:10px 14px;border-radius:8px;border:1px solid;font-size:11px;color:var(--color-text-secondary);margin-bottom:10px;line-height:1.6;"></div>
+    <div id="fc-phase-note" style="display:none;padding:10px 14px;border-radius:8px;border:1px solid;font-size:11px;color:var(--text3);margin-bottom:10px;line-height:1.6;"></div>
     <button class="btn btn-primary" style="width:100%;margin-bottom:14px;" onclick="calcFertDose()">🧮 Рассчитать</button>
 
     <!-- Результат -->
@@ -7963,6 +7963,12 @@ function openFertCalcModal() {
         `<option value="${z.id}">${z.name} (${z.area?.toFixed(1)||'?'}га)</option>`
       ).join('');
   }
+  // Подключаем onchange к select фазы
+  const ph = document.getElementById('fc-phase');
+  if(ph) ph.onchange = onFertPhaseChange;
+
+  document.getElementById('fc-result').style.display = 'none';
+  document.getElementById('fc-phase-note').style.display = 'none';
 
   // Загружаем анализы
   const srcEl = document.getElementById('fc-analysis-source');
@@ -7975,13 +7981,13 @@ function openFertCalcModal() {
     if(waterAn) {
       html += `<div style="margin-bottom:4px;">💧 <strong>Анализ воды (${waterAn.date}):</strong> EC ${waterAn.EC||waterAn.ec||'—'} mS/cm · pH ${waterAn.pH||waterAn.ph||'—'} · NO₃ ${waterAn.NO3||waterAn.no3||'0'}ppm · Ca ${waterAn.Ca||waterAn.ca||'0'}ppm · Mg ${waterAn.Mg||waterAn.mg||'0'}ppm</div>`;
     } else {
-      html += `<div style="color:var(--color-text-warning);margin-bottom:6px;">⚠️ Анализ воды не найден — Ca и Mg из воды не вычитаются из расчёта.
+      html += `<div style="color:var(--orange);margin-bottom:6px;">⚠️ Анализ воды не найден — Ca и Mg из воды не вычитаются из расчёта.
         <button class="btn btn-secondary btn-sm" style="margin-left:8px;" onclick="closeModal('modal-fert-calc');switchTab('analysis',document.querySelector('[onclick*=switchTab][onclick*=analysis]'));setTimeout(()=>openAnalysisModal('water'),300);">+ Добавить анализ воды</button>
       </div>`;
     }
     if(leafAn)  html += `<div style="margin-bottom:2px;">🌿 <strong>Анализ листа (${leafAn.date}):</strong> N ${leafAn.N||leafAn.n||'—'}% · P ${leafAn.P||leafAn.p||'—'}% · K ${leafAn.K||leafAn.k||'—'}% · Ca ${leafAn.Ca||leafAn.ca||'—'}% · Mg ${leafAn.Mg||leafAn.mg||'—'}%</div>`;
     if(soilAn)  html += `<div>🌱 <strong>Анализ почвы (${soilAn.date}):</strong> pH ${soilAn.pH||soilAn.ph||'—'} · NO₃ ${soilAn.NO3||soilAn.no3||'—'} · P ${soilAn.P||soilAn.p||'—'} · K ${soilAn.K||soilAn.k||'—'}</div>`;
-    if(!waterAn && !leafAn && !soilAn) html += `<div style="color:var(--color-text-secondary);">Анализы не внесены. Расчёт по целевым нормам фазы.</div>`;
+    if(!waterAn && !leafAn && !soilAn) html += `<div style="color:var(--text3);">Анализы не внесены. Расчёт по целевым нормам фазы.</div>`;
     srcEl.innerHTML = html;
 
     // Заполняем ppm воды для отображения
@@ -8032,7 +8038,7 @@ function onFertPhaseChange() {
     if(el==='n')  target = Math.max(0, target - waterN);
     inp.value = Math.round(target);
     // Подсвечиваем N=0 в цветение и созревание
-    inp.style.color = (el==='n' && target===0) ? 'var(--color-text-danger)' : 'var(--color-text-info)';
+    inp.style.color = (el==='n' && target===0) ? 'var(--red)' : 'var(--blue)';
   });
 
   // Показываем научное примечание фазы
@@ -8042,9 +8048,9 @@ function onFertPhaseChange() {
     const isStop = targets.nFertPeriod?.includes('СТОП') || targets.nFertPeriod?.includes('НЕ ВНОСИТЬ');
     noteEl.style.background = isStop ? 'rgba(226,75,74,.06)' : 'rgba(96,165,250,.06)';
     noteEl.style.borderColor = isStop ? 'rgba(226,75,74,.2)' : 'rgba(96,165,250,.15)';
-    const stopHtml = targets.stopNote ? `<br><span style="color:var(--color-text-danger);">⛔ ${targets.stopNote}</span>` : '';
-    const warnHtml = targets.nWarning ? `<br><span style="color:var(--color-text-warning);">⚠️ ${targets.nWarning}</span>` : '';
-    const pHtml   = targets.pNote    ? `<br><span style="color:var(--color-text-success);">📋 ${targets.pNote}</span>`   : '';
+    const stopHtml = targets.stopNote ? `<br><span style="color:var(--red);">⛔ ${targets.stopNote}</span>` : '';
+    const warnHtml = targets.nWarning ? `<br><span style="color:var(--orange);">⚠️ ${targets.nWarning}</span>` : '';
+    const pHtml   = targets.pNote    ? `<br><span style="color:var(--accent);">📋 ${targets.pNote}</span>`   : '';
     noteEl.innerHTML = `<strong>📚 Neilsen et al. (CAB 2017):</strong> ${targets.note}
       ${targets.nFertPeriod?`<br>⏰ N-внесение: <strong>${targets.nFertPeriod}</strong>`:''}
       ${stopHtml}${warnHtml}${pHtml}`;
@@ -8053,8 +8059,7 @@ function onFertPhaseChange() {
 
 // Подключаем onchange к select фазы
 document.addEventListener('DOMContentLoaded', () => {
-  const ph = document.getElementById('fc-phase');
-  if(ph) ph.onchange = onFertPhaseChange;
+  // fc-phase onchange подключается при открытии модала
 });
 
 function calcFertDose() {
@@ -8170,10 +8175,10 @@ function calcFertDose() {
       </div>
 
       ${sciAlerts.length ? `<div style="margin-bottom:12px;padding:10px 14px;background:rgba(226,75,74,.06);border:1px solid rgba(226,75,74,.2);border-radius:8px;">
-        ${sciAlerts.map(a=>`<div style="font-size:11px;color:var(--color-text-danger);padding:2px 0;">${a}</div>`).join('')}
+        ${sciAlerts.map(a=>`<div style="font-size:11px;color:var(--red);padding:2px 0;">${a}</div>`).join('')}
       </div>` : ''}
 
-      ${incompatWarnings.length ? `<div style="margin-bottom:10px;">${incompatWarnings.map(w=>`<div style="font-size:11px;color:var(--color-text-danger);padding:3px 0;">${w}</div>`).join('')}</div>` : ''}
+      ${incompatWarnings.length ? `<div style="margin-bottom:10px;">${incompatWarnings.map(w=>`<div style="font-size:11px;color:var(--red);padding:3px 0;">${w}</div>`).join('')}</div>` : ''}
 
       <!-- Баки -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
