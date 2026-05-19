@@ -503,7 +503,7 @@ tbody td{padding:10px 12px;vertical-align:middle;}
     <!-- ═══ ПРОГНОЗ ПОГОДЫ 7 ДНЕЙ ═══ -->
     <div style="margin-bottom:20px;">
       <div style="font-family:'Unbounded',sans-serif;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;">
-        <span>🌤️ Прогноз — 7 дней · Каменка</span>
+        <span>🌤️ Прогноз — 14 дней · Prodanest</span>
         <button class="btn btn-secondary btn-sm" onclick="loadCherryForecast()" style="font-size:10px;padding:4px 10px;">🔄 Обновить</button>
       </div>
       <div id="cherry-forecast-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;">
@@ -589,6 +589,7 @@ tbody td{padding:10px 12px;vertical-align:middle;}
         <button class="btn btn-secondary" onclick="toggleIrrigScience()">📖 Нормы Sela</button>
       </div>
       <div id="irrig-actions-zones" style="display:none;gap:8px;">
+        <button class="btn btn-secondary" onclick="startMultiIrrig()">💧💧 Полить несколько зон</button>
         <button class="btn btn-primary" onclick="openIrrigZoneModal()">+ Зона полива</button>
       </div>
       <div id="irrig-actions-balance" style="display:none;gap:8px;">
@@ -845,6 +846,8 @@ tbody td{padding:10px 12px;vertical-align:middle;}
 
   <!-- SUB: Зоны полива -->
   <div id="isub-panel-zones" style="display:none;">
+    <!-- Панель параллельного полива -->
+    <div id="multi-irrig-panel" style="display:none;margin-bottom:16px;"></div>
     <div id="irrig-zones-list"></div>
   </div>
 
@@ -2959,6 +2962,79 @@ tbody td{padding:10px 12px;vertical-align:middle;}
         <input type="number" id="iz-emitter-spacing" step="1" placeholder="50"></div>
       <div class="ff full"><label>Примечание</label>
         <input type="text" id="iz-note" placeholder="Особенности зоны..."></div>
+
+      <!-- Датчики метеостанции -->
+      <div class="ff full" style="border-top:1px solid var(--border);padding-top:12px;margin-top:4px;">
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">📡 Датчики и мониторинг</div>
+      </div>
+      <div class="ff"><label>Датчик влажности почвы (глубина 1)</label>
+        <select id="iz-sensor1" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+          <option value="">— выбрать датчик —</option>
+        </select>
+      </div>
+      <div class="ff"><label>Датчик влажности почвы (глубина 2)</label>
+        <select id="iz-sensor2" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+          <option value="">— не установлен —</option>
+        </select>
+      </div>
+      <div class="ff"><label>Станция FieldClimate</label>
+        <select id="iz-station" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+          <option value="00002158">Орчард (00002158)</option>
+          <option value="0020BCDC">Овощи (0020BCDC)</option>
+        </select>
+      </div>
+      <div class="ff"><label>Тип почвы (для расчёта ПВ)</label>
+        <select id="iz-soil-type" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+          <option value="clay_loam">Глинисто-суглинистая (ПВ 36%, ТВ 20%)</option>
+          <option value="loam">Суглинистая (ПВ 32%, ТВ 14%)</option>
+          <option value="sandy_loam">Супесчаная (ПВ 24%, ТВ 10%)</option>
+          <option value="clay">Глинистая (ПВ 42%, ТВ 24%)</option>
+          <option value="sand">Песчаная (ПВ 18%, ТВ 6%)</option>
+        </select>
+      </div>
+      <div class="ff"><label>Глубина корней (см)</label>
+        <input type="number" id="iz-root-depth" value="50" step="5" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+      </div>
+      <div class="ff"><label>% увлажнённой площади</label>
+        <input type="number" id="iz-wetted-area" value="35" step="5" min="10" max="100" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+      </div>
+
+      <!-- Параметры полива -->
+      <div class="ff full" style="border-top:1px solid var(--border);padding-top:12px;margin-top:4px;">
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">⚙️ Параметры полива</div>
+      </div>
+      <div class="ff"><label>Макс. время полива (мин)</label>
+        <input type="number" id="iz-max-duration" value="120" step="10" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+      </div>
+      <div class="ff"><label>Мин. интервал между поливами (ч)</label>
+        <input type="number" id="iz-min-interval" value="12" step="1" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+      </div>
+      <div class="ff"><label>Время старта полива</label>
+        <select id="iz-start-time" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+          <option value="06:00">06:00 — раннее утро</option>
+          <option value="18:00">18:00 — вечер</option>
+          <option value="22:00">22:00 — ночь</option>
+          <option value="any">Любое время</option>
+        </select>
+      </div>
+      <div class="ff"><label>Режим полива</label>
+        <select id="iz-irrig-mode" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+          <option value="deficit">По дефициту (ETc - осадки)</option>
+          <option value="schedule">По расписанию (фиксировано)</option>
+          <option value="sensor">По датчику влажности</option>
+          <option value="pulse">Импульсный (pulse)</option>
+        </select>
+      </div>
+      <div class="ff"><label>Целевая влажность почвы (%)</label>
+        <input type="number" id="iz-target-moisture" value="80" step="5" min="50" max="100"
+          placeholder="80% от ПВ"
+          style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+      </div>
+      <div class="ff"><label>Стресс-порог (% от ПВ)</label>
+        <input type="number" id="iz-stress-threshold" value="50" step="5" min="20" max="80"
+          placeholder="50% — порог стресса"
+          style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-danger btn-sm" id="iz-del-btn" style="display:none;margin-right:auto;" onclick="deleteIrrigZone()">🗑 Удалить</button>
@@ -3893,7 +3969,7 @@ async function checkServer() {
   try {
     const r = await fetch('/api/weather?days=1', {
       headers: getAuthHeaders(),
-      signal: AbortSignal.timeout(4000)
+      signal: (() => { const c=new AbortController(); setTimeout(()=>c.abort(),4000); return c.signal; })()
     });
     _serverAvailable = r.ok || r.status === 401;
   } catch { _serverAvailable = false; }
@@ -6825,47 +6901,56 @@ function renderIrrigZones() {
       const totalDrippers = totalTrees * (z.drippersPerTree||2);
       const systemFlow = z.flowRate || (totalDrippers * (z.dripperFlow||2) / 1000);
       return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px;">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
-          <div>
-            <div style="font-size:14px;font-weight:700;">${z.name}</div>
-            <div style="font-size:11px;color:var(--text3);">${IRRIG_TYPE_LABELS[z.irrigType]||z.irrigType||'—'}</div>
-          </div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+        <div>
+          <div style="font-size:14px;font-weight:700;">${z.name}</div>
+          <div style="font-size:11px;color:var(--text3);">${IRRIG_TYPE_LABELS[z.irrigType]||z.irrigType||'—'}</div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <input type="checkbox" title="Выбрать для параллельного полива"
+            ${_multiIrrigZones.has(z.id)?'checked':''}
+            onchange="toggleMultiIrrigZone('${z.id}')"
+            style="width:16px;height:16px;cursor:pointer;">
           <button class="btn btn-secondary btn-xs" onclick="openIrrigZoneModal('${z.id}')">✏️</button>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px;">
-          <div style="text-align:center;padding:8px;background:var(--surface3);border-radius:8px;">
-            <div style="font-size:13px;font-weight:700;color:var(--blue);">${totalHa.toFixed(2)}</div>
-            <div style="font-size:9px;color:var(--text3);">га</div>
-          </div>
-          <div style="text-align:center;padding:8px;background:var(--surface3);border-radius:8px;">
-            <div style="font-size:13px;font-weight:700;color:var(--accent);">${systemFlow.toFixed(1)}</div>
-            <div style="font-size:9px;color:var(--text3);">м³/ч</div>
-          </div>
-          <div style="text-align:center;padding:8px;background:var(--surface3);border-radius:8px;">
-            <div style="font-size:13px;font-weight:700;color:var(--yellow);">${z.pressure||'—'}</div>
-            <div style="font-size:9px;color:var(--text3);">бар</div>
-          </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px;">
+        <div style="text-align:center;padding:8px;background:var(--surface3);border-radius:8px;">
+          <div style="font-size:13px;font-weight:700;color:var(--blue);">${totalHa.toFixed(2)}</div>
+          <div style="font-size:9px;color:var(--text3);">га</div>
         </div>
-        ${(() => {
-          // Сорта в зоне
-          const zoneVarieties = new Map();
-          (z.cellKeys||[]).forEach(k=>{
-            const cd=S.cells[k]; if(!cd) return;
-            const cropId=cd.cropId||'crop_cherry';
-            S.varieties.filter(v=>(v.cropId||'crop_cherry')===cropId)
-              .forEach(v=>{ if(!zoneVarieties.has(v.id)) zoneVarieties.set(v.id,v); });
-          });
-          if(!zoneVarieties.size) return '';
-          return `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;">
-            ${[...zoneVarieties.values()].map(v=>`<span style="padding:1px 8px;border-radius:8px;font-size:10px;background:rgba(74,222,128,.1);color:var(--accent);">🍒 ${v.name}</span>`).join('')}
-          </div>`;
-        })()}
-        <div style="font-size:11px;color:var(--text3);line-height:1.8;">
-          ${z.dripperType?`💧 ${z.dripperType} · ${z.dripperFlow}л/ч · ${z.drippersPerTree}шт/дер`:''}
-          ${z.cellKeys?.length?`<br>📍 Клетки: ${z.cellKeys.join(', ')} · ${totalTrees} дер.`:''}
-          ${z.valveId?`<br>🔩 Клапан: <strong>${z.valveId}</strong>`:''}
-          ${z.pumpId?` · 🔧 Насос: <strong>${z.pumpId}</strong>`:''}
+        <div style="text-align:center;padding:8px;background:var(--surface3);border-radius:8px;">
+          <div style="font-size:13px;font-weight:700;color:var(--accent);">${systemFlow.toFixed(1)}</div>
+          <div style="font-size:9px;color:var(--text3);">м³/ч</div>
         </div>
+        <div style="text-align:center;padding:8px;background:var(--surface3);border-radius:8px;">
+          <div style="font-size:13px;font-weight:700;color:var(--yellow);">${z.pressure||'—'}</div>
+          <div style="font-size:9px;color:var(--text3);">бар</div>
+        </div>
+      </div>
+      ${(() => {
+        const zoneVarieties = new Map();
+        (z.cellKeys||[]).forEach(k=>{
+          const cd=S.cells[k]; if(!cd) return;
+          const cropId=cd.cropId||'crop_cherry';
+          S.varieties.filter(v=>(v.cropId||'crop_cherry')===cropId)
+            .forEach(v=>{ if(!zoneVarieties.has(v.id)) zoneVarieties.set(v.id,v); });
+        });
+        if(!zoneVarieties.size) return '';
+        return `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;">
+          ${[...zoneVarieties.values()].map(v=>`<span style="padding:1px 8px;border-radius:8px;font-size:10px;background:rgba(74,222,128,.1);color:var(--accent);">🍒 ${v.name}</span>`).join('')}
+        </div>`;
+      })()}
+      <div style="font-size:11px;color:var(--text3);line-height:1.8;">
+        ${z.dripperType?`💧 ${z.dripperType} · ${z.dripperFlow}л/ч · ${z.drippersPerTree}шт/дер`:''}
+        ${z.cellKeys?.length?`<br>📍 Клетки: ${z.cellKeys.join(', ')} · ${totalTrees} дер.`:''}
+        ${z.valveId?`<br>🔩 Клапан: <strong>${z.valveId}</strong>`:''}
+        ${z.pumpId?` · 🔧 Насос: <strong>${z.pumpId}</strong>`:''}
+        ${z.soilType?`<br>🌱 ${SOIL_PARAMS[z.soilType]?.name||z.soilType} · Корни ${z.rootDepth||50}см`:''}
+        ${z.station?`<br>📡 Станция: ${z.station}`:''}
+      </div>
+      <!-- Рекомендация полива -->
+      ${renderZoneRecommendation(z)}
       </div>`;
     }).join('') + `</div>`;
 }
@@ -6883,6 +6968,17 @@ function openIrrigZoneModal(id) {
     'iz-pressure':z?.pressure||'', 'iz-dripper-type':z?.dripperType||'',
     'iz-dripper-flow':z?.dripperFlow||'', 'iz-drippers-per-tree':z?.drippersPerTree||'',
     'iz-emitter-spacing':z?.emitterSpacing||'', 'iz-note':z?.note||'',
+    // Новые поля
+    'iz-soil-type':z?.soilType||'clay_loam',
+    'iz-root-depth':z?.rootDepth||50,
+    'iz-wetted-area':z?.wettedArea||35,
+    'iz-max-duration':z?.maxDuration||120,
+    'iz-min-interval':z?.minInterval||12,
+    'iz-start-time':z?.startTime||'06:00',
+    'iz-irrig-mode':z?.irrigMode||'deficit',
+    'iz-target-moisture':z?.targetMoisture||80,
+    'iz-stress-threshold':z?.stressThreshold||50,
+    'iz-station':z?.station||'00002158',
   };
   Object.entries(fields).forEach(([id,val])=>{const el=document.getElementById(id);if(el)el.value=val;});
 
@@ -7020,6 +7116,19 @@ function saveIrrigZone() {
     emitterSpacing: parseInt(document.getElementById('iz-emitter-spacing').value)||null,
     note: document.getElementById('iz-note').value.trim(),
     area: _izCells.reduce((s,k)=>{ const cd=S.cells[k]; return s+(cd?calcCellTotals(cd).totalHa:0); },0),
+    // Датчики и параметры полива
+    station: document.getElementById('iz-station')?.value||'00002158',
+    sensor1: document.getElementById('iz-sensor1')?.value||'',
+    sensor2: document.getElementById('iz-sensor2')?.value||'',
+    soilType: document.getElementById('iz-soil-type')?.value||'clay_loam',
+    rootDepth: parseInt(document.getElementById('iz-root-depth')?.value)||50,
+    wettedArea: parseInt(document.getElementById('iz-wetted-area')?.value)||35,
+    maxDuration: parseInt(document.getElementById('iz-max-duration')?.value)||120,
+    minInterval: parseInt(document.getElementById('iz-min-interval')?.value)||12,
+    startTime: document.getElementById('iz-start-time')?.value||'06:00',
+    irrigMode: document.getElementById('iz-irrig-mode')?.value||'deficit',
+    targetMoisture: parseInt(document.getElementById('iz-target-moisture')?.value)||80,
+    stressThreshold: parseInt(document.getElementById('iz-stress-threshold')?.value)||50,
   };
   if(!obj.name){alert('Введите название зоны');return;}
   const idx = S.irrigation.zones.findIndex(x=>x.id===obj.id);
@@ -7034,7 +7143,255 @@ function deleteIrrigZone() {
   save(); closeModal('modal-irrig-zone'); renderIrrigZones();
 }
 
-// ──── WATER BALANCE ENGINE ────────────────────────────────────────────────
+// ── ДВИЖОК РЕКОМЕНДАЦИЙ ПОЛИВА ───────────────────────────────────────────
+
+// Параметры почв (ПВ, ТВ в % объёмных)
+const SOIL_PARAMS = {
+  clay_loam:  {fc:36, pwp:20, name:'Глинисто-суглинистая'},
+  loam:       {fc:32, pwp:14, name:'Суглинистая'},
+  sandy_loam: {fc:24, pwp:10, name:'Супесчаная'},
+  clay:       {fc:42, pwp:24, name:'Глинистая'},
+  sand:       {fc:18, pwp:6,  name:'Песчаная'},
+};
+
+function calcZoneIrrigRecommendation(z) {
+  // 1. Параметры почвы
+  const soil = SOIL_PARAMS[z.soilType||'loam'] || SOIL_PARAMS.loam;
+  const rootDepth = (z.rootDepth||50); // см
+  const wettedPct = (z.wettedArea||35) / 100;
+  
+  // TAW (мм) = (ПВ-ТВ) × глубина корней × 0.1
+  const taw = (soil.fc - soil.pwp) * rootDepth * 0.1;
+  // RAW (мм) = TAW × коэффициент истощения (0.35 для черешни)
+  const raw = taw * 0.35;
+
+  // 2. Дефицит влаги из Water Balance (последние 7 дней)
+  const weather7 = (S.weather||[]).slice(0, 7);
+  const gdd = getCurrentGdd(4.5);
+  const phase = getPhaseByGdd(z.varieties?.[0] || S.varieties?.[0]?.id, gdd);
+  const kc = phase?.kc || 1.0;
+  
+  const et0_7 = weather7.reduce((s,w) => s + (parseFloat(w.et0)||parseFloat(w.et_0)||0), 0);
+  const etc_7 = et0_7 * kc;
+  const precip_7 = weather7.reduce((s,w) => s + (parseFloat(w.precip)||0), 0);
+  
+  // Эффективные осадки (60% от осадков при капельном поливе)
+  const effPrecip = precip_7 * 0.6 * wettedPct;
+  const deficit = Math.max(0, etc_7 - effPrecip);
+
+  // 3. Производительность системы
+  const totalTrees = (z.cellKeys||[]).reduce((s,k)=>{
+    const cd = S.cells[k];
+    return s + (cd ? calcCellTotals(cd).totalTrees : 0);
+  }, 0);
+  const totalHa = (z.cellKeys||[]).reduce((s,k)=>{
+    const cd = S.cells[k];
+    return s + (cd ? calcCellTotals(cd).totalHa : 0);
+  }, 0);
+  
+  // Расход системы (м³/ч)
+  let systemFlow = z.flowRate || 0;
+  if(!systemFlow && z.dripperFlow && z.drippersPerTree && totalTrees) {
+    // л/ч → м³/ч
+    systemFlow = (z.dripperFlow * z.drippersPerTree * totalTrees) / 1000;
+  }
+  
+  // Интенсивность (мм/ч) = (расход м³/ч × 1000) / (площадь м²)
+  const areaM2 = totalHa * 10000 * wettedPct;
+  const intensity_mmh = areaM2 > 0 && systemFlow > 0
+    ? (systemFlow * 1000) / areaM2
+    : 2.0; // дефолт 2 мм/ч
+
+  // 4. Рекомендация
+  const maxDuration = z.maxDuration || 120; // мин
+  const maxMm = intensity_mmh * (maxDuration / 60);
+  
+  // Сколько нужно полить
+  const targetMm = Math.min(deficit > 0 ? deficit : raw * 0.5, maxMm);
+  const durationMin = intensity_mmh > 0 ? Math.round(targetMm / intensity_mmh * 60) : 0;
+  const volumeM3 = systemFlow > 0 ? Math.round(systemFlow * (durationMin/60) * 10) / 10 : 0;
+
+  // 5. Статус
+  let status, statusColor, statusIcon;
+  if(deficit >= raw) {
+    status = 'Критично — полив необходим сейчас';
+    statusColor = '#dc2626'; statusIcon = '⛔';
+  } else if(deficit >= raw * 0.5) {
+    status = 'Внимание — полив рекомендован';
+    statusColor = '#f59e0b'; statusIcon = '⚠️';
+  } else if(deficit > 0) {
+    status = 'Норма — дефицит небольшой';
+    statusColor = '#16a34a'; statusIcon = '✅';
+  } else {
+    status = 'Достаточно — полив не нужен';
+    statusColor = '#6b7280'; statusIcon = '💤';
+  }
+
+  return {
+    taw, raw, deficit, etc_7, precip_7, effPrecip,
+    kc, et0_7, totalHa, totalTrees, systemFlow,
+    intensity_mmh, targetMm, durationMin, volumeM3,
+    maxMm, soil, status, statusColor, statusIcon,
+    startTime: z.startTime || '06:00',
+    irrigMode: z.irrigMode || 'deficit',
+  };
+}
+
+function renderZoneRecommendation(z) {
+  const r = calcZoneIrrigRecommendation(z);
+  if(!r) return '';
+  
+  const progress = Math.min(100, Math.round(r.deficit / r.raw * 100));
+  const progressColor = progress > 100 ? '#dc2626' : progress > 50 ? '#f59e0b' : '#16a34a';
+  
+  return `
+    <div style="margin-top:12px;padding:12px;background:var(--surface3);border-radius:10px;border-left:3px solid ${r.statusColor};">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div style="font-size:12px;font-weight:700;">${r.statusIcon} ${r.status}</div>
+        <div style="font-size:10px;color:var(--text3);">Kc ${r.kc} · Режим: ${r.irrigMode}</div>
+      </div>
+      
+      <!-- Прогресс дефицита -->
+      <div style="margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:3px;">
+          <span>Дефицит влаги</span>
+          <span>${r.deficit.toFixed(1)} мм / RAW ${r.raw.toFixed(1)} мм</span>
+        </div>
+        <div style="height:6px;background:var(--surface);border-radius:3px;">
+          <div style="height:100%;width:${progress}%;background:${progressColor};border-radius:3px;transition:width .3s;"></div>
+        </div>
+      </div>
+
+      <!-- Рекомендация полива -->
+      ${r.targetMm > 0.5 ? `
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px;">
+        <div style="text-align:center;padding:6px;background:var(--surface2);border-radius:6px;">
+          <div style="font-size:16px;font-weight:700;color:var(--blue);">${r.targetMm.toFixed(1)}</div>
+          <div style="font-size:9px;color:var(--text3);">мм</div>
+        </div>
+        <div style="text-align:center;padding:6px;background:var(--surface2);border-radius:6px;">
+          <div style="font-size:16px;font-weight:700;color:var(--accent);">${r.durationMin}</div>
+          <div style="font-size:9px;color:var(--text3);">мин</div>
+        </div>
+        <div style="text-align:center;padding:6px;background:var(--surface2);border-radius:6px;">
+          <div style="font-size:16px;font-weight:700;color:var(--yellow);">${r.volumeM3}</div>
+          <div style="font-size:9px;color:var(--text3);">м³</div>
+        </div>
+      </div>
+      <div style="font-size:10px;color:var(--text3);margin-bottom:6px;">
+        ⏰ Рекомендуемое время старта: <strong>${r.startTime}</strong> · 
+        Интенсивность: ${r.intensity_mmh.toFixed(2)} мм/ч · 
+        Система: ${r.systemFlow.toFixed(1)} м³/ч
+      </div>
+      <div style="font-size:10px;color:var(--text3);">
+        📊 ETc 7 дн: ${r.etc_7.toFixed(1)}мм · Осадки: ${r.precip_7.toFixed(1)}мм (эфф. ${r.effPrecip.toFixed(1)}мм)
+      </div>
+      <div style="display:flex;gap:6px;margin-top:8px;">
+        <button class="btn btn-primary btn-sm" onclick="openIrrigEventModalForZone('${z.id}',${r.targetMm.toFixed(1)},${r.durationMin})">
+          💧 Полить ${r.targetMm.toFixed(1)}мм (${r.durationMin} мин)
+        </button>
+      </div>` : `
+      <div style="font-size:11px;color:var(--text3);">
+        📊 ETc 7 дн: ${r.etc_7.toFixed(1)}мм · Осадки: ${r.precip_7.toFixed(1)}мм · Дефицит: ${r.deficit.toFixed(1)}мм
+      </div>`}
+    </div>`;
+}
+
+function openIrrigEventModalForZone(zoneId, mm, durationMin) {
+  // Открываем модал записи полива с предзаполненными данными
+  const zone = (S.irrigation.zones||[]).find(z=>z.id===zoneId);
+  if(!zone) return;
+  switchIrrigSub('zones');
+  setTimeout(() => {
+    openIrrigEventModal();
+    setTimeout(() => {
+      const zSel = document.getElementById('ie-zone');
+      if(zSel) zSel.value = zoneId;
+      const mmEl = document.getElementById('ie-mm');
+      if(mmEl) mmEl.value = mm;
+      const durEl = document.getElementById('ie-duration');
+      if(durEl) durEl.value = durationMin;
+      onIrrigEventZoneChange();
+    }, 200);
+  }, 100);
+}
+
+// ── ПАРАЛЛЕЛЬНЫЙ ПОЛИВ НЕСКОЛЬКИХ ЗОН ────────────────────────────────────
+
+let _multiIrrigZones = new Set(); // выбранные зоны для одновременного полива
+
+function toggleMultiIrrigZone(zoneId) {
+  if(_multiIrrigZones.has(zoneId)) _multiIrrigZones.delete(zoneId);
+  else _multiIrrigZones.add(zoneId);
+  renderIrrigZones();
+}
+
+function startMultiIrrig() {
+  if(!_multiIrrigZones.size) { alert('Выберите хотя бы одну зону'); return; }
+  const zones = (S.irrigation.zones||[]).filter(z=>_multiIrrigZones.has(z.id));
+  
+  // Рассчитываем общий расход
+  const totalFlow = zones.reduce((s,z)=>s+(z.flowRate||0),0);
+  const recs = zones.map(z=>({z, r:calcZoneIrrigRecommendation(z)}));
+  const maxDuration = Math.max(...recs.map(({r})=>r.durationMin));
+  
+  // Проверяем давление — если общий расход > производительности насоса
+  const pump = (S.irrigEquip?.pumps||[]).find(p => zones.some(z=>z.pumpId===p.name));
+  const pumpFlow = parseFloat(pump?.flow)||0;
+  const pressureWarn = pumpFlow > 0 && totalFlow > pumpFlow;
+  
+  const html = `
+    <div style="padding:16px;background:var(--surface2);border-radius:12px;margin-bottom:12px;">
+      <div style="font-size:13px;font-weight:700;margin-bottom:12px;">💧 Параллельный полив — ${zones.length} зон</div>
+      ${pressureWarn ? `<div style="padding:8px 12px;background:rgba(220,38,38,.08);border-radius:8px;font-size:11px;color:#dc2626;margin-bottom:10px;">
+        ⚠️ Общий расход ${totalFlow.toFixed(1)} м³/ч превышает мощность насоса ${pumpFlow} м³/ч. Падение давления!
+      </div>` : ''}
+      ${recs.map(({z,r})=>`
+        <div style="padding:8px;background:var(--surface);border-radius:8px;margin-bottom:6px;">
+          <div style="font-size:12px;font-weight:600;">${z.name}</div>
+          <div style="font-size:11px;color:var(--text3);">
+            ${r.targetMm.toFixed(1)}мм · ${r.durationMin}мин · ${r.volumeM3}м³
+            ${r.systemFlow>0?` · ${r.systemFlow.toFixed(1)}м³/ч`:''}
+          </div>
+        </div>`).join('')}
+      <div style="border-top:1px solid var(--border);padding-top:10px;margin-top:8px;font-size:12px;">
+        <strong>Итого:</strong> ${totalFlow.toFixed(1)} м³/ч · ${maxDuration} мин · 
+        ${zones.reduce((s,z,i)=>s+(recs[i].r.volumeM3||0),0).toFixed(1)} м³
+      </div>
+      <button class="btn btn-primary btn-sm" style="margin-top:10px;" onclick="saveMultiIrrigEvent([${zones.map(z=>`'${z.id}'`).join(',')}],${maxDuration})">
+        💾 Записать полив всех зон
+      </button>
+    </div>`;
+  
+  const panel = document.getElementById('multi-irrig-panel');
+  if(panel) { panel.innerHTML = html; panel.style.display='block'; }
+}
+
+async function saveMultiIrrigEvent(zoneIds, durationMin) {
+  const date = today();
+  for(const zoneId of zoneIds) {
+    const zone = (S.irrigation.zones||[]).find(z=>z.id===zoneId);
+    if(!zone) continue;
+    const r = calcZoneIrrigRecommendation(zone);
+    const event = {
+      id: uid(), date, zoneId,
+      cellKey: zone.cellKeys?.[0]||'',
+      mm: r.targetMm, volumeM3: r.volumeM3,
+      durationMin, phase: r.kc > 0 ? 'auto' : '',
+      note: `Параллельный полив (авто ${date})`
+    };
+    if(!S.irrigation.events) S.irrigation.events=[];
+    S.irrigation.events.unshift(event);
+  }
+  _multiIrrigZones.clear();
+  save();
+  renderIrrigZones();
+  const panel = document.getElementById('multi-irrig-panel');
+  if(panel) panel.style.display='none';
+  alert(`✅ Записан полив ${zoneIds.length} зон`);
+}
+
+// ═══ WATER BALANCE ENGINE ════════════════════════════════════════════════
 
 function calcWaterBalance() {
   const sp = S.irrigation.waterBalance?.soilParams || {};
@@ -12516,7 +12873,7 @@ async function runAIPhotoAnalysis(input) {
       ? `Погода: T${today.tmin}/${today.tmax}°C, влажность ${today.humidity||'?'}%, осадки ${today.precip||0}мм за последние дни.`
       : '';
 
-    const prompt = `Ты опытный агроном-фитопатолог. Хозяйство: ${cropNames||'черешневый сад'}, Молдова, Каменка.
+    const prompt = `Ты опытный агроном-фитопатолог. Хозяйство: ${cropNames||'черешневый сад'}, Молдова, Prodanest.
 GDD ${gdd}, фаза: ${phase?.name||'вегетация'}. ${weatherCtx}
 
 Проанализируй фото и ответь строго по структуре:
@@ -12697,7 +13054,7 @@ async function runAIAdvisor() {
     const stockAlert = lowStock.length ? `Заканчиваются: ${lowStock.map(c=>`${c.name} (${c.qty}${c.unit})`).join(', ')}` : 'Склад в норме';
 
     // ── Промпт ────────────────────────────────────────────────────────
-    const prompt = `Ты опытный агроном-консультант для садоводческого хозяйства в Молдове (Каменка, район Сорока).
+    const prompt = `Ты опытный агроном-консультант для садоводческого хозяйства в Молдове (Prodanest, район Дрокия).
 
 ДАННЫЕ ХОЗЯЙСТВА:
 - Культуры: ${cropSummary}, всего ${totalHa.toFixed(1)} га
@@ -13409,8 +13766,8 @@ function mergeTreatments(treats, statusEl, filename) {
 
 // ===================== ПРОГНОЗ ПОГОДЫ (Open-Meteo) =====================
 
-const CHERRY_LAT = 48.0167;
-const CHERRY_LON = 28.7;
+const CHERRY_LAT = 47.9342;
+const CHERRY_LON = 28.4167;
 
 const FORECAST_ICONS = {
   0:'☀️',1:'🌤️',2:'⛅',3:'☁️',
@@ -13444,7 +13801,10 @@ async function loadCherryForecast() {
       `weathercode,windspeed_10m_max,precipitation_hours,et0_fao_evapotranspiration,` +
       `windgusts_10m_max,shortwave_radiation_sum` +
       `&timezone=Europe%2FChisinau&forecast_days=14`;
-    const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    const _ctrl = new AbortController();
+    const _timer = setTimeout(() => _ctrl.abort(), 8000);
+    const r = await fetch(url, { signal: _ctrl.signal });
+    clearTimeout(_timer);
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const data = await r.json();
     const f = data.daily;
@@ -16182,7 +16542,7 @@ async function fetchForecast() {
   `&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,` +
   `precipitation_probability_max,weathercode,precipitation_hours` +
   `&timezone=Europe%2FChisinau&forecast_days=7`;
-    const r = await fetch(url, { signal: AbortSignal.timeout(6000) });
+    const r = await fetch(url, { signal: (() => { const c=new AbortController(); setTimeout(()=>c.abort(),6000); return c.signal; })() });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const data = await r.json();
     _forecast = data.daily;
