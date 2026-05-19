@@ -1094,6 +1094,12 @@ tbody td{padding:10px 12px;vertical-align:middle;}
       <select id="af-filter" onchange="renderAnalysis()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:'Inter',sans-serif;">
         <option value="">Все клетки</option>
       </select>
+      <select id="af-zone" onchange="renderAnalysis()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:'Inter',sans-serif;">
+        <option value="">Все зоны</option>
+      </select>
+      <select id="af-variety" onchange="renderAnalysis()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:'Inter',sans-serif;">
+        <option value="">Все сорта</option>
+      </select>
       <div style="display:flex;gap:4px;">
         <button class="an-tab-btn active" id="antab-all"  onclick="setAnTab('all')" >Все</button>
         <button class="an-tab-btn"        id="antab-leaf" onclick="setAnTab('leaf')">🍃 Лист</button>
@@ -1618,7 +1624,21 @@ tbody td{padding:10px 12px;vertical-align:middle;}
     <h2 id="an-modal-title">🔬 Анализ</h2>
     <div class="form-grid" style="margin-bottom:12px;">
       <div class="ff"><label>Дата анализа</label><input type="date" id="a-date"></div>
-      <div class="ff"><label>Клетка / участок</label><select id="a-cell"><option value="">Весь сад</option></select></div>
+      <div class="ff"><label>Клетка / участок</label>
+        <select id="a-cell" onchange="onACellChange()"><option value="">Весь сад</option></select>
+      </div>
+      <div class="ff"><label>Зона полива</label>
+        <select id="a-zone"><option value="">— не привязана —</option></select>
+      </div>
+      <div class="ff"><label>Культура</label>
+        <select id="a-crop"><option value="">— все культуры —</option></select>
+      </div>
+      <div class="ff"><label>Сорт</label>
+        <select id="a-variety"><option value="">— все сорта —</option></select>
+      </div>
+      <div class="ff"><label>Глубина отбора (см)</label>
+        <input type="number" id="a-depth-cm" placeholder="0-30" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+      </div>
       <div class="ff"><label>Лаборатория</label><input type="text" id="a-lab" placeholder="Название лаборатории"></div>
       <div class="ff"><label>Примечание</label><input type="text" id="a-note" placeholder="доп. информация"></div>
     </div>
@@ -5938,6 +5958,28 @@ function switchAnModalTab(tab) {
   });
 }
 
+function onACellChange() {
+  const cellKey = document.getElementById('a-cell').value;
+  const zoneSel = document.getElementById('a-zone');
+  const varietySel = document.getElementById('a-variety');
+
+  // Зоны для выбранной клетки
+  const cellZones = cellKey
+    ? (S.irrigation?.zones||[]).filter(z=>(z.cellKeys||[]).includes(cellKey))
+    : (S.irrigation?.zones||[]);
+  zoneSel.innerHTML = '<option value="">— не привязана —</option>' +
+    cellZones.map(z=>`<option value="${z.id}">${z.name}</option>`).join('');
+
+  // Сорта для выбранной клетки
+  const cd = cellKey ? S.cells[cellKey] : null;
+  const cropId = cd?.cropId || 'crop_cherry';
+  const cellVarieties = cd
+    ? S.varieties.filter(v=>(v.cropId||'crop_cherry')===cropId)
+    : S.varieties;
+  varietySel.innerHTML = '<option value="">— все сорта —</option>' +
+    cellVarieties.map(v=>`<option value="${v.id}">${v.name}</option>`).join('');
+}
+
 function openAnalysisModal(type, editId) {
   _anEditId = editId || null;
   type = type || 'leaf';
@@ -5949,14 +5991,32 @@ function openAnalysisModal(type, editId) {
   document.getElementById('a-date').value = existing?.date || new Date().toISOString().slice(0,10);
   document.getElementById('a-lab').value  = existing?.lab  || '';
   document.getElementById('a-note').value = existing?.note || '';
+  document.getElementById('a-depth-cm').value = existing?.depthCm || '';
 
-  // Populate cell select
+  // Клетки
   const cs = document.getElementById('a-cell');
   cs.innerHTML = '<option value="">Весь сад</option>';
   Object.keys(S.cells).forEach(k => {
     const col = getCellColors(S.cells[k]);
     cs.innerHTML += `<option value="${k}" ${existing?.cellKey===k?'selected':''}>${k}${col[0]?' — '+col[0].name:''}</option>`;
   });
+  cs.value = existing?.cellKey || '';
+
+  // Культуры
+  const cropSel = document.getElementById('a-crop');
+  if(cropSel) {
+    cropSel.innerHTML = '<option value="">— все культуры —</option>' +
+      S.crops.map(c=>`<option value="${c.id}" ${existing?.cropId===c.id?'selected':''}>${c.emoji||''} ${c.name}</option>`).join('');
+  }
+
+  // Заполняем зоны и сорта по клетке
+  onACellChange();
+
+  // Восстанавливаем выбранные значения
+  setTimeout(()=>{
+    if(existing?.zoneId) { const z=document.getElementById('a-zone'); if(z) z.value=existing.zoneId; }
+    if(existing?.varietyId) { const v=document.getElementById('a-variety'); if(v) v.value=existing.varietyId; }
+  }, 50);
 
   // Clear all fields
   const leafFields = ['N','P','K','Ca','Mg','S','Fe','Mn','Zn','B','Cu','Mo'];
@@ -5986,8 +6046,12 @@ function saveAnalysis() {
   const e = {
     id: _anEditId || Date.now(),
     type, date,
-    cellKey: document.getElementById('a-cell').value,
-    lab: document.getElementById('a-lab').value,
+    cellKey:   document.getElementById('a-cell').value,
+    zoneId:    document.getElementById('a-zone')?.value || '',
+    varietyId: document.getElementById('a-variety')?.value || '',
+    cropId:    document.getElementById('a-crop')?.value || '',
+    depthCm:   document.getElementById('a-depth-cm')?.value || '',
+    lab:  document.getElementById('a-lab').value,
     note: document.getElementById('a-note').value,
   };
   if (type === 'leaf') {
@@ -6020,12 +6084,32 @@ function saveAnalysis() {
 
 function popAFilter() {
   const sel = document.getElementById('af-filter');
-  const cur = sel.value;
-  sel.innerHTML = '<option value="">Все клетки</option>';
-  Object.keys(S.cells).forEach(k => {
-    const colors = getCellColors(S.cells[k]);
-    sel.innerHTML += `<option value="${k}" ${cur===k?'selected':''}>${k}${colors[0]?' — '+colors[0].name:''}</option>`;
-  });
+  const cur = sel?.value || '';
+  if(sel) {
+    sel.innerHTML = '<option value="">Все клетки</option>';
+    Object.keys(S.cells).forEach(k => {
+      const colors = getCellColors(S.cells[k]);
+      sel.innerHTML += `<option value="${k}" ${cur===k?'selected':''}>${k}${colors[0]?' — '+colors[0].name:''}</option>`;
+    });
+  }
+  // Зоны
+  const zoneSel = document.getElementById('af-zone');
+  if(zoneSel) {
+    const curZ = zoneSel.value;
+    zoneSel.innerHTML = '<option value="">Все зоны</option>';
+    (S.irrigation?.zones||[]).forEach(z=>{
+      zoneSel.innerHTML += `<option value="${z.id}" ${curZ===z.id?'selected':''}>${z.name}</option>`;
+    });
+  }
+  // Сорта
+  const varSel = document.getElementById('af-variety');
+  if(varSel) {
+    const curV = varSel.value;
+    varSel.innerHTML = '<option value="">Все сорта</option>';
+    S.varieties.forEach(v=>{
+      varSel.innerHTML += `<option value="${v.id}" ${curV===v.id?'selected':''}>${v.name}</option>`;
+    });
+  }
 }
 
 // ── Norms databases ────────────────────────────────────────────────────────
@@ -6233,10 +6317,14 @@ function dripFix(el, val, n) {
 // ── Render ─────────────────────────────────────────────────────────────────
 function renderAnalysis() {
   popAFilter();
-  const filter  = document.getElementById('af-filter')?.value || '';
+  const filter    = document.getElementById('af-filter')?.value || '';
+  const zoneFilter = document.getElementById('af-zone')?.value || '';
+  const varFilter  = document.getElementById('af-variety')?.value || '';
   const norms   = getNorms();
   let analyses  = [...(S.analyses||[])].sort((a,b)=>(b.date||"").localeCompare(a.date||""));
-  if (filter) analyses = analyses.filter(a=>!a.cellKey||a.cellKey===filter);
+  if (filter)    analyses = analyses.filter(a=>!a.cellKey||a.cellKey===filter);
+  if (zoneFilter) analyses = analyses.filter(a=>!a.zoneId||a.zoneId===zoneFilter);
+  if (varFilter)  analyses = analyses.filter(a=>!a.varietyId||a.varietyId===varFilter);
   if (_anTab !== 'all') analyses = analyses.filter(a=>a.type===_anTab);
 
   // Recommendations panel
@@ -6343,9 +6431,15 @@ function renderAnalysis() {
         <div style="text-align:right;">
           <div style="font-size:11px;font-family:'Unbounded',sans-serif;color:var(--text2);">${an.date}</div>
           <div style="font-size:10px;color:var(--text3);">${cell}</div>
+          ${an.zoneId ? `<div style="font-size:10px;color:var(--blue);">💧 ${(S.irrigation?.zones||[]).find(z=>z.id===an.zoneId)?.name||an.zoneId}</div>` : ''}
+          ${an.varietyId ? `<div style="font-size:10px;color:var(--accent);">🍒 ${S.varieties.find(v=>v.id===an.varietyId)?.name||''}</div>` : ''}
+          ${an.depthCm ? `<div style="font-size:10px;color:var(--text3);">⬇️ ${an.depthCm}см</div>` : ''}
           ${an.lab?`<div style="font-size:10px;color:var(--text3);">${an.lab}</div>`:''}
-          <button class="btn btn-secondary btn-xs" style="margin-top:4px;" onclick="openAnalysisModal('${an.type}','${an.id}');event.stopPropagation();">✏️</button>
-          <button class="btn btn-danger btn-xs" style="margin-top:4px;" onclick="if(confirm('Удалить анализ?')){S.analyses=S.analyses.filter(a=>a.id!=='${an.id}'&&a.id!==${an.id});save();renderAnalysis();}event.stopPropagation();">🗑</button>
+          <div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap;justify-content:flex-end;">
+            <button class="btn btn-secondary btn-xs" onclick="openAnalysisModal('${an.type}','${an.id}');event.stopPropagation();">✏️</button>
+            <button class="btn btn-danger btn-xs" onclick="if(confirm('Удалить анализ?')){S.analyses=S.analyses.filter(a=>a.id!=='${an.id}'&&a.id!==${an.id});save();renderAnalysis();}event.stopPropagation();">🗑</button>
+            ${an.type==='leaf'||an.type==='water' ? `<button class="btn btn-secondary btn-xs" style="color:var(--teal);" onclick="openFertCalcFromAnalysis('${an.id}');event.stopPropagation();">🌱 Фертигация</button>` : ''}
+          </div>
         </div>
       </div>
       ${elemRows}
@@ -6360,6 +6454,39 @@ function renderAnalysis() {
       </div>
     </div>`;
   }).join('');
+}
+
+function openFertCalcFromAnalysis(analysisId) {
+  const an = S.analyses.find(a=>String(a.id)===String(analysisId));
+  if(!an) return;
+  // Переключаемся на фертигацию
+  const irrigTab = document.querySelector('.tab[onclick*="irrigation"]');
+  if(irrigTab) switchTab('irrigation', irrigTab);
+  setTimeout(()=>{
+    switchIrrigSub('fertigation');
+    setTimeout(()=>{
+      openFertCalcModal();
+      setTimeout(()=>{
+        // Устанавливаем зону если есть
+        if(an.zoneId) {
+          const zSel = document.getElementById('fc-zone');
+          if(zSel) zSel.value = an.zoneId;
+          onFertCalcZoneChange();
+        }
+        // Показываем сообщение
+        const res = document.getElementById('fc-result');
+        if(res) {
+          res.style.display = 'block';
+          res.innerHTML = `<div style="padding:10px;background:rgba(74,222,128,.06);border-radius:8px;font-size:11px;color:var(--text3);margin-bottom:10px;">
+            📊 Загружен анализ ${an.type==='leaf'?'листа':'воды'} от ${an.date}
+            ${an.cellKey?` · Клетка: ${an.cellKey}`:''}
+            ${an.zoneId?` · Зона: ${(S.irrigation?.zones||[]).find(z=>z.id===an.zoneId)?.name||''}` :''}
+            <br>Нажмите "🧮 Рассчитать" чтобы получить программу фертигации с учётом данных анализа.
+          </div>`;
+        }
+      }, 300);
+    }, 200);
+  }, 300);
 }
 
 // ═══ PDF АНАЛИЗОВ ════════════════════════════════════════════════════════
