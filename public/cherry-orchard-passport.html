@@ -8718,7 +8718,7 @@ function openFertCalcModal() {
   // Шаг 1: Кнопки культур — ВСЕ из справочника, с пометкой сколько участков заполнено
   const cropBtns = document.getElementById('fc-crop-btns');
   if(cropBtns) {
-    const allCrops = S.cropSettings || [];
+    const allCrops = S.crops || [];
     // Считаем участки и га по каждой культуре
     const cropStats = {};
     Object.values(S.cells||{}).forEach(cd => {
@@ -8731,11 +8731,11 @@ function openFertCalcModal() {
       cropBtns.innerHTML = '<div style="color:var(--text3);font-size:11px;">Справочник культур пуст.</div>';
     } else {
       cropBtns.innerHTML = allCrops.map(c => {
-        const st = cropStats[c.cropId];
+        const st = cropStats[c.id];
         const sub = st
           ? `<span style="color:var(--text3);font-size:10px;">(${st.count} уч · ${st.ha.toFixed(1)}га)</span>`
           : `<span style="color:var(--text3);font-size:10px;">нет участков</span>`;
-        return `<button onclick="fcSelectCrop('${c.cropId}')" id="fc-crop-btn-${c.cropId}"
+        return `<button onclick="fcSelectCrop('${c.id}')" id="fc-crop-btn-${c.id}"
           style="padding:7px 14px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);
           color:var(--text2);cursor:pointer;font-size:12px;transition:all .15s;">
           ${c.emoji||'🌱'} ${c.name} ${sub}
@@ -8899,7 +8899,7 @@ function fcUpdateSummary() {
   if(!el) return;
   if(!_fcSelCrop) { el.style.display='none'; return; }
 
-  const crop = (S.cropSettings||[]).find(c=>c.cropId===_fcSelCrop);
+  const crop = (S.crops||[]).find(c=>c.id===_fcSelCrop);
   const cropName = `${crop?.emoji||'🌱'} ${crop?.name||_fcSelCrop}`;
 
   let desc = '';
