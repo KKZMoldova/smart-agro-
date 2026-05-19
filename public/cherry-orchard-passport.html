@@ -398,6 +398,7 @@ tbody td{padding:10px 12px;vertical-align:middle;}
 </header>
 
 <div class="tabs">
+  <div class="tab" onclick="switchTab('dashboard',this)" style="color:var(--accent);font-weight:600;">🌅 Dashboard</div>
   <div class="tab active" onclick="switchTab('map',this)">🗺 Карта</div>
   <div class="tab" onclick="switchTab('crops',this)">🌿 Культуры</div>
   <div class="tab" onclick="switchTab('weather',this)">🌡️ Погода / ❄️ Chill</div>
@@ -416,7 +417,19 @@ tbody td{padding:10px 12px;vertical-align:middle;}
 
 <div class="main">
 
-  <!-- CROPS -->
+  <!-- DASHBOARD -->
+  <div class="panel" id="panel-dashboard" style="display:none;">
+    <div class="section-hdr">
+      <h2>🌅 Утренний дашборд агронома</h2>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <span id="dash-date" style="font-size:12px;color:var(--text3);"></span>
+        <button class="btn btn-secondary btn-sm" onclick="renderDashboard()">🔄 Обновить</button>
+      </div>
+    </div>
+    <div id="dashboard-content">
+      <div style="text-align:center;padding:40px;color:var(--text3);">⏳ Загрузка...</div>
+    </div>
+  </div>
   <div class="panel" id="panel-crops">
     <div class="section-hdr">
       <h2>🌿 Культуры хозяйства</h2>
@@ -4262,6 +4275,7 @@ function switchTab(tab,el){
   if(tab==='analysis'){popAFilter();renderAnalysis();setTimeout(loadAllAnalysisPdfs,300);}
   if(tab==='diseases'){popDFilter();renderDiseases();}
   if(tab==='doses')popDoseSelects();
+  if(tab==='dashboard'){renderDashboard();}
   if(tab==='settings'){loadSettings(); loadEquipLists(); loadIrrigLists(); renderRolesSettings();}
   if(tab==='warehouse')renderWarehouse();
   if(tab==='tasks')renderTasks();
@@ -7478,6 +7492,247 @@ async function saveMultiIrrigEvent(zoneIds, durationMin) {
   const panel = document.getElementById('multi-irrig-panel');
   if(panel) panel.style.display='none';
   alert(`✅ Записан полив ${zoneIds.length} зон`);
+}
+
+// ═══ УТРЕННИЙ ДАШБОРД АГРОНОМА ═══════════════════════════════════════════
+
+function renderDashboard() {
+  const el = document.getElementById('dashboard-content');
+  const dateEl = document.getElementById('dash-date');
+  if(!el) return;
+
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('ru-RU', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+  if(dateEl) dateEl.textContent = dateStr;
+
+  const sections = [];
+
+  // ── 1. ПОГОДА И СТРЕСС-АЛЕРТЫ ─────────────────────────────────────────
+  const w7 = (S.weather||[]).slice(0,7);
+  const yesterday = (S.weather||[])[0];
+  if(yesterday) {
+    const tmax = parseFloat(yesterday.tmax)||0;
+    const tmin = parseFloat(yesterday.tmin)||0;
+    const precip = parseFloat(yesterday.precip)||0;
+    const rh = parseFloat(yesterday.humidity)||0;
+    const et0 = parseFloat(yesterday.et0)||0;
+
+    sections.push({
+      title: '🌡️ Погода вчера', color: 'var(--blue)',
+      content: `<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;">
+        ${[
+          ['T°мин', `${tmin}°C`, tmin<=0?'var(--red)':'var(--text)'],
+          ['T°макс', `${tmax}°C`, tmax>=35?'var(--orange)':'var(--text)'],
+          ['Осадки', `${precip}мм`, precip>5?'var(--blue)':'var(--text)'],
+          ['RH', `${rh}%`, rh>90?'var(--yellow)':'var(--text)'],
+          ['ET₀', `${et0}мм`, ''],
+        ].map(([l,v,c])=>`<div style="text-align:center;padding:8px;background:var(--surface2);border-radius:8px;">
+          <div style="font-size:15px;font-weight:700;color:${c||'var(--text)'};">${v}</div>
+          <div style="font-size:9px;color:var(--text3);">${l}</div>
+        </div>`).join('')}
+      </div>`
+    });
+  }
+
+  // ── 2. СТРЕСС-АЛЕРТЫ ──────────────────────────────────────────────────
+  const stressAlerts = detectStress(S.weather, _forecast);
+  const criticalAlerts = stressAlerts.filter(a=>['critical','danger'].includes(a.level));
+  const warnAlerts = stressAlerts.filter(a=>['warning','warn'].includes(a.level));
+
+  if(criticalAlerts.length || warnAlerts.length) {
+    const alertsHtml = [...criticalAlerts, ...warnAlerts].slice(0,6).map(a=>`
+      <div style="display:flex;gap:10px;align-items:flex-start;padding:8px 12px;border-radius:8px;margin-bottom:5px;
+        background:${['critical','danger'].includes(a.level)?'rgba(220,38,38,.08)':'rgba(245,158,11,.08)'};
+        border-left:3px solid ${['critical','danger'].includes(a.level)?'#dc2626':'#f59e0b'};">
+        <span style="font-size:16px;">${a.icon||'⚠️'}</span>
+        <div>
+          <div style="font-size:12px;font-weight:700;">${a.title}</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px;">${a.body||''}</div>
+        </div>
+      </div>`).join('');
+
+    sections.push({
+      title: `⚠️ Алерты (${criticalAlerts.length} критич. · ${warnAlerts.length} внимание)`,
+      color: criticalAlerts.length ? '#dc2626' : '#f59e0b',
+      content: alertsHtml
+    });
+  } else {
+    sections.push({
+      title: '✅ Стресс-алерты', color: 'var(--accent)',
+      content: '<div style="font-size:12px;color:var(--accent);padding:8px;">✅ Критических алертов нет — день начинается хорошо!</div>'
+    });
+  }
+
+  // ── 3. ПОЛИВ — статус зон ─────────────────────────────────────────────
+  const zones = S.irrigation?.zones||[];
+  if(zones.length) {
+    const zoneRows = zones.map(z=>{
+      const r = calcZoneIrrigRecommendation(z);
+      const lastIrrig = (S.irrigation.events||[]).filter(e=>e.zoneId===z.id)
+        .sort((a,b)=>(b.date||'').localeCompare(a.date||''))[0];
+      const daysSince = lastIrrig ? Math.floor((Date.now()-new Date(lastIrrig.date))/(864e5)) : '—';
+      return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface2);border-radius:8px;margin-bottom:4px;border-left:3px solid ${r.statusColor};">
+        <span style="font-size:16px;">${r.statusIcon}</span>
+        <div style="flex:1;">
+          <div style="font-size:12px;font-weight:600;">${z.name}</div>
+          <div style="font-size:11px;color:var(--text3);">${r.status} · Дефицит: ${r.deficit.toFixed(1)}мм · ETc 7дн: ${r.etc_7.toFixed(1)}мм</div>
+        </div>
+        <div style="text-align:right;font-size:11px;color:var(--text3);">
+          ${r.targetMm>0.5?`<div style="color:var(--blue);font-weight:600;">💧 ${r.targetMm.toFixed(1)}мм · ${r.durationMin}мин</div>`:''}
+          <div>Последний: ${daysSince==='—'?'нет данных':daysSince+' дн. назад'}</div>
+        </div>
+        ${r.targetMm>0.5?`<button class="btn btn-primary btn-xs" onclick="switchTab('irrigation',document.querySelector('.tab[onclick*=irrigation]'));setTimeout(()=>openIrrigEventModalForZone('${z.id}',${r.targetMm.toFixed(1)},${r.durationMin}),400);">Полить</button>`:''}
+      </div>`;
+    }).join('');
+
+    const needIrrig = zones.filter(z=>calcZoneIrrigRecommendation(z).targetMm>0.5).length;
+    sections.push({
+      title: `💧 Полив зон (${needIrrig} требуют полива)`,
+      color: needIrrig ? 'var(--blue)' : 'var(--accent)',
+      content: zoneRows
+    });
+  }
+
+  // ── 4. СКЛАД — низкие остатки ─────────────────────────────────────────
+  const chemicals = S.warehouse?.chemicals||[];
+  const lowStock = chemicals.filter(c=>{
+    const qty = parseFloat(c.qty)||0;
+    const minQty = parseFloat(c.minQty)||0;
+    return minQty>0 ? qty<=minQty : qty<=0;
+  });
+  const outOfStock = chemicals.filter(c=>(parseFloat(c.qty)||0)<=0);
+
+  if(lowStock.length || outOfStock.length) {
+    sections.push({
+      title: `🏪 Склад (${outOfStock.length} нет · ${lowStock.length} мало)`,
+      color: outOfStock.length ? '#dc2626' : '#f59e0b',
+      content: `<div style="display:flex;flex-wrap:wrap;gap:6px;">
+        ${[...outOfStock.map(c=>`<div style="padding:5px 10px;border-radius:8px;background:rgba(220,38,38,.08);border:1px solid rgba(220,38,38,.2);font-size:11px;">
+          ❌ <strong>${c.name}</strong> — 0 ${c.unit||''}
+        </div>`),
+        ...lowStock.filter(c=>(parseFloat(c.qty)||0)>0).map(c=>`<div style="padding:5px 10px;border-radius:8px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);font-size:11px;">
+          ⚠️ <strong>${c.name}</strong> — ${c.qty} ${c.unit||''}
+        </div>`)].join('')}
+      </div>`
+    });
+  }
+
+  // ── 5. PHI — препараты на выходе ──────────────────────────────────────
+  const todayStr = today();
+  const expiring = (S.treatments||[]).filter(t=>{
+    if(!t.whiDate&&!t.endDate) return false;
+    const whi = t.whiDate||t.endDate;
+    const daysLeft = Math.ceil((new Date(whi)-new Date(todayStr))/(864e5));
+    return daysLeft>=0 && daysLeft<=7;
+  }).sort((a,b)=>(a.whiDate||a.endDate||'').localeCompare(b.whiDate||b.endDate||''));
+
+  if(expiring.length) {
+    sections.push({
+      title: `⏰ PHI — срок ожидания (${expiring.length} заканчивается)`,
+      color: '#f59e0b',
+      content: expiring.slice(0,5).map(t=>{
+        const whi = t.whiDate||t.endDate;
+        const daysLeft = Math.ceil((new Date(whi)-new Date(todayStr))/(864e5));
+        const prod = t.products?.map(p=>p.name).join(', ')||t.product||'—';
+        return `<div style="display:flex;justify-content:space-between;padding:7px 12px;background:var(--surface2);border-radius:8px;margin-bottom:4px;border-left:3px solid ${daysLeft<=2?'#dc2626':'#f59e0b'};">
+          <div>
+            <div style="font-size:12px;font-weight:600;">${prod}</div>
+            <div style="font-size:11px;color:var(--text3);">${t.date} · ${t.cellTarget||'все клетки'}</div>
+          </div>
+          <div style="text-align:right;font-size:12px;font-weight:700;color:${daysLeft<=2?'#dc2626':'#f59e0b'};">
+            ${daysLeft===0?'Сегодня!':daysLeft===1?'Завтра!':daysLeft+' дн.'}
+          </div>
+        </div>`;
+      }).join('')
+    });
+  }
+
+  // ── 6. ЗАДАНИЯ на сегодня ─────────────────────────────────────────────
+  const todayTasks = (S.tasks||[]).filter(t=>t.due_date?.slice(0,10)===todayStr && t.status!=='done');
+  if(todayTasks.length) {
+    sections.push({
+      title: `📋 Задания на сегодня (${todayTasks.length})`,
+      color: 'var(--purple)',
+      content: todayTasks.slice(0,5).map(t=>`
+        <div style="display:flex;align-items:center;gap:10px;padding:7px 12px;background:var(--surface2);border-radius:8px;margin-bottom:4px;">
+          <span style="font-size:14px;">${t.status==='assigned'?'👤':t.status==='in_progress'?'🔄':'📋'}</span>
+          <div style="flex:1;">
+            <div style="font-size:12px;font-weight:600;">${t.work_type_name||'Задание'}</div>
+            <div style="font-size:11px;color:var(--text3);">${t.parcel_name||'—'} · ${t.assigned_to_name||'не назначено'}</div>
+          </div>
+        </div>`).join('')
+    });
+  }
+
+  // ── 7. АНАЛИЗЫ — дефициты по листу ───────────────────────────────────
+  const lastLeaf = [...(S.analyses||[])].filter(a=>a.type==='leaf'&&a.date)
+    .sort((a,b)=>(b.date||'').localeCompare(a.date||''))[0];
+  if(lastLeaf) {
+    const norms = LEAF_NORMS_CHERRY;
+    const deficits = Object.entries(norms).filter(([el,n])=>{
+      const val = parseFloat(lastLeaf[el]||lastLeaf[el.toLowerCase()]);
+      return !isNaN(val) && val > 0 && val < n.min;
+    });
+    if(deficits.length) {
+      sections.push({
+        title: `🍃 Анализ листа (${lastLeaf.date}) — дефициты`,
+        color: '#f59e0b',
+        content: deficits.map(([el,n])=>{
+          const val = parseFloat(lastLeaf[el]||lastLeaf[el.toLowerCase()]);
+          return `<div style="display:flex;justify-content:space-between;padding:6px 12px;background:rgba(245,158,11,.06);border-radius:8px;margin-bottom:3px;border-left:2px solid #f59e0b;">
+            <div>
+              <span style="font-size:12px;font-weight:600;">${el}</span>
+              <span style="font-size:11px;color:var(--text3);margin-left:8px;">${val}${n.unit} (норма ${n.min}–${n.max})</span>
+            </div>
+            <div style="font-size:11px;color:var(--text3);">${n.action}</div>
+          </div>`;
+        }).join('')
+      });
+    }
+  }
+
+  // ── 8. МОА-ротация — предупреждения ───────────────────────────────────
+  const cutoff90 = new Date(Date.now()-90*864e5).toISOString().split('T')[0];
+  const moaUsage = {};
+  (S.treatments||[]).filter(t=>t.date>=cutoff90).forEach(t=>{
+    (t.products||[]).forEach(p=>{
+      const moa = getMoaForProduct(S.catalog.find(c=>c.name===p.name)||{name:p.name});
+      const code = moa?.frac||moa?.fracGroup||moa?.irac||'?';
+      if(code==='?'||code==='M'||code==='33') return;
+      if(!moaUsage[code]) moaUsage[code]=0;
+      moaUsage[code]++;
+    });
+  });
+  const moaWarnings = Object.entries(moaUsage).filter(([code,cnt])=>{
+    const info = MOA_DB.frac[code]||MOA_DB.irac[code]||{};
+    return (info.risk==='ВЫСОКИЙ' && cnt>=2) || (info.risk==='СРЕДНИЙ' && cnt>=3);
+  });
+  if(moaWarnings.length) {
+    sections.push({
+      title: `🔄 МОА-ротация — риск резистентности`,
+      color: '#dc2626',
+      content: moaWarnings.map(([code,cnt])=>{
+        const info = MOA_DB.frac[code]||MOA_DB.irac[code]||{};
+        return `<div style="padding:6px 12px;background:rgba(220,38,38,.06);border-radius:8px;margin-bottom:3px;border-left:2px solid #dc2626;font-size:11px;">
+          ⚠️ FRAC ${code} (${info.name||code}) — применено ${cnt} раз · ${info.risk} риск
+        </div>`;
+      }).join('')
+    });
+  }
+
+  // ── РЕНДЕР ВСЕХ СЕКЦИЙ ────────────────────────────────────────────────
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      ${sections.map(s=>`
+        <div class="card" style="border-left:3px solid ${s.color};">
+          <div style="font-size:12px;font-weight:700;color:${s.color};margin-bottom:10px;">${s.title}</div>
+          ${s.content}
+        </div>`).join('')}
+    </div>
+    <div style="margin-top:12px;font-size:11px;color:var(--text3);text-align:center;">
+      Последнее обновление: ${now.toLocaleTimeString('ru-RU')} · 
+      <a href="#" onclick="switchTab('ailog',document.querySelector('.tab[onclick*=ailog]'));return false;" style="color:var(--blue);">Открыть журнал AI →</a>
+    </div>`;
 }
 
 // ═══ WATER BALANCE ENGINE ════════════════════════════════════════════════
@@ -17888,6 +18143,13 @@ async function init(){
 
   // Применяем роль
   applyRoleAccess();
+
+  // Открываем дашборд если агроном/владелец
+  const role = sessionStorage.getItem('agro_role')||'agronomist';
+  if(['agronomist','owner','shareholder','director'].includes(role)) {
+    const dashTab = document.querySelector('.tab[onclick*="dashboard"]');
+    if(dashTab) setTimeout(()=>dashTab.click(), 600);
+  }
 }
 init();
 
@@ -17895,7 +18157,7 @@ init();
 
 const ROLE_ACCESS = {
   // Агроном — полный доступ
-  agronomist: ['map','crops','weather','gdd','irrigation','catalog','treatments',
+  agronomist: ['dashboard','map','crops','weather','gdd','irrigation','catalog','treatments',
                'analysis','diseases','warehouse','tasks','ailog','doses','settings'],
   // Владелец — полный доступ
   owner:      ['map','crops','weather','gdd','irrigation','catalog','treatments',
