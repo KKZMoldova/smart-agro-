@@ -878,6 +878,11 @@ tbody td{padding:10px 12px;vertical-align:middle;}
 
   <!-- SUB: Фертигация -->
   <div id="isub-panel-fertigation" style="display:none;">
+    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+      <button class="btn btn-primary btn-sm" onclick="openFertCalcModal()">🧮 Расчёт дозы</button>
+      <button class="btn btn-secondary btn-sm" onclick="openFertigationModal()">+ Программа</button>
+      <button class="btn btn-secondary btn-sm" onclick="switchTab('analysis',document.querySelector('.tab[onclick*=\'analysis\']'));setTimeout(()=>openAnalysisModal('water'),300);">💧 + Анализ воды</button>
+    </div>
     <div id="fertigation-content"></div>
   </div>
 
