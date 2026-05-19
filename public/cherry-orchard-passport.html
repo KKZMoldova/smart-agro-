@@ -2501,6 +2501,12 @@ tbody td{padding:10px 12px;vertical-align:middle;}
           oninput="ntUpdateCalc()">
       </div>
       <div class="ff">
+        <label>Объём бака опрыскивателя (л)</label>
+        <input type="number" id="nt-tank-vol" value="2000" placeholder="2000"
+          style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);"
+          oninput="ntUpdateCalc()">
+      </div>
+      <div class="ff">
         <label>Метод внесения</label>
         <select id="nt-method" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
           <option value="foliar">🌿 Листовое опрыскивание</option>
@@ -2508,6 +2514,12 @@ tbody td{padding:10px 12px;vertical-align:middle;}
           <option value="soil">🌱 В почву</option>
           <option value="trunk">🌳 Стволовая инъекция</option>
         </select>
+      </div>
+      <div class="ff">
+        <label>Производительность (га/бак)</label>
+        <input type="number" id="nt-ha-per-tank" step="0.1" placeholder="авто"
+          style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);"
+          oninput="ntUpdateCalc()">
       </div>
     </div>
     <div style="position:relative;margin-bottom:8px;">
@@ -14480,34 +14492,114 @@ function _updateNtParcelUI() {
 function ntUpdateCalc() {
   const calcEl = document.getElementById('nt-calc-summary');
   if(!calcEl) return;
+
   const totalHa = _newTaskParcels.reduce((s,p)=>s+p.ha,0);
   const waterPerHa = parseFloat(document.getElementById('nt-water')?.value)||400;
-  const chems = _newTaskChems.filter(c=>parseFloat(c.dose_actual)>0);
+  const tankVol = parseFloat(document.getElementById('nt-tank-vol')?.value)||2000;
+  const haPerTankManual = parseFloat(document.getElementById('nt-ha-per-tank')?.value)||0;
+  const chems = _newTaskChems.filter(c=>parseFloat(c.dose_actual||c.dose_default)>0);
+
   if(!chems.length||!totalHa){ calcEl.style.display='none'; return; }
-  const totalWater = Math.round(waterPerHa*totalHa);
+
+  const totalWaterL = waterPerHa * totalHa;
+  const haPerTank = haPerTankManual || (tankVol / waterPerHa);
+  const fullTanks = Math.floor(totalHa / haPerTank);
+  const remainHa = Math.round((totalHa - fullTanks * haPerTank) * 1000) / 1000;
+  const remainWaterL = Math.round(remainHa * waterPerHa);
+  const totalTanks = fullTanks + (remainHa > 0.001 ? 1 : 0);
+
+  const ORDER_PRIORITY = {microelement:1,fertilizer:2,fungicide:3,insecticide:4,acaricide:5,herbicide:6,surfactant:7,other:8};
+  const chemsOrdered = [...chems].sort((a,b)=>{
+    const ca=S.catalog.find(x=>x.id===a.id), cb=S.catalog.find(x=>x.id===b.id);
+    return (ORDER_PRIORITY[ca?.type]||9)-(ORDER_PRIORITY[cb?.type]||9);
+  });
   const TC={fungicide:'var(--teal)',insecticide:'var(--orange)',herbicide:'var(--yellow)',
-    fertilizer:'var(--accent)',acaricide:'var(--purple)',microelement:'var(--blue)',other:'var(--text3)'};
-  let html = `<div style="font-size:10px;color:var(--text3);margin-bottom:8px;">📐 Площадь: <strong style="color:var(--accent);">${totalHa.toFixed(3)} га</strong> · 💧 Воды: <strong style="color:var(--blue);">${totalWater} л</strong></div>`;
-  html += `<div style="display:flex;flex-wrap:wrap;gap:6px;">`;
-  chems.forEach(c=>{
-    const dose=parseFloat(c.dose_actual)||0;
-    const total=Math.round(dose*totalHa*1000)/1000;
+    fertilizer:'var(--accent)',acaricide:'#a855f7',microelement:'var(--blue)',surfactant:'#67e8f9',other:'var(--text3)'};
+  const TL={fungicide:'Фунгицид',insecticide:'Инсектицид',herbicide:'Гербицид',
+    fertilizer:'Удобрение',acaricide:'Акарицид',microelement:'Микроэл.',surfactant:'ПАВ',other:'Прочее'};
+
+  let html = '';
+
+  // Шапка итогов
+  html += `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px;">
+    <div style="text-align:center;padding:8px;background:var(--surface3);border-radius:8px;">
+      <div style="font-size:15px;font-weight:700;color:var(--accent);">${totalHa.toFixed(2)}</div>
+      <div style="font-size:9px;color:var(--text3);">га</div></div>
+    <div style="text-align:center;padding:8px;background:var(--surface3);border-radius:8px;">
+      <div style="font-size:15px;font-weight:700;color:var(--blue);">${Math.round(totalWaterL)}</div>
+      <div style="font-size:9px;color:var(--text3);">л воды</div></div>
+    <div style="text-align:center;padding:8px;background:var(--surface3);border-radius:8px;">
+      <div style="font-size:15px;font-weight:700;color:var(--yellow);">${totalTanks}</div>
+      <div style="font-size:9px;color:var(--text3);">баков (${tankVol}л)</div></div>
+    <div style="text-align:center;padding:8px;background:var(--surface3);border-radius:8px;">
+      <div style="font-size:15px;font-weight:700;color:var(--orange);">${haPerTank.toFixed(2)}</div>
+      <div style="font-size:9px;color:var(--text3);">га/бак</div></div>
+  </div>`;
+
+  // Порядок заполнения бака
+  html += `<div style="margin-bottom:12px;">
+    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">📋 Порядок заполнения бака · 1 бак = ${tankVol}л = ${haPerTank.toFixed(2)}га</div>`;
+  chemsOrdered.forEach((c,idx)=>{
+    const dose=parseFloat(c.dose_actual||c.dose_default)||0;
+    const perTank=Math.round(dose*haPerTank*1000)/1000;
+    const totalAll=Math.round(dose*totalHa*1000)/1000;
     const cat=S.catalog.find(x=>x.id===c.id);
-    const color=TC[cat?.type||'other']||'var(--accent)';
-    // Проверяем остаток на складе
+    const color=TC[cat?.type||'other']||'var(--text3)';
     const stock=S.warehouse?.chemicals?.find(x=>x.name.toLowerCase()===c.name.toLowerCase());
-    const enough=stock?stock.qty>=total:null;
-    html+=`<div style="padding:6px 10px;border-radius:8px;background:var(--surface3);border:1px solid ${enough===false?'var(--red)':enough===true?'rgba(74,222,128,.3)':'var(--border)'};">
-      <div style="font-size:11px;font-weight:600;">${c.name}</div>
-      <div style="font-size:13px;font-weight:700;color:${color};">${total} <span style="font-size:10px;">л/кг</span></div>
-      ${stock?`<div style="font-size:10px;color:${enough?'var(--accent)':'var(--red)'};">${enough?'✅':'⚠️'} склад: ${stock.qty} ${stock.unit||'л'}</div>`:'<div style="font-size:10px;color:var(--text3);">склад: нет данных</div>'}
+    const enough=stock?stock.qty>=totalAll:null;
+    html+=`<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--surface3);border-radius:8px;margin-bottom:4px;border-left:3px solid ${color};">
+      <div style="width:20px;height:20px;border-radius:50%;background:${color}33;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:${color};flex-shrink:0;">${idx+1}</div>
+      <div style="flex:1;">
+        <div style="font-size:12px;font-weight:600;">${c.name} <span style="font-size:10px;color:${color};">${TL[cat?.type||'other']||''}</span></div>
+        <div style="font-size:11px;color:var(--text3);">Доза: ${dose}л/га · На бак: <strong style="color:${color};">${perTank}л/кг</strong> · Всего: <strong>${totalAll}л/кг</strong></div>
+      </div>
+      ${stock?`<div style="font-size:11px;font-weight:600;color:${enough?'var(--accent)':'var(--red)'};">${enough?'✅':'⚠️'} ${stock.qty}${stock.unit||'л'}</div>`:'<div style="font-size:10px;color:var(--text3);">нет данных</div>'}
     </div>`;
   });
-  html += `</div>`;
+  html += '</div>';
+
+  // Расчёт по участкам
+  if(_newTaskParcels.length>1) {
+    html += `<div style="margin-bottom:12px;"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">🗺 По участкам</div>`;
+    _newTaskParcels.forEach(p=>{
+      const pTanks=p.ha/haPerTank, pFull=Math.floor(pTanks), pRem=Math.round((pTanks-pFull)*100)/100;
+      html+=`<div style="padding:8px 10px;background:var(--surface3);border-radius:8px;margin-bottom:4px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
+          <span style="font-size:12px;font-weight:600;">🌳 ${p.name}</span>
+          <span style="font-size:11px;color:var(--text3);">${p.ha.toFixed(3)}га · ${Math.round(p.ha*waterPerHa)}л</span>
+        </div>
+        <div style="font-size:11px;color:var(--text3);">
+          ${pFull>0?`<span style="color:var(--accent);">${pFull} полн. бак${pFull>1?'а':''}.</span>`:''}
+          ${pRem>0.01?`<span style="color:var(--orange);"> + ${(pRem*100).toFixed(0)}% бака (${Math.round(pRem*tankVol)}л)</span>`:''}
+        </div>
+        ${pRem>0.01?`<div style="margin-top:3px;font-size:10px;color:var(--orange);">💡 Остаток: ${chemsOrdered.map(c=>{const d=parseFloat(c.dose_actual||c.dose_default)||0;return c.name+': '+(Math.round(d*pRem*haPerTank*1000)/1000)+'л/кг';}).join(' · ')}</div>`:''}
+      </div>`;
+    });
+    html += '</div>';
+  }
+
+  // Последний неполный бак
+  if(remainHa>0.001) {
+    html+=`<div style="padding:10px 14px;background:rgba(251,146,60,.08);border:1px solid rgba(251,146,60,.2);border-radius:8px;margin-bottom:8px;">
+      <div style="font-size:11px;font-weight:700;color:var(--orange);margin-bottom:6px;">⚠️ Последний бак: ${(remainHa/haPerTank*100).toFixed(0)}% — ${remainWaterL}л · ${remainHa.toFixed(3)}га</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;">
+        ${chemsOrdered.map(c=>{
+          const dose=parseFloat(c.dose_actual||c.dose_default)||0;
+          const cat=S.catalog.find(x=>x.id===c.id);
+          const color=TC[cat?.type||'other']||'var(--text3)';
+          return `<div style="padding:3px 8px;border-radius:6px;background:${color}15;font-size:11px;font-weight:600;color:${color};">${c.name}: <strong>${Math.round(dose*remainHa*1000)/1000}</strong></div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }
+
+  // Техника
+  const eqName = document.getElementById('nt-equip')?.selectedOptions[0]?.dataset.name||'';
+  if(eqName) html+=`<div style="font-size:11px;color:var(--text3);padding:6px 10px;background:var(--surface3);border-radius:8px;">🚜 ${eqName} · бак ${tankVol}л · ${haPerTank.toFixed(2)}га/бак</div>`;
+
   calcEl.innerHTML = html;
   calcEl.style.display = 'block';
 }
-
 function searchNtChems(q) {
   const dd = document.getElementById('nt-chem-dropdown');
   const catalog = S.catalog||[];
