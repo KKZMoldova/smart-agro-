@@ -1623,13 +1623,13 @@ tbody td{padding:10px 12px;vertical-align:middle;}
   <div class="modal" style="max-width:720px;width:96%;">
     <h2 id="an-modal-title">🔬 Анализ</h2>
     <div class="form-grid" style="margin-bottom:12px;">
-      <div class="ff"><label>Дата анализа</label><input type="date" id="a-date"></div>
+      <div class="ff"><label>Дата анализа</label><input type="date" id="a-date" oninput="this.value=this.value.replace(',','.')"></div>
       <div class="ff full">
         <label>Участки и зоны</label>
         <div id="a-parcel-zone-picker" style="border:1px solid var(--border);border-radius:8px;padding:8px;background:var(--surface2);max-height:180px;overflow-y:auto;"></div>
         <div id="a-selected-summary" style="font-size:11px;color:var(--accent);margin-top:4px;"></div>
-        <input type="hidden" id="a-cell">
-        <input type="hidden" id="a-zone">
+        <input type="hidden" id="a-cell" oninput="this.value=this.value.replace(',','.')">
+        <input type="hidden" id="a-zone" oninput="this.value=this.value.replace(',','.')">
       </div>
       <div class="ff"><label>Культура</label>
         <select id="a-crop"><option value="">— все культуры —</option></select>
@@ -1638,10 +1638,10 @@ tbody td{padding:10px 12px;vertical-align:middle;}
         <select id="a-variety"><option value="">— все сорта —</option></select>
       </div>
       <div class="ff"><label>Глубина отбора (см)</label>
-        <input type="number" id="a-depth-cm" placeholder="0-30" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+        <input type="text" inputmode="decimal" id="a-depth-cm" placeholder="0-30" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);" oninput="this.value=this.value.replace(',','.')">
       </div>
-      <div class="ff"><label>Лаборатория</label><input type="text" id="a-lab" placeholder="Название лаборатории"></div>
-      <div class="ff"><label>Примечание</label><input type="text" id="a-note" placeholder="доп. информация"></div>
+      <div class="ff"><label>Лаборатория</label><input type="text" id="a-lab" placeholder="Название лаборатории" oninput="this.value=this.value.replace(',','.')"></div>
+      <div class="ff"><label>Примечание</label><input type="text" id="a-note" placeholder="доп. информация" oninput="this.value=this.value.replace(',','.')"></div>
     </div>
 
     <!-- Type selector tabs -->
@@ -1650,27 +1650,27 @@ tbody td{padding:10px 12px;vertical-align:middle;}
       <button class="an-tab-btn"        id="amodal-soil"  onclick="switchAnModalTab('soil')" >🌱 Почва</button>
       <button class="an-tab-btn"        id="amodal-water" onclick="switchAnModalTab('water')">💧 Вода</button>
     </div>
-    <input type="hidden" id="a-type" value="leaf">
+    <input type="hidden" id="a-type" value="leaf" oninput="this.value=this.value.replace(',','.')">
 
     <!-- LEAF analysis fields -->
     <div id="an-fields-leaf">
       <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:'Unbounded',sans-serif;margin-bottom:8px;">Макроэлементы (%)</div>
       <div class="form-grid" style="margin-bottom:10px;">
-        <div class="ff"><label>N — Азот (%)</label><input type="number" id="a-N" step="0.01" placeholder="2.0–3.0"></div>
-        <div class="ff"><label>P — Фосфор (%)</label><input type="number" id="a-P" step="0.01" placeholder="0.15–0.40"></div>
-        <div class="ff"><label>K — Калий (%)</label><input type="number" id="a-K" step="0.01" placeholder="1.5–2.5"></div>
-        <div class="ff"><label>Ca — Кальций (%)</label><input type="number" id="a-Ca" step="0.01" placeholder="1.0–2.5"></div>
-        <div class="ff"><label>Mg — Магний (%)</label><input type="number" id="a-Mg" step="0.01" placeholder="0.25–0.50"></div>
-        <div class="ff"><label>S — Сера (%)</label><input type="number" id="a-S" step="0.01" placeholder="0.1–0.3"></div>
+        <div class="ff"><label>N — Азот (%)</label><input type="text" inputmode="decimal" id="a-N" placeholder="2.0–3.0" oninput="this.value=this.value.replace(',','.')"></div>
+        <div class="ff"><label>P — Фосфор (%)</label><input type="text" inputmode="decimal" id="a-P" placeholder="0.15–0.40" oninput="this.value=this.value.replace(',','.')"></div>
+        <div class="ff"><label>K — Калий (%)</label><input type="text" inputmode="decimal" id="a-K" placeholder="1.5–2.5" oninput="this.value=this.value.replace(',','.')"></div>
+        <div class="ff"><label>Ca — Кальций (%)</label><input type="text" inputmode="decimal" id="a-Ca" placeholder="1.0–2.5" oninput="this.value=this.value.replace(',','.')"></div>
+        <div class="ff"><label>Mg — Магний (%)</label><input type="text" inputmode="decimal" id="a-Mg" placeholder="0.25–0.50" oninput="this.value=this.value.replace(',','.')"></div>
+        <div class="ff"><label>S — Сера (%)</label><input type="text" inputmode="decimal" id="a-S" placeholder="0.1–0.3" oninput="this.value=this.value.replace(',','.')"></div>
       </div>
       <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:'Unbounded',sans-serif;margin-bottom:8px;">Микроэлементы (ppm)</div>
       <div class="form-grid">
-        <div class="ff"><label>Fe — Железо (ppm)</label><input type="number" id="a-Fe" step="1" placeholder="50–300"></div>
-        <div class="ff"><label>Mn — Марганец (ppm)</label><input type="number" id="a-Mn" step="1" placeholder="30–250"></div>
-        <div class="ff"><label>Zn — Цинк (ppm)</label><input type="number" id="a-Zn" step="1" placeholder="15–60"></div>
-        <div class="ff"><label>B — Бор (ppm)</label><input type="number" id="a-B" step="0.1" placeholder="25–50"></div>
-        <div class="ff"><label>Cu — Медь (ppm)</label><input type="number" id="a-Cu" step="0.1" placeholder="5–20"></div>
-        <div class="ff"><label>Mo — Молибден (ppm)</label><input type="number" id="a-Mo" step="0.01" placeholder="0.1–1.0"></div>
+        <div class="ff"><label>Fe — Железо (ppm)</label><input type="text" inputmode="decimal" id="a-Fe" placeholder="50–300" oninput="this.value=this.value.replace(',','.')"></div>
+        <div class="ff"><label>Mn — Марганец (ppm)</label><input type="text" inputmode="decimal" id="a-Mn" placeholder="30–250" oninput="this.value=this.value.replace(',','.')"></div>
+        <div class="ff"><label>Zn — Цинк (ppm)</label><input type="text" inputmode="decimal" id="a-Zn" placeholder="15–60" oninput="this.value=this.value.replace(',','.')"></div>
+        <div class="ff"><label>B — Бор (ppm)</label><input type="text" inputmode="decimal" id="a-B" placeholder="25–50" oninput="this.value=this.value.replace(',','.')"></div>
+        <div class="ff"><label>Cu — Медь (ppm)</label><input type="text" inputmode="decimal" id="a-Cu" placeholder="5–20" oninput="this.value=this.value.replace(',','.')"></div>
+        <div class="ff"><label>Mo — Молибден (ppm)</label><input type="text" inputmode="decimal" id="a-Mo" placeholder="0.1–1.0" oninput="this.value=this.value.replace(',','.')"></div>
       </div>
     </div>
 
@@ -1678,11 +1678,11 @@ tbody td{padding:10px 12px;vertical-align:middle;}
     <div id="an-fields-soil" style="display:none;">
       <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:'Unbounded',sans-serif;margin-bottom:8px;">Основные показатели почвы</div>
       <div class="form-grid" style="margin-bottom:10px;">
-        <div class="ff"><label>pH (КCl)</label><input type="number" id="s-pH" step="0.1" placeholder="6.0–7.0"></div>
-        <div class="ff"><label>Орг. вещество (%)</label><input type="number" id="s-OM" step="0.1" placeholder="2.0–4.0"></div>
-        <div class="ff"><label>ЕКО (мг-экв/100г)</label><input type="number" id="s-CEC" step="1" placeholder="15–30"></div>
-        <div class="ff"><label>Насыщ. основаниями (%)</label><input type="number" id="s-BS" step="1" placeholder="70–100"></div>
-        <div class="ff"><label>Глубина отбора (см)</label><input type="number" id="s-depth" step="5" placeholder="0–30"></div>
+        <div class="ff"><label>pH (КCl)</label><input type="text" inputmode="decimal" id="s-pH" placeholder="6.0–7.0" oninput="this.value=this.value.replace(',','.')"></div>
+        <div class="ff"><label>Орг. вещество (%)</label><input type="text" inputmode="decimal" id="s-OM" placeholder="2.0–4.0" oninput="this.value=this.value.replace(',','.')"></div>
+        <div class="ff"><label>ЕКО (мг-экв/100г)</label><input type="text" inputmode="decimal" id="s-CEC" placeholder="15–30" oninput="this.value=this.value.replace(',','.')"></div>
+        <div class="ff"><label>Насыщ. основаниями (%)</label><input type="text" inputmode="decimal" id="s-BS" placeholder="70–100" oninput="this.value=this.value.replace(',','.')"></div>
+        <div class="ff"><label>Глубина отбора (см)</label><input type="text" inputmode="decimal" id="s-depth" placeholder="0–30" oninput="this.value=this.value.replace(',','.')"></div>
         <div class="ff"><label>Механич. состав</label>
           <select id="s-texture" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px;color:var(--text);width:100%;">
             <option value="">— выбрать —</option>
@@ -1697,16 +1697,16 @@ tbody td{padding:10px 12px;vertical-align:middle;}
       </div>
       <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:'Unbounded',sans-serif;margin-bottom:8px;">Питательные вещества почвы</div>
       <div class="form-grid">
-        <div class="ff"><label>N-NO₃ (мг/кг)</label><input type="number" id="s-NO3" step="1" placeholder="10–30"></div>
-        <div class="ff"><label>P₂O₅ Эгнер (мг/кг)</label><input type="number" id="s-P" step="1" placeholder="50–150"></div>
-        <div class="ff"><label>K₂O Эгнер (мг/кг)</label><input type="number" id="s-K" step="1" placeholder="100–200"></div>
-        <div class="ff"><label>Ca (мг/кг)</label><input type="number" id="s-Ca" step="10" placeholder="1000–3000"></div>
-        <div class="ff"><label>Mg (мг/кг)</label><input type="number" id="s-Mg" step="10" placeholder="100–300"></div>
-        <div class="ff"><label>B (мг/кг)</label><input type="number" id="s-B" step="0.1" placeholder="0.5–2.0"></div>
-        <div class="ff"><label>Fe (мг/кг)</label><input type="number" id="s-Fe" step="1" placeholder="5–50"></div>
-        <div class="ff"><label>Mn (мг/кг)</label><input type="number" id="s-Mn" step="1" placeholder="5–50"></div>
-        <div class="ff"><label>Zn (мг/кг)</label><input type="number" id="s-Zn" step="0.1" placeholder="1–5"></div>
-        <div class="ff"><label>Cu (мг/кг)</label><input type="number" id="s-Cu" step="0.1" placeholder="0.5–3.0"></div>
+        <div class="ff"><label>N-NO₃ (мг/кг)</label><input type="text" inputmode="decimal" id="s-NO3" placeholder="10–30" oninput="this.value=this.value.replace(',','.')"></div>
+        <div class="ff"><label>P₂O₅ Эгнер (мг/кг)</label><input type="text" inputmode="decimal" id="s-P" placeholder="50–150" oninput="this.value=this.value.replace(',','.')"></div>
+        <div class="ff"><label>K₂O Эгнер (мг/кг)</label><input type="text" inputmode="decimal" id="s-K" placeholder="100–200" oninput="this.value=this.value.replace(',','.')"></div>
+        <div class="ff"><label>Ca (мг/кг)</label><input type="text" inputmode="decimal" id="s-Ca" placeholder="1000–3000" oninput="this.value=this.value.replace(',','.')"></div>
+        <div class="ff"><label>Mg (мг/кг)</label><input type="text" inputmode="decimal" id="s-Mg" placeholder="100–300" oninput="this.value=this.value.replace(',','.')"></div>
+        <div class="ff"><label>B (мг/кг)</label><input type="text" inputmode="decimal" id="s-B" placeholder="0.5–2.0" oninput="this.value=this.value.replace(',','.')"></div>
+        <div class="ff"><label>Fe (мг/кг)</label><input type="text" inputmode="decimal" id="s-Fe" placeholder="5–50" oninput="this.value=this.value.replace(',','.')"></div>
+        <div class="ff"><label>Mn (мг/кг)</label><input type="text" inputmode="decimal" id="s-Mn" placeholder="5–50" oninput="this.value=this.value.replace(',','.')"></div>
+        <div class="ff"><label>Zn (мг/кг)</label><input type="text" inputmode="decimal" id="s-Zn" placeholder="1–5" oninput="this.value=this.value.replace(',','.')"></div>
+        <div class="ff"><label>Cu (мг/кг)</label><input type="text" inputmode="decimal" id="s-Cu" placeholder="0.5–3.0" oninput="this.value=this.value.replace(',','.')"></div>
       </div>
     </div>
 
@@ -1714,23 +1714,23 @@ tbody td{padding:10px 12px;vertical-align:middle;}
     <div id="an-fields-water" style="display:none;">
       <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:'Unbounded',sans-serif;margin-bottom:8px;">Физико-химические показатели воды</div>
       <div class="form-grid" style="margin-bottom:10px;">
-        <div class="ff"><label>pH</label><input type="number" id="w-pH" step="0.1" placeholder="6.5–7.5"></div>
-        <div class="ff"><label>EC (мСм/см)</label><input type="number" id="w-EC" step="0.01" placeholder="<1.5"></div>
-        <div class="ff"><label>TDS — соли (мг/л)</label><input type="number" id="w-TDS" step="10" placeholder="<1000"></div>
-        <div class="ff"><label>Твёрдость (°dH)</label><input type="number" id="w-hard" step="1" placeholder="5–15"></div>
-        <div class="ff"><label>SAR (натриевое число)</label><input type="number" id="w-SAR" step="0.1" placeholder="<10"></div>
-        <div class="ff"><label>Cl — Хлорид (мг/л)</label><input type="number" id="w-Cl" step="1" placeholder="<100"></div>
+        <div class="ff"><label>pH</label><input type="text" inputmode="decimal" id="w-pH" placeholder="6.5–7.5" oninput="this.value=this.value.replace(',','.')"></div>
+        <div class="ff"><label>EC (мСм/см)</label><input type="text" inputmode="decimal" id="w-EC" placeholder="<1.5" oninput="this.value=this.value.replace(',','.')"></div>
+        <div class="ff"><label>TDS — соли (мг/л)</label><input type="text" inputmode="decimal" id="w-TDS" placeholder="<1000" oninput="this.value=this.value.replace(',','.')"></div>
+        <div class="ff"><label>Твёрдость (°dH)</label><input type="text" inputmode="decimal" id="w-hard" placeholder="5–15" oninput="this.value=this.value.replace(',','.')"></div>
+        <div class="ff"><label>SAR (натриевое число)</label><input type="text" inputmode="decimal" id="w-SAR" placeholder="<10" oninput="this.value=this.value.replace(',','.')"></div>
+        <div class="ff"><label>Cl — Хлорид (мг/л)</label><input type="text" inputmode="decimal" id="w-Cl" placeholder="<100" oninput="this.value=this.value.replace(',','.')"></div>
       </div>
       <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:'Unbounded',sans-serif;margin-bottom:8px;">Питательные элементы в воде (мг/л)</div>
       <div class="form-grid">
-        <div class="ff"><label>N-NO₃ (мг/л)</label><input type="number" id="w-NO3" step="1" placeholder="0–10"></div>
-        <div class="ff"><label>Ca (мг/л)</label><input type="number" id="w-Ca" step="1" placeholder="20–80"></div>
-        <div class="ff"><label>Mg (мг/л)</label><input type="number" id="w-Mg" step="1" placeholder="5–20"></div>
-        <div class="ff"><label>Na (мг/л)</label><input type="number" id="w-Na" step="1" placeholder="<50"></div>
-        <div class="ff"><label>B — Бор (мг/л)</label><input type="number" id="w-B" step="0.1" placeholder="<0.5"></div>
-        <div class="ff"><label>Fe — Железо (мг/л)</label><input type="number" id="w-Fe" step="0.1" placeholder="<0.3"></div>
-        <div class="ff"><label>Mn (мг/л)</label><input type="number" id="w-Mn" step="0.01" placeholder="<0.1"></div>
-        <div class="ff"><label>H₂S (мг/л)</label><input type="number" id="w-H2S" step="0.01" placeholder="<0.2"></div>
+        <div class="ff"><label>N-NO₃ (мг/л)</label><input type="text" inputmode="decimal" id="w-NO3" placeholder="0–10" oninput="this.value=this.value.replace(',','.')"></div>
+        <div class="ff"><label>Ca (мг/л)</label><input type="text" inputmode="decimal" id="w-Ca" placeholder="20–80" oninput="this.value=this.value.replace(',','.')"></div>
+        <div class="ff"><label>Mg (мг/л)</label><input type="text" inputmode="decimal" id="w-Mg" placeholder="5–20" oninput="this.value=this.value.replace(',','.')"></div>
+        <div class="ff"><label>Na (мг/л)</label><input type="text" inputmode="decimal" id="w-Na" placeholder="<50" oninput="this.value=this.value.replace(',','.')"></div>
+        <div class="ff"><label>B — Бор (мг/л)</label><input type="text" inputmode="decimal" id="w-B" placeholder="<0.5" oninput="this.value=this.value.replace(',','.')"></div>
+        <div class="ff"><label>Fe — Железо (мг/л)</label><input type="text" inputmode="decimal" id="w-Fe" placeholder="<0.3" oninput="this.value=this.value.replace(',','.')"></div>
+        <div class="ff"><label>Mn (мг/л)</label><input type="text" inputmode="decimal" id="w-Mn" placeholder="<0.1" oninput="this.value=this.value.replace(',','.')"></div>
+        <div class="ff"><label>H₂S (мг/л)</label><input type="text" inputmode="decimal" id="w-H2S" placeholder="<0.2" oninput="this.value=this.value.replace(',','.')"></div>
       </div>
     </div>
 
@@ -2422,15 +2422,15 @@ tbody td{padding:10px 12px;vertical-align:middle;}
   <div class="modal">
     <h2 id="weather-modal-title">🌡️ Добавить день</h2>
     <div class="form-grid">
-      <div class="ff"><label>Дата</label><input type="date" id="w-date"></div>
-      <div class="ff"><label>Осадки (мм)</label><input type="number" id="w-precip" min="0" step="0.1" placeholder="0" oninput="previewWeatherStatus()"></div>
-      <div class="ff"><label>Температура мин (°C)</label><input type="number" id="w-tmin" step="0.1" placeholder="-5" oninput="previewWeatherStatus()"></div>
-      <div class="ff"><label>Температура макс (°C)</label><input type="number" id="w-tmax" step="0.1" placeholder="25" oninput="previewWeatherStatus()"></div>
-      <div class="ff"><label>Влажность воздуха (%)</label><input type="number" id="w-humidity" min="0" max="100" placeholder="60" oninput="previewWeatherStatus()"></div>
-      <div class="ff"><label>Часы увлажнения листа</label><input type="number" id="w-leafwet" min="0" max="24" step="0.5" placeholder="0" oninput="previewWeatherStatus()"></div>
-      <div class="ff"><label>Ветер (м/с)</label><input type="number" id="w-wind" min="0" step="0.1" placeholder="3"></div>
-      <div class="ff"><label>Фаза (если задаёт агроном)</label><input type="text" id="w-phase" placeholder="Цветение (опционально)"></div>
-      <div class="ff full"><label>Примечание</label><input type="text" id="w-note" placeholder="Туман, гроза, заморозок..."></div>
+      <div class="ff"><label>Дата</label><input type="date" id="w-date" oninput="this.value=this.value.replace(',','.')"></div>
+      <div class="ff"><label>Осадки (мм)</label><input type="text" inputmode="decimal" id="w-precip" min="0" placeholder="0" oninput="previewWeatherStatus()"></div>
+      <div class="ff"><label>Температура мин (°C)</label><input type="text" inputmode="decimal" id="w-tmin" placeholder="-5" oninput="previewWeatherStatus()"></div>
+      <div class="ff"><label>Температура макс (°C)</label><input type="text" inputmode="decimal" id="w-tmax" placeholder="25" oninput="previewWeatherStatus()"></div>
+      <div class="ff"><label>Влажность воздуха (%)</label><input type="text" inputmode="decimal" id="w-humidity" min="0" max="100" placeholder="60" oninput="previewWeatherStatus()"></div>
+      <div class="ff"><label>Часы увлажнения листа</label><input type="text" inputmode="decimal" id="w-leafwet" min="0" max="24" placeholder="0" oninput="previewWeatherStatus()"></div>
+      <div class="ff"><label>Ветер (м/с)</label><input type="text" inputmode="decimal" id="w-wind" min="0" placeholder="3" oninput="this.value=this.value.replace(',','.')"></div>
+      <div class="ff"><label>Фаза (если задаёт агроном)</label><input type="text" id="w-phase" placeholder="Цветение (опционально)" oninput="this.value=this.value.replace(',','.')"></div>
+      <div class="ff full"><label>Примечание</label><input type="text" id="w-note" placeholder="Туман, гроза, заморозок..." oninput="this.value=this.value.replace(',','.')"></div>
     </div>
     <!-- Live status preview -->
     <div id="w-status-preview" style="margin-top:14px;display:none;"></div>
@@ -8606,8 +8606,23 @@ function onFertPhaseChange() {
 }
 
 // Подключаем onchange к select фазы
+// Обработка запятой в числовых полях анализов
 document.addEventListener('DOMContentLoaded', () => {
-  // fc-phase onchange подключается при открытии модала
+  document.getElementById('modal-analysis')?.addEventListener('input', e => {
+    if(e.target.inputMode === 'decimal') {
+      const pos = e.target.selectionStart;
+      const old = e.target.value;
+      const fixed = old.replace(',', '.');
+      if(fixed !== old) { e.target.value = fixed; e.target.setSelectionRange(pos, pos); }
+    }
+  });
+  document.getElementById('modal-analysis')?.addEventListener('paste', e => {
+    setTimeout(() => {
+      document.querySelectorAll('#modal-analysis input[inputmode="decimal"]').forEach(inp => {
+        inp.value = inp.value.replace(',', '.');
+      });
+    }, 10);
+  });
 });
 
 function calcFertDose() {
