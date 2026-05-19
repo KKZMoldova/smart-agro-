@@ -8715,29 +8715,32 @@ function openFertCalcModal() {
   document.getElementById('fc-varieties-row').style.display = 'none';
   document.getElementById('fc-selection-summary').style.display = 'none';
 
-  // Шаг 1: Кнопки культур из заполненных клеток
+  // Шаг 1: Кнопки культур — ВСЕ из справочника, с пометкой сколько участков заполнено
   const cropBtns = document.getElementById('fc-crop-btns');
   if(cropBtns) {
-    const cropMap = {}; // cropId → {name, emoji, count, ha}
+    const allCrops = S.cropSettings || [];
+    // Считаем участки и га по каждой культуре
+    const cropStats = {};
     Object.values(S.cells||{}).forEach(cd => {
       const cid = cd.cropId || 'crop_cherry';
-      if(!cropMap[cid]) {
-        const def = (S.cropSettings||[]).find(c=>c.cropId===cid) || {};
-        cropMap[cid] = {name: def.name||cid, emoji: def.emoji||'🌱', count:0, ha:0};
-      }
-      cropMap[cid].count++;
-      cropMap[cid].ha += calcCellTotals(cd).totalHa || 0;
+      if(!cropStats[cid]) cropStats[cid] = {count:0, ha:0};
+      cropStats[cid].count++;
+      cropStats[cid].ha += calcCellTotals(cd).totalHa || 0;
     });
-    if(!Object.keys(cropMap).length) {
-      cropBtns.innerHTML = '<div style="color:var(--text3);font-size:11px;">Участки не заполнены. Добавьте клетки на карте.</div>';
+    if(!allCrops.length) {
+      cropBtns.innerHTML = '<div style="color:var(--text3);font-size:11px;">Справочник культур пуст.</div>';
     } else {
-      cropBtns.innerHTML = Object.entries(cropMap).map(([cid, c])=>
-        `<button onclick="fcSelectCrop('${cid}')" id="fc-crop-btn-${cid}"
+      cropBtns.innerHTML = allCrops.map(c => {
+        const st = cropStats[c.cropId];
+        const sub = st
+          ? `<span style="color:var(--text3);font-size:10px;">(${st.count} уч · ${st.ha.toFixed(1)}га)</span>`
+          : `<span style="color:var(--text3);font-size:10px;">нет участков</span>`;
+        return `<button onclick="fcSelectCrop('${c.cropId}')" id="fc-crop-btn-${c.cropId}"
           style="padding:7px 14px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);
           color:var(--text2);cursor:pointer;font-size:12px;transition:all .15s;">
-          ${c.emoji} ${c.name} <span style="color:var(--text3);font-size:10px;">(${c.count} уч · ${c.ha.toFixed(1)}га)</span>
-        </button>`
-      ).join('');
+          ${c.emoji||'🌱'} ${c.name} ${sub}
+        </button>`;
+      }).join('');
     }
   }
 
@@ -8769,7 +8772,10 @@ function fcSelectCrop(cropId) {
   const parcelBtns = document.getElementById('fc-parcel-btns');
   const parcels = Object.entries(S.cells||{}).filter(([,cd])=>(cd.cropId||'crop_cherry')===cropId);
   if(parcelBtns) {
-    parcelBtns.innerHTML = parcels.map(([key, cd])=>{
+    if(!parcels.length) {
+      parcelBtns.innerHTML = `<div style="color:var(--text3);font-size:11px;padding:6px 0;">Участки для этой культуры не добавлены на карте.</div>`;
+    } else {
+      parcelBtns.innerHTML = parcels.map(([key, cd])=>{
       const ha = calcCellTotals(cd).totalHa || 0;
       const trees = calcCellTotals(cd).totalTrees || 0;
       // Сорта участка
@@ -8783,6 +8789,7 @@ function fcSelectCrop(cropId) {
         ${varNames?`<div style="font-size:10px;color:var(--accent2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${varNames}</div>`:''}
       </button>`;
     }).join('');
+    }
   }
   document.getElementById('fc-parcels-row').style.display = 'block';
   document.getElementById('fc-varieties-row').style.display = 'none';
