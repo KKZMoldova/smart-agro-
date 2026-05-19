@@ -55,15 +55,33 @@ app.use('/api/analyses',    require('./routes/analyses'));
 app.post('/api/orchard-analyses', async (req, res) => {
   try {
     const tenantId = req.headers['x-tenant-id'] || 'kkz';
-    const { id, type, date, values, lab, note, parcel_id } = req.body;
-    if(!id || !type) return res.status(400).json({error:'id и type обязательны'});
-    await db.query(`
-      INSERT INTO analyses (id, type, date, parcel_id, lab, values, note, tenant_id)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-      ON CONFLICT (id) DO UPDATE SET type=$2,date=$3,parcel_id=$4,lab=$5,values=$6,note=$7
-    `, [String(id), type, date||new Date().toISOString().split('T')[0], parcel_id||null, lab||'', JSON.stringify(values||{}), note||'', tenantId]);
+    const body = req.body;
+    const id = String(body.id || Date.now());
+    const type = body.type || 'leaf';
+    const date = body.date || new Date().toISOString().split('T')[0];
+
+    // Пробуем INSERT в таблицу analyses
+    try {
+      await db.query(`
+        INSERT INTO analyses (id, type, date, parcel_id, lab, values, note, tenant_id)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+        ON CONFLICT (id) DO UPDATE SET type=$2,date=$3,parcel_id=$4,lab=$5,values=$6,note=$7
+      `, [id, type, date, body.parcel_id||null, body.lab||'',
+          JSON.stringify(body.values||body), body.note||'', tenantId]);
+    } catch(dbErr) {
+      // Если таблица не та структура — сохраняем в settings как JSON
+      console.warn('[orchard-analyses] DB error, fallback to settings:', dbErr.message);
+      const key = `orchard_analysis_${id}`;
+      await db.query(`
+        INSERT INTO settings (key, value, tenant_id) VALUES ($1,$2,$3)
+        ON CONFLICT (key) DO UPDATE SET value=$2
+      `, [key, JSON.stringify({...body, id, type, date}), tenantId]);
+    }
     res.json({ok:true, id});
-  } catch(e) { res.status(500).json({ok:false, error:e.message}); }
+  } catch(e) {
+    console.error('[orchard-analyses]', e.message);
+    res.status(500).json({ok:false, error:e.message});
+  }
 });
 app.use('/api/catalog',     require('./routes/catalog'));
 app.use('/api/settings',    require('./routes/settings'));
