@@ -1852,6 +1852,13 @@ tbody td{padding:10px 12px;vertical-align:middle;}
           <option value="4">4 — Малоопасный</option>
         </select>
       </div>
+      <div class="ff"><label>Ставка НДС по умолчанию</label>
+        <select id="cp-vat-rate" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+          <option value="0">0% — без НДС</option>
+          <option value="8">8%</option>
+          <option value="20" selected>20%</option>
+        </select>
+      </div>
       <div class="ff full"><label>Против каких болезней / вредителей</label><input type="text" id="cp-targets" placeholder="Монилиоз, Коккомикоз, Клястероспориоз..."></div>
       <div class="ff full"><label>Несовместим с (не смешивать)</label><input type="text" id="cp-compat" placeholder="Ca-нитрат, Сульфаты, Хлориды..."></div>
       <div class="ff full"><label>Примечание / инструкция</label><textarea id="cp-note" rows="2" placeholder="Норма расхода, особенности применения..."></textarea></div>
@@ -2304,7 +2311,7 @@ tbody td{padding:10px 12px;vertical-align:middle;}
     <table class="data-table">
       <thead><tr>
         <th>Дата</th><th>Тип</th><th>Наименование</th><th>Операция</th>
-        <th>Кол-во</th><th>Цена</th><th>Сумма</th><th>Поставщик / Участок</th>
+        <th>Кол-во</th><th>Цена без НДС</th><th>НДС%</th><th>Цена с НДС</th><th>Сумма с НДС</th><th>Поставщик / Участок</th>
       </tr></thead>
       <tbody id="wh-history-tbody"></tbody>
     </table>
@@ -2340,13 +2347,26 @@ tbody td{padding:10px 12px;vertical-align:middle;}
             <option value="pcs">Штука (шт)</option>
           </select>
         </div>
-        <div class="ff"><label>Цена за единицу</label>
+        <div class="ff"><label>Цена за единицу <span style="font-size:10px;color:var(--text3);">(без НДС)</span></label>
           <div style="display:flex;gap:6px;">
-            <input type="text" id="wh-price" placeholder="450" style="flex:1;" oninput="this.value=this.value.replace(',','.')">
+            <input type="text" id="wh-price" placeholder="450" style="flex:1;" oninput="this.value=this.value.replace(',','.');whCalcVat('chemical')">
             <select id="wh-price-currency" style="width:90px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:7px 6px;color:var(--text);font-size:12px;">
               <option value="MDL">MDL</option><option value="EUR">EUR</option><option value="USD">USD</option><option value="RON">RON</option><option value="RUB">РУБ</option>
             </select>
           </div>
+        </div>
+        <div class="ff"><label>Ставка НДС</label>
+          <select id="wh-vat-rate" onchange="whCalcVat('chemical')" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+            <option value="0">0% — без НДС</option>
+            <option value="8">8%</option>
+            <option value="20" selected>20%</option>
+          </select>
+        </div>
+        <div class="ff"><label>Цена с НДС</label>
+          <input type="text" id="wh-price-with-vat" placeholder="540" style="width:100%;" oninput="this.value=this.value.replace(',','.');whCalcVatReverse('chemical')">
+        </div>
+        <div class="ff"><label>Сумма НДС</label>
+          <div id="wh-vat-amount" style="padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--accent2);">—</div>
         </div>
         <div class="ff"><label>Поставщик</label><input type="text" id="wh-supplier" placeholder="ООО АгроХим"></div>
         <div class="ff"><label>Мин. запас</label><input type="number" id="wh-min-stock" step="0.1" placeholder="5"></div>
@@ -2381,13 +2401,26 @@ tbody td{padding:10px 12px;vertical-align:middle;}
             <option value="kg">Кг</option>
           </select>
         </div>
-        <div class="ff"><label>Цена за единицу</label>
+        <div class="ff"><label>Цена за единицу <span style="font-size:10px;color:var(--text3);">(без НДС)</span></label>
           <div style="display:flex;gap:6px;">
-            <input type="text" id="wh-part-price" placeholder="50" style="flex:1;" oninput="this.value=this.value.replace(',','.')">
+            <input type="text" id="wh-part-price" placeholder="50" style="flex:1;" oninput="this.value=this.value.replace(',','.');whCalcVat('part')">
             <select id="wh-part-price-currency" style="width:90px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:7px 6px;color:var(--text);font-size:12px;">
               <option value="MDL">MDL</option><option value="EUR">EUR</option><option value="USD">USD</option><option value="RON">RON</option><option value="RUB">РУБ</option>
             </select>
           </div>
+        </div>
+        <div class="ff"><label>Ставка НДС</label>
+          <select id="wh-part-vat-rate" onchange="whCalcVat('part')" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+            <option value="0">0% — без НДС</option>
+            <option value="8">8%</option>
+            <option value="20" selected>20%</option>
+          </select>
+        </div>
+        <div class="ff"><label>Цена с НДС</label>
+          <input type="text" id="wh-part-price-with-vat" placeholder="" style="width:100%;" oninput="this.value=this.value.replace(',','.');whCalcVatReverse('part')">
+        </div>
+        <div class="ff"><label>Сумма НДС</label>
+          <div id="wh-part-vat-amount" style="padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--accent2);">—</div>
         </div>
         <div class="ff"><label>Поставщик</label><input type="text" id="wh-part-supplier" placeholder="ООО Агротех"></div>
         <div class="ff"><label>Мин. запас</label><input type="number" id="wh-part-min-stock" step="1" placeholder="5"></div>
@@ -2424,8 +2457,21 @@ tbody td{padding:10px 12px;vertical-align:middle;}
             <option value="bag">мешок</option>
           </select>
         </div>
-        <div class="ff"><label>Цена за единицу</label>
-          <input type="text" id="wh-seed-price" placeholder="0" oninput="this.value=this.value.replace(',','.')">
+        <div class="ff"><label>Цена за единицу <span style="font-size:10px;color:var(--text3);">(без НДС)</span></label>
+          <input type="text" id="wh-seed-price" placeholder="0" oninput="this.value=this.value.replace(',','.');whCalcVat('seed')">
+        </div>
+        <div class="ff"><label>Ставка НДС</label>
+          <select id="wh-seed-vat-rate" onchange="whCalcVat('seed')" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+            <option value="0" selected>0% — без НДС</option>
+            <option value="8">8%</option>
+            <option value="20">20%</option>
+          </select>
+        </div>
+        <div class="ff"><label>Цена с НДС</label>
+          <input type="text" id="wh-seed-price-with-vat" placeholder="" style="width:100%;" oninput="this.value=this.value.replace(',','.');whCalcVatReverse('seed')">
+        </div>
+        <div class="ff"><label>Сумма НДС</label>
+          <div id="wh-seed-vat-amount" style="padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--accent2);">—</div>
         </div>
         <div class="ff"><label>Поставщик</label><input type="text" id="wh-seed-supplier" placeholder="Питомник"></div>
         <div class="ff"><label>Мин. запас</label><input type="number" id="wh-seed-min-stock" step="1" placeholder="5"></div>
@@ -4493,6 +4539,7 @@ function openCatalogAddModal(){
   document.getElementById('cp-type').value='fungicide';
   document.getElementById('cp-wash-type').value='partial';
   document.getElementById('cp-hazard').value='3';
+  document.getElementById('cp-vat-rate').value='20';
   openModal('modal-catalog-add');
 }
 
@@ -4514,6 +4561,7 @@ function editCatalogProduct(id){
   document.getElementById('cp-method').value=p.method||'foliar';
   document.getElementById('cp-phi').value=p.phi;
   document.getElementById('cp-hazard').value=p.hazard;
+  document.getElementById('cp-vat-rate').value=String(p.vatRate ?? 20);
   document.getElementById('cp-targets').value=p.targets||'';
   document.getElementById('cp-compat').value=p.compatibility||'';
   document.getElementById('cp-note').value=p.note||'';
@@ -4539,6 +4587,7 @@ function saveCatalogProduct(){
     hazard:parseInt(document.getElementById('cp-hazard').value)||3,
     targets:document.getElementById('cp-targets').value,
     compatibility:document.getElementById('cp-compat').value,
+    vatRate: parseFloat(document.getElementById('cp-vat-rate').value) || 0,
     note:document.getElementById('cp-note').value,
   };
   if(S.editingCatalogId){const i=S.catalog.findIndex(p=>p.id===S.editingCatalogId);if(i>=0)S.catalog[i]=prod;}
@@ -17318,16 +17367,52 @@ function openWarehouseModal() {
   openModal('modal-warehouse');
 }
 
+// ── НДС в модале прихода склада ─────────────────────────────────────────
+function _whVatIds(type) {
+  if (type === 'chemical') return { price: 'wh-price', vat: 'wh-vat-rate', withVat: 'wh-price-with-vat', vatAmt: 'wh-vat-amount' };
+  if (type === 'part')     return { price: 'wh-part-price', vat: 'wh-part-vat-rate', withVat: 'wh-part-price-with-vat', vatAmt: 'wh-part-vat-amount' };
+  if (type === 'seed')     return { price: 'wh-seed-price', vat: 'wh-seed-vat-rate', withVat: 'wh-seed-price-with-vat', vatAmt: 'wh-seed-vat-amount' };
+}
+
+function whCalcVat(type) {
+  // Вводим цену без НДС → считаем цену с НДС
+  const ids = _whVatIds(type);
+  const priceEx = parseFloat(document.getElementById(ids.price)?.value?.replace(',','.')) || 0;
+  const rate = parseFloat(document.getElementById(ids.vat)?.value) || 0;
+  const priceInc = Math.round(priceEx * (1 + rate / 100) * 100) / 100;
+  const vatAmt   = Math.round((priceInc - priceEx) * 100) / 100;
+  if (document.getElementById(ids.withVat)) document.getElementById(ids.withVat).value = priceEx > 0 ? priceInc : '';
+  if (document.getElementById(ids.vatAmt))  document.getElementById(ids.vatAmt).textContent = priceEx > 0 ? `${vatAmt.toFixed(2)} (${rate}%)` : '—';
+}
+
+function whCalcVatReverse(type) {
+  // Вводим цену с НДС → считаем цену без НДС
+  const ids = _whVatIds(type);
+  const priceInc = parseFloat(document.getElementById(ids.withVat)?.value?.replace(',','.')) || 0;
+  const rate = parseFloat(document.getElementById(ids.vat)?.value) || 0;
+  const priceEx  = Math.round(priceInc / (1 + rate / 100) * 100) / 100;
+  const vatAmt   = Math.round((priceInc - priceEx) * 100) / 100;
+  if (document.getElementById(ids.price))   document.getElementById(ids.price).value = priceInc > 0 ? priceEx : '';
+  if (document.getElementById(ids.vatAmt))  document.getElementById(ids.vatAmt).textContent = priceInc > 0 ? `${vatAmt.toFixed(2)} (${rate}%)` : '—';
+}
+
 function onWhChemicalSelect() {
   const id = document.getElementById('wh-chemical-id').value;
   const item = S.catalog.find(c => c.id === id);
   if (!item) return;
   document.getElementById('wh-chemical-name').value = item.name;
-  if (item.price) document.getElementById('wh-price').value = item.price;
+  if (item.price)    document.getElementById('wh-price').value = item.price;
   if (item.supplier) document.getElementById('wh-supplier').value = item.supplier;
-  if (item.unit) document.getElementById('wh-unit').value = item.unit;
+  if (item.unit)     document.getElementById('wh-unit').value = item.unit;
   if (item.minStock) document.getElementById('wh-min-stock').value = item.minStock;
-  if (item.payment) document.getElementById('wh-payment').value = item.payment;
+  if (item.payment)  document.getElementById('wh-payment').value = item.payment;
+  // Подтягиваем ставку НДС из карточки
+  const vatSel = document.getElementById('wh-vat-rate');
+  if (vatSel && item.vatRate !== undefined) {
+    vatSel.value = String(item.vatRate);
+  }
+  // Пересчитываем цену с НДС
+  whCalcVat('chemical');
 }
 
 function saveWarehouseItem() {
@@ -17346,6 +17431,9 @@ function saveWarehouseItem() {
     const priceCurrency = document.getElementById('wh-price-currency').value;
     const rateUsed = getRate(priceCurrency);
     const price = Math.round(convertPrice(priceRaw, priceCurrency) * 10000) / 10000;
+    const vatRate = parseFloat(document.getElementById('wh-vat-rate').value) || 0;
+    const priceWithVat = Math.round(price * (1 + vatRate / 100) * 10000) / 10000;
+    const vatAmount = Math.round((priceWithVat - price) * 10000) / 10000;
     const unit = document.getElementById('wh-unit').value;
     const supplier = document.getElementById('wh-supplier').value.trim();
     const minStock = parseFloat(document.getElementById('wh-min-stock').value) || 0;
@@ -17372,6 +17460,8 @@ function saveWarehouseItem() {
       console.log('[Warehouse] Auto-created catalog entry:', manualName);
     }
     catId = cat.id;
+    // Обновляем ставку НДС в карточке каталога (сохраняется как дефолт)
+    cat.vatRate = vatRate;
 
     let stock = S.warehouse.chemicals.find(c => c.catId === catId);
     if (!stock) {
@@ -17388,7 +17478,9 @@ function saveWarehouseItem() {
       id: uid(), date, type: 'chemical', name: cat.name,
       operation: 'in', qty, unit,
       priceOrig: priceRaw, currencyOrig: priceCurrency, rateUsed,
-      price, total: Math.round(qty * price * 10000) / 10000,
+      price, priceWithVat, vatRate, vatAmount,
+      total: Math.round(qty * price * 10000) / 10000,
+      totalWithVat: Math.round(qty * priceWithVat * 10000) / 10000,
       supplier, payment, note
     });
 
@@ -17428,11 +17520,16 @@ function saveWarehouseItem() {
     const priceRawPart = parseFloat(document.getElementById('wh-part-price').value) || 0;
     const priceCurrencyPart = document.getElementById('wh-part-price-currency').value;
     const rateUsedPart = getRate(priceCurrencyPart);
+    const vatRatePart = parseFloat(document.getElementById('wh-part-vat-rate').value) || 0;
+    const priceWithVatPart = Math.round(price * (1 + vatRatePart / 100) * 10000) / 10000;
+    const vatAmountPart = Math.round((priceWithVatPart - price) * 10000) / 10000;
     S.warehouse.history.unshift({
       id: uid(), date, type: 'part', name,
       operation: 'in', qty, unit,
       priceOrig: priceRawPart, currencyOrig: priceCurrencyPart, rateUsed: rateUsedPart,
-      price, total: Math.round(qty * price * 10000) / 10000,
+      price, priceWithVat: priceWithVatPart, vatRate: vatRatePart, vatAmount: vatAmountPart,
+      total: Math.round(qty * price * 10000) / 10000,
+      totalWithVat: Math.round(qty * priceWithVatPart * 10000) / 10000,
       supplier, note
     });
 
@@ -17466,12 +17563,17 @@ function saveWarehouseItem() {
     seed.minStock = minStock || seed.minStock;
     seed.rate = rate || seed.rate;
     seed.rateUnit = rateUnit || seed.rateUnit;
+    const vatRateSeed = parseFloat(document.getElementById('wh-seed-vat-rate').value) || 0;
+    const priceWithVatSeed = Math.round(price * (1 + vatRateSeed / 100) * 10000) / 10000;
+    const vatAmountSeed = Math.round((priceWithVatSeed - price) * 10000) / 10000;
     S.warehouse.history.unshift({
       id: uid(), date, type: 'seed',
       name: `${cropId} · ${variety}`,
       operation: 'in', qty, unit,
       priceOrig: priceRaw, currencyOrig: priceCurrency, rateUsed: getRate(priceCurrency),
-      price, total: Math.round(qty * price * 10000) / 10000,
+      price, priceWithVat: priceWithVatSeed, vatRate: vatRateSeed, vatAmount: vatAmountSeed,
+      total: Math.round(qty * price * 10000) / 10000,
+      totalWithVat: Math.round(qty * priceWithVatSeed * 10000) / 10000,
       supplier, note
     });
   }
@@ -17587,20 +17689,23 @@ if (p.resourceHours && p.installed) {
         </tr>`;
       }).join('')
     : '<tr><td colspan="11" style="text-align:center;color:var(--text3);padding:20px;">Нет семян на складе. Нажмите + Приход → 🌱 Семена.</td></tr>';
-  document.getElementById('wh-history-tbody').innerHTML = (S.warehouse.history||[]).slice(0,50).map(h =>
-    '<tr>'+
+  document.getElementById('wh-history-tbody').innerHTML = (S.warehouse.history||[]).slice(0,50).map(h => {
+    const vatRate = h.vatRate ?? 0;
+    const priceWithVat = h.priceWithVat || (h.price ? Math.round(h.price*(1+vatRate/100)*100)/100 : 0);
+    const totalWithVat = h.totalWithVat || (h.total ? Math.round(h.total*(1+vatRate/100)*100)/100 : 0);
+    return '<tr>'+
     '<td style="font-family:JetBrains Mono,monospace;font-size:11px;">'+h.date+'</td>'+
-    '<td style="font-size:11px;">'+(h.type==='chemical'?'💊':'🔧')+'</td>'+
+    '<td style="font-size:11px;">'+(h.type==='chemical'?'💊':h.type==='seed'?'🌱':'🔧')+'</td>'+
     '<td style="font-weight:600">'+h.name+'</td>'+
     '<td>'+(h.operation==='in'?'📥 Приход':'📤 Списание')+'</td>'+
     '<td style="font-family:JetBrains Mono,monospace;">'+h.qty+' '+(h.unit||'')+'</td>'+
-    '<td style="font-size:11px;">'+(h.priceOrig&&h.currencyOrig&&h.currencyOrig!==getCurrency()?
-      h.priceOrig.toFixed(4)+' '+h.currencyOrig+' × '+h.rateUsed.toFixed(4)+' = '+formatPrice(h.price):
-      (h.price?formatPrice(h.price):'—'))+'</td>'+
-    '<td style="font-weight:600;color:var(--accent);">'+(h.total?formatPrice(h.total):'—')+'</td>'+
+    '<td style="font-size:11px;">'+(h.price?formatPrice(h.price):'—')+'</td>'+
+    '<td style="font-size:11px;text-align:center;color:'+(vatRate>0?'var(--accent2)':'var(--text3)')+';">'+vatRate+'%</td>'+
+    '<td style="font-size:11px;">'+(priceWithVat?formatPrice(priceWithVat):'—')+'</td>'+
+    '<td style="font-weight:600;color:var(--accent);">'+(totalWithVat?formatPrice(totalWithVat):h.total?formatPrice(h.total):'—')+'</td>'+
     '<td style="font-size:11px;color:var(--text3);">'+(h.supplier||h.parcelName||'—')+'</td>'+
-    '</tr>'
-  ).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:20px;">История пуста</td></tr>';
+    '</tr>';
+  }).join('') || '<tr><td colspan="10" style="text-align:center;color:var(--text3);padding:20px;">История пуста</td></tr>';
 }
 
 function openWarehouseModalForChemical(catId) {
@@ -17616,6 +17721,9 @@ function openWarehouseModalForChemical(catId) {
       if (cat.unit) document.getElementById('wh-unit').value = cat.unit;
       if (cat.minStock) document.getElementById('wh-min-stock').value = cat.minStock;
       if (cat.payment) document.getElementById('wh-payment').value = cat.payment;
+      // Подтягиваем ставку НДС из карточки
+      if (cat.vatRate !== undefined) document.getElementById('wh-vat-rate').value = String(cat.vatRate);
+      whCalcVat('chemical');
       if (cat.priceCurrency) document.getElementById('wh-price-currency').value = cat.priceCurrency;
     }
   }, 100);
@@ -20198,6 +20306,8 @@ async function init(){
       const badge = document.createElement('div');
       badge.style.cssText = 'display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text3);';
       badge.innerHTML = `<span>👤 ${userName}</span>${tenantName?`<span style="color:var(--text3);">· ${tenantName}</span>`:''}
+        <a href="/smart-vegetable.html"
+          style="padding:2px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text3);font-size:10px;cursor:pointer;text-decoration:none;">🥦 Овощи</a>
         <button onclick="if(confirm('Выйти?')){sessionStorage.clear();window.location.href='/login';}"
           style="padding:2px 8px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text3);font-size:10px;cursor:pointer;">Выйти</button>`;
       hdr.appendChild(badge);
