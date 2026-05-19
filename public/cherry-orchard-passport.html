@@ -2963,9 +2963,35 @@ tbody td{padding:10px 12px;vertical-align:middle;}
       <div class="ff full"><label>Примечание</label>
         <input type="text" id="iz-note" placeholder="Особенности зоны..."></div>
 
-      <!-- Датчики метеостанции -->
+      <!-- Конфигурация насаждений -->
       <div class="ff full" style="border-top:1px solid var(--border);padding-top:12px;margin-top:4px;">
-        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">📡 Датчики и мониторинг</div>
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🌳 Конфигурация насаждений</div>
+      </div>
+      <div class="ff"><label>Количество рядов в зоне</label>
+        <input type="number" id="iz-rows" step="1" placeholder="напр. 12" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+      </div>
+      <div class="ff"><label>Деревьев в ряду</label>
+        <input type="number" id="iz-trees-per-row" step="1" placeholder="напр. 20" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+      </div>
+      <div class="ff full"><label>Сорта в зоне (выбор)</label>
+        <div id="iz-varieties-manual" style="display:flex;gap:6px;flex-wrap:wrap;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;min-height:40px;"></div>
+      </div>
+
+      <!-- Оборудование ирригации -->
+      <div class="ff full" style="border-top:1px solid var(--border);padding-top:12px;margin-top:4px;">
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🔧 Оборудование ирригации</div>
+      </div>
+      <div class="ff"><label>Расходомер воды (модель)</label>
+        <input type="text" id="iz-flowmeter" placeholder="напр. Elster V100" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+      </div>
+      <div class="ff"><label>Импульсов на литр (расходомер)</label>
+        <input type="number" id="iz-flowmeter-pulse" step="1" placeholder="напр. 100" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+      </div>
+      <div class="ff"><label>Длина капельной линии (м)</label>
+        <input type="number" id="iz-drip-length" step="1" placeholder="напр. 200" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+      </div>
+      <div class="ff"><label>Количество линий</label>
+        <input type="number" id="iz-drip-lines" step="1" placeholder="напр. 2 (двойная)" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
       </div>
       <div class="ff"><label>Датчик влажности почвы (глубина 1)</label>
         <select id="iz-sensor1" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
@@ -2975,6 +3001,12 @@ tbody td{padding:10px 12px;vertical-align:middle;}
       <div class="ff"><label>Датчик влажности почвы (глубина 2)</label>
         <select id="iz-sensor2" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
           <option value="">— не установлен —</option>
+        </select>
+      </div>
+      <div class="ff"><label>Датчик влажности листа (Leaf Wetness)</label>
+        <select id="iz-sensor-leaf" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+          <option value="">— не установлен —</option>
+          <option value="lw_station">Метеостанция (leaf_wet)</option>
         </select>
       </div>
       <div class="ff"><label>Станция FieldClimate</label>
@@ -6979,6 +7011,13 @@ function openIrrigZoneModal(id) {
     'iz-target-moisture':z?.targetMoisture||80,
     'iz-stress-threshold':z?.stressThreshold||50,
     'iz-station':z?.station||'00002158',
+    'iz-rows':z?.rows||'',
+    'iz-trees-per-row':z?.treesPerRow||'',
+    'iz-flowmeter':z?.flowmeter||'',
+    'iz-flowmeter-pulse':z?.flowmeterPulse||'',
+    'iz-drip-length':z?.dripLength||'',
+    'iz-drip-lines':z?.dripLines||'',
+    'iz-sensor-leaf':z?.sensorLeaf||'',
   };
   Object.entries(fields).forEach(([id,val])=>{const el=document.getElementById(id);if(el)el.value=val;});
 
@@ -7038,6 +7077,25 @@ function openIrrigZoneModal(id) {
       <span>${crop?.emoji||'🌱'} <strong>${k}</strong> — ${crop?.name||'?'} · ${tot.totalHa.toFixed(2)}га · ${tot.totalTrees}дер.</span>
     </div>`;
   }).join('');
+
+  // Ручной выбор сортов
+  const varietiesManual = document.getElementById('iz-varieties-manual');
+  if(varietiesManual) {
+    const selectedVarieties = new Set(z?.varietyIds||[]);
+    varietiesManual.innerHTML = S.varieties.map(v=>{
+      const sel = selectedVarieties.has(v.id);
+      return `<span onclick="toggleIzVariety('${v.id}',this)"
+        id="izv-${v.id}"
+        style="padding:3px 10px;border-radius:8px;font-size:11px;cursor:pointer;
+          background:${sel?'rgba(74,222,128,.15)':'var(--surface3)'};
+          color:${sel?'var(--accent)':'var(--text3)'};
+          border:1px solid ${sel?'rgba(74,222,128,.3)':'var(--border)'};">
+        🍒 ${v.name}${v.cp?` · ${v.cp}CP`:''}
+      </span>`;
+    }).join('') || '<span style="font-size:11px;color:var(--text3);">Добавьте сорта в блоке 🌿 Культуры</span>';
+  }
+
+  _izSelectedVarieties = new Set(z?.varietyIds||[]);
 
   _renderIzTags();
   _updateIzVarieties();
@@ -7120,6 +7178,16 @@ function saveIrrigZone() {
     station: document.getElementById('iz-station')?.value||'00002158',
     sensor1: document.getElementById('iz-sensor1')?.value||'',
     sensor2: document.getElementById('iz-sensor2')?.value||'',
+    sensorLeaf: document.getElementById('iz-sensor-leaf')?.value||'',
+    // Конфигурация насаждений
+    rows: parseInt(document.getElementById('iz-rows')?.value)||null,
+    treesPerRow: parseInt(document.getElementById('iz-trees-per-row')?.value)||null,
+    varietyIds: [..._izSelectedVarieties],
+    // Расходомер
+    flowmeter: document.getElementById('iz-flowmeter')?.value.trim()||'',
+    flowmeterPulse: parseInt(document.getElementById('iz-flowmeter-pulse')?.value)||null,
+    dripLength: parseInt(document.getElementById('iz-drip-length')?.value)||null,
+    dripLines: parseInt(document.getElementById('iz-drip-lines')?.value)||null,
     soilType: document.getElementById('iz-soil-type')?.value||'clay_loam',
     rootDepth: parseInt(document.getElementById('iz-root-depth')?.value)||50,
     wettedArea: parseInt(document.getElementById('iz-wetted-area')?.value)||35,
@@ -8326,6 +8394,22 @@ const MOA_PRODUCTS = {
   'Санмайт':        {irac:'21a', iracGroup:'METI-акарицид'},
   'Омайт':          {irac:'1a',  iracGroup:'Органофосфаты'},
 };
+
+let _izSelectedVarieties = new Set();
+
+function toggleIzVariety(id, el) {
+  if(_izSelectedVarieties.has(id)) {
+    _izSelectedVarieties.delete(id);
+    el.style.background = 'var(--surface3)';
+    el.style.color = 'var(--text3)';
+    el.style.borderColor = 'var(--border)';
+  } else {
+    _izSelectedVarieties.add(id);
+    el.style.background = 'rgba(74,222,128,.15)';
+    el.style.color = 'var(--accent)';
+    el.style.borderColor = 'rgba(74,222,128,.3)';
+  }
+}
 
 function getMoaForProduct(p) {
   // 1. Из самого препарата если есть поле fracGroup
