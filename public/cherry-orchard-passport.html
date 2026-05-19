@@ -8105,8 +8105,67 @@ function renderDashboard() {
     });
   }
 
-  // ── 5. PHI — препараты на выходе ──────────────────────────────────────
+  // ── 5. АКТИВНЫЕ ОБРАБОТКИ — что сейчас в защите ──────────────────────
+  const todayD = new Date(); todayD.setHours(0,0,0,0);
   const todayStr = today();
+  const precip0 = parseFloat((S.weather||[])[0]?.precip) || 0;
+
+  const activeTreatments = (S.treatments||[]).filter(t => {
+    if (!t.endDate) return false;
+    return new Date(t.endDate) >= todayD;
+  }).sort((a,b) => (a.endDate||'').localeCompare(b.endDate||''));
+
+  const washedTreatments = (S.treatments||[]).filter(t => {
+    if (!t.date) return false;
+    const daysSince = Math.floor((todayD - new Date(t.date)) / 864e5);
+    if (daysSince > 21) return false;
+    const washMm = parseFloat(t.washMm || (t.products?.[0]?.washMm) || 15);
+    return precip0 >= washMm;
+  });
+
+  if (activeTreatments.length || washedTreatments.length) {
+    const activeHtml = activeTreatments.slice(0, 6).map(t => {
+      const daysLeft = Math.ceil((new Date(t.endDate) - todayD) / 864e5);
+      const prod = t.products?.map(p => p.name).join(' + ') || t.product || '—';
+      const cell = t.cellTarget && t.cellTarget !== 'all'
+        ? t.cellTarget
+        : (t.cellsTarget?.length ? t.cellsTarget.join(', ') : 'Весь сад');
+      const color = daysLeft <= 2 ? '#dc2626' : daysLeft <= 5 ? '#f59e0b' : 'var(--accent)';
+      const washMm = parseFloat(t.washMm || t.products?.[0]?.washMm || 15);
+      const washStatus = precip0 >= washMm * 2
+        ? `<span style="color:#dc2626;font-size:10px;">⛔ Смыт (${precip0}мм)</span>`
+        : precip0 >= washMm
+          ? `<span style="color:#f59e0b;font-size:10px;">⚠️ Частично смыт</span>`
+          : '';
+      return `<div style="display:flex;justify-content:space-between;align-items:center;
+        padding:7px 12px;background:var(--surface2);border-radius:8px;margin-bottom:4px;
+        border-left:3px solid ${color};">
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${prod}</div>
+          <div style="font-size:10px;color:var(--text3);">${t.date} · ${cell} ${washStatus}</div>
+        </div>
+        <div style="text-align:right;font-size:12px;font-weight:700;color:${color};margin-left:8px;white-space:nowrap;">
+          ${daysLeft <= 0 ? 'Истёк' : daysLeft === 1 ? 'Завтра' : daysLeft + ' дн.'}
+        </div>
+      </div>`;
+    }).join('');
+
+    const washedHtml = washedTreatments.length && precip0 > 0
+      ? `<div style="margin-top:6px;padding:8px 12px;background:rgba(220,38,38,.06);
+          border-radius:8px;border-left:3px solid #dc2626;font-size:11px;color:var(--red);">
+          ⛔ Осадки ${precip0}мм — ${washedTreatments.length} обработок могут быть смыты
+        </div>` : '';
+
+    sections.push({
+      title: `💊 Активные обработки (${activeTreatments.length} в защите)`,
+      color: activeTreatments.some(t => Math.ceil((new Date(t.endDate)-todayD)/864e5) <= 2)
+        ? '#dc2626' : 'var(--accent)',
+      content: activeHtml + washedHtml ||
+        '<div style="font-size:12px;color:var(--text3);padding:8px;">Нет активных обработок</div>'
+    });
+  }
+
+  // ── 5б. PHI — препараты на выходе ─────────────────────────────────────
   const expiring = (S.treatments||[]).filter(t=>{
     if(!t.whiDate&&!t.endDate) return false;
     const whi = t.whiDate||t.endDate;
