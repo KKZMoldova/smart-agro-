@@ -8702,6 +8702,12 @@ function openFertCalcModal() {
       setWater('fc-water-n',  waterAn.NO3||waterAn.no3||0);
     }
   }
+
+  // Заполняем ppm-поля по выбранной фазе (с учётом анализов воды и почвы)
+  onFertPhaseChange();
+
+  // Открываем модалку
+  openModal('modal-fert-calc');
 }
 
 function onFertCalcZoneChange() {
