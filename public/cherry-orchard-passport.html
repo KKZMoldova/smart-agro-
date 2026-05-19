@@ -13801,7 +13801,12 @@ async function renderTasks() {
     const dueDate = t.due_date ? new Date(t.due_date).toLocaleDateString('ru-RU') : '—';
     return `<div class="task-card s-${t.status}">
       <div class="task-title">${t.work_type_name||'Работа'}</div>
-      <div class="task-sub">${t.parcel_name||'—'}${t.description?' · '+t.description.slice(0,60):''}</div>
+      <div class="task-sub">${t.parcel_name||'—'}${t.description?' · '+t.description.slice(0,60):''}${(() => {
+        const zones = t.zones_json ? (typeof t.zones_json==='string'?JSON.parse(t.zones_json):t.zones_json) : [];
+        if(!zones.length) return '';
+        const zNames = [...new Set(zones.map(z=>z.name))];
+        return '<br><span style="font-size:10px;color:var(--blue);">💧 '+zNames.join(', ')+'</span>';
+      })()}</div>
       <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">
         <span style="padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:${statusColor}22;color:${statusColor};">${TASK_STATUS_LABELS[t.status]||t.status}</span>
         ${t.due_date?`<span style="padding:2px 8px;border-radius:10px;font-size:11px;background:rgba(255,216,77,.15);color:var(--yellow);">До ${dueDate}</span>`:''}
@@ -13912,17 +13917,30 @@ async function openNewTask() {
   document.getElementById('nt-mechanic').innerHTML = '<option value="">— не назначен —</option>'
     + _taskStaff.map(s=>`<option value="${s.id}" data-name="${s.name}">${s.name}</option>`).join('');
 
-  // Клетки сада
+  // Клетки сада с зонами полива
   const cells = Object.entries(S.cells||{});
+  const zonesAll = S.irrigation?.zones||[];
   document.getElementById('nt-parcel-list').innerHTML = cells.length
     ? cells.map(([key,cd])=>{
         const crop = getCropById(cd.cropId||'crop_cherry');
         const cols = getCellColors(cd);
         const ha = calcCellTotals(cd)?.totalHa||0;
-        return `<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;cursor:pointer;" onclick="toggleNtParcel('${key}','${key}${cols[0]?' – '+cols[0].name:''}',${ha})" id="ntp-${key}">
-          <input type="checkbox" id="ntpc-${key}" onclick="event.stopPropagation();toggleNtParcel('${key}','${key}${cols[0]?' – '+cols[0].name:''}',${ha})">
-          <span>${crop?.emoji||'🌳'} <strong>${key}</strong>${cols[0]?' — '+cols[0].name:''}</span>
-          <span style="margin-left:auto;color:var(--text3);font-size:11px;">${ha.toFixed(3)} га</span>
+        const cellZones = zonesAll.filter(z=>(z.cellKeys||[]).includes(key));
+        const zonesHtml = cellZones.length
+          ? `<div style="margin-left:24px;margin-top:3px;display:flex;gap:4px;flex-wrap:wrap;">
+              ${cellZones.map(z=>`
+                <div onclick="toggleNtZone('${z.id}','${z.name}','${key}',event)" id="ntz-${key}-${z.id}"
+                  style="padding:2px 8px;border-radius:6px;border:1px solid var(--border);font-size:10px;cursor:pointer;color:var(--text3);transition:all .15s;">
+                  💧 ${z.name}
+                </div>`).join('')}
+            </div>` : '';
+        return `<div style="padding:4px 8px;border-radius:6px;" id="ntp-wrap-${key}">
+          <div style="display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="toggleNtParcel('${key}','${key}${cols[0]?' – '+cols[0].name:''}',${ha})" id="ntp-${key}">
+            <input type="checkbox" id="ntpc-${key}" onclick="event.stopPropagation();toggleNtParcel('${key}','${key}${cols[0]?' – '+cols[0].name:''}',${ha})">
+            <span>${crop?.emoji||'🌳'} <strong>${key}</strong>${cols[0]?' — '+cols[0].name:''}</span>
+            <span style="margin-left:auto;color:var(--text3);font-size:11px;">${ha.toFixed(3)} га</span>
+          </div>
+          ${zonesHtml}
         </div>`;
       }).join('')
     : '<div style="color:var(--text3);padding:8px;">Клетки не заданы. Добавьте клетки на Карте.</div>';
@@ -13940,10 +13958,36 @@ async function openNewTask() {
   openModal('modal-new-task');
 }
 
+let _newTaskZones = []; // [{id, name, cellKey}]
+
 function toggleNtParcel(id, name, ha) {
   const idx = _newTaskParcels.findIndex(p=>p.id===id);
-  if(idx>=0) _newTaskParcels.splice(idx,1);
-  else _newTaskParcels.push({id, name, ha:parseFloat(ha)||0});
+  if(idx>=0) {
+    _newTaskParcels.splice(idx,1);
+    // Снимаем выбор зон этой клетки
+    _newTaskZones = _newTaskZones.filter(z=>z.cellKey!==id);
+  } else {
+    _newTaskParcels.push({id, name, ha:parseFloat(ha)||0});
+    // Авто-выбираем все зоны клетки
+    const cellZones = (S.irrigation?.zones||[]).filter(z=>(z.cellKeys||[]).includes(id));
+    cellZones.forEach(z=>{
+      if(!_newTaskZones.find(x=>x.id===z.id&&x.cellKey===id))
+        _newTaskZones.push({id:z.id, name:z.name, cellKey:id});
+    });
+  }
+  _updateNtParcelUI();
+}
+
+function toggleNtZone(zoneId, zoneName, cellKey, event) {
+  if(event) event.stopPropagation();
+  const idx = _newTaskZones.findIndex(z=>z.id===zoneId&&z.cellKey===cellKey);
+  if(idx>=0) _newTaskZones.splice(idx,1);
+  else _newTaskZones.push({id:zoneId, name:zoneName, cellKey});
+  _updateNtParcelUI();
+}
+
+function _updateNtParcelUI() {
+  // Обновляем вид клеток
   Object.keys(S.cells||{}).forEach(key => {
     const row = document.getElementById('ntp-'+key);
     const cb = document.getElementById('ntpc-'+key);
@@ -13952,9 +13996,26 @@ function toggleNtParcel(id, name, ha) {
     row.style.background = sel ? 'rgba(107,221,107,.1)' : '';
     cb.checked = !!sel;
   });
+  // Обновляем вид зон
+  (S.irrigation?.zones||[]).forEach(z=>{
+    (z.cellKeys||[]).forEach(cellKey=>{
+      const el = document.getElementById(`ntz-${cellKey}-${z.id}`);
+      if(!el) return;
+      const sel = _newTaskZones.find(x=>x.id===z.id&&x.cellKey===cellKey);
+      el.style.background = sel ? 'rgba(96,165,250,.15)' : '';
+      el.style.color = sel ? 'var(--blue)' : 'var(--text3)';
+      el.style.borderColor = sel ? 'var(--blue)' : 'var(--border)';
+    });
+  });
+  // Обновляем теги
   const total = _newTaskParcels.reduce((s,p)=>s+p.ha,0);
-  document.getElementById('nt-selected-tags').innerHTML = _newTaskParcels.map(p=>`<span style="padding:2px 8px;border-radius:10px;background:rgba(107,221,107,.15);color:var(--accent);font-size:11px;">${p.name}</span>`).join('');
-  document.getElementById('nt-area-info').textContent = _newTaskParcels.length ? `${_newTaskParcels.length} кл. · ${total.toFixed(3)} га` : '';
+  const zoneNames = [...new Set(_newTaskZones.map(z=>z.name))];
+  document.getElementById('nt-selected-tags').innerHTML = [
+    ..._newTaskParcels.map(p=>`<span style="padding:2px 8px;border-radius:10px;background:rgba(107,221,107,.15);color:var(--accent);font-size:11px;">🌳 ${p.name}</span>`),
+    ...zoneNames.map(n=>`<span style="padding:2px 8px;border-radius:10px;background:rgba(96,165,250,.12);color:var(--blue);font-size:11px;">💧 ${n}</span>`)
+  ].join('');
+  document.getElementById('nt-area-info').textContent = _newTaskParcels.length
+    ? `${_newTaskParcels.length} кл.${zoneNames.length?' · '+zoneNames.length+' зон':''} · ${total.toFixed(3)} га` : '';
   ntUpdateCalc();
 }
 
@@ -14125,6 +14186,7 @@ async function saveNewTask() {
     parcel_id: _newTaskParcels.length===1 ? _newTaskParcels[0].id : null,
     parcel_name: parcelName,
     parcels_json: _newTaskParcels.length ? _newTaskParcels : null,
+    zones_json: _newTaskZones.length ? _newTaskZones : null,
     total_ha: totalHa||null,
     chemicals: _newTaskChems.length ? JSON.stringify(_newTaskChems) : null,
     created_by_id: crId, created_by_name: crName,
