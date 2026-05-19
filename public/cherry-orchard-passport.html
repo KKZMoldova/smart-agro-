@@ -1096,9 +1096,15 @@ tbody td{padding:10px 12px;vertical-align:middle;}
 
     <div class="table-wrap">
       <table><thead><tr>
+        <th style="width:36px;"><input type="checkbox" id="tr-check-all" title="Выбрать все" onchange="trToggleAll(this.checked)" style="cursor:pointer;width:15px;height:15px;"></th>
         <th>Дата</th><th>Культура</th><th>Препарат</th><th>Активное вещество</th><th>Доза</th>
         <th>Клетка</th><th>Срок</th><th>Конец</th><th>Статус</th><th>Смыв</th><th></th>
       </tr></thead><tbody id="tr-tbody"></tbody></table>
+      <div id="tr-bulk-bar" style="display:none;position:sticky;bottom:0;padding:10px 0;background:var(--surface);border-top:1px solid var(--border);margin-top:8px;display:none;align-items:center;gap:12px;">
+        <span id="tr-sel-count" style="font-size:12px;color:var(--text2);">0 выбрано</span>
+        <button class="btn btn-danger btn-sm" onclick="trDeleteSelected()">🗑 Удалить выбранные</button>
+        <button class="btn btn-secondary btn-sm" onclick="trClearSelection()">✕ Снять выделение</button>
+      </div>
     </div>
   </div>
 
@@ -5396,6 +5402,51 @@ function onTrCropChange() {
 }
 
 // ─── renderTreatments ────────────────────────────────────────────────────────
+// ── Мультиселект обработок ────────────────────────────────────────────────
+function trGetSelected() {
+  return [...document.querySelectorAll('.tr-check:checked')].map(cb => parseInt(cb.dataset.idx));
+}
+
+function trUpdateBulkBar() {
+  const sel = trGetSelected();
+  const bar = document.getElementById('tr-bulk-bar');
+  const cnt = document.getElementById('tr-sel-count');
+  if (bar) {
+    bar.style.display = sel.length > 0 ? 'flex' : 'none';
+  }
+  if (cnt) cnt.textContent = `${sel.length} выбрано`;
+  // Синхронизируем чекбокс "выбрать все"
+  const all = document.querySelectorAll('.tr-check');
+  const chkAll = document.getElementById('tr-check-all');
+  if (chkAll) chkAll.indeterminate = sel.length > 0 && sel.length < all.length;
+  if (chkAll) chkAll.checked = sel.length > 0 && sel.length === all.length;
+}
+
+function trToggleAll(checked) {
+  document.querySelectorAll('.tr-check').forEach(cb => cb.checked = checked);
+  trUpdateBulkBar();
+}
+
+function trClearSelection() {
+  document.querySelectorAll('.tr-check').forEach(cb => cb.checked = false);
+  const chkAll = document.getElementById('tr-check-all');
+  if (chkAll) { chkAll.checked = false; chkAll.indeterminate = false; }
+  trUpdateBulkBar();
+}
+
+function trDeleteSelected() {
+  const idxs = trGetSelected();
+  if (!idxs.length) return;
+  if (!confirm(`Удалить ${idxs.length} обработок? Это действие нельзя отменить.`)) return;
+  // Удаляем от большего индекса к меньшему чтобы не сбить позиции
+  const sorted = [...idxs].sort((a,b) => b - a);
+  sorted.forEach(i => S.treatments.splice(i, 1));
+  save();
+  renderTreatments();
+  updateHdr();
+  trUpdateBulkBar();
+}
+
 function renderTreatments(){
   const todayDate=new Date(); todayDate.setHours(0,0,0,0);
   const precip=parseFloat(document.getElementById('precip-input')?.value)||0;
@@ -5572,7 +5623,8 @@ function renderTreatments(){
         ? `<div style="font-size:11px;display:flex;align-items:center;gap:4px;"><span style="font-size:14px;">${crop.emoji||'🌱'}</span>${crop.name}</div>`
         : `<div style="font-size:11px;color:var(--text3);">Весь сад</div>`;
 
-      return `<tr>
+      return `<tr id="tr-row-${origIdx}">
+        <td style="text-align:center;"><input type="checkbox" class="tr-check" data-idx="${origIdx}" onchange="trUpdateBulkBar()" style="cursor:pointer;width:15px;height:15px;"></td>
         <td style="font-size:11px;font-family:'Unbounded',sans-serif;white-space:nowrap;">${t.date||'—'}</td>
         <td>${cropBadge}</td>
         <td>${prodHtml}${typeLabel}${methodLabel}${t.note?`<br><span style="font-size:10px;color:var(--text3);">${t.note}</span>`:''}</td>
