@@ -116,6 +116,9 @@ CREATE TABLE IF NOT EXISTS analyses (
   tenant_id             TEXT DEFAULT 'kkz',
   created_at            TIMESTAMPTZ DEFAULT NOW()
 );
+ALTER TABLE analyses ADD COLUMN IF NOT EXISTS values JSONB;
+ALTER TABLE analyses ADD COLUMN IF NOT EXISTS lab TEXT DEFAULT '';
+ALTER TABLE analyses ADD COLUMN IF NOT EXISTS note TEXT DEFAULT '';
 ALTER TABLE analyses ADD COLUMN IF NOT EXISTS tenant_id TEXT DEFAULT 'kkz';
 CREATE INDEX IF NOT EXISTS idx_analyses_tenant ON analyses(tenant_id);
 
