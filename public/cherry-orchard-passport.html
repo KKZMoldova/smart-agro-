@@ -6029,9 +6029,16 @@ function _updateAnSummary() {
   const el = document.getElementById('a-selected-summary');
   if(!el) return;
   const cells = [..._anSelectedCells];
-  const zones = [..._anSelectedZones].map(zid=>(S.irrigation?.zones||[]).find(z=>z.id===zid)?.name||'').filter(Boolean);
-  if(!cells.length) { el.textContent = ''; return; }
-  el.textContent = `✅ ${cells.join(', ')}${zones.length?' · 💧 '+zones.join(', '):''}`;
+  const zoneNames = [..._anSelectedZones]
+    .map(zid=>(S.irrigation?.zones||[]).find(z=>z.id===zid)?.name||'')
+    .filter(Boolean);
+
+  if(!cells.length) {
+    el.innerHTML = '<span style="color:var(--text3);font-size:11px;">Нажмите на участок чтобы выбрать</span>';
+  } else {
+    el.innerHTML = `<span style="color:var(--accent);">✅ ${cells.join(', ')}</span>${zoneNames.length?` <span style="color:var(--blue);">· 💧 ${zoneNames.join(', ')}</span>`:''}`;
+  }
+
   // Обновляем скрытые поля
   const cellEl = document.getElementById('a-cell');
   const zoneEl = document.getElementById('a-zone');
