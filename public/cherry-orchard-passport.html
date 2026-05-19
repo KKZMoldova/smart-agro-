@@ -3974,7 +3974,7 @@ const API = (() => {
     saveTreatment: (t) => post('/api/treatments', t),
     deleteTreatment: (id) => del(`/api/treatments/${id}`),
     getAnalyses: () => get('/api/analyses'),
-    saveAnalysis: (a) => post('/api/analyses', a),
+    saveAnalysis: (a) => post('/api/orchard-analyses', a),
     deleteAnalysis: (id) => del(`/api/analyses/${id}`),
     getSetting: (key) => get(`/api/settings/${key}`),
     setSetting: (key, value) => post(`/api/settings/${key}`, { value }),
@@ -6092,9 +6092,9 @@ const WATER_NORMS = {
 // ── Recommendations engine ─────────────────────────────────────────────────
 function generateRecommendations(analyses) {
   const recs = [];
-  const lastLeaf  = [...analyses].filter(a=>a.type==='leaf').sort((a,b)=>b.date.localeCompare(a.date))[0];
-  const lastSoil  = [...analyses].filter(a=>a.type==='soil').sort((a,b)=>b.date.localeCompare(a.date))[0];
-  const lastWater = [...analyses].filter(a=>a.type==='water').sort((a,b)=>b.date.localeCompare(a.date))[0];
+  const lastLeaf  = [...analyses].filter(a=>a.type==='leaf').filter(a=>a.date).sort((a,b)=>b.date.localeCompare(a.date))[0];
+  const lastSoil  = [...analyses].filter(a=>a.type==='soil').filter(a=>a.date).sort((a,b)=>b.date.localeCompare(a.date))[0];
+  const lastWater = [...analyses].filter(a=>a.type==='water').filter(a=>a.date).sort((a,b)=>b.date.localeCompare(a.date))[0];
   const norms = getNorms();
 
   // From leaf analysis
@@ -6962,12 +6962,21 @@ function renderIrrigZones() {
       </div>
       ${(() => {
         const zoneVarieties = new Map();
-        (z.cellKeys||[]).forEach(k=>{
-          const cd=S.cells[k]; if(!cd) return;
-          const cropId=cd.cropId||'crop_cherry';
-          S.varieties.filter(v=>(v.cropId||'crop_cherry')===cropId)
-            .forEach(v=>{ if(!zoneVarieties.has(v.id)) zoneVarieties.set(v.id,v); });
-        });
+        if(z.varietyIds?.length) {
+          // Показываем только выбранные вручную сорта
+          z.varietyIds.forEach(vid => {
+            const v = S.varieties.find(x=>x.id===vid);
+            if(v) zoneVarieties.set(v.id, v);
+          });
+        } else {
+          // Автоматически из клеток
+          (z.cellKeys||[]).forEach(k=>{
+            const cd=S.cells[k]; if(!cd) return;
+            const cropId=cd.cropId||'crop_cherry';
+            S.varieties.filter(v=>(v.cropId||'crop_cherry')===cropId)
+              .forEach(v=>{ if(!zoneVarieties.has(v.id)) zoneVarieties.set(v.id,v); });
+          });
+        }
         if(!zoneVarieties.size) return '';
         return `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;">
           ${[...zoneVarieties.values()].map(v=>`<span style="padding:1px 8px;border-radius:8px;font-size:10px;background:rgba(74,222,128,.1);color:var(--accent);">🍒 ${v.name}</span>`).join('')}
@@ -8040,9 +8049,9 @@ function openFertCalcModal() {
 
   // Загружаем анализы
   const srcEl = document.getElementById('fc-analysis-source');
-  const waterAn = [...(S.analyses||[])].filter(a=>a.type==='water').sort((a,b)=>b.date.localeCompare(a.date))[0];
-  const leafAn  = [...(S.analyses||[])].filter(a=>a.type==='leaf').sort((a,b)=>b.date.localeCompare(a.date))[0];
-  const soilAn  = [...(S.analyses||[])].filter(a=>a.type==='soil').sort((a,b)=>b.date.localeCompare(a.date))[0];
+  const waterAn = [...(S.analyses||[])].filter(a=>a.type==='water').filter(a=>a.date).sort((a,b)=>b.date.localeCompare(a.date))[0];
+  const leafAn  = [...(S.analyses||[])].filter(a=>a.type==='leaf').filter(a=>a.date).sort((a,b)=>b.date.localeCompare(a.date))[0];
+  const soilAn  = [...(S.analyses||[])].filter(a=>a.type==='soil').filter(a=>a.date).sort((a,b)=>b.date.localeCompare(a.date))[0];
 
   if(srcEl) {
     let html = '';
@@ -8091,7 +8100,7 @@ function onFertPhaseChange() {
   const targets = FERT_PHASE_TARGETS[phase] || FERT_PHASE_TARGETS.veg;
 
   // Вычитаем что даёт вода
-  const waterAn = [...(S.analyses||[])].filter(a=>a.type==='water').sort((a,b)=>b.date.localeCompare(a.date))[0];
+  const waterAn = [...(S.analyses||[])].filter(a=>a.type==='water').filter(a=>a.date).sort((a,b)=>b.date.localeCompare(a.date))[0];
   const waterCa = parseFloat(waterAn?.Ca||waterAn?.ca||0);
   const waterMg = parseFloat(waterAn?.Mg||waterAn?.mg||0);
   const waterN  = parseFloat(waterAn?.NO3||waterAn?.no3||0);
@@ -8154,7 +8163,7 @@ function calcFertDose() {
   if(phaseTargets?.nFertPeriod?.includes('НЕ ВНОСИТЬ')) sciAlerts.push(`🚫 В период цветения N НЕ вносить! Только P при цветении (20г/дерево).`);
 
   // Вода из анализа — поля хранятся с большой буквы (Ca, Mg, NO3, EC)
-  const waterAn = [...(S.analyses||[])].filter(a=>a.type==='water').sort((a,b)=>b.date.localeCompare(a.date))[0];
+  const waterAn = [...(S.analyses||[])].filter(a=>a.type==='water').filter(a=>a.date).sort((a,b)=>b.date.localeCompare(a.date))[0];
   const waterCa = parseFloat(waterAn?.Ca||waterAn?.ca||0);
   const waterMg = parseFloat(waterAn?.Mg||waterAn?.mg||0);
   const waterN  = parseFloat(waterAn?.NO3||waterAn?.no3||0);
@@ -9546,7 +9555,7 @@ function runAgronomistEngine(varietyId, tbase) {
   const series = buildGddSeries(tbase, varietyId);
   const currentGdd = series.length ? series[series.length-1].cumulative : 0;
   const currentPhase = getPhaseByGdd(varietyId, currentGdd);
-  const latestWeather = [...S.weather].sort((a,b)=>b.date.localeCompare(a.date))[0] || null;
+  const latestWeather = [...S.weather].filter(a=>a.date).sort((a,b)=>b.date.localeCompare(a.date))[0] || null;
   const daysLeft = daysToNextPhase(varietyId, currentGdd, tbase);
   const variety = S.varieties.find(v=>v.id===varietyId);
   const cropId = variety?.cropId || 'crop_cherry';
@@ -9873,7 +9882,7 @@ function runAgronomistEngine(varietyId, tbase) {
         (t.product||'').toLowerCase().includes('кальц') ||
         (t.product||'').toLowerCase().includes('cal') ||
         (t.activeSubstance||'').toLowerCase().includes('ca')
-      ).sort((a,b)=>b.date.localeCompare(a.date))[0];
+      ).filter(a=>a.date).sort((a,b)=>b.date.localeCompare(a.date))[0];
       const daysSinceCa = lastCaTreatment
         ? Math.round((Date.now()-new Date(lastCaTreatment.date))/86400000) : 999;
       if (daysSinceCa > 14) {
@@ -12763,7 +12772,7 @@ function detectStress(weatherArr, forecast) {
   }
 
   // ── 13. Анализ воды — риск засоления и pH ────────────────────────────
-  const waterAn = [...(S.analyses||[])].filter(a=>a.type==='water').sort((a,b)=>b.date.localeCompare(a.date))[0];
+  const waterAn = [...(S.analyses||[])].filter(a=>a.type==='water').filter(a=>a.date).sort((a,b)=>b.date.localeCompare(a.date))[0];
   if(waterAn) {
     const wNa  = parseFloat(waterAn.Na||waterAn.na||0);
     const wPh  = parseFloat(waterAn.pH||waterAn.ph||0);
@@ -14011,8 +14020,8 @@ function renderCherryForecastRecs(f) {
     text:`Оптимальные окна для опрыскивания: <b>${sprayWindows.slice(0,5).join(', ')}</b>. Без дождя, ветер <12км/ч, T 10–28°C.`});
 
   // Авто-рекомендации по анализу листа
-  const lastLeaf = [...(S.analyses||[])].filter(a=>a.type==='leaf').sort((a,b)=>b.date.localeCompare(a.date))[0];
-  const waterAn = [...(S.analyses||[])].filter(a=>a.type==='water').sort((a,b)=>b.date.localeCompare(a.date))[0];
+  const lastLeaf = [...(S.analyses||[])].filter(a=>a.type==='leaf').filter(a=>a.date).sort((a,b)=>b.date.localeCompare(a.date))[0];
+  const waterAn = [...(S.analyses||[])].filter(a=>a.type==='water').filter(a=>a.date).sort((a,b)=>b.date.localeCompare(a.date))[0];
   const wCa = parseFloat(waterAn?.Ca||waterAn?.ca||0);
   const wMg = parseFloat(waterAn?.Mg||waterAn?.mg||0);
   const wPh = parseFloat(waterAn?.pH||waterAn?.ph||0);
@@ -15855,9 +15864,9 @@ function saveVegAnalysis() {
 
 function generateVegRecs(analyses) {
   const recs = [];
-  const lastLeaf  = [...analyses].filter(a=>a.type==='leaf').sort((a,b)=>b.date.localeCompare(a.date))[0];
-  const lastSoil  = [...analyses].filter(a=>a.type==='soil').sort((a,b)=>b.date.localeCompare(a.date))[0];
-  const lastWater = [...analyses].filter(a=>a.type==='water').sort((a,b)=>b.date.localeCompare(a.date))[0];
+  const lastLeaf  = [...analyses].filter(a=>a.type==='leaf').filter(a=>a.date).sort((a,b)=>b.date.localeCompare(a.date))[0];
+  const lastSoil  = [...analyses].filter(a=>a.type==='soil').filter(a=>a.date).sort((a,b)=>b.date.localeCompare(a.date))[0];
+  const lastWater = [...analyses].filter(a=>a.type==='water').filter(a=>a.date).sort((a,b)=>b.date.localeCompare(a.date))[0];
   if(lastLeaf){
     Object.entries(VEG_LEAF_NORMS).forEach(([el,n])=>{
       if(lastLeaf[el]===undefined)return;
@@ -16823,7 +16832,7 @@ function renderSmartRecs() {
     }
 
     // ── 2. Давно не было обработки ────────────────────────────────────
-    const lastTreat = S.treatments.filter(t=>t.parcelId===parcel.id).sort((a,b)=>b.date.localeCompare(a.date))[0];
+    const lastTreat = S.treatments.filter(t=>t.parcelId===parcel.id).filter(a=>a.date).sort((a,b)=>b.date.localeCompare(a.date))[0];
     if (lastTreat) {
       const daysSince = Math.floor((new Date(today_str) - new Date(lastTreat.date)) / 86400000);
       // Для фунгицидов интервал 10-14 дней критичен
@@ -17026,7 +17035,7 @@ function generateWeekTasks() {
     const daysToHarvest = avgDailyGdd > 0 ? Math.round(Math.max(0, harvestGdd - gdd) / avgDailyGdd) : null;
 
     // Последняя обработка
-    const lastTreat = S.treatments.filter(t=>t.parcelId===parcel.id).sort((a,b)=>b.date.localeCompare(a.date))[0];
+    const lastTreat = S.treatments.filter(t=>t.parcelId===parcel.id).filter(a=>a.date).sort((a,b)=>b.date.localeCompare(a.date))[0];
     const daysSinceTreat = lastTreat ? Math.floor((new Date(today_str) - new Date(lastTreat.date)) / 86400000) : 999;
 
     // --- WHI истекает в ближайшие 7 дней ---
@@ -17088,7 +17097,7 @@ function generateWeekTasks() {
       const soil = parcel.soil || 'loam';
       const raw = Math.round((SOIL_FC[soil]-SOIL_WP[soil])*0.35*crop.rootDepth*10);
       const interval = Math.round(raw / etc.etc);
-      const lastIrr = S.irrigations.filter(i=>i.parcelId===parcel.id).sort((a,b)=>b.date.localeCompare(a.date))[0];
+      const lastIrr = S.irrigations.filter(i=>i.parcelId===parcel.id).filter(a=>a.date).sort((a,b)=>b.date.localeCompare(a.date))[0];
       const daysSinceIrr = lastIrr ? Math.floor((new Date(today_str) - new Date(lastIrr.date)) / 86400000) : 999;
       if (daysSinceIrr >= interval - 1) {
         tasks.push({
@@ -17296,9 +17305,9 @@ function renderWpSeason() {
     const harvestGdd = parcel.harvestGdd || crop?.gddToHarvest || 0;
     const daysToHarvest = avgDailyGdd > 0 && harvestGdd ? Math.round(Math.max(0,harvestGdd-gdd)/avgDailyGdd) : null;
 
-    const lastTreat = S.treatments.filter(t=>t.parcelId===parcel.id).sort((a,b)=>b.date.localeCompare(a.date))[0];
+    const lastTreat = S.treatments.filter(t=>t.parcelId===parcel.id).filter(a=>a.date).sort((a,b)=>b.date.localeCompare(a.date))[0];
     const activeWhi = S.treatments.filter(t=>t.parcelId===parcel.id&&t.whiDate&&t.whiDate>today_str).sort((a,b)=>b.whiDate.localeCompare(a.whiDate))[0];
-    const lastIrr = S.irrigations.filter(i=>i.parcelId===parcel.id).sort((a,b)=>b.date.localeCompare(a.date))[0];
+    const lastIrr = S.irrigations.filter(i=>i.parcelId===parcel.id).filter(a=>a.date).sort((a,b)=>b.date.localeCompare(a.date))[0];
     const daysSinceIrr = lastIrr ? Math.floor((new Date(today_str)-new Date(lastIrr.date))/86400000) : null;
 
     const etc = calcParcelEtc(parcel);
