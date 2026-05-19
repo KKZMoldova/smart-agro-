@@ -3354,6 +3354,7 @@ tbody td{padding:10px 12px;vertical-align:middle;}
 
     <!-- Кнопка расчёта -->
     <div id="fc-phase-note" style="display:none;padding:10px 14px;border-radius:8px;border:1px solid;font-size:11px;color:var(--text3);margin-bottom:10px;line-height:1.6;"></div>
+    <div id="fc-soil-note" style="display:none;margin-bottom:10px;"></div>
     <button class="btn btn-primary" style="width:100%;margin-bottom:14px;" onclick="calcFertDose()">🧮 Рассчитать</button>
 
     <!-- Результат -->
@@ -8720,11 +8721,30 @@ function onFertPhaseChange() {
   const phase = document.getElementById('fc-phase')?.value || 'veg';
   const targets = FERT_PHASE_TARGETS[phase] || FERT_PHASE_TARGETS.veg;
 
-  // Вычитаем что даёт вода
+  // Вычитаем что даёт вода и учитываем почвенные запасы
   const waterAn = [...(S.analyses||[])].filter(a=>a.type==='water').filter(a=>a.date).sort((a,b)=>(b.date||"").localeCompare(a.date||""))[0];
+  const soilAn  = [...(S.analyses||[])].filter(a=>a.type==='soil').filter(a=>a.date).sort((a,b)=>(b.date||"").localeCompare(a.date||""))[0];
+
   const waterCa = parseFloat(waterAn?.Ca||waterAn?.ca||0);
   const waterMg = parseFloat(waterAn?.Mg||waterAn?.mg||0);
   const waterN  = parseFloat(waterAn?.NO3||waterAn?.no3||0);
+
+  // Из почвы — если K, P, Ca, Mg в норме — снижаем дозу
+  const soilK  = parseFloat(soilAn?.K||soilAn?.k||0);   // мг/кг
+  const soilP  = parseFloat(soilAn?.P||soilAn?.p||0);
+  const soilCa = parseFloat(soilAn?.Ca||soilAn?.ca||0);
+  const soilMg = parseFloat(soilAn?.Mg||soilAn?.mg||0);
+  const soilPH = parseFloat(soilAn?.pH||soilAn?.ph||0);
+  const soilNO3= parseFloat(soilAn?.NO3||soilAn?.no3||0);
+
+  // Коэффициенты поправки из почвы (эмпирические, Neilsen et al.)
+  // K >150 мг/кг → снижаем K на 30%, >200 → 50%
+  const kReduction = soilK>200 ? 0.5 : soilK>150 ? 0.7 : 1.0;
+  // P >30 мг/кг → снижаем P на 30%
+  const pReduction = soilP>30 ? 0.7 : 1.0;
+  // Ca из почвы при капельном не доступна напрямую
+  // NO3 в почве >15 мг/кг → снижаем N
+  const nReduction = soilNO3>15 ? 0.8 : soilNO3>30 ? 0.6 : 1.0;
 
   ['n','p','k','ca','mg'].forEach(el => {
     const inp = document.getElementById(`fc-ppm-${el}`);
@@ -8733,11 +8753,32 @@ function onFertPhaseChange() {
     let target = targets[key] || 0;
     if(el==='ca') target = Math.max(0, target - waterCa);
     if(el==='mg') target = Math.max(0, target - waterMg);
-    if(el==='n')  target = Math.max(0, target - waterN);
+    if(el==='n')  target = Math.max(0, (target - waterN) * nReduction);
+    if(el==='k')  target = Math.max(0, target * kReduction);
+    if(el==='p')  target = Math.max(0, target * pReduction);
     inp.value = Math.round(target);
-    // Подсвечиваем N=0 в цветение и созревание
     inp.style.color = (el==='n' && target===0) ? 'var(--red)' : 'var(--blue)';
   });
+
+  // Показываем влияние почвы если есть анализ
+  const soilNote = document.getElementById('fc-soil-note');
+  if(soilNote) {
+    if(soilAn) {
+      const notes = [];
+      if(soilPH > 7.5) notes.push(`pH ${soilPH} — защелачивание, блокировка Fe/Mn/Zn → добавить хелаты`);
+      if(soilPH < 5.5) notes.push(`pH ${soilPH} — кислая почва, блокировка P, Ca → известкование`);
+      if(soilK > 200)  notes.push(`K ${soilK}мг/кг — высокий запас, доза K снижена на ${Math.round((1-kReduction)*100)}%`);
+      if(soilP > 30)   notes.push(`P ${soilP}мг/кг — высокий запас, доза P снижена на ${Math.round((1-pReduction)*100)}%`);
+      if(soilNO3 > 15) notes.push(`NO₃ ${soilNO3}мг/кг в почве, доза N снижена на ${Math.round((1-nReduction)*100)}%`);
+      soilNote.style.display = notes.length ? 'block' : 'none';
+      soilNote.innerHTML = notes.length
+        ? `<div style="font-size:11px;color:var(--orange);padding:6px 10px;background:rgba(245,158,11,.06);border-radius:6px;border-left:2px solid var(--orange);">
+            🌱 Поправка по анализу почвы (${soilAn.date}):<br>${notes.map(n=>`· ${n}`).join('<br>')}
+          </div>` : '';
+    } else {
+      soilNote.style.display = 'none';
+    }
+  }
 
   // Показываем научное примечание фазы
   const noteEl = document.getElementById('fc-phase-note');
