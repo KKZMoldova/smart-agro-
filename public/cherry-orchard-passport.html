@@ -1624,11 +1624,12 @@ tbody td{padding:10px 12px;vertical-align:middle;}
     <h2 id="an-modal-title">🔬 Анализ</h2>
     <div class="form-grid" style="margin-bottom:12px;">
       <div class="ff"><label>Дата анализа</label><input type="date" id="a-date"></div>
-      <div class="ff"><label>Клетка / участок</label>
-        <select id="a-cell" onchange="onACellChange()"><option value="">Весь сад</option></select>
-      </div>
-      <div class="ff"><label>Зона полива</label>
-        <select id="a-zone"><option value="">— не привязана —</option></select>
+      <div class="ff full">
+        <label>Участки и зоны</label>
+        <div id="a-parcel-zone-picker" style="border:1px solid var(--border);border-radius:8px;padding:8px;background:var(--surface2);max-height:180px;overflow-y:auto;"></div>
+        <div id="a-selected-summary" style="font-size:11px;color:var(--accent);margin-top:4px;"></div>
+        <input type="hidden" id="a-cell">
+        <input type="hidden" id="a-zone">
       </div>
       <div class="ff"><label>Культура</label>
         <select id="a-crop"><option value="">— все культуры —</option></select>
@@ -5958,26 +5959,99 @@ function switchAnModalTab(tab) {
   });
 }
 
-function onACellChange() {
-  const cellKey = document.getElementById('a-cell').value;
-  const zoneSel = document.getElementById('a-zone');
-  const varietySel = document.getElementById('a-variety');
+let _anSelectedCells = new Set();
+let _anSelectedZones = new Set();
 
-  // Зоны для выбранной клетки
-  const cellZones = cellKey
-    ? (S.irrigation?.zones||[]).filter(z=>(z.cellKeys||[]).includes(cellKey))
-    : (S.irrigation?.zones||[]);
-  zoneSel.innerHTML = '<option value="">— не привязана —</option>' +
-    cellZones.map(z=>`<option value="${z.id}">${z.name}</option>`).join('');
+function renderAnParcelPicker() {
+  const el = document.getElementById('a-parcel-zone-picker');
+  if(!el) return;
+  const cells = Object.entries(S.cells||{});
+  const zones = S.irrigation?.zones||[];
 
-  // Сорта для выбранной клетки
-  const cd = cellKey ? S.cells[cellKey] : null;
-  const cropId = cd?.cropId || 'crop_cherry';
-  const cellVarieties = cd
-    ? S.varieties.filter(v=>(v.cropId||'crop_cherry')===cropId)
+  el.innerHTML = cells.map(([key, cd])=>{
+    const col = getCellColors(cd);
+    const crop = getCropById(cd.cropId||'crop_cherry');
+    const ha = calcCellTotals(cd)?.totalHa||0;
+    const selCell = _anSelectedCells.has(key);
+    const cellZones = zones.filter(z=>(z.cellKeys||[]).includes(key));
+
+    return `<div style="margin-bottom:4px;">
+      <div onclick="toggleAnCell('${key}')" id="an-cell-${key}"
+        style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;cursor:pointer;
+          background:${selCell?'rgba(74,222,128,.12)':'transparent'};
+          border:1px solid ${selCell?'rgba(74,222,128,.3)':'transparent'};">
+        <span style="font-size:14px;">${selCell?'☑':'☐'}</span>
+        <span style="font-size:12px;font-weight:600;">${crop?.emoji||'🌳'} ${key}</span>
+        <span style="font-size:11px;color:var(--text3);">${col[0]?.name||''} · ${ha.toFixed(2)}га</span>
+      </div>
+      ${cellZones.length ? `<div style="margin-left:24px;display:flex;gap:4px;flex-wrap:wrap;margin-top:2px;">
+        ${cellZones.map(z=>{
+          const selZ = _anSelectedZones.has(z.id);
+          return `<span onclick="toggleAnZone('${z.id}','${key}',event)" id="an-zone-${z.id}"
+            style="padding:2px 8px;border-radius:6px;font-size:10px;cursor:pointer;
+              background:${selZ?'rgba(96,165,250,.15)':'var(--surface3)'};
+              color:${selZ?'var(--blue)':'var(--text3)'};
+              border:1px solid ${selZ?'rgba(96,165,250,.3)':'var(--border)'};">
+            💧 ${z.name}
+          </span>`;
+        }).join('')}
+      </div>` : ''}
+    </div>`;
+  }).join('') || '<div style="font-size:11px;color:var(--text3);">Клетки не заданы</div>';
+
+  _updateAnSummary();
+}
+
+function toggleAnCell(key) {
+  if(_anSelectedCells.has(key)) {
+    _anSelectedCells.delete(key);
+    // Снимаем зоны этой клетки
+    (S.irrigation?.zones||[]).filter(z=>(z.cellKeys||[]).includes(key))
+      .forEach(z=>_anSelectedZones.delete(z.id));
+  } else {
+    _anSelectedCells.add(key);
+    // Авто-выбор зон клетки
+    (S.irrigation?.zones||[]).filter(z=>(z.cellKeys||[]).includes(key))
+      .forEach(z=>_anSelectedZones.add(z.id));
+  }
+  renderAnParcelPicker();
+  _updateAnVarieties();
+}
+
+function toggleAnZone(zoneId, cellKey, event) {
+  event.stopPropagation();
+  if(_anSelectedZones.has(zoneId)) _anSelectedZones.delete(zoneId);
+  else _anSelectedZones.add(zoneId);
+  renderAnParcelPicker();
+}
+
+function _updateAnSummary() {
+  const el = document.getElementById('a-selected-summary');
+  if(!el) return;
+  const cells = [..._anSelectedCells];
+  const zones = [..._anSelectedZones].map(zid=>(S.irrigation?.zones||[]).find(z=>z.id===zid)?.name||'').filter(Boolean);
+  if(!cells.length) { el.textContent = ''; return; }
+  el.textContent = `✅ ${cells.join(', ')}${zones.length?' · 💧 '+zones.join(', '):''}`;
+  // Обновляем скрытые поля
+  const cellEl = document.getElementById('a-cell');
+  const zoneEl = document.getElementById('a-zone');
+  if(cellEl) cellEl.value = cells.join(',');
+  if(zoneEl) zoneEl.value = [..._anSelectedZones].join(',');
+}
+
+function _updateAnVarieties() {
+  const varSel = document.getElementById('a-variety');
+  if(!varSel) return;
+  const cur = varSel.value;
+  const selectedCells = [..._anSelectedCells];
+  const varieties = selectedCells.length
+    ? S.varieties.filter(v => selectedCells.some(k=>{
+        const cd = S.cells[k];
+        return !cd || (v.cropId||'crop_cherry')===(cd.cropId||'crop_cherry');
+      }))
     : S.varieties;
-  varietySel.innerHTML = '<option value="">— все сорта —</option>' +
-    cellVarieties.map(v=>`<option value="${v.id}">${v.name}</option>`).join('');
+  varSel.innerHTML = '<option value="">— все сорта —</option>' +
+    varieties.map(v=>`<option value="${v.id}" ${cur===v.id?'selected':''}>${v.name}</option>`).join('');
 }
 
 function openAnalysisModal(type, editId) {
@@ -5993,14 +6067,10 @@ function openAnalysisModal(type, editId) {
   document.getElementById('a-note').value = existing?.note || '';
   document.getElementById('a-depth-cm').value = existing?.depthCm || '';
 
-  // Клетки
-  const cs = document.getElementById('a-cell');
-  cs.innerHTML = '<option value="">Весь сад</option>';
-  Object.keys(S.cells).forEach(k => {
-    const col = getCellColors(S.cells[k]);
-    cs.innerHTML += `<option value="${k}" ${existing?.cellKey===k?'selected':''}>${k}${col[0]?' — '+col[0].name:''}</option>`;
-  });
-  cs.value = existing?.cellKey || '';
+  // Восстанавливаем выбранные клетки и зоны
+  _anSelectedCells = new Set(existing?.cellKey ? existing.cellKey.split(',').filter(Boolean) : []);
+  _anSelectedZones = new Set(existing?.zoneId ? existing.zoneId.split(',').filter(Boolean) : []);
+  renderAnParcelPicker();
 
   // Культуры
   const cropSel = document.getElementById('a-crop');
@@ -6009,16 +6079,13 @@ function openAnalysisModal(type, editId) {
       S.crops.map(c=>`<option value="${c.id}" ${existing?.cropId===c.id?'selected':''}>${c.emoji||''} ${c.name}</option>`).join('');
   }
 
-  // Заполняем зоны и сорта по клетке
-  onACellChange();
-
-  // Восстанавливаем выбранные значения
+  // Сорта
+  _updateAnVarieties();
   setTimeout(()=>{
-    if(existing?.zoneId) { const z=document.getElementById('a-zone'); if(z) z.value=existing.zoneId; }
     if(existing?.varietyId) { const v=document.getElementById('a-variety'); if(v) v.value=existing.varietyId; }
   }, 50);
 
-  // Clear all fields
+  // Поля элементов
   const leafFields = ['N','P','K','Ca','Mg','S','Fe','Mn','Zn','B','Cu','Mo'];
   const soilFields = ['pH','OM','CEC','BS','depth','NO3','P','K','Ca','Mg','B','Fe','Mn','Zn','Cu'];
   const waterFields= ['pH','EC','TDS','hard','SAR','Cl','NO3','Ca','Mg','Na','B','Fe','Mn','H2S'];
@@ -6028,8 +6095,7 @@ function openAnalysisModal(type, editId) {
   const st = document.getElementById('s-texture');
   if(st) st.value = existing?.type==='soil' ? existing.texture||'' : '';
 
-  const t = existing?.type || type;
-  switchAnModalTab(t);
+  switchAnModalTab(existing?.type || type);
   openModal('modal-analysis');
 }
 
