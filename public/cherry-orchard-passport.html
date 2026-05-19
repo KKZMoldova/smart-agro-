@@ -7484,6 +7484,7 @@ function renderDashboard() {
   const el = document.getElementById('dashboard-content');
   const dateEl = document.getElementById('dash-date');
   if(!el) return;
+  try {
 
   const now = new Date();
   const dateStr = now.toLocaleDateString('ru-RU', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
@@ -7705,6 +7706,11 @@ function renderDashboard() {
   }
 
   // ── РЕНДЕР ВСЕХ СЕКЦИЙ ────────────────────────────────────────────────
+  if(!sections.length) {
+    el.innerHTML = '<div style="padding:20px;color:var(--text3);font-size:13px;">⏳ Нет данных для отображения. Убедитесь что данные погоды и зоны полива загружены.</div>';
+    return;
+  }
+
   el.innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
       ${sections.map(s=>`
@@ -7715,8 +7721,15 @@ function renderDashboard() {
     </div>
     <div style="margin-top:12px;font-size:11px;color:var(--text3);text-align:center;">
       Последнее обновление: ${now.toLocaleTimeString('ru-RU')} · 
-      <a href="#" onclick="switchTab('ailog',document.querySelector('.tab[onclick*=ailog]'));return false;" style="color:var(--blue);">Открыть журнал AI →</a>
+      <a href="#" onclick="switchTab('ailog',document.querySelector('.tab[onclick*=\'ailog\']'));return false;" style="color:var(--blue);">Открыть журнал AI →</a>
     </div>`;
+  } catch(e) {
+    console.error('[Dashboard] Error:', e);
+    el.innerHTML = `<div style="padding:20px;background:rgba(220,38,38,.08);border-radius:10px;color:var(--red);font-size:12px;">
+      ⚠️ Ошибка загрузки дашборда: ${e.message}<br>
+      <span style="font-size:11px;color:var(--text3);">Попробуйте обновить страницу (Ctrl+Shift+R)</span>
+    </div>`;
+  }
 }
 
 // ═══ WATER BALANCE ENGINE ════════════════════════════════════════════════
