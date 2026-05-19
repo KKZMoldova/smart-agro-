@@ -3302,6 +3302,33 @@ tbody td{padding:10px 12px;vertical-align:middle;}
 <div class="modal-overlay" id="modal-fert-calc">
   <div class="modal" style="max-width:720px;width:96%;max-height:92vh;overflow-y:auto;">
     <h2>🧮 Расчёт дозы фертигации</h2>
+
+    <!-- ВЫБОР ОБЪЕКТА: Культура → Участки → Сорта -->
+    <div style="margin-bottom:14px;">
+      <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🎯 Объект обработки</div>
+
+      <!-- Шаг 1: Культура -->
+      <div style="margin-bottom:8px;">
+        <div style="font-size:11px;color:var(--text2);margin-bottom:5px;">Культура</div>
+        <div id="fc-crop-btns" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+      </div>
+
+      <!-- Шаг 2: Участки (мультиселект) -->
+      <div id="fc-parcels-row" style="display:none;margin-bottom:8px;">
+        <div style="font-size:11px;color:var(--text2);margin-bottom:5px;">Участки <span style="color:var(--text3);font-size:10px;">(можно выбрать несколько)</span></div>
+        <div id="fc-parcel-btns" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+      </div>
+
+      <!-- Шаг 3: Сорта (мультиселект, опционально) -->
+      <div id="fc-varieties-row" style="display:none;margin-bottom:8px;">
+        <div style="font-size:11px;color:var(--text2);margin-bottom:5px;">Сорта <span style="color:var(--text3);font-size:10px;">(все выбранных участков — или выберите конкретные)</span></div>
+        <div id="fc-variety-btns" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+      </div>
+
+      <!-- Итог выборки -->
+      <div id="fc-selection-summary" style="display:none;padding:8px 12px;background:rgba(74,222,128,.07);border:1px solid rgba(74,222,128,.2);border-radius:8px;font-size:11px;color:var(--accent2);"></div>
+    </div>
+
     <div class="form-grid">
       <div class="ff"><label>Зона полива</label>
         <select id="fc-zone" onchange="onFertCalcZoneChange()" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);"></select>
@@ -8658,8 +8685,18 @@ const FERT_INCOMPAT_PAIRS = [
   ['Карбамид', 'Кальциевая селитра'],
 ];
 
+// Состояние выбора объекта фертигации
+let _fcSelCrop = null;       // 'crop_cherry' etc
+let _fcSelParcels = new Set(); // Set of cell keys
+let _fcSelVarieties = new Set(); // Set of variety ids, пусто = все сорта участков
+
 function openFertCalcModal() {
-  // Заполняем зоны
+  // Сбрасываем выбор
+  _fcSelCrop = null;
+  _fcSelParcels = new Set();
+  _fcSelVarieties = new Set();
+
+  // Заполняем зоны полива
   const zoneSel = document.getElementById('fc-zone');
   if(zoneSel) {
     zoneSel.innerHTML = '<option value="">— весь сад —</option>' +
@@ -8667,47 +8704,239 @@ function openFertCalcModal() {
         `<option value="${z.id}">${z.name} (${z.area?.toFixed(1)||'?'}га)</option>`
       ).join('');
   }
+
   // Подключаем onchange к select фазы
   const ph = document.getElementById('fc-phase');
   if(ph) ph.onchange = onFertPhaseChange;
 
   document.getElementById('fc-result').style.display = 'none';
   document.getElementById('fc-phase-note').style.display = 'none';
+  document.getElementById('fc-parcels-row').style.display = 'none';
+  document.getElementById('fc-varieties-row').style.display = 'none';
+  document.getElementById('fc-selection-summary').style.display = 'none';
 
-  // Загружаем анализы
-  const srcEl = document.getElementById('fc-analysis-source');
-  const waterAn = [...(S.analyses||[])].filter(a=>a.type==='water').filter(a=>a.date).sort((a,b)=>(b.date||"").localeCompare(a.date||""))[0];
-  const leafAn  = [...(S.analyses||[])].filter(a=>a.type==='leaf').filter(a=>a.date).sort((a,b)=>(b.date||"").localeCompare(a.date||""))[0];
-  const soilAn  = [...(S.analyses||[])].filter(a=>a.type==='soil').filter(a=>a.date).sort((a,b)=>(b.date||"").localeCompare(a.date||""))[0];
-
-  if(srcEl) {
-    let html = '';
-    if(waterAn) {
-      html += `<div style="margin-bottom:4px;">💧 <strong>Анализ воды (${waterAn.date}):</strong> EC ${waterAn.EC||waterAn.ec||'—'} mS/cm · pH ${waterAn.pH||waterAn.ph||'—'} · NO₃ ${waterAn.NO3||waterAn.no3||'0'}ppm · Ca ${waterAn.Ca||waterAn.ca||'0'}ppm · Mg ${waterAn.Mg||waterAn.mg||'0'}ppm</div>`;
+  // Шаг 1: Кнопки культур из заполненных клеток
+  const cropBtns = document.getElementById('fc-crop-btns');
+  if(cropBtns) {
+    const cropMap = {}; // cropId → {name, emoji, count, ha}
+    Object.values(S.cells||{}).forEach(cd => {
+      const cid = cd.cropId || 'crop_cherry';
+      if(!cropMap[cid]) {
+        const def = (S.cropSettings||[]).find(c=>c.cropId===cid) || {};
+        cropMap[cid] = {name: def.name||cid, emoji: def.emoji||'🌱', count:0, ha:0};
+      }
+      cropMap[cid].count++;
+      cropMap[cid].ha += calcCellTotals(cd).totalHa || 0;
+    });
+    if(!Object.keys(cropMap).length) {
+      cropBtns.innerHTML = '<div style="color:var(--text3);font-size:11px;">Участки не заполнены. Добавьте клетки на карте.</div>';
     } else {
-      html += `<div style="color:var(--orange);margin-bottom:6px;">⚠️ Анализ воды не найден — Ca и Mg из воды не вычитаются из расчёта.
-        <button class="btn btn-secondary btn-sm" style="margin-left:8px;" onclick="closeModal('modal-fert-calc');switchTab('analysis',document.querySelector('[onclick*=switchTab][onclick*=analysis]'));setTimeout(()=>openAnalysisModal('water'),300);">+ Добавить анализ воды</button>
-      </div>`;
-    }
-    if(leafAn)  html += `<div style="margin-bottom:2px;">🌿 <strong>Анализ листа (${leafAn.date}):</strong> N ${leafAn.N||leafAn.n||'—'}% · P ${leafAn.P||leafAn.p||'—'}% · K ${leafAn.K||leafAn.k||'—'}% · Ca ${leafAn.Ca||leafAn.ca||'—'}% · Mg ${leafAn.Mg||leafAn.mg||'—'}%</div>`;
-    if(soilAn)  html += `<div>🌱 <strong>Анализ почвы (${soilAn.date}):</strong> pH ${soilAn.pH||soilAn.ph||'—'} · NO₃ ${soilAn.NO3||soilAn.no3||'—'} · P ${soilAn.P||soilAn.p||'—'} · K ${soilAn.K||soilAn.k||'—'}</div>`;
-    if(!waterAn && !leafAn && !soilAn) html += `<div style="color:var(--text3);">Анализы не внесены. Расчёт по целевым нормам фазы.</div>`;
-    srcEl.innerHTML = html;
-
-    // Заполняем ppm воды для отображения
-    if(waterAn) {
-      const setWater = (id, val) => { const d=document.getElementById(id); if(d) d.textContent=`из воды: ${parseFloat(val||0)}ppm`; };
-      setWater('fc-water-ca', waterAn.Ca||waterAn.ca||0);
-      setWater('fc-water-mg', waterAn.Mg||waterAn.mg||0);
-      setWater('fc-water-n',  waterAn.NO3||waterAn.no3||0);
+      cropBtns.innerHTML = Object.entries(cropMap).map(([cid, c])=>
+        `<button onclick="fcSelectCrop('${cid}')" id="fc-crop-btn-${cid}"
+          style="padding:7px 14px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);
+          color:var(--text2);cursor:pointer;font-size:12px;transition:all .15s;">
+          ${c.emoji} ${c.name} <span style="color:var(--text3);font-size:10px;">(${c.count} уч · ${c.ha.toFixed(1)}га)</span>
+        </button>`
+      ).join('');
     }
   }
 
-  // Заполняем ppm-поля по выбранной фазе (с учётом анализов воды и почвы)
+  // Загружаем анализы (блок источника данных)
+  _fcRenderAnalysisSource();
+
+  // Заполняем ppm-поля по выбранной фазе
   onFertPhaseChange();
 
   // Открываем модалку
   openModal('modal-fert-calc');
+}
+
+function fcSelectCrop(cropId) {
+  _fcSelCrop = cropId;
+  _fcSelParcels = new Set();
+  _fcSelVarieties = new Set();
+
+  // Подсвечиваем кнопку
+  document.querySelectorAll('[id^="fc-crop-btn-"]').forEach(b=>{
+    b.style.background = 'var(--surface2)';
+    b.style.borderColor = 'var(--border)';
+    b.style.color = 'var(--text2)';
+  });
+  const btn = document.getElementById(`fc-crop-btn-${cropId}`);
+  if(btn){ btn.style.background='rgba(74,222,128,.12)'; btn.style.borderColor='var(--accent)'; btn.style.color='var(--accent)'; }
+
+  // Заполняем участки этой культуры
+  const parcelBtns = document.getElementById('fc-parcel-btns');
+  const parcels = Object.entries(S.cells||{}).filter(([,cd])=>(cd.cropId||'crop_cherry')===cropId);
+  if(parcelBtns) {
+    parcelBtns.innerHTML = parcels.map(([key, cd])=>{
+      const ha = calcCellTotals(cd).totalHa || 0;
+      const trees = calcCellTotals(cd).totalTrees || 0;
+      // Сорта участка
+      const varNames = [...new Set((cd.rows||[]).map(r=>r.varietyId).filter(Boolean))]
+        .map(vid=>S.varieties.find(v=>v.id===vid)?.name||vid).join(', ');
+      return `<button onclick="fcToggleParcel('${key}')" id="fc-parcel-btn-${key}"
+        style="padding:7px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);
+        color:var(--text2);cursor:pointer;font-size:11px;text-align:left;transition:all .15s;max-width:200px;">
+        <div style="font-weight:700;color:var(--text);">${key}</div>
+        <div style="font-size:10px;color:var(--text3);">${ha.toFixed(2)}га · ${trees} дер.</div>
+        ${varNames?`<div style="font-size:10px;color:var(--accent2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${varNames}</div>`:''}
+      </button>`;
+    }).join('');
+  }
+  document.getElementById('fc-parcels-row').style.display = 'block';
+  document.getElementById('fc-varieties-row').style.display = 'none';
+  document.getElementById('fc-selection-summary').style.display = 'none';
+  fcUpdateSummary();
+}
+
+function fcToggleParcel(key) {
+  if(_fcSelParcels.has(key)) _fcSelParcels.delete(key); else _fcSelParcels.add(key);
+
+  // Перекрашиваем кнопку
+  const btn = document.getElementById(`fc-parcel-btn-${key}`);
+  if(btn) {
+    const on = _fcSelParcels.has(key);
+    btn.style.background = on ? 'rgba(74,222,128,.12)' : 'var(--surface2)';
+    btn.style.borderColor = on ? 'var(--accent)' : 'var(--border)';
+    btn.style.color = on ? 'var(--accent)' : 'var(--text2)';
+  }
+
+  // Собираем все сорта выбранных участков
+  const allVarIds = new Set();
+  _fcSelParcels.forEach(k => {
+    (S.cells[k]?.rows||[]).forEach(r=>{ if(r.varietyId) allVarIds.add(r.varietyId); });
+  });
+
+  // Показываем сорта если выбран хотя бы 1 участок
+  const varBtns = document.getElementById('fc-variety-btns');
+  if(varBtns && allVarIds.size > 0) {
+    _fcSelVarieties = new Set(); // сброс при смене участков
+    varBtns.innerHTML = `<button onclick="fcToggleVariety('__all__')" id="fc-var-btn-__all__"
+      style="padding:6px 12px;border-radius:8px;border:1px solid var(--accent);background:rgba(74,222,128,.12);
+      color:var(--accent);cursor:pointer;font-size:11px;font-weight:700;">✅ Все сорта</button>` +
+      [...allVarIds].map(vid=>{
+        const v = S.varieties.find(x=>x.id===vid);
+        // Считаем га этого сорта в выбранных участках
+        let ha = 0;
+        _fcSelParcels.forEach(k=>{
+          const cd = S.cells[k];
+          if(!cd) return;
+          const rows = (cd.rows||[]).filter(r=>r.varietyId===vid);
+          rows.forEach(r=>{ ha += ((r.rowLength||0)*(cd.rowSpacing||5))/10000; });
+        });
+        return `<button onclick="fcToggleVariety('${vid}')" id="fc-var-btn-${vid}"
+          style="padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);
+          color:var(--text2);cursor:pointer;font-size:11px;transition:all .15s;">
+          ${v?.name||vid} <span style="font-size:10px;color:var(--text3);">${ha>0?ha.toFixed(2)+'га':''}</span>
+        </button>`;
+      }).join('');
+    document.getElementById('fc-varieties-row').style.display = 'block';
+  } else if(_fcSelParcels.size === 0) {
+    document.getElementById('fc-varieties-row').style.display = 'none';
+  }
+
+  fcUpdateSummary();
+}
+
+function fcToggleVariety(vid) {
+  if(vid === '__all__') {
+    _fcSelVarieties = new Set();
+    // сброс — все активны
+    document.querySelectorAll('[id^="fc-var-btn-"]').forEach(b=>{
+      b.style.background='var(--surface2)'; b.style.borderColor='var(--border)'; b.style.color='var(--text2)';
+    });
+    const allBtn = document.getElementById('fc-var-btn-__all__');
+    if(allBtn){ allBtn.style.background='rgba(74,222,128,.12)'; allBtn.style.borderColor='var(--accent)'; allBtn.style.color='var(--accent)'; }
+  } else {
+    if(_fcSelVarieties.has(vid)) _fcSelVarieties.delete(vid); else _fcSelVarieties.add(vid);
+    // Снимаем "Все сорта"
+    const allBtn = document.getElementById('fc-var-btn-__all__');
+    if(allBtn){ allBtn.style.background='var(--surface2)'; allBtn.style.borderColor='var(--border)'; allBtn.style.color='var(--text2)'; }
+    const btn = document.getElementById(`fc-var-btn-${vid}`);
+    if(btn) {
+      const on = _fcSelVarieties.has(vid);
+      btn.style.background = on ? 'rgba(96,165,250,.12)' : 'var(--surface2)';
+      btn.style.borderColor = on ? 'var(--blue)' : 'var(--border)';
+      btn.style.color = on ? 'var(--blue)' : 'var(--text2)';
+    }
+  }
+  fcUpdateSummary();
+}
+
+function fcGetSelectionArea() {
+  // Возвращает суммарную площадь по текущей выборке (га)
+  let ha = 0;
+  if(_fcSelParcels.size === 0) {
+    // Весь сад
+    Object.values(S.cells||{}).forEach(cd => { ha += calcCellTotals(cd).totalHa||0; });
+  } else if(_fcSelVarieties.size === 0) {
+    // Выбранные участки целиком
+    _fcSelParcels.forEach(k => { ha += calcCellTotals(S.cells[k]||{}).totalHa||0; });
+  } else {
+    // Только выбранные сорта в выбранных участках
+    _fcSelParcels.forEach(k=>{
+      const cd = S.cells[k]; if(!cd) return;
+      (cd.rows||[]).forEach(r=>{
+        if(_fcSelVarieties.has(r.varietyId)) {
+          ha += ((r.rowLength||0)*(cd.rowSpacing||5))/10000;
+        }
+      });
+    });
+  }
+  return Math.max(ha, 0.01);
+}
+
+function fcUpdateSummary() {
+  const el = document.getElementById('fc-selection-summary');
+  if(!el) return;
+  if(!_fcSelCrop) { el.style.display='none'; return; }
+
+  const crop = (S.cropSettings||[]).find(c=>c.cropId===_fcSelCrop);
+  const cropName = `${crop?.emoji||'🌱'} ${crop?.name||_fcSelCrop}`;
+
+  let desc = '';
+  if(_fcSelParcels.size === 0) {
+    desc = `${cropName} — весь сад`;
+  } else {
+    const parcelNames = [..._fcSelParcels].join(', ');
+    if(_fcSelVarieties.size === 0) {
+      desc = `${cropName} · Участки: ${parcelNames} · все сорта`;
+    } else {
+      const varNames = [..._fcSelVarieties].map(vid=>S.varieties.find(v=>v.id===vid)?.name||vid).join(', ');
+      desc = `${cropName} · Участки: ${parcelNames} · Сорта: ${varNames}`;
+    }
+  }
+
+  const ha = fcGetSelectionArea();
+  el.style.display = 'block';
+  el.innerHTML = `📋 <strong>${desc}</strong> · <span style="color:var(--accent);">${ha.toFixed(2)} га</span>`;
+}
+
+function _fcRenderAnalysisSource() {
+  const srcEl = document.getElementById('fc-analysis-source');
+  if(!srcEl) return;
+  const waterAn = [...(S.analyses||[])].filter(a=>a.type==='water').filter(a=>a.date).sort((a,b)=>(b.date||"").localeCompare(a.date||""))[0];
+  const leafAn  = [...(S.analyses||[])].filter(a=>a.type==='leaf').filter(a=>a.date).sort((a,b)=>(b.date||"").localeCompare(a.date||""))[0];
+  const soilAn  = [...(S.analyses||[])].filter(a=>a.type==='soil').filter(a=>a.date).sort((a,b)=>(b.date||"").localeCompare(a.date||""))[0];
+  let html = '';
+  if(waterAn) {
+    html += `<div style="margin-bottom:4px;">💧 <strong>Анализ воды (${waterAn.date}):</strong> EC ${waterAn.EC||waterAn.ec||'—'} mS/cm · pH ${waterAn.pH||waterAn.ph||'—'} · NO₃ ${waterAn.NO3||waterAn.no3||'0'}ppm · Ca ${waterAn.Ca||waterAn.ca||'0'}ppm · Mg ${waterAn.Mg||waterAn.mg||'0'}ppm</div>`;
+  } else {
+    html += `<div style="color:var(--orange);margin-bottom:6px;">⚠️ Анализ воды не найден — Ca и Mg из воды не вычитаются из расчёта.
+      <button class="btn btn-secondary btn-sm" style="margin-left:8px;" onclick="closeModal('modal-fert-calc');switchTab('analysis',document.querySelector('[onclick*=switchTab][onclick*=analysis]'));setTimeout(()=>openAnalysisModal('water'),300);">+ Добавить анализ воды</button>
+    </div>`;
+  }
+  if(leafAn)  html += `<div style="margin-bottom:2px;">🌿 <strong>Анализ листа (${leafAn.date}):</strong> N ${leafAn.N||leafAn.n||'—'}% · P ${leafAn.P||leafAn.p||'—'}% · K ${leafAn.K||leafAn.k||'—'}% · Ca ${leafAn.Ca||leafAn.ca||'—'}% · Mg ${leafAn.Mg||leafAn.mg||'—'}%</div>`;
+  if(soilAn)  html += `<div>🌱 <strong>Анализ почвы (${soilAn.date}):</strong> pH ${soilAn.pH||soilAn.ph||'—'} · NO₃ ${soilAn.NO3||soilAn.no3||'—'} · P ${soilAn.P||soilAn.p||'—'} · K ${soilAn.K||soilAn.k||'—'}</div>`;
+  if(!waterAn && !leafAn && !soilAn) html += `<div style="color:var(--text3);">Анализы не внесены. Расчёт по целевым нормам фазы.</div>`;
+  srcEl.innerHTML = html;
+  if(waterAn) {
+    const setWater = (id, val) => { const d=document.getElementById(id); if(d) d.textContent=`из воды: ${parseFloat(val||0)}ppm`; };
+    setWater('fc-water-ca', waterAn.Ca||waterAn.ca||0);
+    setWater('fc-water-mg', waterAn.Mg||waterAn.mg||0);
+    setWater('fc-water-n',  waterAn.NO3||waterAn.no3||0);
+  }
 }
 
 function onFertCalcZoneChange() {
@@ -8832,7 +9061,23 @@ function calcFertDose() {
   const waterVol = parseFloat(document.getElementById('fc-water-vol')?.value)||50;
   const tankL    = parseFloat(document.getElementById('fc-tank')?.value)||200;
   const zone     = (S.irrigation.zones||[]).find(z=>z.id===zoneId);
-  const areaHa   = zone?.area || Object.values(S.cells).reduce((s,cd)=>s+calcCellTotals(cd).totalHa,0) || 1;
+
+  // Площадь: из иерархической выборки (культура/участки/сорта) или из зоны полива
+  const areaHa = zone?.area || fcGetSelectionArea();
+
+  // Метка объекта для заголовка результата
+  let selLabel = zone?.name || 'Весь сад';
+  if(!zone) {
+    if(_fcSelParcels.size > 0) {
+      const parcelNames = [..._fcSelParcels].join(', ');
+      if(_fcSelVarieties.size > 0) {
+        const varNames = [..._fcSelVarieties].map(vid=>S.varieties.find(v=>v.id===vid)?.name||vid).join(', ');
+        selLabel = `Участки ${parcelNames} · ${varNames}`;
+      } else {
+        selLabel = `Участки ${parcelNames}`;
+      }
+    }
+  }
 
   // Читаем целевые ppm из полей
   const ppm = {};
@@ -8936,7 +9181,7 @@ function calcFertDose() {
   resEl.innerHTML = `
     <div style="padding:14px;background:rgba(74,222,128,.06);border:1px solid rgba(74,222,128,.2);border-radius:10px;margin-bottom:14px;">
       <div style="font-size:13px;font-weight:700;color:var(--accent);margin-bottom:10px;">
-        📋 Программа фертигации — ${zone?.name||'Весь сад'} · ${areaHa.toFixed(1)}га · ${waterVol}м³ воды
+        📋 Программа фертигации — ${selLabel} · ${areaHa.toFixed(1)}га · ${waterVol}м³ воды
       </div>
 
       ${sciAlerts.length ? `<div style="margin-bottom:12px;padding:10px 14px;background:rgba(226,75,74,.06);border:1px solid rgba(226,75,74,.2);border-radius:8px;">
@@ -9004,7 +9249,7 @@ function saveFertCalcAsProgram() {
 
   const prog = {
     id: uid(),
-    name: `${phaseLabel} — ${zone?.name||'Весь сад'} — ${new Date().toLocaleDateString('ru-RU')}`,
+    name: `${phaseLabel} — ${selLabel} — ${new Date().toLocaleDateString('ru-RU')}`,
     phase: phaseLabel,
     zone: zone?.name||'',
     areaHa, waterVol,
