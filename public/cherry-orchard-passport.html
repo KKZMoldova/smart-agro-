@@ -256,6 +256,7 @@
       <div id="irrig-actions-fertigation" style="display:none;gap:8px;">
         <button class="btn btn-secondary btn-sm" onclick="openFertCalcModal()">🧮 Расчёт дозы</button>
         <button class="btn btn-primary btn-sm" onclick="openFertigationModal()">+ Программа</button>
+        <button class="btn btn-secondary btn-sm" onclick="document.getElementById('fertigation-import-input').click()">📥 Импорт XLS</button>
         <button class="btn btn-secondary btn-sm" onclick="const t=document.querySelector('[onclick*=\'switchTab(\\\'analysis\\\'\')]\');if(t){switchTab('analysis',t);}setTimeout(()=>openAnalysisModal('water'),200);">💧 + Анализ воды</button>
       </div>
     </div>
@@ -525,7 +526,11 @@
       <button class="btn btn-primary btn-sm" onclick="openFertCalcModal()">🧮 Расчёт дозы</button>
       <button class="btn btn-secondary btn-sm" onclick="openFertigationModal()">+ Программа</button>
       <button class="btn btn-secondary btn-sm" onclick="switchTab('analysis',document.querySelector('.tab[onclick*=\'analysis\']'));setTimeout(()=>openAnalysisModal('water'),300);">💧 + Анализ воды</button>
+      <button class="btn btn-secondary btn-sm" onclick="document.getElementById('fertigation-import-input').click()">📥 Импорт XLS</button>
+      <input type="file" id="fertigation-import-input" accept=".xls,.xlsx,.csv" style="display:none" onchange="importFertigationFromExcel(event)">
     </div>
+    <div id="fertigation-import-status" style="display:none;margin-bottom:12px;"></div>
+    <div id="fertigation-history-block" style="margin-bottom:20px;"></div>
     <div id="fertigation-content"></div>
   </div>
 
@@ -2022,7 +2027,6 @@
       </tr></thead>
       <tbody id="wh-history-tbody"></tbody>
     </table>
-    <div id="wh-vat-summary"></div>
   </div>
 
   <!-- ⛽ ГСМ ПАНЕЛЬ -->
@@ -2732,14 +2736,9 @@
   <div class="modal" style="max-width:420px;width:96%;">
     <h2>✅ Завершить работу</h2>
     <input type="hidden" id="task-done-id">
-    <div class="ff" style="margin-bottom:12px;">
+    <div class="ff" style="margin-bottom:16px;">
       <label>Примечание механизатора</label>
       <input type="text" id="task-done-note" placeholder="Замечания по выполнению...">
-    </div>
-    <div class="ff" style="margin-bottom:16px;">
-      <label>⛽ Факт расход топлива (л) <span style="font-size:10px;color:var(--text3);">— оставьте пустым если не учитывается</span></label>
-      <input type="number" id="task-done-fuel" min="0" step="0.1" placeholder="0.0" style="width:100%;">
-      <div id="task-done-fuel-plan" style="font-size:11px;color:var(--text3);margin-top:4px;"></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-task-done')">Отмена</button>
@@ -3536,5 +3535,13 @@
 <script src="/js/import.js"></script>
 <script src="/js/tasks.js"></script>
 <script src="/js/init.js"></script>
+<script>
+// Переопределяем switchIrrigSub чтобы рендерить историю при открытии фертигации
+const _origSwitchIrrigSub = window.switchIrrigSub;
+window.switchIrrigSub = function(sub) {
+  _origSwitchIrrigSub(sub);
+  if (sub === 'fertigation') renderFertigationHistory();
+};
+</script>
 </body>
 </html>
