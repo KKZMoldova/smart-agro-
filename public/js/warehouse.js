@@ -407,6 +407,44 @@ if (p.resourceHours && p.installed) {
     '<td style="font-size:11px;color:var(--text3);">'+(h.supplier||h.parcelName||'—')+'</td>'+
     '</tr>';
   }).join('') || '<tr><td colspan="10" style="text-align:center;color:var(--text3);padding:20px;">История пуста</td></tr>';
+
+  // ── Итоги НДС по истории ──────────────────────────────────────────────
+  const histIn  = (S.warehouse.history||[]).filter(h=>h.operation==='in');
+  const histOut = (S.warehouse.history||[]).filter(h=>h.operation!=='in');
+  const sumIn       = histIn.reduce((s,h)=>s+(h.total||0),0);
+  const sumInVat    = histIn.reduce((s,h)=>{
+    const vr = h.vatRate||0;
+    const twv = h.totalWithVat || (h.total?Math.round(h.total*(1+vr/100)*100)/100:0);
+    return s+(twv-h.total||0);
+  },0);
+  const sumInWithVat= histIn.reduce((s,h)=>{
+    const vr = h.vatRate||0;
+    return s+(h.totalWithVat||(h.total?Math.round(h.total*(1+vr/100)*100)/100:0));
+  },0);
+  const sumOut   = histOut.reduce((s,h)=>s+(h.total||0),0);
+  const vatSummEl = document.getElementById('wh-vat-summary');
+  if (vatSummEl) {
+    vatSummEl.innerHTML = `
+      <div style="display:flex;flex-wrap:wrap;gap:10px;padding:10px 14px;background:var(--surface2);border-radius:10px;margin-top:8px;border:1px solid var(--border);">
+        <div style="font-size:11px;font-weight:600;color:var(--text3);width:100%;margin-bottom:2px;">📊 ИТОГИ ПО НДС (история приходов)</div>
+        <div style="flex:1;min-width:120px;">
+          <div style="font-size:10px;color:var(--text3);">Сумма без НДС</div>
+          <div style="font-size:13px;font-weight:700;">${formatPrice(Math.round(sumIn*100)/100)}</div>
+        </div>
+        <div style="flex:1;min-width:120px;">
+          <div style="font-size:10px;color:var(--text3);">Сумма НДС</div>
+          <div style="font-size:13px;font-weight:700;color:var(--accent2);">${formatPrice(Math.round(sumInVat*100)/100)}</div>
+        </div>
+        <div style="flex:1;min-width:120px;">
+          <div style="font-size:10px;color:var(--text3);">Итого с НДС</div>
+          <div style="font-size:13px;font-weight:700;color:var(--accent);">${formatPrice(Math.round(sumInWithVat*100)/100)}</div>
+        </div>
+        <div style="flex:1;min-width:120px;">
+          <div style="font-size:10px;color:var(--text3);">Списано (без НДС)</div>
+          <div style="font-size:13px;font-weight:700;color:var(--orange);">${formatPrice(Math.round(sumOut*100)/100)}</div>
+        </div>
+      </div>`;
+  }
 }
 
 function openWarehouseModalForChemical(catId) {
