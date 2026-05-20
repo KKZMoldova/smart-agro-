@@ -7,6 +7,7 @@ let _taskStaff = [];
 let _taskWorkTypes = [];
 let _newTaskParcels = [];
 let _newTaskChems = [];
+// _allEquip, _allAttach, _ntMachines — declared in machines block below
 
 const TASK_STATUS_LABELS = {new:'Новое',assigned:'Назначено',accepted:'Принято',in_progress:'В работе',done:'Выполнено',closed:'Закрыто',problem:'Проблема'};
 const TASK_STATUS_COLORS = {new:'var(--blue)',assigned:'#a855f7',accepted:'var(--orange)',in_progress:'var(--accent)',done:'#2dd4bf',closed:'var(--text3)',problem:'var(--red)'};
@@ -137,15 +138,13 @@ async function openNewTask() {
   }
 
   // Техника и навесное
-  let allEquip = [], attachArr = [];
-  try { allEquip = await fetch('/api/equipment').then(r=>r.json()); } catch(e) {}
-  try { const at = await fetch('/api/attachments').then(r=>r.json()); attachArr = Array.isArray(at)?at:(at.data||[]); } catch(e) {}
+  // Техника и навесное
+  try { _allEquip = await fetch('/api/equipment').then(r=>r.json()); } catch(e) { _allEquip = []; }
+  try { const at = await fetch('/api/attachments').then(r=>r.json()); _allAttach = Array.isArray(at)?at:(at.data||[]); } catch(e) { _allAttach = []; }
 
   _newTaskParcels = [];
   _newTaskChems = [];
   _ntMachines = [];
-  _allEquip = allEquip;
-  _allAttach = attachArr;
   renderNtMachines();
 
   document.getElementById('nt-wt').innerHTML = _taskWorkTypes.map(w=>`<option value="${w.id}" data-name="${w.name}">${w.name}</option>`).join('');
@@ -155,18 +154,6 @@ async function openNewTask() {
     : '<option value="agronomist" data-name="Агроном">Агроном</option>';
   document.getElementById('nt-creator').innerHTML = staffOpts;
   document.getElementById('nt-assignee').innerHTML = staffOpts;
-
-  // Техника
-  document.getElementById('nt-equip').innerHTML = '<option value="">— не выбрана —</option>'
-    + allEquip.map(e=>`<option value="${e.id}" data-name="${e.name}">${e.name}${e.status&&e.status!=='free'?' ⚠️':''}</option>`).join('');
-
-  // Навесное
-  document.getElementById('nt-attach').innerHTML = '<option value="">— не выбрано —</option>'
-    + attachArr.map(a=>`<option value="${a.id}" data-name="${a.name}">${a.name}</option>`).join('');
-
-  // Механизатор из персонала
-  document.getElementById('nt-mechanic').innerHTML = '<option value="">— не назначен —</option>'
-    + _taskStaff.map(s=>`<option value="${s.id}" data-name="${s.name}">${s.name}</option>`).join('');
 
   // Клетки сада с зонами полива
   const cells = Object.entries(S.cells||{});
@@ -480,6 +467,90 @@ function renderNtChems() {
   ntUpdateCalc();
 }
 
+// ═══ АГРЕГАТЫ (техника + навесное + механизатор) ══════════════════════════
+
+let _allEquip = [];
+let _allAttach = [];
+let _ntMachines = []; // [{equipId,equipName,attachId,attachName,mechanicId,mechanicName,speed}]
+
+function renderNtMachines() {
+  const el = document.getElementById('nt-machines-list');
+  if (!el) return;
+
+  if (!_ntMachines.length) {
+    el.innerHTML = `<div style="color:var(--text3);font-size:11px;padding:8px 0;">Агрегаты не добавлены — задание будет создано со статусом «Новое»</div>`;
+    return;
+  }
+
+  const equipOpts = '<option value="">— не выбрана —</option>'
+    + _allEquip.map(e => `<option value="${e.id}" data-name="${e.name}">${e.name}${e.status && e.status !== 'free' ? ' ⚠️' : ''}</option>`).join('');
+  const attachOpts = '<option value="">— без навесного —</option>'
+    + _allAttach.map(a => `<option value="${a.id}" data-name="${a.name}">${a.name}</option>`).join('');
+  const mechOpts = '<option value="">— не назначен —</option>'
+    + _taskStaff.map(s => `<option value="${s.id}" data-name="${s.name}">${s.name}</option>`).join('');
+
+  el.innerHTML = _ntMachines.map((m, i) => `
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;" id="ntm-row-${i}">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <span style="font-size:11px;font-weight:600;color:var(--text3);">🚜 Агрегат ${i + 1}</span>
+        <button onclick="removeNtMachine(${i})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:13px;padding:0 4px;">✕</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+        <div>
+          <div style="font-size:10px;color:var(--text3);margin-bottom:3px;">Техника</div>
+          <select onchange="updateNtMachine(${i},'equipId',this.value,this.selectedOptions[0]?.dataset.name||'')"
+            style="width:100%;padding:6px 8px;background:var(--surface);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:11px;">
+            ${equipOpts.replace(`value="${m.equipId}"`, `value="${m.equipId}" selected`)}
+          </select>
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--text3);margin-bottom:3px;">Навесное</div>
+          <select onchange="updateNtMachine(${i},'attachId',this.value,this.selectedOptions[0]?.dataset.name||'')"
+            style="width:100%;padding:6px 8px;background:var(--surface);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:11px;">
+            ${attachOpts.replace(`value="${m.attachId}"`, `value="${m.attachId}" selected`)}
+          </select>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 80px;gap:8px;">
+        <div>
+          <div style="font-size:10px;color:var(--text3);margin-bottom:3px;">Механизатор</div>
+          <select onchange="updateNtMachine(${i},'mechanicId',this.value,this.selectedOptions[0]?.dataset.name||'')"
+            style="width:100%;padding:6px 8px;background:var(--surface);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:11px;">
+            ${mechOpts.replace(`value="${m.mechanicId}"`, `value="${m.mechanicId}" selected`)}
+          </select>
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--text3);margin-bottom:3px;">Скорость (км/ч)</div>
+          <input type="number" min="1" max="30" value="${m.speed||''}" placeholder="—"
+            onchange="updateNtMachine(${i},'speed',this.value)"
+            style="width:100%;padding:6px 8px;background:var(--surface);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:11px;">
+        </div>
+      </div>
+      ${m.equipId && m.mechanicId ? `<div style="margin-top:8px;padding:5px 10px;background:rgba(74,222,128,.08);border-radius:6px;font-size:10px;color:var(--accent);">✅ ${m.equipName||'Техника'}${m.attachName?' + '+m.attachName:''} · 👤 ${m.mechanicName||'—'}</div>` : ''}
+    </div>`).join('');
+}
+
+function addNtMachine() {
+  _ntMachines.push({ equipId:'', equipName:'', attachId:'', attachName:'', mechanicId:'', mechanicName:'', speed:null });
+  renderNtMachines();
+}
+
+function removeNtMachine(i) {
+  _ntMachines.splice(i, 1);
+  renderNtMachines();
+}
+
+function updateNtMachine(i, field, value, name) {
+  if (!_ntMachines[i]) return;
+  _ntMachines[i][field] = value;
+  if (field === 'equipId')    _ntMachines[i].equipName    = name || '';
+  if (field === 'attachId')   _ntMachines[i].attachName   = name || '';
+  if (field === 'mechanicId') _ntMachines[i].mechanicName = name || '';
+  if (field === 'speed')      _ntMachines[i].speed        = parseFloat(value) || null;
+  renderNtMachines();
+  ntUpdateCalc();
+}
+
 async function saveNewTask() {
   const wtSel = document.getElementById('nt-wt');
   const wtId = wtSel.value;
@@ -524,6 +595,7 @@ async function saveNewTask() {
     equipment_id: eqId||null, equipment_name: eqName||null,
     attachment: atName||null,
     mechanic_id: meId||null, mechanic_name: meName||null,
+    machines_json: _ntMachines.filter(m=>m.equipId||m.mechanicId).length ? _ntMachines.filter(m=>m.equipId||m.mechanicId) : null,
     speed_kmh: speed,
     water_per_ha: waterPerHa,
     method,
@@ -702,13 +774,80 @@ async function saveTaskEng() {
 async function openTaskDone(id) {
   document.getElementById('task-done-id').value = id;
   document.getElementById('task-done-note').value = '';
+  const fuelEl = document.getElementById('task-done-fuel');
+  if (fuelEl) fuelEl.value = '';
+
+  // Показываем расчётный план ГСМ если есть
+  const task = _tasks.find(t => t.id === id);
+  const fuelPlanEl = document.getElementById('task-done-fuel-plan');
+  if (fuelPlanEl && task) {
+    const machines = task.machines_json
+      ? (typeof task.machines_json === 'string' ? JSON.parse(task.machines_json) : task.machines_json) : [];
+    const vehicleId = task.equipment_id || machines[0]?.equipId;
+    const vehicle = (S.vehicles || []).find(v => v.id === vehicleId);
+    const normField = vehicle?.fuelNormField || 0;
+    const planL = normField && task.total_ha ? Math.round(normField * task.total_ha * 100) / 100 : 0;
+    fuelPlanEl.textContent = planL > 0
+      ? `⛽ План: ${planL} л (${normField} л/га × ${task.total_ha} га)`
+      : vehicle ? `⛽ Норма: ${normField||'?'} л/га — укажите факт` : '';
+    if (fuelEl && planL > 0) fuelEl.placeholder = planL;
+  }
   openModal('modal-task-done');
 }
 
 async function saveTaskDone() {
   const id = document.getElementById('task-done-id').value;
   const note = document.getElementById('task-done-note').value.trim();
-  await updateTaskStatus(id,'done',{closed_by_name:'Механизатор',problem_note:note||undefined});
+  const factFuel = parseFloat(document.getElementById('task-done-fuel')?.value) || 0;
+
+  await updateTaskStatus(id, 'done', { closed_by_name:'Механизатор', problem_note:note||undefined });
+
+  // ══ Автосписание ГСМ ══
+  if (factFuel > 0) {
+    try {
+      if (!S.fuel) S.fuel = { tanks:[], receipts:[], refuels:[], operations:[], alerts:[] };
+      const task = _tasks.find(t => t.id === id);
+      const machines = task?.machines_json
+        ? (typeof task.machines_json === 'string' ? JSON.parse(task.machines_json) : task.machines_json)
+        : [];
+      const vehicleId = task?.equipment_id || machines[0]?.equipId || null;
+      const vehicle = (S.vehicles || S.fuel?.vehicles || []).find(v => v.id === vehicleId);
+
+      // Найти бак нужного топлива и списать
+      const fuelType = vehicle?.fuelType || 'diesel';
+      const tank = (S.fuel.tanks || []).find(t => t.fuelType === fuelType && (t.currentL || 0) > 0)
+        || (S.fuel.tanks || [])[0];
+
+      if (tank) {
+        const before = tank.currentL || 0;
+        tank.currentL = Math.round(Math.max(0, before - factFuel) * 100) / 100;
+      }
+
+      // Записать расход в операции
+      const op = {
+        id: uid(),
+        date: today(),
+        vehicleId,
+        operationType: task?.work_type_name || 'Полевые работы',
+        operator: task?.mechanic_name || task?.assigned_to_name || '',
+        cellKeys: task?.parcels_json ? task.parcels_json.map(p=>p.id||p.name) : [],
+        areaHa: task?.total_ha || 0,
+        fuelPlanTotal: null,
+        fuelFactTotal: factFuel,
+        fuelDelta: null,
+        deltaPercent: null,
+        source: 'task',
+        taskId: id,
+        note: `Задание: ${task?.work_type_name||''}${task?.parcel_name?' · '+task.parcel_name:''}`,
+      };
+      S.fuel.operations.unshift(op);
+      save();
+      console.log('[saveTaskDone] Fuel deducted:', factFuel, 'L from tank', tank?.name);
+    } catch(e) {
+      console.warn('[saveTaskDone] Fuel deduction failed:', e.message);
+    }
+  }
+
   closeModal('modal-task-done');
 }
 
