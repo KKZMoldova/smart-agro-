@@ -465,7 +465,7 @@ const MOA_PRODUCTS = {
 };
 
 // ── МУЛЬТИ-АГРЕГАТНАЯ СИСТЕМА ────────────────────────────────────────────
-let _ntMachines = []; // [{id, equipId, equipName, attachId, attachName, mechanicId, mechanicName, speed, parcelIds, zoneIds}]
+// _ntMachines declared in tasks.js
 
 function renderNtMachines() {
   const el = document.getElementById('nt-machines-list');
@@ -583,7 +583,7 @@ function _ntToggleZone(machineIdx, zoneId) {
   renderNtMachines();
 }
 
-let _allEquip = [], _allAttach = [];
+// _allEquip, _allAttach declared in tasks.js
 
 function toggleIzVariety(id, el) {
   if(_izSelectedVarieties.has(id)) {
