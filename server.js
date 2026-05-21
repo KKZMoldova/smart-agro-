@@ -450,7 +450,11 @@ app.post('/api/ai/advisor', auth, async (req,res) => {
 });
 
 // ── СТРАНИЦЫ ──────────────────────────────────────────────────
-app.get('/', (req,res) => res.sendFile(path.join(__dirname,'public','cherry-orchard-passport.html')));
+app.get('/', (req,res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.sendFile(path.join(__dirname,'public','cherry-orchard-passport.html'));
+});
 app.get('/vegetable', (req,res) => res.sendFile(path.join(__dirname,'public','smart-vegetable.html')));
 app.get('*', (req,res) => {
   if (req.path.startsWith('/api/')) return res.status(404).json({ok:false,error:'Not found'});
