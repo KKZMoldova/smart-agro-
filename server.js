@@ -453,6 +453,14 @@ app.post('/api/ai/advisor', auth, async (req,res) => {
 app.get('/', (req,res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Surrogate-Control', 'no-store');
+  res.setHeader('CDN-Cache-Control', 'no-store');
+  res.sendFile(path.join(__dirname,'public','cherry-orchard-passport.html'));
+});
+app.get('/orchard', (req,res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.setHeader('Surrogate-Control', 'no-store');
+  res.setHeader('CDN-Cache-Control', 'no-store');
   res.sendFile(path.join(__dirname,'public','cherry-orchard-passport.html'));
 });
 app.get('/vegetable', (req,res) => res.sendFile(path.join(__dirname,'public','smart-vegetable.html')));
