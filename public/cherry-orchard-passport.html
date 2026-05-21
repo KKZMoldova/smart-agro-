@@ -3926,7 +3926,7 @@ window.switchIrrigSub = function(sub) {
     _sw(tab, el);
     setTimeout(() => {
       const p = document.getElementById('panel-' + tab);
-      if(p) { p.scrollIntoView({behavior:'instant',block:'start'}); window.scrollBy(0,-100); }
+      if(p) document.documentElement.scrollTop = p.offsetTop - 100;
     }, 10);
   };
 })();
