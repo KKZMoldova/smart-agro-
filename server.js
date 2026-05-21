@@ -48,8 +48,8 @@ app.use((req, res, next) => {
 // Раздаём публичные файлы из папки public/
 // CSS, JS модули, библиотеки — с кешированием
 app.use(express.static(path.join(__dirname, 'public'), {
-  maxAge: '1h',  // браузер кешует JS/CSS на 1 час
-  etag: true,
+  maxAge: 0,
+  etag: false,
 }));
 
 // upload хранилище (PDF анализов)
