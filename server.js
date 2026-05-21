@@ -444,7 +444,13 @@ app.post('/api/ai/advisor', auth, async (req,res) => {
 });
 
 // ── СТРАНИЦЫ ──────────────────────────────────────────────────
-app.get('/app.css', (req,res) => res.sendFile(path.join(__dirname,'public','app.css')));
+app.get('/app.css', (req,res) => {
+  const cssPath = path.join(__dirname,'public','app.css');
+  const fs = require('fs');
+  console.log('[CSS] File exists:', fs.existsSync(cssPath), cssPath);
+  res.setHeader('Content-Type','text/css');
+  res.sendFile(cssPath);
+});
 app.get('/', (req,res) => res.sendFile(path.join(__dirname,'public','cherry-orchard-passport.html')));
 app.get('/vegetable', (req,res) => res.sendFile(path.join(__dirname,'public','smart-vegetable.html')));
 app.get('*', (req,res) => {
