@@ -88,6 +88,20 @@ async function init(){
     }, 200);
   }
 }
+// Патч: скролл к активной панели при переключении вкладок
+const _origSwitchTab = typeof switchTab !== 'undefined' ? switchTab : null;
+document.addEventListener('DOMContentLoaded', () => {
+  if(typeof switchTab === 'function') {
+    const _sw = switchTab;
+    window.switchTab = function(tab, el) {
+      _sw(tab, el);
+      setTimeout(() => {
+        const p = document.getElementById('panel-' + tab);
+        if(p) { p.scrollIntoView({behavior:'instant',block:'start'}); window.scrollBy(0,-100); }
+      }, 10);
+    };
+  }
+});
 init();
 
 // ═══ СИСТЕМА РОЛЕЙ И ДОСТУПОВ ════════════════════════════════════════════
