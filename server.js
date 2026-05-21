@@ -49,10 +49,8 @@ const fs = require('fs');
 // Явная раздача статики через fs.readFile (обходим проблемы express.static)
 app.use((req, res, next) => {
   const ext = path.extname(req.path.split('?')[0]);
-  console.log('[STATIC]', req.method, req.path, ext);
   if (!ext || req.path.startsWith('/api/')) return next();
   const filePath = path.join(__dirname, 'public', req.path.split('?')[0]);
-  console.log('[STATIC] filePath:', filePath, 'exists:', fs.existsSync(filePath));
   if (!fs.existsSync(filePath)) return next();
   const mimeMap = {'.css':'text/css','.js':'application/javascript','.html':'text/html','.png':'image/png','.ico':'image/x-icon','.json':'application/json'};
   res.setHeader('Content-Type', mimeMap[ext] || 'application/octet-stream');
@@ -452,26 +450,6 @@ app.post('/api/ai/advisor', auth, async (req,res) => {
 });
 
 // ── СТРАНИЦЫ ──────────────────────────────────────────────────
-app.get('/api/debug-css', (req,res) => {
-  const fs = require('fs');
-  const cssPath = path.join(__dirname,'public','app.css');
-  const publicDir = path.join(__dirname,'public');
-  let files = [];
-  try { files = fs.readdirSync(publicDir); } catch(e) {}
-  res.json({
-    cssExists: fs.existsSync(cssPath),
-    cssPath,
-    publicFiles: files,
-    __dirname,
-  });
-});
-app.get('/app.css', (req,res) => {
-  const cssPath = path.join(__dirname,'public','app.css');
-  const fs = require('fs');
-  console.log('[CSS] File exists:', fs.existsSync(cssPath), cssPath);
-  res.setHeader('Content-Type','text/css');
-  res.sendFile(cssPath);
-});
 app.get('/', (req,res) => res.sendFile(path.join(__dirname,'public','cherry-orchard-passport.html')));
 app.get('/vegetable', (req,res) => res.sendFile(path.join(__dirname,'public','smart-vegetable.html')));
 app.get('*', (req,res) => {
