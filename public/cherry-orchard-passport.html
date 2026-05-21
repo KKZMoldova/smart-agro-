@@ -1604,9 +1604,11 @@ tbody td{padding:10px 12px;vertical-align:middle;}
       </div>
     </div>
 
-      <button class="btn btn-danger btn-sm" id="btn-del-cell" onclick="deleteCell()" style="display:none;margin-right:auto;">🗑 Удалить клетку</button>
-      <button class="btn btn-secondary" onclick="closeModal('modal-cell')">Отмена</button>
-      <button class="btn btn-primary" onclick="saveCell()">Сохранить</button>
+      <div class="modal-footer" style="position:sticky;bottom:0;background:var(--surface);margin:0 -24px -24px;padding:16px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;">
+        <button class="btn btn-danger btn-sm" id="btn-del-cell" onclick="deleteCell()" style="display:none;margin-right:auto;">🗑 Удалить клетку</button>
+        <button class="btn btn-secondary" onclick="closeModal('modal-cell')">Отмена</button>
+        <button class="btn btn-primary" onclick="saveCell()">Сохранить</button>
+      </div>
     </div>
   </div>
 </div>
