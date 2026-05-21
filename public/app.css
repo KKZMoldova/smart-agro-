@@ -28,7 +28,7 @@ header{background:linear-gradient(135deg,#051a08 0%,#0a1f0c 60%,#061510 100%);bo
 .tab:hover{color:var(--text2);}
 .tab.active{color:var(--accent);border-bottom-color:var(--accent);}
 
-.main{padding:24px 28px;position:relative;z-index:1;}
+.main{padding:24px 28px;position:relative;z-index:1;background:var(--bg);min-height:100vh;}
 .panel{display:none;}
 .panel.active{display:block;}
 
