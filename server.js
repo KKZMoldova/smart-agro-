@@ -494,5 +494,6 @@ async function start() {
     console.log(`   FieldClimate:  ${FC_PUBLIC    ? 'OK ✓' : 'NOT SET ✗'}`);
     console.log(`   Database:      ${process.env.DATABASE_URL ? 'OK ✓' : 'local ✗'}`);
   });
+  
 }
 start();
