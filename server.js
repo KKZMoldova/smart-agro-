@@ -444,6 +444,19 @@ app.post('/api/ai/advisor', auth, async (req,res) => {
 });
 
 // ── СТРАНИЦЫ ──────────────────────────────────────────────────
+app.get('/api/debug-css', (req,res) => {
+  const fs = require('fs');
+  const cssPath = path.join(__dirname,'public','app.css');
+  const publicDir = path.join(__dirname,'public');
+  let files = [];
+  try { files = fs.readdirSync(publicDir); } catch(e) {}
+  res.json({
+    cssExists: fs.existsSync(cssPath),
+    cssPath,
+    publicFiles: files,
+    __dirname,
+  });
+});
 app.get('/app.css', (req,res) => {
   const cssPath = path.join(__dirname,'public','app.css');
   const fs = require('fs');
