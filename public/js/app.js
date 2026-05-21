@@ -925,6 +925,7 @@ function updateServerIndicator() {
 
 // ===================== TABS =====================
 function switchTab(tab,el){
+  window.scrollTo(0,0);
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   el.classList.add('active');document.getElementById('panel-'+tab).classList.add('active');
