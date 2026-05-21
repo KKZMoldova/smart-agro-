@@ -45,12 +45,18 @@ app.use((req, res, next) => {
 });
 
 // ── STATIC FILES ──────────────────────────────────────────────
-// Раздаём публичные файлы из папки public/
-// CSS, JS модули, библиотеки — с кешированием
-app.use(express.static(path.join(__dirname, 'public'), {
-  maxAge: 0,
-  etag: false,
-}));
+const fs = require('fs');
+// Явная раздача статики через fs.readFile (обходим проблемы express.static)
+app.use((req, res, next) => {
+  const ext = path.extname(req.path);
+  if (!ext || req.path.startsWith('/api/')) return next();
+  const filePath = path.join(__dirname, 'public', req.path);
+  if (!fs.existsSync(filePath)) return next();
+  const mimeMap = {'.css':'text/css','.js':'application/javascript','.html':'text/html','.png':'image/png','.ico':'image/x-icon','.json':'application/json'};
+  res.setHeader('Content-Type', mimeMap[ext] || 'application/octet-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  fs.createReadStream(filePath).pipe(res);
+});
 
 // upload хранилище (PDF анализов)
 const upload = multer({
