@@ -48,9 +48,11 @@ app.use((req, res, next) => {
 const fs = require('fs');
 // Явная раздача статики через fs.readFile (обходим проблемы express.static)
 app.use((req, res, next) => {
-  const ext = path.extname(req.path);
+  const ext = path.extname(req.path.split('?')[0]);
+  console.log('[STATIC]', req.method, req.path, ext);
   if (!ext || req.path.startsWith('/api/')) return next();
-  const filePath = path.join(__dirname, 'public', req.path);
+  const filePath = path.join(__dirname, 'public', req.path.split('?')[0]);
+  console.log('[STATIC] filePath:', filePath, 'exists:', fs.existsSync(filePath));
   if (!fs.existsSync(filePath)) return next();
   const mimeMap = {'.css':'text/css','.js':'application/javascript','.html':'text/html','.png':'image/png','.ico':'image/x-icon','.json':'application/json'};
   res.setHeader('Content-Type', mimeMap[ext] || 'application/octet-stream');
@@ -494,6 +496,5 @@ async function start() {
     console.log(`   FieldClimate:  ${FC_PUBLIC    ? 'OK ✓' : 'NOT SET ✗'}`);
     console.log(`   Database:      ${process.env.DATABASE_URL ? 'OK ✓' : 'local ✗'}`);
   });
-  
 }
 start();
