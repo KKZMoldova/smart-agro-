@@ -469,6 +469,12 @@ app.get('/vegetable', (req,res) => res.sendFile(path.join(__dirname,'public','sm
 app.get('*', (req,res) => {
   if (req.path.startsWith('/api/')) return res.status(404).json({ok:false,error:'Not found'});
   const ext = path.extname(req.path);
+  if (ext === '.css' || ext === '.js' || ext === '.png' || ext === '.ico') {
+    const filePath = path.join(__dirname,'public', req.path);
+    const fs = require('fs');
+    if (fs.existsSync(filePath)) return res.sendFile(filePath);
+    return res.status(404).send('Not found');
+  }
   if (ext && ext !== '.html') return res.status(404).send('Not found');
   res.sendFile(path.join(__dirname,'public','cherry-orchard-passport.html'));
 });
