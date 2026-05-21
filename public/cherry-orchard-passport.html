@@ -372,6 +372,11 @@ tbody td{padding:10px 12px;vertical-align:middle;}
 .s-closed{border-left:3px solid var(--text3);}
 .s-problem{border-left:3px solid var(--red);}
 
+
+/* Fix panels outside .main */
+body > .panel { padding: 24px 28px; position: relative; z-index: 1; background: var(--bg); }
+body > .panel.active { display: block; }
+
 </style>
 </head>
 <body>
