@@ -660,7 +660,7 @@ const API = (() => {
 
 // ── Tenant auth headers ───────────────────────────────────────────────────
 function getAuthHeaders() {
-  const token    = sessionStorage.getItem('agro_jwt') || localStorage.getItem('agro_jwt') || '';
+  const token    = sessionStorage.getItem('agro_token') || sessionStorage.getItem('agro_jwt') || localStorage.getItem('agro_jwt') || '';
   const tenantId = sessionStorage.getItem('agro_tenant') || 'kkz';
   return {
     'Content-Type':  'application/json',
@@ -761,7 +761,7 @@ async function save() {
   }
 
   // Save catalog (only if logged in)
-  if (_serverAvailable && localStorage.getItem('auth_token')) {
+  if (_serverAvailable && (sessionStorage.getItem('agro_token') || sessionStorage.getItem('agro_jwt'))) {
     for (const c of (S.catalog || [])) {
       await API.saveCatalogItem({
         id: String(c.id), name: c.name, type: c.type,
