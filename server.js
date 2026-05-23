@@ -249,6 +249,8 @@ app.get('/api/weather', auth, async (req, res) => {
       throw new Error('FC: ' + fc.status);
     }
     const fcData = await fc.json();
+    console.log('[weather] FC data keys:', Object.keys(fcData).join(', '));
+    console.log('[weather] FC data sample:', JSON.stringify(fcData).slice(0,300));
     const byDate = {};
     (fcData.data || []).forEach(h => {
       const d = h.date?.slice(0,10); if (!d) return;
