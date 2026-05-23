@@ -226,7 +226,11 @@ app.get('/api/weather', auth, async (req, res) => {
     const fcPath = `/data/normal/station/${station}/data/hourly/${Math.floor(start/1000)}/${Math.floor(end/1000)}`;
     console.log('[weather] FC URL:', fcPath);
     const fc = await fetch('https://api.fieldclimate.com/v2' + fcPath, { headers: fcHeaders('GET', fcPath) });
-    if (!fc.ok) throw new Error('FC: ' + fc.status);
+    if (!fc.ok) {
+      const errText = await fc.text();
+      console.log('[weather] FC error body:', errText.slice(0,200));
+      throw new Error('FC: ' + fc.status);
+    }
     const fcData = await fc.json();
     const byDate = {};
     (fcData.data || []).forEach(h => {
