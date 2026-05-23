@@ -3900,6 +3900,7 @@ body > .panel.active { display: block; }
 <script src="/js/treatments.js"></script>
 <script src="/js/analysis.js"></script>
 <script src="/js/irrigation.js"></script>
+<script src="/js/fertigation.js"></script>
 <script src="/js/warehouse.js"></script>
 <script src="/js/weather.js"></script>
 <script src="/js/map.js"></script>
@@ -3929,6 +3930,26 @@ window.switchIrrigSub = function(sub) {
       if(p) document.documentElement.scrollTop = p.offsetTop - 100;
     }, 10);
   };
+})();
+</script>
+
+<script>
+// Переносим панели из body в .main + скролл при переключении
+(function movePanels(){
+  const main = document.querySelector('.main');
+  if(!main){ setTimeout(movePanels,50); return; }
+  document.querySelectorAll('body > .panel').forEach(p => main.appendChild(p));
+  (function patchSwitchTab(){
+    if(typeof switchTab !== 'function'){ setTimeout(patchSwitchTab,50); return; }
+    const _sw = switchTab;
+    window.switchTab = function(tab, el) {
+      _sw(tab, el);
+      setTimeout(() => {
+        const p = document.getElementById('panel-' + tab);
+        if(p) document.documentElement.scrollTop = p.offsetTop - 100;
+      }, 10);
+    };
+  })();
 })();
 </script>
 </body>
