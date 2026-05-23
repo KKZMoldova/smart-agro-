@@ -238,7 +238,7 @@ app.get('/api/weather', auth, async (req, res) => {
       if (sensRes.ok) { const s = await sensRes.json(); console.log('[weather] Sensors:', JSON.stringify(s).slice(0,300)); }
       console.log('[weather] Station licenses:', JSON.stringify(stInfo.licenses).slice(0,200));
     }
-    const fcPath = `/data/${station}/hourly/${Math.floor(start/1000)}/${Math.floor(end/1000)}`;
+    const fcPath = `/data/${station}/hourly/from/${Math.floor(start/1000)}/to/${Math.floor(end/1000)}`;
     // Also try alternate
     const fcPathAlt = `/station/${station}/data/hourly/${Math.floor(start/1000)}/${Math.floor(end/1000)}`;
     console.log('[weather] Alt URL:', fcPathAlt);
