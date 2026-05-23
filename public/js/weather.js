@@ -1035,6 +1035,8 @@ function importMeteoStation(event) {
         const tmin  = parseFloat(get(3)) || null;
         const humid = parseFloat(get(6)) || null;
         const precip = parseFloat(get(7)) || 0;
+        const leafwet = parseFloat(get(8)) || 0;
+        const wind = parseFloat(get(9)) || null;
 
         if (!tmax && !tmin && !tavg) continue;
 
@@ -1047,7 +1049,7 @@ function importMeteoStation(event) {
           tavg: tavg || (tmax !== null && tmin !== null ? Math.round((tmax+tmin)/2*10)/10 : null),
           humidity: humid,
           precip,
-          et0: null, leafwet: 0, wind: null, phase: null,
+          et0: null, leafwet: leafwet, wind: wind, phase: null,
           note: 'Импорт с метеостанции',
         };
 
