@@ -195,8 +195,10 @@ app.delete('/api/auth/users/:id', auth, (req, res) => res.json({ ok: true }));
 // ── WEATHER ───────────────────────────────────────────────────
 function fcHeaders(method, path) {
   const date = new Date().toUTCString();
+  // FieldClimate HMAC: date + route (without query string)
+  const route = path.split('?')[0];
   const sig  = crypto.createHmac('sha256', FC_PRIVATE)
-    .update(method.toUpperCase() + path + date + FC_PUBLIC).digest('hex');
+    .update(date + route).digest('hex');
   return { 'Accept':'application/json', 'Authorization':`${FC_PUBLIC}:${sig}`, 'Date':date };
 }
 
@@ -222,7 +224,7 @@ app.get('/api/weather', auth, async (req, res) => {
     const end   = new Date();
     const start = new Date();
     start.setDate(start.getDate() - Math.min(days, 7));
-    const fcPath = `/data/normal/station/${station}/data/${Math.floor(start/1000)}/${Math.floor(end/1000)}`;
+    const fcPath = `/data/normal/station/${station}/data/hourly?from=${Math.floor(start/1000)}&to=${Math.floor(end/1000)}`;
     console.log('[weather] FC URL:', fcPath);
     const fc = await fetch('https://api.fieldclimate.com/v2' + fcPath, { headers: fcHeaders('GET', fcPath) });
     if (!fc.ok) throw new Error('FC: ' + fc.status);
