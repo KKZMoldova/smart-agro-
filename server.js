@@ -195,11 +195,10 @@ app.delete('/api/auth/users/:id', auth, (req, res) => res.json({ ok: true }));
 // ── WEATHER ───────────────────────────────────────────────────
 function fcHeaders(method, path) {
   const date = new Date().toUTCString();
-  // FieldClimate HMAC: date + route (without query string)
-  const route = path.split('?')[0];
+  // FieldClimate HMAC: method + route + date + public_key
   const sig  = crypto.createHmac('sha256', FC_PRIVATE)
-    .update(date + route).digest('hex');
-  return { 'Accept':'application/json', 'Authorization':`${FC_PUBLIC}:${sig}`, 'Date':date };
+    .update(method.toUpperCase() + path + date + FC_PUBLIC).digest('hex');
+  return { 'Accept':'application/json', 'Authorization':`hmac ${FC_PUBLIC}:${sig}`, 'Request-Date':date };
 }
 
 app.get('/api/weather', auth, async (req, res) => {
