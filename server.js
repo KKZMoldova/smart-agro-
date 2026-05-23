@@ -647,3 +647,4 @@ function scheduleCron() {
 scheduleCron();
 // Также запустить сразу при старте
 syncWeatherCron();
+
