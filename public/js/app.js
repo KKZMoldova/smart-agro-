@@ -760,14 +760,16 @@ async function save() {
     await API.setSetting('orchardSettings', S.settings);
   }
 
-  // Save catalog
-  for (const c of (S.catalog || [])) {
-    await API.saveCatalogItem({
-      id: String(c.id), name: c.name, type: c.type,
-      active_substance: c.activeSubstance || '',
-      dose: String(c.dose || ''), whi: c.whi || 0,
-      frac: c.fracGroup || '', note: c.note || '',
-    });
+  // Save catalog (only if logged in)
+  if (_serverAvailable && localStorage.getItem('auth_token')) {
+    for (const c of (S.catalog || [])) {
+      await API.saveCatalogItem({
+        id: String(c.id), name: c.name, type: c.type,
+        active_substance: c.activeSubstance || '',
+        dose: String(c.dose || ''), whi: c.whi || 0,
+        frac: c.fracGroup || '', note: c.note || '',
+      });
+    }
   }
 }
 
