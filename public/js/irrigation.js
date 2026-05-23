@@ -619,10 +619,10 @@ function calcWaterBalance() {
     const kc = phase?.kc || 1.0;
     const etc = Math.round(et0 * kc * 10)/10;
     const rain = parseFloat(w.precip)||0;
-    // Полив — ищем в журнале полива за эту дату
-    const irrig = (S.irrigation.readings||[])
-      .filter(r=>r.date===w.date)
-      .reduce((s,r)=>s+parseFloat(r.value||0),0)*0.1; // условно %VWC → мм
+    // Полив — ищем в журнале событий за эту дату
+    const irrig = (S.irrigation.events||[])
+      .filter(e=>e.date===w.date)
+      .reduce((s,e)=>s+parseFloat(e.mm||0),0);
     const prev = balance;
     balance = Math.min(taw, Math.max(0, balance + rain + irrig - etc));
     const drainage = Math.max(0, prev + rain + irrig - etc - taw);
