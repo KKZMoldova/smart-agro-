@@ -954,3 +954,12 @@ function switchTab(tab,el){
 }
 
 // ===================== SETTINGS =====================
+
+// ===================== АЛИАСЫ СОВМЕСТИМОСТИ =====================
+// Функции переименованы при разбивке на модули — алиасы для обратной совместимости
+window.openCatalogModal = function(...a){ return openCatalogAddModal(...a); };
+window.saveCatalogItem  = function(...a){ return saveCatalogProduct(...a); };
+window.renderFuel       = function(...a){ return renderFuelTab(...a); };
+window.importXls        = function(...a){ return importData(...a); };
+window.openTaskModal    = function(...a){ return openNewTask(...a); };
+window.fetchWeather     = function(...a){ return mergeWeatherDays(...a); };
