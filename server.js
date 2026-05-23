@@ -238,7 +238,13 @@ app.get('/api/weather', auth, async (req, res) => {
       if (sensRes.ok) { const s = await sensRes.json(); console.log('[weather] Sensors:', JSON.stringify(s).slice(0,300)); }
       console.log('[weather] Station licenses:', JSON.stringify(stInfo.licenses).slice(0,200));
     }
-    const fcPath = `/data/${station}/raw/${Math.floor(start/1000)}/${Math.floor(end/1000)}`;
+    const fcPath = `/data/${station}/hourly/${Math.floor(start/1000)}/${Math.floor(end/1000)}`;
+    // Also try alternate
+    const fcPathAlt = `/station/${station}/data/hourly/${Math.floor(start/1000)}/${Math.floor(end/1000)}`;
+    console.log('[weather] Alt URL:', fcPathAlt);
+    const fcAlt = await fetch('https://api.fieldclimate.com/v2' + fcPathAlt, { headers: fcHeaders('GET', fcPathAlt) });
+    console.log('[weather] Alt status:', fcAlt.status);
+    if(fcAlt.ok) { const ad = await fcAlt.json(); console.log('[weather] Alt data keys:', Object.keys(ad).join(', ')); }
     console.log('[weather] FC URL:', fcPath);
     const fc = await fetch('https://api.fieldclimate.com/v2' + fcPath, { headers: fcHeaders('GET', fcPath) });
     if (!fc.ok) {
