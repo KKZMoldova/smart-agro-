@@ -1063,6 +1063,16 @@ function importMeteoStation(event) {
       S.weather.sort((a,b) => b.date.localeCompare(a.date));
       save();
       renderWeather();
+      // Sync to server
+      const token = sessionStorage.getItem('agro_token') || sessionStorage.getItem('agro_jwt') || '';
+      if (token) {
+        const toSync = S.weather.filter(w => w.date >= '2026-01-01');
+        fetch('/api/weather', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json','Authorization':'Bearer '+token},
+          body: JSON.stringify(toSync)
+        }).then(r=>r.json()).then(d=>console.log('[weather] Synced to server:', d.saved));
+      }
 
       const msg = `✅ Импорт погоды завершён: добавлено ${added}, обновлено ${updated}`;
       if (statusEl) statusEl.innerHTML = `<div style="padding:10px 14px;background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.3);border-radius:8px;font-size:12px;color:var(--accent);">${msg}</div>`;
