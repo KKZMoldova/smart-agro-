@@ -222,7 +222,8 @@ app.get('/api/weather', auth, async (req, res) => {
     const end   = new Date();
     const start = new Date();
     start.setDate(start.getDate() - Math.min(days, 7));
-    const fcPath = `/data/normal/station/${station}/data/last/7/hourly`;
+    const fcPath = `/data/normal/station/${station}/data/hourly?from=${Math.floor(start/1000)}&to=${Math.floor(end/1000)}`;
+    console.log('[weather] FC URL:', fcPath);
     const fc = await fetch('https://api.fieldclimate.com/v2' + fcPath, { headers: fcHeaders('GET', fcPath) });
     if (!fc.ok) throw new Error('FC: ' + fc.status);
     const fcData = await fc.json();
