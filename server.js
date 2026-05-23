@@ -231,7 +231,18 @@ app.get('/api/weather', auth, async (req, res) => {
     console.log('[weather] Alt status:', fcAlt.status);
     if(fcAlt.ok) { const ad = await fcAlt.json(); console.log('[weather] Alt data keys:', Object.keys(ad).join(', ')); }
     console.log('[weather] FC URL:', fcPath);
-    const fc = await fetch('https://api.fieldclimate.com/v2' + fcPath, { headers: fcHeaders('GET', fcPath) });
+    const fcController = new AbortController();
+    const fcTimeout = setTimeout(() => fcController.abort(), 10000);
+    let fc;
+    try {
+      fc = await fetch('https://api.fieldclimate.com/v2' + fcPath, { headers: fcHeaders('GET', fcPath), signal: fcController.signal });
+      clearTimeout(fcTimeout);
+      console.log('[weather] FC status:', fc.status);
+    } catch(fetchErr) {
+      clearTimeout(fcTimeout);
+      console.log('[weather] FC fetch error:', fetchErr.message);
+      throw fetchErr;
+    }
     if (!fc.ok) {
       const errText = await fc.text();
       console.log('[weather] FC error body:', errText.slice(0,200));
