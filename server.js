@@ -223,6 +223,14 @@ app.get('/api/weather', auth, async (req, res) => {
     const end   = new Date();
     const start = new Date();
     start.setDate(start.getDate() - Math.min(days, 7));
+    // First fetch station info to find correct data endpoint
+    const stationPath = `/station/${station}`;
+    const stationRes = await fetch('https://api.fieldclimate.com/v2' + stationPath, { headers: fcHeaders('GET', stationPath) });
+    if (stationRes.ok) {
+      const stInfo = await stationRes.json();
+      console.log('[weather] Station info keys:', Object.keys(stInfo).join(', '));
+      console.log('[weather] Station name:', stInfo.name?.original || stInfo.info?.device_name || JSON.stringify(stInfo).slice(0,200));
+    }
     const fcPath = `/data/normal/station/${station}/data/hourly/${Math.floor(start/1000)}/${Math.floor(end/1000)}`;
     console.log('[weather] FC URL:', fcPath);
     const fc = await fetch('https://api.fieldclimate.com/v2' + fcPath, { headers: fcHeaders('GET', fcPath) });
