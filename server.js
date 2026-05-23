@@ -223,7 +223,7 @@ app.get('/api/weather', auth, async (req, res) => {
     const end   = new Date();
     const start = new Date();
     start.setDate(start.getDate() - Math.min(days, 7));
-    const fcPath = `/data/${station}/hourly/last/7`;
+    const fcPath = `/data/${station}/daily/last/30`;
     // Also try alternate
     const fcPathAlt = `/station/${station}/data/hourly/${Math.floor(start/1000)}/${Math.floor(end/1000)}`;
     console.log('[weather] Alt URL:', fcPathAlt);
@@ -543,3 +543,93 @@ async function start() {
   });
 }
 start();
+
+// ── CRON: Синхронизация погоды каждую ночь в 01:10 ───────────────────────
+async function syncWeatherCron() {
+  if (!FC_PUBLIC || !FC_PRIVATE) return;
+  console.log('[cron] Starting weather sync...');
+  const stations = [
+    { id: FC_STATION || '00002158', key: 'orchard' },
+    { id: process.env.FIELDCLIMATE_STATION_VEG || '0020BCDC', key: 'vegetable' },
+  ];
+  for (const st of stations) {
+    try {
+      const fcPub  = st.key === 'orchard' ? FC_PUBLIC  : (process.env.FIELDCLIMATE_PUBLIC_KEY_VEG  || '');
+      const fcPriv = st.key === 'orchard' ? FC_PRIVATE : (process.env.FIELDCLIMATE_PRIVATE_KEY_VEG || '');
+      if (!fcPub || !fcPriv) continue;
+      const path = `/data/${st.id}/daily/last/30`;
+      const date = new Date().toUTCString();
+      const sig  = crypto.createHmac('sha256', fcPriv).update('GET' + path + date + fcPub).digest('hex');
+      const headers = { 'Accept':'application/json', 'Authorization':`hmac ${fcPub}:${sig}`, 'Request-Date':date };
+      const r = await fetch('https://api.fieldclimate.com/v2' + path, { headers });
+      if (!r.ok) { console.warn(`[cron] FC ${st.id}: ${r.status}`); continue; }
+      const fcData = await r.json();
+      const dates = fcData.dates || [];
+      const sensors = fcData.data || [];
+      const byDate = {};
+      dates.forEach(dt => {
+        const d = dt.slice(0,10);
+        if (!byDate[d]) byDate[d] = { date:d, station:st.id, tmax:-999, tmin:999, temps:[], precip:0, rh:[], wind:[] };
+      });
+      sensors.forEach(sensor => {
+        const name = (sensor.name_original || sensor.name || '').toLowerCase();
+        const values = sensor.values || sensor.data || [];
+        values.forEach((val, i) => {
+          const dt = dates[i]; if (!dt) return;
+          const d = dt.slice(0,10);
+          if (!byDate[d]) return;
+          const v = parseFloat(val); if (isNaN(v)) return;
+          const divided = sensor.divider ? v / sensor.divider : v;
+          if (name.includes('temperature') || name.includes('temp')) {
+            byDate[d].temps.push(divided);
+            byDate[d].tmax = Math.max(byDate[d].tmax, divided);
+            byDate[d].tmin = Math.min(byDate[d].tmin, divided);
+          } else if (name.includes('rain') || name.includes('precip')) {
+            byDate[d].precip += divided;
+          } else if (name.includes('humid') || name.includes('rh')) {
+            byDate[d].rh.push(divided);
+          } else if (name.includes('wind')) {
+            byDate[d].wind.push(divided);
+          }
+        });
+      });
+      const rows = Object.values(byDate).filter(d => d.temps.length > 0);
+      for (const row of rows) {
+        const tavg = row.temps.length ? Math.round(row.temps.reduce((s,v)=>s+v,0)/row.temps.length*10)/10 : null;
+        await db.query(`
+          INSERT INTO public.weather (date,station,tmax,tmin,tavg,humidity,precip,wind,et0,updated_at)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())
+          ON CONFLICT (date,station) DO UPDATE SET
+            tmax=EXCLUDED.tmax,tmin=EXCLUDED.tmin,tavg=EXCLUDED.tavg,
+            humidity=EXCLUDED.humidity,precip=EXCLUDED.precip,wind=EXCLUDED.wind,updated_at=NOW()
+        `, [row.date, st.id,
+            row.tmax===-999?null:Math.round(row.tmax*10)/10,
+            row.tmin===999?null:Math.round(row.tmin*10)/10,
+            tavg,
+            row.rh.length?Math.round(row.rh.reduce((s,v)=>s+v,0)/row.rh.length):null,
+            Math.round(row.precip*10)/10,
+            row.wind.length?Math.round(row.wind.reduce((s,v)=>s+v,0)/row.wind.length*10)/10:null,
+            null]);
+      }
+      console.log(`[cron] ${st.id}: saved ${rows.length} days`);
+    } catch(e) { console.warn(`[cron] ${st.id} error:`, e.message); }
+  }
+}
+
+// Запуск cron в 01:10 каждую ночь
+function scheduleCron() {
+  const now = new Date();
+  const next = new Date();
+  next.setHours(1, 10, 0, 0);
+  if (next <= now) next.setDate(next.getDate() + 1);
+  const delay = next - now;
+  console.log(`[cron] Next weather sync in ${Math.round(delay/60000)} minutes`);
+  setTimeout(() => {
+    syncWeatherCron();
+    setInterval(syncWeatherCron, 24 * 60 * 60 * 1000);
+  }, delay);
+}
+
+scheduleCron();
+// Также запустить сразу при старте
+syncWeatherCron();
