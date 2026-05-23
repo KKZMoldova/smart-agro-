@@ -225,10 +225,6 @@ app.get('/api/weather', auth, async (req, res) => {
     start.setDate(start.getDate() - Math.min(days, 7));
     const fcPath = `/data/${station}/daily/last/7`;
     // Also try alternate
-    const fcPathAlt = `/station/${station}/data/hourly/${Math.floor(start/1000)}/${Math.floor(end/1000)}`;
-    console.log('[weather] Alt URL:', fcPathAlt);
-    const fcAlt = await fetch('https://api.fieldclimate.com/v2' + fcPathAlt, { headers: fcHeaders('GET', fcPathAlt) });
-    console.log('[weather] Alt status:', fcAlt.status);
     if(fcAlt.ok) { const ad = await fcAlt.json(); console.log('[weather] Alt data keys:', Object.keys(ad).join(', ')); }
     const fcController = new AbortController();
     const fcTimeout = setTimeout(() => fcController.abort(), 10000);
@@ -261,7 +257,8 @@ app.get('/api/weather', auth, async (req, res) => {
     // Parse each sensor's values
     sensors.forEach(sensor => {
       const name = (sensor.name_original || sensor.name || '').toLowerCase();
-      const values = sensor.values || sensor.data || [];
+      let values = sensor.values || sensor.data || [];
+        if (!Array.isArray(values)) values = Object.values(values);
       values.forEach((val, i) => {
         const dt = dates[i];
         if (!dt) return;
@@ -569,7 +566,8 @@ async function syncWeatherCron() {
       });
       sensors.forEach(sensor => {
         const name = (sensor.name_original || sensor.name || '').toLowerCase();
-        const values = sensor.values || sensor.data || [];
+        let values = sensor.values || sensor.data || [];
+        if (!Array.isArray(values)) values = Object.values(values);
         values.forEach((val, i) => {
           const dt = dates[i]; if (!dt) return;
           const d = dt.slice(0,10);
