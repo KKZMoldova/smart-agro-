@@ -23,6 +23,11 @@ function switchIrrigSub(sub) {
   if(sub==='zones')    renderIrrigZones();
   if(sub==='balance')  renderWaterBalance();
   if(sub==='fertigation') renderFertigation();
+  // Скролл к панели ирригации
+  setTimeout(() => {
+    const p = document.getElementById('panel-irrigation');
+    if(p) document.documentElement.scrollTop = p.offsetTop - 100;
+  }, 10);
 }
 
 // ──── ЗОНЫ ПОЛИВА ────────────────────────────────────────────────────────
