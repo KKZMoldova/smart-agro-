@@ -2481,3 +2481,4 @@ function renderSoilLog() {
     </tr>`;
   }).join('');
 }
+
