@@ -223,21 +223,19 @@ app.get('/api/weather', auth, async (req, res) => {
     const end   = new Date();
     const start = new Date();
     start.setDate(start.getDate() - Math.min(days, 7));
-    const fcPath = `/data/${station}/daily/last/30`;
+    const fcPath = `/data/${station}/daily/last/7`;
     // Also try alternate
     const fcPathAlt = `/station/${station}/data/hourly/${Math.floor(start/1000)}/${Math.floor(end/1000)}`;
     console.log('[weather] Alt URL:', fcPathAlt);
     const fcAlt = await fetch('https://api.fieldclimate.com/v2' + fcPathAlt, { headers: fcHeaders('GET', fcPathAlt) });
     console.log('[weather] Alt status:', fcAlt.status);
     if(fcAlt.ok) { const ad = await fcAlt.json(); console.log('[weather] Alt data keys:', Object.keys(ad).join(', ')); }
-    console.log('[weather] FC URL:', fcPath);
     const fcController = new AbortController();
     const fcTimeout = setTimeout(() => fcController.abort(), 10000);
     let fc;
     try {
       fc = await fetch('https://api.fieldclimate.com/v2' + fcPath, { headers: fcHeaders('GET', fcPath), signal: fcController.signal });
       clearTimeout(fcTimeout);
-      console.log('[weather] FC status:', fc.status);
     } catch(fetchErr) {
       clearTimeout(fcTimeout);
       console.log('[weather] FC fetch error:', fetchErr.message);
@@ -249,8 +247,6 @@ app.get('/api/weather', auth, async (req, res) => {
       throw new Error('FC: ' + fc.status);
     }
     const fcData = await fc.json();
-    console.log('[weather] FC data keys:', Object.keys(fcData).join(', '));
-    console.log('[weather] FC data sample:', JSON.stringify(fcData).slice(0,300));
     // New FieldClimate format: fcData.dates = [...], fcData.data = [{name, values:[...]}, ...]
     const dates = fcData.dates || [];
     const sensors = fcData.data || [];
@@ -557,7 +553,7 @@ async function syncWeatherCron() {
       const fcPub  = st.key === 'orchard' ? FC_PUBLIC  : (process.env.FIELDCLIMATE_PUBLIC_KEY_VEG  || '');
       const fcPriv = st.key === 'orchard' ? FC_PRIVATE : (process.env.FIELDCLIMATE_PRIVATE_KEY_VEG || '');
       if (!fcPub || !fcPriv) continue;
-      const path = `/data/${st.id}/daily/last/30`;
+      const path = `/data/${st.id}/daily/last/7`;
       const date = new Date().toUTCString();
       const sig  = crypto.createHmac('sha256', fcPriv).update('GET' + path + date + fcPub).digest('hex');
       const headers = { 'Accept':'application/json', 'Authorization':`hmac ${fcPub}:${sig}`, 'Request-Date':date };
