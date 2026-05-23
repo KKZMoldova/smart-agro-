@@ -229,7 +229,9 @@ app.get('/api/weather', auth, async (req, res) => {
     if (stationRes.ok) {
       const stInfo = await stationRes.json();
       console.log('[weather] Station info keys:', Object.keys(stInfo).join(', '));
-      console.log('[weather] Station name:', stInfo.name?.original || stInfo.info?.device_name || JSON.stringify(stInfo).slice(0,200));
+      console.log('[weather] Station name:', stInfo.name?.original || stInfo.info?.device_name);
+      console.log('[weather] Station dates:', JSON.stringify(stInfo.dates));
+      console.log('[weather] Station licenses:', JSON.stringify(stInfo.licenses).slice(0,200));
     }
     const fcPath = `/data/normal/station/${station}/data/hourly/${Math.floor(start/1000)}/${Math.floor(end/1000)}`;
     console.log('[weather] FC URL:', fcPath);
