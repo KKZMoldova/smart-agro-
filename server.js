@@ -251,16 +251,42 @@ app.get('/api/weather', auth, async (req, res) => {
     const fcData = await fc.json();
     console.log('[weather] FC data keys:', Object.keys(fcData).join(', '));
     console.log('[weather] FC data sample:', JSON.stringify(fcData).slice(0,300));
+    // New FieldClimate format: fcData.dates = [...], fcData.data = [{name, values:[...]}, ...]
+    const dates = fcData.dates || [];
+    const sensors = fcData.data || [];
     const byDate = {};
-    (fcData.data || []).forEach(h => {
-      const d = h.date?.slice(0,10); if (!d) return;
+
+    // Initialize byDate from dates array
+    dates.forEach(dt => {
+      const d = dt.slice(0, 10);
       if (!byDate[d]) byDate[d] = { date:d, station, tmax:-999, tmin:999, temps:[], precip:0, rh:[], wind:[] };
-      const t=parseFloat(h.temp??h.airTemp??NaN), p=parseFloat(h.rain??h.precip??0),
-            r=parseFloat(h.rhum??h.rh??NaN), w=parseFloat(h.wind??h.windSpeed??NaN);
-      if (!isNaN(t)) { byDate[d].temps.push(t); byDate[d].tmax=Math.max(byDate[d].tmax,t); byDate[d].tmin=Math.min(byDate[d].tmin,t); }
-      if (!isNaN(p)) byDate[d].precip += p;
-      if (!isNaN(r)) byDate[d].rh.push(r);
-      if (!isNaN(w)) byDate[d].wind.push(w);
+    });
+
+    // Parse each sensor's values
+    sensors.forEach(sensor => {
+      const name = (sensor.name_original || sensor.name || '').toLowerCase();
+      const values = sensor.values || sensor.data || [];
+      values.forEach((val, i) => {
+        const dt = dates[i];
+        if (!dt) return;
+        const d = dt.slice(0, 10);
+        if (!byDate[d]) byDate[d] = { date:d, station, tmax:-999, tmin:999, temps:[], precip:0, rh:[], wind:[] };
+        const v = parseFloat(val);
+        if (isNaN(v)) return;
+        // Apply divider if present
+        const divided = sensor.divider ? v / sensor.divider : v;
+        if (name.includes('temperature') || name.includes('temp')) {
+          byDate[d].temps.push(divided);
+          byDate[d].tmax = Math.max(byDate[d].tmax, divided);
+          byDate[d].tmin = Math.min(byDate[d].tmin, divided);
+        } else if (name.includes('rain') || name.includes('precip')) {
+          byDate[d].precip += divided;
+        } else if (name.includes('humid') || name.includes('rh')) {
+          byDate[d].rh.push(divided);
+        } else if (name.includes('wind')) {
+          byDate[d].wind.push(divided);
+        }
+      });
     });
     const rows = Object.values(byDate).map(d => ({
       date:d.date, station:d.station,
