@@ -225,7 +225,6 @@ app.get('/api/weather', auth, async (req, res) => {
     start.setDate(start.getDate() - Math.min(days, 7));
     const fcPath = `/data/${station}/daily/last/7`;
     // Also try alternate
-    if(fcAlt.ok) { const ad = await fcAlt.json(); console.log('[weather] Alt data keys:', Object.keys(ad).join(', ')); }
     const fcController = new AbortController();
     const fcTimeout = setTimeout(() => fcController.abort(), 10000);
     let fc;
