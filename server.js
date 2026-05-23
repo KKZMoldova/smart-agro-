@@ -223,22 +223,7 @@ app.get('/api/weather', auth, async (req, res) => {
     const end   = new Date();
     const start = new Date();
     start.setDate(start.getDate() - Math.min(days, 7));
-    // First fetch station info to find correct data endpoint
-    const stationPath = `/station/${station}`;
-    const stationRes = await fetch('https://api.fieldclimate.com/v2' + stationPath, { headers: fcHeaders('GET', stationPath) });
-    if (stationRes.ok) {
-      const stInfo = await stationRes.json();
-      console.log('[weather] Station info keys:', Object.keys(stInfo).join(', '));
-      console.log('[weather] Station name:', stInfo.name?.original || stInfo.info?.device_name);
-      console.log('[weather] Station dates:', JSON.stringify(stInfo.dates));
-      // Try sensors endpoint
-      const sensPath = `/station/${station}/sensors`;
-      const sensRes = await fetch('https://api.fieldclimate.com/v2' + sensPath, { headers: fcHeaders('GET', sensPath) });
-      console.log('[weather] Sensors status:', sensRes.status);
-      if (sensRes.ok) { const s = await sensRes.json(); console.log('[weather] Sensors:', JSON.stringify(s).slice(0,300)); }
-      console.log('[weather] Station licenses:', JSON.stringify(stInfo.licenses).slice(0,200));
-    }
-    const fcPath = `/data/${station}/hourly/from/${Math.floor(start/1000)}/to/${Math.floor(end/1000)}`;
+    const fcPath = `/data/${station}/hourly/last/7`;
     // Also try alternate
     const fcPathAlt = `/station/${station}/data/hourly/${Math.floor(start/1000)}/${Math.floor(end/1000)}`;
     console.log('[weather] Alt URL:', fcPathAlt);
