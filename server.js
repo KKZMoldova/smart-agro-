@@ -14,8 +14,9 @@ const PORT = process.env.PORT || 3000;
 
 // ── ENV ──────────────────────────────────────────────────────
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY   || '';
-const FC_PUBLIC     = process.env.FIELDCLIMATE_ID     || '';
-const FC_PRIVATE    = process.env.FIELDCLIMATE_SECRET || '';
+const FC_PUBLIC     = process.env.FIELDCLIMATE_PUBLIC_KEY_ORCHARD  || process.env.FIELDCLIMATE_ID     || '';
+const FC_PRIVATE    = process.env.FIELDCLIMATE_PRIVATE_KEY_ORCHARD || process.env.FIELDCLIMATE_SECRET || '';
+const FC_STATION    = process.env.FIELDCLIMATE_STATION_ORCHARD     || '00002158';
 const JWT_SECRET    = process.env.JWT_SECRET          || 'smartagro_secret_2025';
 
 const PINS = {
