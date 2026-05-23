@@ -210,7 +210,10 @@ app.get('/api/weather', auth, async (req, res) => {
       'SELECT * FROM public.weather WHERE station=$1 AND date>=$2 ORDER BY date DESC',
       [station, from.toISOString().split('T')[0]]
     );
-    if (r.rows.length > 0) return res.json({ ok: true, data: r.rows });
+    if (r.rows.length > 0) return res.json({ ok: true, data: r.rows.map(row => ({
+      ...row,
+      date: row.date instanceof Date ? row.date.toISOString().split('T')[0] : String(row.date).split('T')[0]
+    })) });
   } catch(e) { console.warn('[weather] DB read:', e.message); }
 
   if (!FC_PUBLIC || !FC_PRIVATE) return res.json({ ok: true, data: [] });
