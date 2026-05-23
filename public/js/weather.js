@@ -996,3 +996,81 @@ async function loadForecastAndRender() {
   renderForecastStrip();
   renderSmartRecs();
 }
+
+// ===================== METEO STATION XLS IMPORT =====================
+function importMeteoStation(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  event.target.value = '';
+
+  const statusEl = document.getElementById('meteo-import-status');
+  if (statusEl) { statusEl.style.display = 'block'; statusEl.innerHTML = `<div style="padding:10px 14px;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.3);border-radius:8px;font-size:12px;color:var(--yellow);">⏳ Читаю ${file.name}...</div>`; }
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      // XML SpreadsheetML format from FieldClimate
+      const xml = new TextDecoder('utf-8').decode(new Uint8Array(e.target.result));
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(xml, 'text/xml');
+      const ns = 'urn:schemas-microsoft-com:office:spreadsheet';
+      const rows = doc.getElementsByTagNameNS(ns, 'Row');
+
+      let added = 0, skipped = 0, updated = 0;
+
+      // Row 0: headers, Row 1: sub-headers, Row 2+: data
+      for (let i = 2; i < rows.length; i++) {
+        const cells = rows[i].getElementsByTagNameNS(ns, 'Cell');
+        const get = (idx) => {
+          const c = cells[idx];
+          const d = c ? c.getElementsByTagNameNS(ns, 'Data')[0] : null;
+          return d ? d.textContent.trim() : '';
+        };
+
+        const dateStr = get(0).slice(0, 10); // "2026-05-23 00:00:00" → "2026-05-23"
+        if (!dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) continue;
+
+        const tavg  = parseFloat(get(1)) || null;
+        const tmax  = parseFloat(get(2)) || null;
+        const tmin  = parseFloat(get(3)) || null;
+        const humid = parseFloat(get(6)) || null;
+        const precip = parseFloat(get(7)) || 0;
+
+        if (!tmax && !tmin && !tavg) continue;
+
+        // Check duplicate
+        const existing = S.weather.findIndex(w => w.date === dateStr);
+        const entry = {
+          id: 'w_' + dateStr.replace(/-/g,''),
+          date: dateStr,
+          tmax, tmin,
+          tavg: tavg || (tmax !== null && tmin !== null ? Math.round((tmax+tmin)/2*10)/10 : null),
+          humidity: humid,
+          precip,
+          et0: null, leafwet: 0, wind: null, phase: null,
+          note: 'Импорт с метеостанции',
+        };
+
+        if (existing >= 0) {
+          S.weather[existing] = entry;
+          updated++;
+        } else {
+          S.weather.push(entry);
+          added++;
+        }
+      }
+
+      S.weather.sort((a,b) => b.date.localeCompare(a.date));
+      save();
+      renderWeather();
+
+      const msg = `✅ Импорт погоды завершён: добавлено ${added}, обновлено ${updated}`;
+      if (statusEl) statusEl.innerHTML = `<div style="padding:10px 14px;background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.3);border-radius:8px;font-size:12px;color:var(--accent);">${msg}</div>`;
+      setTimeout(() => { if (statusEl) statusEl.style.display = 'none'; }, 8000);
+
+    } catch(err) {
+      if (statusEl) statusEl.innerHTML = `<div style="padding:10px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);border-radius:8px;font-size:12px;color:var(--red);">❌ Ошибка: ${err.message}</div>`;
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
