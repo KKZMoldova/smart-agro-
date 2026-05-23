@@ -306,6 +306,27 @@ app.get('/api/weather', auth, async (req, res) => {
   }
 });
 
+
+// ── WEATHER POST (manual import) ──────────────────────────────
+app.post('/api/weather', auth, async (req, res) => {
+  const rows = Array.isArray(req.body) ? req.body : [req.body];
+  try {
+    for (const w of rows) {
+      if (!w.date) continue;
+      const station = w.station || '00002158';
+      await db.query(`
+        INSERT INTO public.weather (date,station,tmax,tmin,tavg,humidity,precip,wind,et0,updated_at)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())
+        ON CONFLICT (date,station) DO UPDATE SET
+          tmax=EXCLUDED.tmax,tmin=EXCLUDED.tmin,tavg=EXCLUDED.tavg,
+          humidity=EXCLUDED.humidity,precip=EXCLUDED.precip,updated_at=NOW()
+      `, [w.date, station, w.tmax||null, w.tmin||null, w.tavg||null,
+          w.humidity||null, w.precip||0, w.wind||null, w.et0||null]);
+    }
+    res.json({ok:true, saved: rows.length});
+  } catch(e) { res.status(500).json({ok:false,error:e.message}); }
+});
+
 // ── TREATMENTS ────────────────────────────────────────────────
 app.get('/api/treatments', auth, async (req, res) => {
   try { const r=await db.query('SELECT * FROM public.treatments ORDER BY date DESC'); res.json({ok:true,data:r.rows}); }
