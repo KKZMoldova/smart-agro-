@@ -317,9 +317,9 @@ function renderDashboard() {
 async function loadEquipLists() {
   // Техника
   let equip = [], attach = [], staff = [];
-  try { equip = await fetch('/api/equipment').then(r=>r.json()); } catch(e) {}
-  try { const at = await fetch('/api/attachments').then(r=>r.json()); attach = Array.isArray(at)?at:(at.data||[]); } catch(e) {}
-  try { staff = await fetch('/api/staff').then(r=>r.json()); } catch(e) {}
+  try { const eq = await fetch('/api/equipment', {headers:getAuthHeaders()}).then(r=>r.json()); equip = Array.isArray(eq)?eq:(eq.data||[]); } catch(e) {}
+  try { const at = await fetch('/api/attachments', {headers:getAuthHeaders()}).then(r=>r.json()); attach = Array.isArray(at)?at:(at.data||[]); } catch(e) {}
+  try { const st = await fetch('/api/staff', {headers:getAuthHeaders()}).then(r=>r.json()); staff = Array.isArray(st)?st:(st.data||[]); } catch(e) {}
 
   const STATUS = {free:'✅ Свободна', busy:'🔄 Занята', repair:'🔧 В ремонте'};
   const ETYPE = {tractor:'🚜',sprayer:'💧',harvester:'🌾',truck:'🚛',other:'🔧'};
