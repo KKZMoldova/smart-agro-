@@ -324,7 +324,7 @@ async function loadEquipLists() {
   const STATUS = {free:'✅ Свободна', busy:'🔄 Занята', repair:'🔧 В ремонте'};
   const ETYPE = {tractor:'🚜',sprayer:'💧',harvester:'🌾',truck:'🚛',other:'🔧'};
   const ATYPE = {sprayer:'💊',mower:'✂️',spreader:'🌱',plow:'🌾',other:'🔧'};
-  const SROLE = {mechanic:'🚜 Механизатор',agronomist:'🌿 Агроном',worker:'👷 Рабочий',manager:'📋 Бригадир'};
+  const SROLE = {mechanic:'🚜 Механизатор',agronomist:'🌿 Агроном',worker:'👷 Рабочий',manager:'📋 Бригадир',operator:'⚙️ Оператор',other:'👤 Другое'};
 
   const equipEl = document.getElementById('equip-list');
   if(equipEl) {
