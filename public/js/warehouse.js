@@ -280,7 +280,7 @@ function saveWarehouseItem() {
   }
 
   save();
-  if (_vServerAvailable) {
+  if (_serverAvailable) {
     fetch('/api/state/vegetable', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
@@ -571,7 +571,7 @@ function importData(event) {
 }
 function saveSetting(key,val) {
   S.settings[key]=val; S[key]=val; save();
-  if (_vServerAvailable) {
+  if (_serverAvailable) {
     fetch('/api/state/vegetable', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
