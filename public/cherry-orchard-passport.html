@@ -2351,6 +2351,11 @@ body > .panel.active { display: block; }
       <button class="btn btn-secondary" onclick="showInventory()">🗂️ Инвентаризация</button>
       <button class="btn btn-secondary" onclick="exportWarehouseCSV()">📤 Экспорт</button>
       <button class="btn btn-primary" id="btn-add-warehouse" onclick="openWarehouseModal()">+ Приход</button>
+      <button class="btn btn-secondary" onclick="downloadWarehouseTemplate()">📥 Шаблон Excel</button>
+      <label class="btn btn-secondary" style="cursor:pointer;">
+        📤 Импорт Excel
+        <input type="file" accept=".xlsx,.xls,.csv" style="display:none;" onchange="importWarehouseFromExcel(this)">
+      </label>
     </div>
   </div>
   <div id="wh-consumption-report" style="display:none;margin-bottom:16px;"></div>
