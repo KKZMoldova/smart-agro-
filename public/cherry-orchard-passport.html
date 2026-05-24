@@ -1408,7 +1408,14 @@ body > .panel.active { display: block; }
     <div style="margin-top:20px;">
       <div class="section-hdr" style="margin-bottom:12px;">
         <h3 style="font-size:14px;font-weight:700;">👷 Персонал</h3>
-        <button class="btn btn-primary btn-sm" onclick="openStaffModal()">+ Добавить</button>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-primary btn-sm" onclick="openStaffModal()">+ Добавить</button>
+          <button class="btn btn-secondary btn-sm" onclick="downloadStaffTemplate()">📥 Шаблон</button>
+          <label class="btn btn-secondary btn-sm" style="cursor:pointer;margin:0;">
+            📤 Импорт
+            <input type="file" accept=".xlsx,.xls" style="display:none;" onchange="importStaffFromExcel(this)">
+          </label>
+        </div>
       </div>
       <div id="staff-list"><div style="color:var(--text3);font-size:12px;padding:8px;">Загрузка...</div></div>
     </div>
