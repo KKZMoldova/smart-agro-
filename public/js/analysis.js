@@ -1613,7 +1613,7 @@ ${stockAlert}
     // ── Вызов через прокси-сервер ─────────────────────────────────────
     const response = await fetch('/api/ai/advisor', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify({
         model: 'claude-sonnet-4-5',
         max_tokens: 1000,
