@@ -504,6 +504,8 @@ app.get('/api/staff', authOpt, async (req,res) => {
 app.post('/api/staff', authOpt, async (req,res) => {
   const b=req.body; const id=b.id||String(Date.now());
   try {
+    // Добавляем колонку data если нет
+    await db.query('ALTER TABLE public.staff ADD COLUMN IF NOT EXISTS data JSONB').catch(()=>{});
     await db.query(`INSERT INTO public.staff (id,name,role,data) VALUES ($1,$2,$3,$4) ON CONFLICT (id) DO UPDATE SET name=$2,role=$3,data=$4`,
       [String(id), b.name||'', b.role||b.type||'operator', JSON.stringify(b)]);
     res.json({ok:true,id});
