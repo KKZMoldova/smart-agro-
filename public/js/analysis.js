@@ -618,7 +618,11 @@ function renderAnalysis() {
         <div style="text-align:right;">
           <div style="font-size:11px;font-family:'Unbounded',sans-serif;color:var(--text2);">${an.date}</div>
           <div style="font-size:10px;color:var(--text3);">${cell}</div>
-          ${an.zoneId ? `<div style="font-size:10px;color:var(--blue);">💧 ${(S.irrigation?.zones||[]).find(z=>z.id===an.zoneId)?.name||an.zoneId}</div>` : ''}
+          ${an.zoneId ? (() => {
+            const zoneIds = an.zoneId.split(',').filter(Boolean);
+            const zoneNames = zoneIds.map(zid=>(S.irrigation?.zones||[]).find(z=>z.id===zid)?.name||zid).filter(Boolean);
+            return zoneNames.length ? `<div style="font-size:10px;color:var(--blue);">💧 ${zoneNames.join(', ')}</div>` : '';
+          })() : ''}
           ${an.varietyId ? `<div style="font-size:10px;color:var(--accent);">🍒 ${S.varieties.find(v=>v.id===an.varietyId)?.name||''}</div>` : ''}
           ${an.depthCm ? `<div style="font-size:10px;color:var(--text3);">⬇️ ${an.depthCm}см</div>` : ''}
           ${an.lab?`<div style="font-size:10px;color:var(--text3);">${an.lab}</div>`:''}
