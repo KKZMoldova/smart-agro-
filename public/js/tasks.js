@@ -167,30 +167,49 @@ async function openNewTask() {
   // Клетки сада с зонами полива
   const cells = Object.entries(S.cells||{});
   const zonesAll = S.irrigation?.zones||[];
-  document.getElementById('nt-parcel-list').innerHTML = cells.length
+
+  // Клетки
+  const cellsHtml = cells.length
     ? cells.map(([key,cd])=>{
         const crop = getCropById(cd.cropId||'crop_cherry');
         const cols = getCellColors(cd);
         const ha = calcCellTotals(cd)?.totalHa||0;
-        const cellZones = zonesAll.filter(z=>(z.cellKeys||[]).includes(key));
-        const zonesHtml = cellZones.length
-          ? `<div style="margin-left:24px;margin-top:3px;display:flex;gap:4px;flex-wrap:wrap;">
-              ${cellZones.map(z=>`
-                <div onclick="toggleNtZone('${z.id}','${z.name}','${key}',event)" id="ntz-${key}-${z.id}"
-                  style="padding:2px 8px;border-radius:6px;border:1px solid var(--border);font-size:10px;cursor:pointer;color:var(--text3);transition:all .15s;">
-                  💧 ${z.name}
-                </div>`).join('')}
-            </div>` : '';
         return `<div style="padding:4px 8px;border-radius:6px;" id="ntp-wrap-${key}">
           <div style="display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="toggleNtParcel('${key}','${key}${cols[0]?' – '+cols[0].name:''}',${ha})" id="ntp-${key}">
             <input type="checkbox" id="ntpc-${key}" onclick="event.stopPropagation();toggleNtParcel('${key}','${key}${cols[0]?' – '+cols[0].name:''}',${ha})">
             <span>${crop?.emoji||'🌳'} <strong>${key}</strong>${cols[0]?' — '+cols[0].name:''}</span>
             <span style="margin-left:auto;color:var(--text3);font-size:11px;">${ha.toFixed(3)} га</span>
           </div>
-          ${zonesHtml}
         </div>`;
       }).join('')
     : '<div style="color:var(--text3);padding:8px;">Клетки не заданы. Добавьте клетки на Карте.</div>';
+
+  // Зоны полива — все, сгруппированные по культуре
+  const cherryZones = zonesAll.filter(z=>z.name.toLowerCase().includes('cires')||z.name.toLowerCase().includes('visin'));
+  const appleZones  = zonesAll.filter(z=>z.name.toLowerCase().includes('mar'));
+  const otherZones  = zonesAll.filter(z=>!cherryZones.includes(z)&&!appleZones.includes(z));
+
+  const renderZoneGroup = (label, groupZones) => groupZones.length ? `
+    <div style="margin-bottom:6px;">
+      <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;">${label}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:3px;">
+        ${groupZones.map(z=>`
+          <div onclick="toggleNtZone('${z.id}','${z.name}','',event)" id="ntz--${z.id}"
+            style="padding:3px 8px;border-radius:6px;border:1px solid var(--border);font-size:10px;cursor:pointer;color:var(--text3);transition:all .15s;">
+            💧 ${z.name}
+          </div>`).join('')}
+      </div>
+    </div>` : '';
+
+  const zonesHtml = zonesAll.length ? `
+    <div style="margin-top:8px;padding:8px;background:var(--surface2);border-radius:8px;">
+      <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">💧 Зоны полива</div>
+      ${renderZoneGroup('🍒 Черешня / Вишня', cherryZones)}
+      ${renderZoneGroup('🍎 Яблоко', appleZones)}
+      ${renderZoneGroup('Прочие', otherZones)}
+    </div>` : '';
+
+  document.getElementById('nt-parcel-list').innerHTML = cellsHtml + zonesHtml;
 
   document.getElementById('nt-chem-search').value = '';
   document.getElementById('nt-chem-dropdown').style.display = 'none';
@@ -227,9 +246,9 @@ function toggleNtParcel(id, name, ha) {
 
 function toggleNtZone(zoneId, zoneName, cellKey, event) {
   if(event) event.stopPropagation();
-  const idx = _newTaskZones.findIndex(z=>z.id===zoneId&&z.cellKey===cellKey);
+  const idx = _newTaskZones.findIndex(z=>z.id===zoneId);
   if(idx>=0) _newTaskZones.splice(idx,1);
-  else _newTaskZones.push({id:zoneId, name:zoneName, cellKey});
+  else _newTaskZones.push({id:zoneId, name:zoneName, cellKey:cellKey||''});
   _updateNtParcelUI();
 }
 
@@ -245,14 +264,15 @@ function _updateNtParcelUI() {
   });
   // Обновляем вид зон
   (S.irrigation?.zones||[]).forEach(z=>{
-    (z.cellKeys||[]).forEach(cellKey=>{
-      const el = document.getElementById(`ntz-${cellKey}-${z.id}`);
-      if(!el) return;
-      const sel = _newTaskZones.find(x=>x.id===z.id&&x.cellKey===cellKey);
-      el.style.background = sel ? 'rgba(96,165,250,.15)' : '';
-      el.style.color = sel ? 'var(--blue)' : 'var(--text3)';
-      el.style.borderColor = sel ? 'var(--blue)' : 'var(--border)';
-    });
+    const el = document.getElementById(`ntz--${z.id}`);
+    if(!el) return;
+    const sel = _newTaskZones.find(x=>x.id===z.id);
+    el.style.background = sel ? 'rgba(96,165,250,.15)' : '';
+    el.style.color = sel ? 'var(--blue)' : 'var(--text3)';
+    el.style.borderColor = sel ? 'var(--blue)' : 'var(--border)';
+    el.style.fontWeight = sel ? '600' : '400';
+    if(sel && !el.textContent.startsWith('✓')) el.textContent = '✓ ' + el.textContent;
+    if(!sel && el.textContent.startsWith('✓ ')) el.textContent = el.textContent.slice(2);
   });
   // Обновляем теги
   const total = _newTaskParcels.reduce((s,p)=>s+p.ha,0);
