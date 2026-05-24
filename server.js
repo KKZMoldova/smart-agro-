@@ -529,6 +529,41 @@ app.post('/api/ai/advisor', auth, async (req,res) => {
   catch(e) { console.error('[ai/advisor]', e.message); res.status(500).json({ok:false,error:e.message}); }
 });
 
+
+// ── ПРОГНОЗ ПОГОДЫ (Open-Meteo, бесплатно) ───────────────────────────────
+app.get('/api/weather/forecast', auth, async (req, res) => {
+  try {
+    // Координаты ККЗ Молдова (Каменка) — можно вынести в env
+    const lat = process.env.FARM_LAT || '47.9';
+    const lon = process.env.FARM_LON || '28.7';
+    const days = parseInt(req.query.days) || 7;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,relativehumidity_2m_max,et0_fao_evapotranspiration&timezone=Europe%2FBucharest&forecast_days=${Math.min(days,14)}`;
+    const https = require('https');
+    const data = await new Promise((resolve, reject) => {
+      https.get(url, r => {
+        let body = '';
+        r.on('data', d => body += d);
+        r.on('end', () => { try { resolve(JSON.parse(body)); } catch(e) { reject(e); } });
+      }).on('error', reject);
+    });
+    // Преобразуем в удобный формат
+    const days_arr = data.daily?.time || [];
+    const forecast = days_arr.map((date, i) => ({
+      date,
+      tmax:    data.daily.temperature_2m_max?.[i] ?? null,
+      tmin:    data.daily.temperature_2m_min?.[i] ?? null,
+      precip:  data.daily.precipitation_sum?.[i] ?? 0,
+      wind:    data.daily.windspeed_10m_max?.[i] ?? null,
+      humidity:data.daily.relativehumidity_2m_max?.[i] ?? null,
+      et0:     data.daily.et0_fao_evapotranspiration?.[i] ?? null,
+    }));
+    res.json({ ok: true, forecast, source: 'open-meteo', lat, lon });
+  } catch(e) {
+    console.error('[forecast]', e.message);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 // ── СТРАНИЦЫ ──────────────────────────────────────────────────
 app.get('/', (req,res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
