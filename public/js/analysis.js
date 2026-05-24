@@ -79,39 +79,52 @@ let _anSelectedZones = new Set();
 function renderAnParcelPicker() {
   const el = document.getElementById('a-parcel-zone-picker');
   if(!el) return;
-  const cells = Object.entries(S.cells||{});
   const zones = S.irrigation?.zones||[];
+  const type = document.getElementById('a-type')?.value || 'soil';
 
-  el.innerHTML = cells.map(([key, cd])=>{
-    const col = getCellColors(cd);
-    const crop = getCropById(cd.cropId||'crop_cherry');
-    const ha = calcCellTotals(cd)?.totalHa||0;
-    const selCell = _anSelectedCells.has(key);
-    const cellZones = zones.filter(z=>(z.cellKeys||[]).includes(key));
+  // Для воды — зоны не нужны (один анализ для всего сада)
+  if (type === 'water') {
+    el.innerHTML = '<div style="font-size:11px;color:var(--text3);padding:8px;">💧 Анализ воды применяется ко всему саду</div>';
+    _updateAnSummary();
+    return;
+  }
 
-    return `<div style="margin-bottom:4px;">
-      <div onclick="toggleAnCell('${key}')" id="an-cell-${key}"
-        style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;cursor:pointer;
-          background:${selCell?'rgba(74,222,128,.12)':'transparent'};
-          border:1px solid ${selCell?'rgba(74,222,128,.3)':'transparent'};">
-        <span style="font-size:14px;">${selCell?'☑':'☐'}</span>
-        <span style="font-size:12px;font-weight:600;">${crop?.emoji||'🌳'} ${key}</span>
-        <span style="font-size:11px;color:var(--text3);">${col[0]?.name||''} · ${ha.toFixed(2)}га</span>
-      </div>
-      ${cellZones.length ? `<div style="margin-left:24px;display:flex;gap:4px;flex-wrap:wrap;margin-top:2px;">
-        ${cellZones.map(z=>{
-          const selZ = _anSelectedZones.has(z.id);
-          return `<span onclick="toggleAnZone('${z.id}','${key}',event)" id="an-zone-${z.id}"
-            style="padding:2px 8px;border-radius:6px;font-size:10px;cursor:pointer;
-              background:${selZ?'rgba(96,165,250,.15)':'var(--surface3)'};
-              color:${selZ?'var(--blue)':'var(--text3)'};
-              border:1px solid ${selZ?'rgba(96,165,250,.3)':'var(--border)'};">
-            💧 ${z.name}
+  // Для почвы и листа — показываем зоны полива напрямую
+  if (!zones.length) {
+    el.innerHTML = '<div style="font-size:11px;color:var(--text3);">Зоны полива не настроены</div>';
+    _updateAnSummary();
+    return;
+  }
+
+  // Группируем зоны по типу культуры
+  const cherryZones = zones.filter(z => z.name.toLowerCase().includes('cires') || z.name.toLowerCase().includes('visin'));
+  const appleZones  = zones.filter(z => z.name.toLowerCase().includes('mar'));
+  const otherZones  = zones.filter(z => !cherryZones.includes(z) && !appleZones.includes(z));
+
+  const renderGroup = (label, groupZones) => {
+    if (!groupZones.length) return '';
+    return `<div style="margin-bottom:8px;">
+      <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">${label}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;">
+        ${groupZones.map(z => {
+          const sel = _anSelectedZones.has(z.id);
+          return `<span onclick="toggleAnZone('${z.id}','',event)" id="an-zone-${z.id}"
+            style="padding:4px 10px;border-radius:8px;font-size:11px;cursor:pointer;
+              background:${sel?'rgba(96,165,250,.15)':'var(--surface3)'};
+              color:${sel?'var(--blue)':'var(--text2)'};
+              border:1px solid ${sel?'rgba(96,165,250,.4)':'var(--border)'};
+              font-weight:${sel?'600':'400'};">
+            ${sel?'✓ ':''}💧 ${z.name}
           </span>`;
         }).join('')}
-      </div>` : ''}
+      </div>
     </div>`;
-  }).join('') || '<div style="font-size:11px;color:var(--text3);">Клетки не заданы</div>';
+  };
+
+  el.innerHTML = 
+    renderGroup('🍒 Черешня / Вишня', cherryZones) +
+    renderGroup('🍎 Яблоко', appleZones) +
+    renderGroup('Прочие', otherZones);
 
   _updateAnSummary();
 }
