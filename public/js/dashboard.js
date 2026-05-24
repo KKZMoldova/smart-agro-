@@ -466,6 +466,136 @@ async function deleteAttach() {
 // 📥 ИМПОРТ / ШАБЛОН ПЕРСОНАЛА
 // ═══════════════════════════════════════════════════════════════════════════
 
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 📥 ИМПОРТ / ШАБЛОН ТЕХНИКИ И НАВЕСНОГО
+// ═══════════════════════════════════════════════════════════════════════════
+
+function downloadEquipTemplate() {
+  if (typeof XLSX === 'undefined') { alert('Библиотека XLSX не загружена'); return; }
+  const wb = XLSX.utils.book_new();
+
+  // Лист 1: Техника
+  const equipHeaders = ['Название*', 'Тип (tractor/sprayer/harvester/truck/other)', 'Год выпуска', 'Статус (free/busy/repair)', 'Гос. номер', 'Примечание'];
+  const equipExamples = [
+    ['МТЗ-82', 'tractor', 2018, 'free', 'MD-123-AB', ''],
+    ['Matrot', 'sprayer', 2020, 'free', 'MD-456-CD', 'Прицепной опрыскиватель'],
+    ['ГАЗ-3307', 'truck', 2015, 'free', 'MD-789-EF', ''],
+  ];
+  const equipInfo = [
+    [], ['Типы техники:'],
+    ['tractor = 🚜 Трактор'], ['sprayer = 💧 Опрыскиватель'],
+    ['harvester = 🌾 Комбайн'], ['truck = 🚛 Грузовик'], ['other = 🔧 Другое'],
+  ];
+  const ws1 = XLSX.utils.aoa_to_sheet([equipHeaders, ...equipExamples, ...equipInfo]);
+  ws1['!cols'] = [20, 30, 12, 16, 14, 25].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws1, 'Техника');
+
+  // Лист 2: Навесное
+  const attachHeaders = ['Название*', 'Тип (sprayer/mower/spreader/plow/cultivator/other)', 'Объём/ширина', 'Примечание'];
+  const attachExamples = [
+    ['Туман-2', 'sprayer', '2000л', ''],
+    ['ОПШ-15', 'sprayer', '1500л', ''],
+    ['Культиватор КРН', 'cultivator', '6м', ''],
+    ['Борона БДП-3', 'plow', '3м', ''],
+  ];
+  const attachInfo = [
+    [], ['Типы навесного:'],
+    ['sprayer = 💊 Опрыскиватель'], ['mower = ✂️ Косилка'],
+    ['spreader = 🌱 Разбрасыватель'], ['plow = 🌾 Плуг/Борона'],
+    ['cultivator = 🔧 Культиватор'], ['other = 🔧 Другое'],
+  ];
+  const ws2 = XLSX.utils.aoa_to_sheet([attachHeaders, ...attachExamples, ...attachInfo]);
+  ws2['!cols'] = [20, 35, 14, 25].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws2, 'Навесное');
+
+  XLSX.writeFile(wb, 'шаблон_техника.xlsx');
+}
+
+async function importEquipFromExcel(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  event.target.value = '';
+  if (typeof XLSX === 'undefined') { alert('Библиотека XLSX не загружена'); return; }
+
+  const TYPE_MAP = {
+    'tractor':'tractor','трактор':'tractor','мтз':'tractor',
+    'sprayer':'sprayer','опрыскиватель':'sprayer',
+    'harvester':'harvester','комбайн':'harvester',
+    'truck':'truck','грузовик':'truck','газ':'truck','камаз':'truck',
+  };
+  const ATTACH_TYPE_MAP = {
+    'sprayer':'sprayer','опрыскиватель':'sprayer','туман':'sprayer',
+    'mower':'mower','косилка':'mower',
+    'spreader':'spreader','разбрасыватель':'spreader','мву':'spreader',
+    'plow':'plow','плуг':'plow','борона':'plow','бдп':'plow',
+    'cultivator':'cultivator','культиватор':'cultivator','крн':'cultivator',
+    'trailer':'trailer','прицеп':'trailer',
+  };
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+      let addedEquip = 0, addedAttach = 0, skipped = 0;
+
+      for (const sheetName of wb.SheetNames) {
+        const ws = wb.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+        if (rows.length < 2) continue;
+
+        const H = rows[0].map(h=>String(h).toLowerCase().trim());
+        const col = (...kws) => { for(const kw of kws){ const i=H.findIndex(h=>h.includes(kw)); if(i>=0) return i; } return -1; };
+        const iName = col('назван','name');
+        if (iName < 0) continue;
+
+        const isAttach = sheetName.toLowerCase().includes('навес') || sheetName.toLowerCase().includes('attach');
+
+        const iType   = col('тип','type');
+        const iYear   = col('год','year');
+        const iStatus = col('статус','status');
+        const iNote   = col('примеч','note');
+        const iReg    = col('номер','reg','гос');
+        const iCap    = col('объём','объем','ширина','cap','width');
+
+        for (let i = 1; i < rows.length; i++) {
+          const r = rows[i];
+          const name = String(r[iName]||'').trim();
+          if (!name || name.startsWith('Типы') || name.startsWith('tractor')) { skipped++; continue; }
+
+          const rawType = String(r[iType]||'').toLowerCase().trim();
+
+          if (isAttach) {
+            const type = Object.entries(ATTACH_TYPE_MAP).find(([k])=>rawType.includes(k))?.[1] || rawType || 'other';
+            try {
+              await fetch('/api/attachments', {
+                method:'POST', headers: getAuthHeaders(),
+                body: JSON.stringify({ id:uid(), name, type, capacity:String(r[iCap]||'').trim(), note:String(r[iNote]||'').trim() })
+              });
+              addedAttach++;
+            } catch(e) { skipped++; }
+          } else {
+            const type = Object.entries(TYPE_MAP).find(([k])=>rawType.includes(k) || name.toLowerCase().includes(k))?.[1] || rawType || 'other';
+            try {
+              await fetch('/api/equipment', {
+                method:'POST', headers: getAuthHeaders(),
+                body: JSON.stringify({ id:uid(), name, type, year:parseInt(r[iYear])||null, status:String(r[iStatus]||'free').trim(), regNo:String(r[iReg]||'').trim(), note:String(r[iNote]||'').trim() })
+              });
+              addedEquip++;
+            } catch(e) { skipped++; }
+          }
+        }
+      }
+
+      await loadEquipLists();
+      alert(`✅ Импорт завершён:\n• Техника: ${addedEquip}\n• Навесное: ${addedAttach}\n• Пропущено: ${skipped}`);
+    } catch(err) {
+      alert('Ошибка импорта: ' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
 function downloadStaffTemplate() {
   if (typeof XLSX === 'undefined') { alert('Библиотека XLSX не загружена'); return; }
   const wb = XLSX.utils.book_new();
