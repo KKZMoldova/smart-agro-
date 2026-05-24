@@ -366,15 +366,41 @@ app.get('/api/analyses', auth, async (req,res) => {
   catch(e) { res.status(500).json({ok:false,error:e.message}); }
 });
 app.post('/api/analyses', auth, async (req,res) => {
-  const a=req.body;
+  const a = req.body;
+  const id = String(a.id || Date.now());
+  // Сохраняем весь объект в data, отдельные поля для индексации
   try {
     await db.query(`
-      INSERT INTO public.analyses (id,type,date,parcel_id,lab,values,note)
-      VALUES ($1,$2,$3,$4,$5,$6,$7)
-      ON CONFLICT (id) DO UPDATE SET type=$2,date=$3,parcel_id=$4,lab=$5,values=$6,note=$7
-    `, [String(a.id),a.type||'leaf',a.date,a.parcel_id||null,a.lab||'',JSON.stringify(a.values||{}),a.note||'']);
-    res.json({ok:true});
-  } catch(e) { res.status(500).json({ok:false,error:e.message}); }
+      INSERT INTO public.analyses (id, type, date, parcel_id, lab, values, note, data)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+      ON CONFLICT (id) DO UPDATE SET type=$2, date=$3, parcel_id=$4, lab=$5, values=$6, note=$7, data=$8
+    `, [
+      id,
+      a.type || 'leaf',
+      a.date || null,
+      a.cellKey || a.parcel_id || null,
+      a.lab || '',
+      JSON.stringify(a.values || {}),
+      a.note || '',
+      JSON.stringify(a)
+    ]);
+    res.json({ ok: true, id });
+  } catch(e) {
+    // Если колонки data нет — добавляем и повторяем
+    if (e.message.includes('column "data"')) {
+      try {
+        await db.query('ALTER TABLE public.analyses ADD COLUMN IF NOT EXISTS data JSONB');
+        await db.query(`
+          INSERT INTO public.analyses (id, type, date, parcel_id, lab, values, note, data)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+          ON CONFLICT (id) DO UPDATE SET type=$2, date=$3, parcel_id=$4, lab=$5, values=$6, note=$7, data=$8
+        `, [id, a.type||'leaf', a.date||null, a.cellKey||a.parcel_id||null, a.lab||'', JSON.stringify(a.values||{}), a.note||'', JSON.stringify(a)]);
+        return res.json({ ok: true, id });
+      } catch(e2) { return res.status(500).json({ ok:false, error: e2.message }); }
+    }
+    console.error('[analyses POST]', e.message);
+    res.status(500).json({ ok: false, error: e.message });
+  }
 });
 app.delete('/api/analyses/:id', auth, async (req,res) => {
   try { await db.query('DELETE FROM public.analyses WHERE id=$1',[req.params.id]); res.json({ok:true}); }
