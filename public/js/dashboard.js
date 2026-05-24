@@ -461,6 +461,97 @@ async function deleteAttach() {
   loadEquipLists();
 }
 
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 📥 ИМПОРТ / ШАБЛОН ПЕРСОНАЛА
+// ═══════════════════════════════════════════════════════════════════════════
+
+function downloadStaffTemplate() {
+  if (typeof XLSX === 'undefined') { alert('Библиотека XLSX не загружена'); return; }
+  const wb = XLSX.utils.book_new();
+  const headers = ['Имя и фамилия*', 'Должность (mechanic/agronomist/worker/manager/other)', 'Телефон', 'Примечание'];
+  const examples = [
+    ['Иван Петров', 'mechanic', '+373 69 123 456', 'Тракторист'],
+    ['Мария Иванова', 'agronomist', '+373 69 234 567', 'Главный агроном'],
+    ['Андрей Сидоров', 'worker', '+373 69 345 678', ''],
+    ['Петр Козлов', 'manager', '+373 69 456 789', 'Бригадир'],
+  ];
+  const info = [
+    [],
+    ['Допустимые значения должности:'],
+    ['mechanic = 🚜 Механизатор'],
+    ['agronomist = 🌿 Агроном'],
+    ['worker = 👷 Рабочий'],
+    ['manager = 📋 Бригадир'],
+    ['other = Другое'],
+  ];
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...examples, ...info]);
+  ws['!cols'] = [25, 35, 18, 20].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws, 'Персонал');
+  XLSX.writeFile(wb, 'шаблон_персонал.xlsx');
+}
+
+async function importStaffFromExcel(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  event.target.value = '';
+  if (typeof XLSX === 'undefined') { alert('Библиотека XLSX не загружена'); return; }
+
+  const ROLE_MAP = {
+    'mechanic':'mechanic','механизатор':'mechanic','тракторист':'mechanic',
+    'agronomist':'agronomist','агроном':'agronomist',
+    'worker':'worker','рабочий':'worker',
+    'manager':'manager','бригадир':'manager','мастер':'manager',
+  };
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+      if (rows.length < 2) { alert('Файл пустой'); return; }
+
+      const H = rows[0].map(h=>String(h).toLowerCase().trim());
+      const col = (...kws) => { for(const kw of kws){ const i=H.findIndex(h=>h.includes(kw)); if(i>=0) return i; } return -1; };
+
+      const iName  = col('имя','name','фамил');
+      const iRole  = col('должн','role','position');
+      const iPhone = col('телеф','phone');
+      const iNote  = col('примеч','note');
+
+      if (iName < 0) { alert('Не найдена колонка «Имя». Используйте шаблон.'); return; }
+
+      let added = 0, skipped = 0;
+      for (let i = 1; i < rows.length; i++) {
+        const r = rows[i];
+        const name = String(r[iName]||'').trim();
+        if (!name || name.startsWith('Допустим') || name.startsWith('mechanic')) { skipped++; continue; }
+
+        const rawRole = String(r[iRole]||'').toLowerCase().trim();
+        const role = ROLE_MAP[rawRole] || rawRole || 'other';
+        const phone = String(r[iPhone]||'').trim();
+        const note  = String(r[iNote]||'').trim();
+
+        try {
+          await fetch('/api/staff', {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ id: uid(), name, role, phone, note })
+          });
+          added++;
+        } catch(e) { skipped++; }
+      }
+
+      await loadEquipLists();
+      alert(`✅ Импорт завершён:\n• Добавлено: ${added}\n• Пропущено: ${skipped}`);
+    } catch(err) {
+      alert('Ошибка импорта: ' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
 function openStaffModal(s) {
   document.getElementById('staff-edit-id').value = s?.id||'';
   document.getElementById('staff-name').value = s?.name||'';
