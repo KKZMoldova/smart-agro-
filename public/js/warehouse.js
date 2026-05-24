@@ -328,7 +328,10 @@ function renderWarehouse() {
           <td style="font-size:11px;">${c.price?formatPrice(c.price):'—'}</td>
           <td style="font-size:11px;color:var(--text3);">${c.supplier||'—'}</td>
           <td>${critical?'<span class="badge badge-red">❌ МАЛО</span>':low?'<span class="badge badge-yellow">⚠️ Мало</span>':'<span class="badge badge-green">✅ OK</span>'}</td>
-          <td><button class="btn btn-primary btn-xs" onclick="openWarehouseModalForChemical('${c.catId}')">+ Приход</button></td>
+          <td style="display:flex;gap:4px;">
+            <button class="btn btn-primary btn-xs" onclick="openWarehouseModalForChemical('${c.catId}')">+ Приход</button>
+            <button class="btn btn-danger btn-xs" onclick="deleteWarehouseChemical('${c.catId}')">🗑</button>
+          </td>
         </tr>`;
       }).join('')
     : `<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:20px;">Нет препаратов на складе. Нажмите + Приход.</td></tr>`;
@@ -361,7 +364,8 @@ if (p.resourceHours && p.installed) {
           '<td style="font-size:11px;color:var(--text3);">'+(p.installed||'—')+'</td>'+
           '<td style="font-size:11px;color:'+(pct>=90?'var(--red)':pct>=70?'var(--yellow)':'var(--accent)')+';">'+resourceStatus+'</td>'+
           '<td>'+(critical?'<span class="badge badge-red">❌ МАЛО</span>':low?'<span class="badge badge-yellow">⚠️ Мало</span>':'<span class="badge badge-green">✅ OK</span>')+'</td>'+
-          '<td><button class="btn btn-secondary btn-xs" onclick="openWarehousePartModal(\''+p.id+'\')">✏️</button></td>'+
+          '<td style="display:flex;gap:4px;"><button class="btn btn-secondary btn-xs" onclick="openWarehousePartModal(\''+p.id+'\')">✏️</button>'+
+          '<button class="btn btn-danger btn-xs" onclick="deleteWarehousePart(\''+p.id+'\')">🗑</button></td>'+
           '</tr>';
       }).join('')
     : '<tr><td colspan="10" style="text-align:center;color:var(--text3);padding:20px;">Нет запчастей на складе. Нажмите + Приход.</td></tr>';
@@ -557,7 +561,196 @@ function showWarehouseSnapshot(type='chemicals') {
   }
   snap.style.display='block';
 }
-  // ── Import/Export ─────────────────────────────────────────────────────────
+  
+// ═══════════════════════════════════════════════════════════════════════════
+// 🗑️ УДАЛЕНИЕ ПОЗИЦИЙ СКЛАДА
+// ═══════════════════════════════════════════════════════════════════════════
+
+function deleteWarehouseChemical(catId) {
+  if (!confirm('Удалить позицию со склада? История приходов сохранится.')) return;
+  S.warehouse.chemicals = (S.warehouse.chemicals||[]).filter(c => c.catId !== catId);
+  save(); closeModal('modal-warehouse'); renderWarehouse();
+}
+
+function deleteWarehousePart(partId) {
+  if (!confirm('Удалить запчасть со склада?')) return;
+  S.warehouse.parts = (S.warehouse.parts||[]).filter(p => p.id !== partId);
+  save(); closeModal('modal-warehouse'); renderWarehouse();
+}
+
+function deleteWarehouseSeed(seedId) {
+  if (!confirm('Удалить семена со склада?')) return;
+  S.warehouse.seeds = (S.warehouse.seeds||[]).filter(s => s.id !== seedId);
+  save(); closeModal('modal-warehouse'); renderWarehouse();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 📥 ИМПОРТ ОСТАТКОВ ИЗ EXCEL
+// ═══════════════════════════════════════════════════════════════════════════
+
+function downloadWarehouseTemplate() {
+  if (typeof XLSX === 'undefined') { alert('Библиотека XLSX не загружена'); return; }
+  const wb = XLSX.utils.book_new();
+
+  // Лист 1: Препараты
+  const chemHeaders = ['Название препарата*', 'Тип (fungicide/insecticide/herbicide/fertilizer/other)', 'Количество*', 'Единица (л/кг/г/шт)', 'Цена без НДС (MDL)', 'НДС%', 'Мин. запас', 'Поставщик', 'Примечание'];
+  const chemExamples = [
+    ['Хорус WG 75', 'fungicide', 5, 'кг', 1200, 20, 1, 'АгроТрейд', 'Против монилиоза'],
+    ['Калипсо', 'insecticide', 2, 'л', 850, 20, 0.5, '', ''],
+    ['Нитрат кальция', 'fertilizer', 50, 'кг', 45, 0, 10, '', ''],
+  ];
+  const ws1 = XLSX.utils.aoa_to_sheet([chemHeaders, ...chemExamples]);
+  ws1['!cols'] = [25,30,12,12,16,8,12,20,20].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws1, 'Препараты');
+
+  // Лист 2: Запчасти
+  const partHeaders = ['Название*', 'Категория (filter/drip/pump/mechanical/electrical/other)', 'Количество*', 'Единица', 'Цена (MDL)', 'Мин. запас', 'Ресурс (часов)', 'Поставщик'];
+  const partExamples = [
+    ['Капельница 2л/ч', 'drip', 500, 'шт', 8, 100, '', ''],
+    ['Фильтр дисковый 120 меш', 'filter', 4, 'шт', 250, 1, 2000, ''],
+  ];
+  const ws2 = XLSX.utils.aoa_to_sheet([partHeaders, ...partExamples]);
+  ws2['!cols'] = [25,35,12,10,12,12,14,20].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws2, 'Запчасти');
+
+  XLSX.writeFile(wb, 'шаблон_склад_' + today() + '.xlsx');
+}
+
+function importWarehouseFromExcel(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  event.target.value = '';
+  if (typeof XLSX === 'undefined') { alert('Библиотека XLSX не загружена'); return; }
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+      if (!S.warehouse) S.warehouse = { chemicals:[], parts:[], seeds:[], history:[] };
+
+      let addedChem = 0, addedPart = 0, skipped = 0;
+      const dateStr = today();
+
+      // Обрабатываем каждый лист
+      wb.SheetNames.forEach(sheetName => {
+        const ws = wb.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(ws, { header:1, defval:'' });
+        if (rows.length < 2) return;
+
+        const H = rows[0].map(h => String(h).toLowerCase().trim());
+        const col = (...kws) => { for (const kw of kws) { const i = H.findIndex(h=>h.includes(kw)); if(i>=0) return i; } return -1; };
+
+        const isChemSheet = sheetName.toLowerCase().includes('препар') || sheetName.toLowerCase().includes('хим') || sheetName.toLowerCase().includes('chem');
+        const isPartSheet = sheetName.toLowerCase().includes('запч') || sheetName.toLowerCase().includes('part');
+
+        if (isChemSheet || (!isPartSheet && sheetName === wb.SheetNames[0])) {
+          // Препараты
+          const iName   = col('назван','name','препар');
+          const iType   = col('тип','type');
+          const iQty    = col('колич','qty','amount','остат');
+          const iUnit   = col('един','unit');
+          const iPrice  = col('цена','price');
+          const iVat    = col('ндс','vat');
+          const iMin    = col('мин','min');
+          const iSupp   = col('поставщ','supplier');
+          const iNote   = col('примеч','note');
+
+          if (iName < 0 || iQty < 0) return;
+
+          for (let i = 1; i < rows.length; i++) {
+            const r = rows[i];
+            const name = String(r[iName]||'').trim();
+            const qty  = parseFloat(String(r[iQty]||'').replace(',','.')) || 0;
+            if (!name || !qty) { skipped++; continue; }
+
+            const type     = String(r[iType]||'other').trim().toLowerCase();
+            const unit     = String(r[iUnit]||'л').trim();
+            const price    = parseFloat(String(r[iPrice]||'').replace(',','.')) || 0;
+            const vatRate  = parseFloat(String(r[iVat]||'0').replace(',','.')) || 0;
+            const minStock = parseFloat(String(r[iMin]||'0').replace(',','.')) || 0;
+            const supplier = String(r[iSupp]||'').trim();
+            const note     = String(r[iNote]||'').trim();
+            const priceWithVat = Math.round(price*(1+vatRate/100)*100)/100;
+
+            // Найти или создать в каталоге
+            let cat = S.catalog.find(c=>c.name.toLowerCase()===name.toLowerCase());
+            if (!cat) {
+              cat = { id:uid(), name, type:type||'other', ai:'', dose:'', whi:0, crops:'', targets:'', price, supplier, unit, minStock, vatRate };
+              S.catalog.push(cat);
+            }
+
+            // Обновить или создать на складе
+            let stock = S.warehouse.chemicals.find(c=>c.catId===cat.id);
+            if (stock) {
+              stock.qty = Math.round((stock.qty + qty)*1000)/1000;
+            } else {
+              stock = { id:uid(), catId:cat.id, name, type:cat.type, unit, qty, minStock, price, supplier };
+              S.warehouse.chemicals.push(stock);
+            }
+
+            // История
+            if (qty > 0) {
+              S.warehouse.history.unshift({
+                id:uid(), date:dateStr, type:'chemical', name,
+                operation:'in', qty, unit, price, priceWithVat, vatRate,
+                total:Math.round(qty*price*100)/100,
+                totalWithVat:Math.round(qty*priceWithVat*100)/100,
+                supplier, note: note || 'Импорт из Excel'
+              });
+            }
+            addedChem++;
+          }
+        } else if (isPartSheet) {
+          // Запчасти
+          const iName  = col('назван','name');
+          const iCat   = col('катег','category');
+          const iQty   = col('колич','qty');
+          const iUnit  = col('един','unit');
+          const iPrice = col('цена','price');
+          const iMin   = col('мин','min');
+          const iRes   = col('ресурс','resource');
+          const iSupp  = col('поставщ','supplier');
+
+          if (iName < 0 || iQty < 0) return;
+
+          for (let i = 1; i < rows.length; i++) {
+            const r = rows[i];
+            const name = String(r[iName]||'').trim();
+            const qty  = parseFloat(String(r[iQty]||'').replace(',','.')) || 0;
+            if (!name || !qty) { skipped++; continue; }
+
+            const existing = S.warehouse.parts.find(p=>p.name.toLowerCase()===name.toLowerCase());
+            if (existing) {
+              existing.qty = Math.round((existing.qty+qty)*1000)/1000;
+            } else {
+              S.warehouse.parts.push({
+                id:uid(), name,
+                category: String(r[iCat]||'other').trim(),
+                unit: String(r[iUnit]||'шт').trim(),
+                qty,
+                price: parseFloat(String(r[iPrice]||'').replace(',','.')) || 0,
+                minStock: parseFloat(String(r[iMin]||'').replace(',','.')) || 0,
+                resourceHours: parseFloat(String(r[iRes]||'').replace(',','.')) || null,
+                supplier: String(r[iSupp]||'').trim(),
+              });
+            }
+            addedPart++;
+          }
+        }
+      });
+
+      save();
+      renderWarehouse();
+      alert(`✅ Импорт завершён:\n• Препараты: ${addedChem}\n• Запчасти: ${addedPart}\n• Пропущено: ${skipped}`);
+    } catch(err) {
+      alert('Ошибка импорта: ' + err.message);
+      console.error('[importWarehouseFromExcel]', err);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ── Import/Export ─────────────────────────────────────────────────────────
 function exportData() {
   const data=JSON.stringify(S,null,2);
   const a=document.createElement('a');a.href='data:application/json,'+encodeURIComponent(data);
