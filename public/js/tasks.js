@@ -771,80 +771,123 @@ async function saveTaskEng() {
   closeModal('modal-task-eng');
 }
 
+// Маппинг названий работ → тип операции для ГСМ дельты
+function _workTypeToOpType(workTypeName) {
+  const n = (workTypeName||'').toLowerCase();
+  if(n.includes('опрыск') || n.includes('обработ')) return 'spray';
+  if(n.includes('пахот') || n.includes('вспашк'))  return 'plow';
+  if(n.includes('культив') || n.includes('боронов') || n.includes('диск')) return 'cultivate';
+  if(n.includes('транспор') || n.includes('перевоз')) return 'transport';
+  return 'other';
+}
+
 async function openTaskDone(id) {
   document.getElementById('task-done-id').value = id;
   document.getElementById('task-done-note').value = '';
   const fuelEl = document.getElementById('task-done-fuel');
-  if (fuelEl) fuelEl.value = '';
+  if(fuelEl) fuelEl.value = '';
 
-  // Показываем расчётный план ГСМ если есть
   const task = _tasks.find(t => t.id === id);
   const fuelPlanEl = document.getElementById('task-done-fuel-plan');
-  if (fuelPlanEl && task) {
+
+  // Заполняем резервуары
+  const tankSel = document.getElementById('task-done-tank');
+  if(tankSel) {
+    const tanks = S.fuel?.tanks || [];
+    tankSel.innerHTML = '<option value="">— авто —</option>' +
+      tanks.map(t => `<option value="${t.id}">${t.name} · ${FUEL_TYPES[t.fuelType]||t.fuelType} · ${(t.currentL||0).toFixed(0)}л</option>`).join('');
+  }
+
+  // Плановый расход
+  if(fuelPlanEl && task) {
     const machines = task.machines_json
-      ? (typeof task.machines_json === 'string' ? JSON.parse(task.machines_json) : task.machines_json) : [];
+      ? (typeof task.machines_json==='string' ? JSON.parse(task.machines_json) : task.machines_json) : [];
     const vehicleId = task.equipment_id || machines[0]?.equipId;
-    const vehicle = (S.vehicles || []).find(v => v.id === vehicleId);
+    const vehicle = (S.vehicles||[]).find(v => v.id === vehicleId);
     const normField = vehicle?.fuelNormField || 0;
     const planL = normField && task.total_ha ? Math.round(normField * task.total_ha * 100) / 100 : 0;
     fuelPlanEl.textContent = planL > 0
       ? `⛽ План: ${planL} л (${normField} л/га × ${task.total_ha} га)`
       : vehicle ? `⛽ Норма: ${normField||'?'} л/га — укажите факт` : '';
-    if (fuelEl && planL > 0) fuelEl.placeholder = planL;
+    if(fuelEl && planL > 0) fuelEl.placeholder = planL;
   }
   openModal('modal-task-done');
 }
 
 async function saveTaskDone() {
-  const id = document.getElementById('task-done-id').value;
-  const note = document.getElementById('task-done-note').value.trim();
+  const id       = document.getElementById('task-done-id').value;
+  const note     = document.getElementById('task-done-note').value.trim();
   const factFuel = parseFloat(document.getElementById('task-done-fuel')?.value) || 0;
+  const tankIdSel= document.getElementById('task-done-tank')?.value || '';
 
   await updateTaskStatus(id, 'done', { closed_by_name:'Механизатор', problem_note:note||undefined });
 
   // ══ Автосписание ГСМ ══
-  if (factFuel > 0) {
+  if(factFuel > 0) {
     try {
-      if (!S.fuel) S.fuel = { tanks:[], receipts:[], refuels:[], operations:[], alerts:[] };
+      if(!S.fuel) S.fuel = { tanks:[], receipts:[], refuels:[], operations:[], alerts:[] };
       const task = _tasks.find(t => t.id === id);
       const machines = task?.machines_json
-        ? (typeof task.machines_json === 'string' ? JSON.parse(task.machines_json) : task.machines_json)
-        : [];
+        ? (typeof task.machines_json==='string' ? JSON.parse(task.machines_json) : task.machines_json) : [];
       const vehicleId = task?.equipment_id || machines[0]?.equipId || null;
-      const vehicle = (S.vehicles || S.fuel?.vehicles || []).find(v => v.id === vehicleId);
-
-      // Найти бак нужного топлива и списать
+      const vehicle = (S.vehicles||[]).find(v => v.id === vehicleId);
       const fuelType = vehicle?.fuelType || 'diesel';
-      const tank = (S.fuel.tanks || []).find(t => t.fuelType === fuelType && (t.currentL || 0) > 0)
-        || (S.fuel.tanks || [])[0];
 
-      if (tank) {
-        const before = tank.currentL || 0;
-        tank.currentL = Math.round(Math.max(0, before - factFuel) * 100) / 100;
+      // Резервуар — выбранный или первый подходящий
+      const tank = (tankIdSel && S.fuel.tanks.find(t=>t.id===tankIdSel))
+        || S.fuel.tanks.find(t => t.fuelType===fuelType && (t.currentL||0) > 0)
+        || S.fuel.tanks[0];
+
+      if(tank) {
+        tank.currentL = Math.round(Math.max(0, (tank.currentL||0) - factFuel) * 100) / 100;
       }
 
-      // Записать расход в операции
+      // Плановый расход
+      const normField = vehicle?.fuelNormField || 0;
+      const planL = normField && task?.total_ha ? Math.round(normField * task.total_ha * 100) / 100 : null;
+      const delta = planL && factFuel ? Math.round((factFuel - planL) * 100) / 100 : null;
+      const deltaPct = planL && factFuel ? Math.round((factFuel - planL) / planL * 1000) / 10 : null;
+
+      const opType = _workTypeToOpType(task?.work_type_name);
+
       const op = {
         id: uid(),
         date: today(),
         vehicleId,
-        operationType: task?.work_type_name || 'Полевые работы',
+        operationType: opType,
         operator: task?.mechanic_name || task?.assigned_to_name || '',
         cellKeys: task?.parcels_json ? task.parcels_json.map(p=>p.id||p.name) : [],
         areaHa: task?.total_ha || 0,
-        fuelPlanTotal: null,
+        fuelPlanTotal: planL,
         fuelFactTotal: factFuel,
-        fuelDelta: null,
-        deltaPercent: null,
+        fuelDelta: delta,
+        deltaPercent: deltaPct,
+        pricePerL: 0,
+        costTotal: 0,
+        distribution: [],
         source: 'task',
         taskId: id,
         note: `Задание: ${task?.work_type_name||''}${task?.parcel_name?' · '+task.parcel_name:''}`,
       };
       S.fuel.operations.unshift(op);
+
+      // Алерт при превышении дельты
+      if(deltaPct !== null) {
+        const limit = _getFuelDeltaLimit(vehicleId, opType);
+        if(Math.abs(deltaPct) > limit) {
+          S.fuel.alerts.push({
+            id: uid(), date: op.date, vehicleId, vehicleName: vehicle?.name||'',
+            operationType: opType, cellKeys: op.cellKeys,
+            fuelPlan: planL, fuelFact: factFuel, delta, deltaPercent: deltaPct,
+            limit, resolved: false, resolvedNote: null,
+          });
+        }
+      }
+
       save();
-      console.log('[saveTaskDone] Fuel deducted:', factFuel, 'L from tank', tank?.name);
+      console.log('[saveTaskDone] ГСМ списано:', factFuel, 'л из', tank?.name, '| план:', planL, 'л | δ:', deltaPct, '%');
     } catch(e) {
-      console.warn('[saveTaskDone] Fuel deduction failed:', e.message);
+      console.warn('[saveTaskDone] Ошибка списания ГСМ:', e.message);
     }
   }
 
