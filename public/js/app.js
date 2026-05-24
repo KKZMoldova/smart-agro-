@@ -741,14 +741,16 @@ async function save() {
     ['EC','TDS','hard','SAR','Cl','Na','H2S'].forEach(el => {
       if (a[el] !== undefined) values[el] = a[el];
     });
+    if (!a.date) continue; // пропускаем анализы без даты
     await API.saveAnalysis({
-      ...a,
-      id: String(a.id || a.date + '_' + (a.type||'leaf')),
+      id: String(a.id || Date.now()),
       type: a.type || 'leaf',
       date: a.date,
       parcel_id: a.cellKey || null,
       cellKey: a.cellKey || null,
       zoneId: a.zoneId || '',
+      varietyId: a.varietyId || '',
+      cropId: a.cropId || '',
       lab: a.lab || '',
       values,
       note: a.note || '',
