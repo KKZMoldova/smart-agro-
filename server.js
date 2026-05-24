@@ -91,6 +91,17 @@ function auth(req, res, next) {
   next();
 }
 
+// Auth optional — пропускает без токена (для разработки)
+function authOpt(req, res, next) {
+  const token = (req.headers['authorization'] || '').replace('Bearer ', '').trim();
+  if (token) {
+    const payload = verifyToken(token);
+    if (payload) req.user = payload;
+  }
+  if (!req.user) req.user = { role: 'agronomist', pin: 'dev' };
+  next();
+}
+
 // ── DB INIT ───────────────────────────────────────────────────
 async function initDB() {
   await db.query(`
@@ -438,12 +449,13 @@ app.post('/api/settings/:key', auth, async (req,res) => {
 });
 
 // ── CRUD helper ───────────────────────────────────────────────
-function crudRoutes(route, table) {
-  app.get(route, auth, async (req,res) => {
+function crudRoutes(route, table, middleware) {
+  const mw = middleware || auth;
+  app.get(route, mw, async (req,res) => {
     try { const r=await db.query(`SELECT * FROM public.${table} ORDER BY created_at`); res.json({ok:true,data:r.rows}); }
     catch(e) { res.status(500).json({ok:false,error:e.message}); }
   });
-  app.post(route, auth, async (req,res) => {
+  app.post(route, mw, async (req,res) => {
     const b=req.body; const id=b.id||String(Date.now());
     try {
       await db.query(`INSERT INTO public.${table} (id,name,type,data) VALUES ($1,$2,$3,$4) ON CONFLICT (id) DO UPDATE SET name=$2,type=$3,data=$4`,
@@ -451,21 +463,21 @@ function crudRoutes(route, table) {
       res.json({ok:true,id});
     } catch(e) { res.status(500).json({ok:false,error:e.message}); }
   });
-  app.delete(`${route}/:id`, auth, async (req,res) => {
+  app.delete(`${route}/:id`, mw, async (req,res) => {
     try { await db.query(`DELETE FROM public.${table} WHERE id=$1`,[req.params.id]); res.json({ok:true}); }
     catch(e) { res.status(500).json({ok:false,error:e.message}); }
   });
 }
-crudRoutes('/api/equipment',   'equipment');
-crudRoutes('/api/attachments', 'attachments');
-crudRoutes('/api/staff',       'staff');
+crudRoutes('/api/equipment',   'equipment', authOpt);
+crudRoutes('/api/attachments', 'attachments', authOpt);
+crudRoutes('/api/staff',       'staff', authOpt);
 
 // ── TASKS ─────────────────────────────────────────────────────
-app.get('/api/tasks', auth, async (req,res) => {
+app.get('/api/tasks', authOpt, async (req,res) => {
   try { const r=await db.query('SELECT * FROM public.tasks ORDER BY created_at DESC'); res.json({ok:true,data:r.rows}); }
   catch(e) { res.status(500).json({ok:false,error:e.message}); }
 });
-app.post('/api/tasks', auth, async (req,res) => {
+app.post('/api/tasks', authOpt, async (req,res) => {
   const b=req.body; const id=b.id||String(Date.now());
   try {
     await db.query(`INSERT INTO public.tasks (id,status,data) VALUES ($1,$2,$3) ON CONFLICT (id) DO UPDATE SET status=$2,data=$3,updated_at=NOW()`,
@@ -473,17 +485,17 @@ app.post('/api/tasks', auth, async (req,res) => {
     res.json({ok:true,id});
   } catch(e) { res.status(500).json({ok:false,error:e.message}); }
 });
-app.put('/api/tasks/:id/status', auth, async (req,res) => {
+app.put('/api/tasks/:id/status', authOpt, async (req,res) => {
   try { await db.query('UPDATE public.tasks SET status=$2,updated_at=NOW() WHERE id=$1',[req.params.id,req.body.status]); res.json({ok:true}); }
   catch(e) { res.status(500).json({ok:false,error:e.message}); }
 });
-app.delete('/api/tasks/:id', auth, async (req,res) => {
+app.delete('/api/tasks/:id', authOpt, async (req,res) => {
   try { await db.query('DELETE FROM public.tasks WHERE id=$1',[req.params.id]); res.json({ok:true}); }
   catch(e) { res.status(500).json({ok:false,error:e.message}); }
 });
 
 // ── MISC ──────────────────────────────────────────────────────
-app.get('/api/work-types', auth, (req,res) => res.json({ok:true,data:[
+app.get('/api/work-types', authOpt, (req,res) => res.json({ok:true,data:[
   {id:'spray',name:'Опрыскивание'},{id:'irrigation',name:'Полив'},
   {id:'fertigation',name:'Фертигация'},{id:'pruning',name:'Обрезка'},
   {id:'harvest',name:'Уборка'},{id:'plow',name:'Пахота'},
