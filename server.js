@@ -496,7 +496,23 @@ function crudRoutes(route, table, middleware) {
 }
 crudRoutes('/api/equipment',   'equipment', authOpt);
 crudRoutes('/api/attachments', 'attachments', authOpt);
-crudRoutes('/api/staff',       'staff', authOpt);
+// Staff имеет role вместо type — отдельный роут
+app.get('/api/staff', authOpt, async (req,res) => {
+  try { const r=await db.query('SELECT * FROM public.staff ORDER BY created_at'); res.json({ok:true,data:r.rows}); }
+  catch(e) { res.status(500).json({ok:false,error:e.message}); }
+});
+app.post('/api/staff', authOpt, async (req,res) => {
+  const b=req.body; const id=b.id||String(Date.now());
+  try {
+    await db.query(`INSERT INTO public.staff (id,name,role,data) VALUES ($1,$2,$3,$4) ON CONFLICT (id) DO UPDATE SET name=$2,role=$3,data=$4`,
+      [String(id), b.name||'', b.role||b.type||'operator', JSON.stringify(b)]);
+    res.json({ok:true,id});
+  } catch(e) { res.status(500).json({ok:false,error:e.message}); }
+});
+app.delete('/api/staff/:id', authOpt, async (req,res) => {
+  try { await db.query('DELETE FROM public.staff WHERE id=$1',[req.params.id]); res.json({ok:true}); }
+  catch(e) { res.status(500).json({ok:false,error:e.message}); }
+});
 
 // ── TASKS ─────────────────────────────────────────────────────
 app.get('/api/tasks', authOpt, async (req,res) => {
