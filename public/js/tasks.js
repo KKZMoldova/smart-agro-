@@ -15,7 +15,8 @@ const TASK_STATUS_COLORS = {new:'var(--blue)',assigned:'#a855f7',accepted:'var(-
 async function renderTasks() {
   try {
     const r = await fetch('/api/tasks');
-    _tasks = await r.json();
+    if(!r.ok) { _tasks = []; }
+    else { const d = await r.json(); _tasks = Array.isArray(d) ? d : []; }
   } catch(e) { _tasks = []; }
   const statuses = ['all','new','assigned','accepted','in_progress','done','problem','closed'];
   statuses.forEach(s => {
@@ -118,29 +119,37 @@ async function updateTaskStatus(id, status, extra) {
   renderTasks();
 }
 
+const _DEFAULT_WORK_TYPES = [
+  {id:'wt1',name:'Обработка (опрыскивание)'},
+  {id:'wt2',name:'Ирригация'},
+  {id:'wt3',name:'Скашивание травы'},
+  {id:'wt4',name:'Обрезка деревьев'},
+  {id:'wt5',name:'Подкормка (фертигация)'},
+  {id:'wt6',name:'Уборка урожая'},
+  {id:'wt7',name:'Посадка'},
+  {id:'wt8',name:'Прочие работы'},
+];
+
+async function _safeFetch(url) {
+  try {
+    const r = await fetch(url);
+    if(!r.ok) return null;
+    const d = await r.json();
+    return Array.isArray(d) ? d : null;
+  } catch(e) { return null; }
+}
+
 async function openNewTask() {
   if(!_taskStaff.length) {
-    try { _taskStaff = await fetch('/api/staff').then(r=>r.json()); } catch(e) { _taskStaff = []; }
+    _taskStaff = await _safeFetch('/api/staff') || [];
   }
   if(!_taskWorkTypes.length) {
-    try { _taskWorkTypes = await fetch('/api/work-types').then(r=>r.json()); } catch(e) {
-      _taskWorkTypes = [
-        {id:'wt1',name:'Обработка (опрыскивание)'},
-        {id:'wt2',name:'Ирригация'},
-        {id:'wt3',name:'Скашивание травы'},
-        {id:'wt4',name:'Обрезка деревьев'},
-        {id:'wt5',name:'Подкормка (фертигация)'},
-        {id:'wt6',name:'Уборка урожая'},
-        {id:'wt7',name:'Посадка'},
-        {id:'wt8',name:'Прочие работы'},
-      ];
-    }
+    _taskWorkTypes = await _safeFetch('/api/work-types') || _DEFAULT_WORK_TYPES;
   }
 
   // Техника и навесное
-  // Техника и навесное
-  try { _allEquip = await fetch('/api/equipment').then(r=>r.json()); } catch(e) { _allEquip = []; }
-  try { const at = await fetch('/api/attachments').then(r=>r.json()); _allAttach = Array.isArray(at)?at:(at.data||[]); } catch(e) { _allAttach = []; }
+  _allEquip  = await _safeFetch('/api/equipment') || [];
+  _allAttach = await _safeFetch('/api/attachments') || [];
 
   _newTaskParcels = [];
   _newTaskChems = [];
