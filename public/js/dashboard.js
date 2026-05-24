@@ -99,68 +99,6 @@ function renderDashboard() {
     });
   }
 
-  // ── 3б. АНАЛИЗЫ ЗОН — дефициты и алерты ─────────────────────────────
-  const analysisAlerts = [];
-  (S.irrigation?.zones||[]).forEach(z => {
-    const soil = (S.analyses||[]).filter(a=>a.type==='soil'&&a.zoneId&&a.zoneId.split(',').includes(z.id))
-      .sort((a,b)=>(b.date||'').localeCompare(a.date||''))[0];
-    const leaf = (S.analyses||[]).filter(a=>a.type==='leaf'&&a.zoneId&&a.zoneId.split(',').includes(z.id))
-      .sort((a,b)=>(b.date||'').localeCompare(a.date||''))[0];
-    const aiRec = z.aiRec;
-
-    // Проверяем дефициты в листе
-    if (leaf) {
-      const leafChecks = [
-        {k:'N', min:2.2, max:3.5, name:'N'},
-        {k:'Ca',min:1.0, max:2.5, name:'Ca'},
-        {k:'K', min:1.5, max:3.0, name:'K'},
-        {k:'Mg',min:0.25,max:0.5, name:'Mg'},
-        {k:'B', min:20,  max:80,  name:'B'},
-        {k:'Fe',min:50,  max:200, name:'Fe'},
-      ];
-      const deficits = leafChecks.filter(c=>leaf[c.k]!==undefined&&parseFloat(leaf[c.k])<c.min).map(c=>c.name);
-      const excess   = leafChecks.filter(c=>leaf[c.k]!==undefined&&parseFloat(leaf[c.k])>c.max).map(c=>c.name);
-      if (deficits.length) analysisAlerts.push({ zone:z.name, level:'critical', icon:'🍃', msg:`Дефицит в листе: ${deficits.join(', ')}` });
-      if (excess.length)   analysisAlerts.push({ zone:z.name, level:'warn',     icon:'⚠️', msg:`Избыток в листе: ${excess.join(', ')}` });
-    }
-    // Проверяем почву
-    if (soil) {
-      const soilChecks = [
-        {k:'pH', min:6.0, max:7.5, name:'pH'},
-        {k:'NO3',min:15,  max:50,  name:'N-NO₃'},
-        {k:'K',  min:100, max:300, name:'K'},
-        {k:'Ca', min:800, max:3000,name:'Ca'},
-      ];
-      const deficits = soilChecks.filter(c=>soil[c.k]!==undefined&&parseFloat(soil[c.k])<c.min).map(c=>c.name);
-      if (deficits.length) analysisAlerts.push({ zone:z.name, level:'warn', icon:'🌱', msg:`Дефицит в почве: ${deficits.join(', ')}` });
-    }
-    // AI алерты
-    if (aiRec?.alerts?.length) {
-      aiRec.alerts.forEach(a => analysisAlerts.push({ zone:z.name, level:'warn', icon:'🤖', msg:a }));
-    }
-    // AI рекомендация полива
-    if (aiRec?.irrigation?.needed) {
-      analysisAlerts.push({ zone:z.name, level:'info', icon:'💧', msg:`Полив: ${aiRec.irrigation.mm}мм · ${aiRec.irrigation.when}` });
-    }
-  });
-
-  if (analysisAlerts.length) {
-    sections.push({
-      title: `🔬 Анализы зон (${analysisAlerts.filter(a=>a.level==='critical').length} критичных · ${analysisAlerts.filter(a=>a.level==='warn').length} внимание)`,
-      color: analysisAlerts.some(a=>a.level==='critical') ? '#dc2626' : '#f59e0b',
-      content: analysisAlerts.map(a => `
-        <div style="display:flex;align-items:flex-start;gap:10px;padding:7px 12px;border-radius:8px;margin-bottom:4px;
-          background:${a.level==='critical'?'rgba(220,38,38,.08)':a.level==='info'?'rgba(96,165,250,.08)':'rgba(245,158,11,.08)'};
-          border-left:3px solid ${a.level==='critical'?'#dc2626':a.level==='info'?'#60a5fa':'#f59e0b'};">
-          <span style="font-size:14px;">${a.icon}</span>
-          <div>
-            <div style="font-size:11px;font-weight:600;color:var(--text2);">${a.zone}</div>
-            <div style="font-size:11px;color:var(--text3);">${a.msg}</div>
-          </div>
-        </div>`).join('')
-    });
-  }
-
   // ── 4. СКЛАД — низкие остатки ─────────────────────────────────────────
   const chemicals = S.warehouse?.chemicals||[];
   const lowStock = chemicals.filter(c=>{
@@ -467,9 +405,9 @@ async function saveEquip() {
   if(!body.name){alert('Введите название');return;}
   try {
     if(id) {
-      await fetch(`/api/equipment/${id}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+      await fetch(`/api/equipment/${id}`, {method:'PUT', headers: getAuthHeaders(), body:JSON.stringify(body)});
     } else {
-      await fetch('/api/equipment', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+      await fetch('/api/equipment', {method:'POST', headers: getAuthHeaders(), body:JSON.stringify(body)});
     }
   } catch(e) { alert('Ошибка сохранения: '+e.message); return; }
   closeModal('modal-equip');
@@ -506,9 +444,9 @@ async function saveAttach() {
   if(!body.name){alert('Введите название');return;}
   try {
     if(id) {
-      await fetch(`/api/attachments/${id}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+      await fetch(`/api/attachments/${id}`, {method:'PUT', headers: getAuthHeaders(), body:JSON.stringify(body)});
     } else {
-      await fetch('/api/attachments', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+      await fetch('/api/attachments', {method:'POST', headers: getAuthHeaders(), body:JSON.stringify(body)});
     }
   } catch(e) { alert('Ошибка сохранения: '+e.message); return; }
   closeModal('modal-attach');
@@ -542,11 +480,12 @@ async function saveStaff() {
   };
   if(!body.name){alert('Введите имя');return;}
   try {
-    if(id) {
-      await fetch(`/api/staff/${id}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
-    } else {
-      await fetch('/api/staff', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
-    }
+    const newId = id || uid();
+    await fetch('/api/staff', {
+      method:'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({...body, id: newId})
+    });
   } catch(e) { alert('Ошибка сохранения: '+e.message); return; }
   closeModal('modal-staff');
   loadEquipLists();
@@ -556,7 +495,7 @@ async function saveStaff() {
 async function deleteStaff() {
   const id = document.getElementById('staff-edit-id').value;
   if(!id||!confirm('Удалить сотрудника?')) return;
-  try { await fetch(`/api/staff/${id}`, {method:'DELETE'}); } catch(e) {}
+  try { await fetch(`/api/staff/${id}`, {method:'DELETE', headers: getAuthHeaders()}); } catch(e) {}
   closeModal('modal-staff');
   loadEquipLists();
   _taskStaff = [];
