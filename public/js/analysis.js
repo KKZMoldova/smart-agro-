@@ -701,7 +701,7 @@ async function parseAnalysisFileWithAI(input) {
     // Вызов через сервер (Railway)
     const resp = await fetch('/api/ai/parse-pdf', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify({ model: 'claude-opus-4-5', max_tokens: 1000, messages })
     });
 
