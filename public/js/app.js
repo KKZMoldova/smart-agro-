@@ -742,10 +742,13 @@ async function save() {
       if (a[el] !== undefined) values[el] = a[el];
     });
     await API.saveAnalysis({
+      ...a,
       id: String(a.id || a.date + '_' + (a.type||'leaf')),
       type: a.type || 'leaf',
       date: a.date,
       parcel_id: a.cellKey || null,
+      cellKey: a.cellKey || null,
+      zoneId: a.zoneId || '',
       lab: a.lab || '',
       values,
       note: a.note || '',
@@ -956,7 +959,6 @@ function switchTab(tab,el){
 // ===================== SETTINGS =====================
 
 // ===================== АЛИАСЫ СОВМЕСТИМОСТИ =====================
-// Функции переименованы при разбивке на модули — алиасы для обратной совместимости
 window.openCatalogModal = function(...a){ return openCatalogAddModal(...a); };
 window.saveCatalogItem  = function(...a){ return saveCatalogProduct(...a); };
 window.renderFuel       = function(...a){ return renderFuelTab(...a); };
