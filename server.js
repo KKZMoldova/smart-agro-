@@ -408,12 +408,12 @@ app.post('/api/sync-weather', auth, async (req, res) => {
         INSERT INTO public.weather (date,station,tmax,tmin,tavg,humidity,precip,wind,et0,updated_at)
         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())
         ON CONFLICT (date,station) DO UPDATE SET
-          tmax=COALESCE(EXCLUDED.tmax, public.weather.tmax),
-          tmin=COALESCE(EXCLUDED.tmin, public.weather.tmin),
-          tavg=COALESCE(EXCLUDED.tavg, public.weather.tavg),
-          humidity=COALESCE(EXCLUDED.humidity, public.weather.humidity),
+          tmax=EXCLUDED.tmax,
+          tmin=EXCLUDED.tmin,
+          tavg=EXCLUDED.tavg,
+          humidity=EXCLUDED.humidity,
           precip=EXCLUDED.precip,
-          wind=COALESCE(EXCLUDED.wind, public.weather.wind),
+          wind=EXCLUDED.wind,
           et0=COALESCE(EXCLUDED.et0, public.weather.et0),
           updated_at=NOW()
       `, [r.date,r.station,r.tmax,r.tmin,r.tavg,r.humidity,r.precip,r.wind,r.et0]);
