@@ -345,62 +345,40 @@ app.post('/api/sync-weather', auth, async (req, res) => {
   if (!FC_PUBLIC || !FC_PRIVATE) return res.status(500).json({ ok:false, error:'FieldClimate keys not configured' });
   try {
     // Try daily first, then hourly for recent days
-    const fcPath = fcDatePath(station, 7);
-    const fc = await fetch('https://api.fieldclimate.com/v2' + fcPath, { headers: fcHeaders('GET', fcPath) });
+    const fcPath = `/ag-grid/${station}/daily/last/7`;
+    const fc = await fetch('https://api.fieldclimate.com/v2' + fcPath, {
+      method: 'POST',
+      headers: { ...fcHeaders('POST', fcPath), 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    });
     if (!fc.ok) throw new Error('FC: ' + fc.status + ' ' + await fc.text());
     const fcData = await fc.json();
 
-    const dates   = fcData.dates || [];
-    const sensors = fcData.data  || [];
-    const byDate  = {};
+    // ag-grid format: { headers:[...], data:[{datetime, sensor_x_x_..., ...}] }
+    const agRows = fcData.data || [];
+    console.log('[sync-weather] ag-grid rows:', agRows.length, agRows[0]?.datetime);
 
-    dates.forEach(dt => {
-      const d = dt.slice(0,10);
-      if (!byDate[d]) byDate[d] = { date:d, station, tmax:-999, tmin:999, temps:[], precip:0, rh:[], wind:[], et0:[] };
-    });
-
-    // Log all sensor names for debugging
-    console.log('[sync-weather] Sensors:', sensors.map(s => s.name_original || s.name || s.group || '?').join(' | '));
-
-    sensors.forEach(sensor => {
-      const nameOrig = sensor.name_original || sensor.name || '';
-      const name = nameOrig.toLowerCase();
-      const groupRaw = sensor.group;
-      const group = (typeof groupRaw === 'string' ? groupRaw : (groupRaw?.name || groupRaw?.code || '')).toLowerCase();
-      let values = sensor.values || sensor.data || [];
-      if (!Array.isArray(values)) values = Object.values(values);
-
-      // Determine sensor type by exact name matching
-      const isAirTemp  = name === 'hc air temperature' || name === 'air temperature' || name.includes('temp') || name.includes('aerului');
-      const isRain     = name === 'precipitation' || name.includes('rain') || name.includes('precip');
-      const isHumid    = name === 'hc relative humidity' || name.includes('humid') || name.includes('umid');
-      const isWind     = name === 'wind speed' || name === 'wind speed max' || name.includes('wind');
-      const isET0      = name === 'et0' || name === 'eto';
-
-      values.forEach((val, i) => {
-        const dt = dates[i]; if (!dt) return;
-        const d  = dt.slice(0,10);
-        if (!byDate[d]) byDate[d] = { date:d, station, tmax:-999, tmin:999, temps:[], precip:0, rh:[], wind:[], et0:[] };
-        const v = parseFloat(val); if (isNaN(v)) return;
-        const divided = sensor.divider ? v / sensor.divider : v;
-        if (isAirTemp)    { byDate[d].temps.push(divided); byDate[d].tmax = Math.max(byDate[d].tmax, divided); byDate[d].tmin = Math.min(byDate[d].tmin, divided); }
-        else if (isRain)  { byDate[d].precip += divided; }
-        else if (isHumid) { byDate[d].rh.push(divided); }
-        else if (isWind && name !== 'wind speed max') { byDate[d].wind.push(divided); }
-        else if (isET0)   { byDate[d].et0.push(divided); }
-      });
-    });
-
-    const rows = Object.values(byDate).map(d => ({
-      date:d.date, station:d.station,
-      tmax: d.tmax===-999?null:Math.round(d.tmax*10)/10,
-      tmin: d.tmin===999?null:Math.round(d.tmin*10)/10,
-      tavg: d.temps.length?Math.round(d.temps.reduce((s,v)=>s+v,0)/d.temps.length*10)/10:null,
-      humidity: d.rh.length?Math.round(d.rh.reduce((s,v)=>s+v,0)/d.rh.length):null,
-      precip: Math.round(d.precip*10)/10,
-      wind: d.wind.length?Math.round(d.wind.reduce((s,v)=>s+v,0)/d.wind.length*10)/10:null,
-      et0: null,
-    }));
+    const rows = agRows.map(row => {
+      const date = (row.datetime || '').slice(0,10);
+      if (!date) return null;
+      // HC Air temperature (Channel 18) — primary air temp sensor
+      const tmax = row['sensor_x_x_18_506_mx'] ?? row['sensor_x_x_0_0_mx'] ?? null;
+      const tmin = row['sensor_x_x_18_506_mn'] ?? row['sensor_x_x_0_0_mn'] ?? null;
+      const tavg = row['sensor_x_x_18_506_a']  ?? row['sensor_x_x_0_0_a']  ?? null;
+      const humidity = row['sensor_x_x_19_507_a'] ?? null; // HC Relative humidity
+      const precip   = row['sensor_x_x_5_6_s']    ?? 0;   // Precipitation sum
+      const wind     = row['sensor_x_x_6_5_a']    ?? null; // Wind speed avg
+      const et0      = row['disease_evapotranspiration_ETo'] ?? null;
+      return { date, station,
+        tmax: tmax !== null ? Math.round(tmax*10)/10 : null,
+        tmin: tmin !== null ? Math.round(tmin*10)/10 : null,
+        tavg: tavg !== null ? Math.round(tavg*10)/10 : null,
+        humidity: humidity !== null ? Math.round(humidity) : null,
+        precip: Math.round((precip||0)*10)/10,
+        wind: wind !== null ? Math.round(wind*10)/10 : null,
+        et0: et0 !== null ? Math.round(et0*10)/10 : null,
+      };
+    }).filter(Boolean);
 
     let updated = 0;
     for (const r of rows) {
@@ -408,22 +386,66 @@ app.post('/api/sync-weather', auth, async (req, res) => {
         INSERT INTO public.weather (date,station,tmax,tmin,tavg,humidity,precip,wind,et0,updated_at)
         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())
         ON CONFLICT (date,station) DO UPDATE SET
-          tmax=EXCLUDED.tmax,
-          tmin=EXCLUDED.tmin,
-          tavg=EXCLUDED.tavg,
-          humidity=EXCLUDED.humidity,
-          precip=EXCLUDED.precip,
+          tmax=EXCLUDED.tmax, tmin=EXCLUDED.tmin, tavg=EXCLUDED.tavg,
+          humidity=EXCLUDED.humidity, precip=EXCLUDED.precip,
           wind=EXCLUDED.wind,
           et0=COALESCE(EXCLUDED.et0, public.weather.et0),
           updated_at=NOW()
-      `, [r.date,r.station,r.tmax,r.tmin,r.tavg,r.humidity,r.precip,r.wind,r.et0]);
+      `, [r.date, r.station, r.tmax, r.tmin, r.tavg, r.humidity, r.precip, r.wind, r.et0]);
       updated++;
     }
 
-    console.log(`[sync-weather] Updated ${updated} days for station ${station}`);
-    const sensorNames = sensors.map(s => s.name_original || s.name || JSON.stringify(s.group||'?'));
-    console.log('[sync-weather] Sensor names:', JSON.stringify(sensorNames));
-    console.log('[sync-weather] Sample byDate:', JSON.stringify(Object.values(byDate)[2]));
+    console.log(`[sync-weather] Updated ${updated} FC days for station ${station}`);
+
+    // Fallback: fill missing recent days with Open-Meteo data
+    const lat = process.env.FARM_LAT || '47.98';
+    const lon = process.env.FARM_LON || '28.72';
+    try {
+      const omUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,relativehumidity_2m_max,et0_fao_evapotranspiration&timezone=Europe%2FBucharest&past_days=7&forecast_days=1`;
+      const https = require('https');
+      const omData = await new Promise((resolve, reject) => {
+        https.get(omUrl, r => {
+          let body = '';
+          r.on('data', d => body += d);
+          r.on('end', () => { try { resolve(JSON.parse(body)); } catch(e) { reject(e); } });
+        }).on('error', reject);
+      });
+      const omDates = omData.daily?.time || [];
+      let omUpdated = 0;
+      for (let i = 0; i < omDates.length; i++) {
+        const date = omDates[i];
+        const tmax = omData.daily.temperature_2m_max?.[i];
+        const tmin = omData.daily.temperature_2m_min?.[i];
+        if (tmax === null || tmax === undefined) continue;
+        // Only fill if FC data is missing
+        await db.query(`
+          INSERT INTO public.weather (date,station,tmax,tmin,tavg,humidity,precip,wind,et0,updated_at)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())
+          ON CONFLICT (date,station) DO UPDATE SET
+            tmax=CASE WHEN public.weather.tmax IS NULL THEN EXCLUDED.tmax ELSE public.weather.tmax END,
+            tmin=CASE WHEN public.weather.tmin IS NULL THEN EXCLUDED.tmin ELSE public.weather.tmin END,
+            tavg=CASE WHEN public.weather.tavg IS NULL THEN EXCLUDED.tavg ELSE public.weather.tavg END,
+            humidity=CASE WHEN public.weather.humidity IS NULL THEN EXCLUDED.humidity ELSE public.weather.humidity END,
+            precip=CASE WHEN public.weather.precip IS NULL OR public.weather.precip=0 THEN EXCLUDED.precip ELSE public.weather.precip END,
+            et0=CASE WHEN public.weather.et0 IS NULL THEN EXCLUDED.et0 ELSE public.weather.et0 END,
+            updated_at=NOW()
+        `, [date, station,
+            tmax, tmin,
+            tmax && tmin ? Math.round((tmax+tmin)/2*10)/10 : null,
+            omData.daily.relativehumidity_2m_max?.[i] ?? null,
+            omData.daily.precipitation_sum?.[i] ?? 0,
+            omData.daily.windspeed_10m_max?.[i] ?? null,
+            omData.daily.et0_fao_evapotranspiration?.[i] ?? null
+        ]);
+        omUpdated++;
+      }
+      console.log(`[sync-weather] Open-Meteo filled ${omUpdated} days as fallback`);
+      updated += omUpdated;
+    } catch(omErr) {
+      console.warn('[sync-weather] Open-Meteo fallback failed:', omErr.message);
+    }
+
+    const sensorNames = sensors.map(s => s.name_original || s.name || '?');
     const sample25 = rows.find(r=>r.date>='2026-05-25') || rows[0];
     res.json({ ok:true, updated, dates: rows.map(r=>r.date), raw_dates: dates.length, sensors: sensorNames, sample: sample25 });
   } catch(e) {
@@ -767,60 +789,44 @@ async function syncWeatherCron() {
       const fcPub  = st.key === 'orchard' ? FC_PUBLIC  : (process.env.FIELDCLIMATE_PUBLIC_KEY_VEG  || '');
       const fcPriv = st.key === 'orchard' ? FC_PRIVATE : (process.env.FIELDCLIMATE_PRIVATE_KEY_VEG || '');
       if (!fcPub || !fcPriv) continue;
-      const path = fcDatePath(st.id, 7);
+      const path = `/ag-grid/${st.id}/daily/last/7`;
       const date = new Date().toUTCString();
-      const sig  = crypto.createHmac('sha256', fcPriv).update('GET' + path + date + fcPub).digest('hex');
-      const headers = { 'Accept':'application/json', 'Authorization':`hmac ${fcPub}:${sig}`, 'Request-Date':date };
-      const r = await fetch('https://api.fieldclimate.com/v2' + path, { headers });
+      const sig  = crypto.createHmac('sha256', fcPriv).update('POST' + path + date + fcPub).digest('hex');
+      const headers = { 'Accept':'application/json', 'Authorization':`hmac ${fcPub}:${sig}`, 'Request-Date':date, 'Content-Type':'application/json' };
+      const r = await fetch('https://api.fieldclimate.com/v2' + path, { method:'POST', headers, body:'{}' });
       if (!r.ok) { console.warn(`[cron] FC ${st.id}: ${r.status}`); continue; }
       const fcData = await r.json();
-      const dates = fcData.dates || [];
-      const sensors = fcData.data || [];
-      const byDate = {};
-      dates.forEach(dt => {
-        const d = dt.slice(0,10);
-        if (!byDate[d]) byDate[d] = { date:d, station:st.id, tmax:-999, tmin:999, temps:[], precip:0, rh:[], wind:[] };
-      });
-      sensors.forEach(sensor => {
-        const name = (sensor.name_original || sensor.name || '').toLowerCase();
-        let values = sensor.values || sensor.data || [];
-        if (!Array.isArray(values)) values = Object.values(values);
-        values.forEach((val, i) => {
-          const dt = dates[i]; if (!dt) return;
-          const d = dt.slice(0,10);
-          if (!byDate[d]) return;
-          const v = parseFloat(val); if (isNaN(v)) return;
-          const divided = sensor.divider ? v / sensor.divider : v;
-          if (name.includes('temperature') || name.includes('temp')) {
-            byDate[d].temps.push(divided);
-            byDate[d].tmax = Math.max(byDate[d].tmax, divided);
-            byDate[d].tmin = Math.min(byDate[d].tmin, divided);
-          } else if (name.includes('rain') || name.includes('precip')) {
-            byDate[d].precip += divided;
-          } else if (name.includes('humid') || name.includes('rh')) {
-            byDate[d].rh.push(divided);
-          } else if (name.includes('wind')) {
-            byDate[d].wind.push(divided);
-          }
-        });
-      });
-      const rows = Object.values(byDate);
+      // ag-grid format
+      const agRows = fcData.data || [];
+      const rows = agRows.map(row => {
+        const d = (row.datetime||'').slice(0,10); if(!d) return null;
+        return {
+          date: d, station: st.id,
+          tmax: row['sensor_x_x_18_506_mx'] ?? row['sensor_x_x_0_0_mx'] ?? null,
+          tmin: row['sensor_x_x_18_506_mn'] ?? row['sensor_x_x_0_0_mn'] ?? null,
+          tavg: row['sensor_x_x_18_506_a']  ?? row['sensor_x_x_0_0_a']  ?? null,
+          humidity: row['sensor_x_x_19_507_a'] ?? null,
+          precip: row['sensor_x_x_5_6_s'] ?? 0,
+          wind: row['sensor_x_x_6_5_a'] ?? null,
+          et0: row['disease_evapotranspiration_ETo'] ?? null,
+        };
+      }).filter(Boolean);
       for (const row of rows) {
-        const tavg = row.temps.length ? Math.round(row.temps.reduce((s,v)=>s+v,0)/row.temps.length*10)/10 : null;
         await db.query(`
           INSERT INTO public.weather (date,station,tmax,tmin,tavg,humidity,precip,wind,et0,updated_at)
           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())
           ON CONFLICT (date,station) DO UPDATE SET
-            tmax=EXCLUDED.tmax,tmin=EXCLUDED.tmin,tavg=EXCLUDED.tavg,
-            humidity=EXCLUDED.humidity,precip=EXCLUDED.precip,wind=EXCLUDED.wind,updated_at=NOW()
+            tmax=EXCLUDED.tmax, tmin=EXCLUDED.tmin, tavg=EXCLUDED.tavg,
+            humidity=EXCLUDED.humidity, precip=EXCLUDED.precip,
+            wind=EXCLUDED.wind, et0=COALESCE(EXCLUDED.et0, public.weather.et0), updated_at=NOW()
         `, [row.date, st.id,
-            row.tmax===-999?null:Math.round(row.tmax*10)/10,
-            row.tmin===999?null:Math.round(row.tmin*10)/10,
-            tavg,
-            row.rh.length?Math.round(row.rh.reduce((s,v)=>s+v,0)/row.rh.length):null,
-            Math.round(row.precip*10)/10,
-            row.wind.length?Math.round(row.wind.reduce((s,v)=>s+v,0)/row.wind.length*10)/10:null,
-            null]);
+            row.tmax !== null ? Math.round(row.tmax*10)/10 : null,
+            row.tmin !== null ? Math.round(row.tmin*10)/10 : null,
+            row.tavg !== null ? Math.round(row.tavg*10)/10 : null,
+            row.humidity !== null ? Math.round(row.humidity) : null,
+            Math.round((row.precip||0)*10)/10,
+            row.wind !== null ? Math.round(row.wind*10)/10 : null,
+            row.et0 !== null ? Math.round(row.et0*10)/10 : null]);
       }
       console.log(`[cron] ${st.id}: saved ${rows.length} days`);
     } catch(e) { console.warn(`[cron] ${st.id} error:`, e.message); }
