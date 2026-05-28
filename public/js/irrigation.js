@@ -370,12 +370,25 @@ function calcZoneIrrigRecommendation(z) {
   const raw = taw * 0.35;
 
   // 2. Дефицит влаги из Water Balance (последние 7 дней)
-  const weather7 = (S.weather||[]).slice(0, 7);
+  const weather7 = (S.weather||[]).filter(w => w.tmax !== null).slice(0, 7);
   const gdd = getCurrentGdd(4.5);
-  const phase = getPhaseByGdd(z.varieties?.[0] || S.varieties?.[0]?.id, gdd);
-  const kc = phase?.kc || 1.0;
+  // Берём varietyId из клеток зоны
+  const zoneVarietyId = (() => {
+    for (const cellKey of (z.cellKeys||[])) {
+      const cd = S.cells?.[cellKey];
+      if (!cd) continue;
+      const rid = cd.rows?.[0]?.varietyId || (cd.cols?.[0]?.varietyId);
+      if (rid) return rid;
+    }
+    return z.varietyIds?.[0] || S.varieties?.[0]?.id;
+  })();
+  const zoneCell = S.cells?.[(z.cellKeys||[])[0]];
+  const zoneCropId = zoneCell?.cropId || 'crop_cherry';
+  const baseTemp = zoneCropId === 'crop_apple' ? 4.0 : 4.5;
+  const phase = getPhaseByGdd(zoneVarietyId, gdd);
+  const kc = phase?.kc || (zoneCropId === 'crop_cherry' ? 0.9 : 1.0);
   
-  const et0_7 = weather7.reduce((s,w) => s + (parseFloat(w.et0)||parseFloat(w.et_0)||0), 0);
+  const et0_7 = weather7.reduce((s,w) => s + (parseFloat(w.et0) || 0), 0);
   const etc_7 = et0_7 * kc;
   const precip_7 = weather7.reduce((s,w) => s + (parseFloat(w.precip)||0), 0);
   
@@ -614,9 +627,9 @@ function calcWaterBalance() {
   sorted.forEach(w => {
     const et0 = parseFloat(w.et0) || ((parseFloat(w.tmax)||25)-(parseFloat(w.tmin)||10))*0.2;
     // Kc из фазы GDD
-    const gdd = getCurrentGdd(5);
-    const phase = getPhaseByGdd(S.varieties[0]?.id, gdd);
-    const kc = phase?.kc || 1.0;
+    const gdd = getCurrentGdd(4.5);
+    const phase = getPhaseByGdd(S.varieties?.[0]?.id, gdd);
+    const kc = phase?.kc || 0.9;
     const etc = Math.round(et0 * kc * 10)/10;
     const rain = parseFloat(w.precip)||0;
     // Полив — ищем в журнале событий за эту дату
@@ -1829,143 +1842,6 @@ const IRRIG_FORMS = {
     row: r => `<td><strong>${r.name}</strong></td><td style="color:var(--text3);font-size:11px;">${r.ftype||'—'}</td><td>${r.sprink||'—'}</td><td><strong style="color:var(--blue);">${r.flow||'—'}</strong></td><td>${r.pres_min||'—'}</td><td>${r.radius||'—'}</td><td>${r.spacing||'—'}</td><td style="color:${parseFloat(r.temp_on)<0?'var(--blue)':'var(--text2)'};">${r.temp_on!=null?r.temp_on+'°C':'—'}</td><td style="color:var(--text3);font-size:11px;">${r.note||'—'}</td>`,
   },
 };
-
-
-// ═══════════════════════════════════════════════════════════════════════════
-// 📥 ШАБЛОН И ИМПОРТ ИРРИГАЦИОННОГО ОБОРУДОВАНИЯ
-// ═══════════════════════════════════════════════════════════════════════════
-
-function downloadIrrigEquipTemplate() {
-  if (typeof XLSX === 'undefined') { alert('Библиотека XLSX не загружена'); return; }
-  const wb = XLSX.utils.book_new();
-
-  // Насосы
-  const ws1 = XLSX.utils.aoa_to_sheet([
-    ['Название/модель*', 'Производит. (м³/ч)', 'Давление (бар)', 'Мощность (кВт)', 'Фазы (1-фазный 220В / 3-фазный 380В / Дизельный)', 'Примечание'],
-    ['Grundfos CM5-6', 150, 6, 5, '3-фазный 380В', ''],
-    ['Pedrollo F32', 80, 4, 3, '3-фазный 380В', 'Резервный'],
-  ]);
-  ws1['!cols'] = [20,16,14,12,30,25].map(w=>({wch:w}));
-  XLSX.utils.book_append_sheet(wb, ws1, 'Насосы');
-
-  // Клапаны
-  const ws2 = XLSX.utils.aoa_to_sheet([
-    ['Модель*', 'Тип (Электромагнитный/Гидравлический/Ручной/Обратный)', 'Диаметр', 'Макс. давление (бар)', 'Зона', 'Управление', 'Примечание'],
-    ['Bermad 100', 'Электромагнитный', '75мм', 6, '1-9', '12 DC', ''],
-    ['Netafim NP-19', 'Гидравлический', '50мм', 8, '10-18', '24 AC', ''],
-  ]);
-  ws2['!cols'] = [18,35,12,16,12,14,20].map(w=>({wch:w}));
-  XLSX.utils.book_append_sheet(wb, ws2, 'Клапаны');
-
-  // Капельная трубка
-  const ws3 = XLSX.utils.aoa_to_sheet([
-    ['Марка*', 'Тип эмиттера (Встроенный/Вставной/Компенсирующий/Лабиринтный)', 'Расст. (см)', 'Водовылив (л/ч)', 'Давл. мин (бар)', 'Давл. ном (бар)', 'Диаметр (мм)', 'Зона', 'Примечание'],
-    ['Netafim Typhoon', 'Компенсирующий (PCE)', 50, 2, 1, 2, 16, '1-1', ''],
-    ['Irritec Premium', 'Встроенный (inline)', 33, 1.6, 0.5, 1.5, 16, '2-1', ''],
-  ]);
-  ws3['!cols'] = [18,35,12,14,14,14,14,12,20].map(w=>({wch:w}));
-  XLSX.utils.book_append_sheet(wb, ws3, 'Капельная трубка');
-
-  // Антизаморозка
-  const ws4 = XLSX.utils.aoa_to_sheet([
-    ['Название*', 'Тип (Водяная/Воздушная/Смешанная)', 'Модель спринклера', 'Расход (м³/ч·га)', 'Давл. мин (бар)', 'Радиус (м)', 'Расст. (м)', 'Вкл. при (°C)', 'Зона', 'Примечание'],
-    ['Антизаморозка А', 'Водяная (спринклеры)', 'Nelson R33', 40, 2.5, 12, 18, -0.5, 'Весь сад', ''],
-  ]);
-  ws4['!cols'] = [20,25,18,16,14,12,12,14,12,20].map(w=>({wch:w}));
-  XLSX.utils.book_append_sheet(wb, ws4, 'Антизаморозка');
-
-  XLSX.writeFile(wb, 'шаблон_ирригация_оборудование.xlsx');
-}
-
-function importIrrigEquipFromExcel(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-  event.target.value = '';
-  if (typeof XLSX === 'undefined') { alert('Библиотека XLSX не загружена'); return; }
-
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    try {
-      const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
-      const store = _getIrrigStore();
-      let total = 0;
-
-      wb.SheetNames.forEach(sheetName => {
-        const ws = wb.Sheets[sheetName];
-        const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
-        if (rows.length < 2) return;
-
-        const H = rows[0].map(h=>String(h).toLowerCase().trim());
-        const col = (...kws) => { for(const kw of kws){ const i=H.findIndex(h=>h.includes(kw)); if(i>=0) return i; } return -1; };
-        const iName = col('назван','марка','модель','name');
-        if (iName < 0) return;
-
-        const sn = sheetName.toLowerCase();
-        const isPump  = sn.includes('насос') || sn.includes('pump');
-        const isValve = sn.includes('клапан') || sn.includes('valve');
-        const isDrip  = sn.includes('капельн') || sn.includes('drip');
-        const isFrost = sn.includes('антиза') || sn.includes('frost');
-
-        for (let i = 1; i < rows.length; i++) {
-          const r = rows[i];
-          const name = String(r[iName]||'').trim();
-          if (!name) continue;
-
-          if (isPump) {
-            const iFlow  = col('производит','flow','м³');
-            const iPres  = col('давлен','pres','бар');
-            const iPower = col('мощн','power','квт');
-            const iPhase = col('фаз','phase');
-            const iNote  = col('примеч','note');
-            store.pumps.push({ name, flow:parseFloat(r[iFlow])||null, pres:parseFloat(r[iPres])||null, power:parseFloat(r[iPower])||null, phases:String(r[iPhase]||'').trim()||null, note:String(r[iNote]||'').trim()||null });
-            total++;
-          } else if (isValve) {
-            const iVtype = col('тип','type');
-            const iDiam  = col('диам','diam');
-            const iPres  = col('давлен','pres');
-            const iZone  = col('зон','zone');
-            const iVolt  = col('управл','volt','напряж');
-            const iNote  = col('примеч','note');
-            store.valves.push({ name, vtype:String(r[iVtype]||'').trim()||null, diam:String(r[iDiam]||'').trim()||null, pres:parseFloat(r[iPres])||null, zone:String(r[iZone]||'').trim()||null, volt:String(r[iVolt]||'').trim()||null, note:String(r[iNote]||'').trim()||null });
-            total++;
-          } else if (isDrip) {
-            const iEmit   = col('эмиттер','emit','тип');
-            const iSpac   = col('расст','spac');
-            const iFlow   = col('водовылив','flow');
-            const iPmin   = col('мин','pres_min');
-            const iPnom   = col('ном','pres_nom');
-            const iDiam   = col('диам','diam');
-            const iZone   = col('зон','zone');
-            const iNote   = col('примеч','note');
-            store.drip.push({ name, emitter:String(r[iEmit]||'').trim()||null, spacing:parseFloat(r[iSpac])||null, flow:parseFloat(r[iFlow])||null, pres_min:parseFloat(r[iPmin])||null, pres_nom:parseFloat(r[iPnom])||null, diam:String(r[iDiam]||'').trim()||null, zone:String(r[iZone]||'').trim()||null, note:String(r[iNote]||'').trim()||null });
-            total++;
-          } else if (isFrost) {
-            const iFtype  = col('тип','type');
-            const iSprink = col('спринклер','sprink');
-            const iFlow   = col('расход','flow');
-            const iPmin   = col('давл','pres');
-            const iRadius = col('радиус','radius');
-            const iSpac   = col('расст','spac');
-            const iTemp   = col('вкл','temp');
-            const iZone   = col('зон','zone');
-            const iNote   = col('примеч','note');
-            store.frost.push({ name, ftype:String(r[iFtype]||'').trim()||null, sprink:String(r[iSprink]||'').trim()||null, flow:parseFloat(r[iFlow])||null, pres_min:parseFloat(r[iPmin])||null, radius:parseFloat(r[iRadius])||null, spacing:parseFloat(r[iSpac])||null, temp_on:parseFloat(r[iTemp])||null, zone:String(r[iZone]||'').trim()||null, note:String(r[iNote]||'').trim()||null });
-            total++;
-          }
-        }
-      });
-
-      S.irrigEquip = store;
-      save();
-      loadIrrigLists();
-      alert(`✅ Импорт завершён: ${total} записей добавлено`);
-    } catch(err) {
-      alert('Ошибка импорта: ' + err.message);
-      console.error('[importIrrigEquipFromExcel]', err);
-    }
-  };
-  reader.readAsArrayBuffer(file);
-}
 
 function loadIrrigLists() {
   const store = _getIrrigStore();
