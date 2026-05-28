@@ -119,8 +119,6 @@ function renderIrrigZones() {
       </div>
       <!-- Рекомендация полива -->
       ${renderZoneRecommendation(z)}
-      <!-- Анализы зоны -->
-      ${renderZoneAnalysisBlock(z)}
       </div>`;
     }).join('') + `</div>`;
 }
@@ -501,256 +499,6 @@ function renderZoneRecommendation(z) {
         📊 ETc 7 дн: ${r.etc_7.toFixed(1)}мм · Осадки: ${r.precip_7.toFixed(1)}мм · Дефицит: ${r.deficit.toFixed(1)}мм
       </div>`}
     </div>`;
-}
-
-
-// ═══════════════════════════════════════════════════════════════════════════
-// 🔬 АНАЛИЗЫ ЗОНЫ + AI РЕКОМЕНДАЦИЯ ФЕРТИГАЦИИ
-// ═══════════════════════════════════════════════════════════════════════════
-
-/** Получить последний анализ нужного типа для зоны */
-function getZoneLastAnalysis(zoneId, type) {
-  return (S.analyses||[])
-    .filter(a => a.type === type && (
-      (a.zoneId && a.zoneId.split(',').includes(zoneId)) ||
-      (type === 'water') // вода — общая для всех
-    ))
-    .sort((a,b) => (b.date||'').localeCompare(a.date||''))[0] || null;
-}
-
-/** Статус показателя — цвет и иконка */
-function _paramStatus(val, min, max) {
-  if (val === undefined || val === null || val === '') return { color:'var(--text3)', icon:'—' };
-  const v = parseFloat(val);
-  if (isNaN(v)) return { color:'var(--text3)', icon:'—' };
-  if (v < min) return { color:'var(--red)', icon:'❌' };
-  if (v > max) return { color:'var(--yellow)', icon:'⚠️' };
-  return { color:'var(--accent)', icon:'✅' };
-}
-
-/** Блок анализов в карточке зоны */
-function renderZoneAnalysisBlock(z) {
-  const soil  = getZoneLastAnalysis(z.id, 'soil');
-  const leaf  = getZoneLastAnalysis(z.id, 'leaf');
-  const water = getZoneLastAnalysis(z.id, 'water');
-  const aiRec = z.aiRec || null;
-
-  // Ключевые показатели почвы
-  const soilHtml = soil ? (() => {
-    const params = [
-      { k:'pH',  min:6.0, max:7.5, label:'pH' },
-      { k:'NO3', min:15,  max:50,  label:'N' },
-      { k:'P',   min:50,  max:200, label:'P' },
-      { k:'K',   min:100, max:300, label:'K' },
-      { k:'Ca',  min:800, max:3000,label:'Ca' },
-      { k:'Mg',  min:80,  max:400, label:'Mg' },
-    ];
-    const items = params.filter(p => soil[p.k] !== undefined && soil[p.k] !== '').map(p => {
-      const st = _paramStatus(soil[p.k], p.min, p.max);
-      return `<span style="font-size:10px;padding:2px 6px;border-radius:6px;background:${st.color}18;color:${st.color};">${p.label}: ${soil[p.k]}</span>`;
-    });
-    return `<div style="margin-bottom:6px;">
-      <div style="font-size:10px;color:var(--text3);margin-bottom:4px;">🌱 Почва · ${soil.date||'—'} ${soil.lab?'· '+soil.lab:''}</div>
-      <div style="display:flex;flex-wrap:wrap;gap:3px;">${items.join('')}</div>
-    </div>`;
-  })() : `<div style="font-size:10px;color:var(--text3);margin-bottom:4px;">🌱 Анализ почвы: <span style="color:var(--orange);">не добавлен</span>
-    <button class="btn btn-secondary btn-xs" style="margin-left:6px;" onclick="openAnalysisModal('soil');setTimeout(()=>{const z=(S.irrigation?.zones||[]).find(x=>x.id==='${z.id}');if(z){_anSelectedZones=new Set([z.id]);_updateAnSummary();}},100);">+ Добавить</button>
-  </div>`;
-
-  // Ключевые показатели листа
-  const leafHtml = leaf ? (() => {
-    const params = [
-      { k:'N',  min:2.2, max:3.5, label:'N%' },
-      { k:'P',  min:0.15,max:0.4, label:'P%' },
-      { k:'K',  min:1.5, max:3.0, label:'K%' },
-      { k:'Ca', min:1.0, max:2.5, label:'Ca%' },
-      { k:'Mg', min:0.25,max:0.5, label:'Mg%' },
-      { k:'B',  min:20,  max:80,  label:'B' },
-      { k:'Fe', min:50,  max:200, label:'Fe' },
-    ];
-    const items = params.filter(p => leaf[p.k] !== undefined && leaf[p.k] !== '').map(p => {
-      const st = _paramStatus(leaf[p.k], p.min, p.max);
-      return `<span style="font-size:10px;padding:2px 6px;border-radius:6px;background:${st.color}18;color:${st.color};">${p.label}: ${leaf[p.k]}</span>`;
-    });
-    return `<div style="margin-bottom:6px;">
-      <div style="font-size:10px;color:var(--text3);margin-bottom:4px;">🍃 Лист · ${leaf.date||'—'} ${leaf.varietyId?'· '+((S.varieties||[]).find(v=>v.id===leaf.varietyId)?.name||''):''}</div>
-      <div style="display:flex;flex-wrap:wrap;gap:3px;">${items.join('')}</div>
-    </div>`;
-  })() : `<div style="font-size:10px;color:var(--text3);margin-bottom:4px;">🍃 Анализ листа: <span style="color:var(--orange);">не добавлен</span>
-    <button class="btn btn-secondary btn-xs" style="margin-left:6px;" onclick="openAnalysisModal('leaf');setTimeout(()=>{_anSelectedZones=new Set(['${z.id}']);_updateAnSummary();},100);">+ Добавить</button>
-  </div>`;
-
-  // Вода (краткий статус)
-  const waterHtml = water ? (() => {
-    const ph  = _paramStatus(water.pH, 6.5, 7.5);
-    const ec  = _paramStatus(water.EC, 0.1, 1.5);
-    return `<div style="font-size:10px;color:var(--text3);margin-bottom:6px;">💧 Вода · ${water.date||'—'} · pH: <span style="color:${ph.color};">${water.pH||'—'}</span> · EC: <span style="color:${ec.color};">${water.EC||'—'}</span> мСм</div>`;
-  })() : `<div style="font-size:10px;color:var(--text3);margin-bottom:6px;">💧 Анализ воды: <span style="color:var(--text3);">общий — не добавлен</span></div>`;
-
-  // AI рекомендация
-  const aiHtml = aiRec ? `
-    <div style="padding:10px 12px;background:rgba(96,165,250,.06);border:1px solid rgba(96,165,250,.15);border-radius:8px;margin-top:8px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-        <div style="font-size:10px;font-weight:700;color:var(--blue);">🤖 AI Рекомендация · ${aiRec.date||''}</div>
-        <button class="btn btn-secondary btn-xs" onclick="generateZoneAIRecommendation('${z.id}')">🔄</button>
-      </div>
-      ${aiRec.irrigation ? `<div style="font-size:11px;margin-bottom:4px;">
-        💧 <strong>Полив:</strong> ${aiRec.irrigation.needed ? `<span style="color:var(--blue);">${aiRec.irrigation.mm}мм · ${aiRec.irrigation.when}</span>` : '<span style="color:var(--accent);">не требуется</span>'}
-        ${aiRec.irrigation.reason ? `<br><span style="color:var(--text3);font-size:10px;">${aiRec.irrigation.reason}</span>` : ''}
-      </div>` : ''}
-      ${aiRec.fertigation?.length ? `<div style="font-size:11px;margin-bottom:4px;">
-        🌱 <strong>Фертигация:</strong><br>
-        ${aiRec.fertigation.map(f => `<div style="padding:3px 0;border-top:1px solid var(--border);margin-top:3px;">
-          <span style="color:${f.priority==='высокий'?'var(--red)':f.priority==='средний'?'var(--yellow)':'var(--text2)'};">● ${f.element}</span>
-          <span style="color:var(--text3);"> — ${f.product} · ${f.dose} · ${f.method}</span>
-        </div>`).join('')}
-      </div>` : ''}
-      ${aiRec.alerts?.length ? `<div style="margin-top:4px;">${aiRec.alerts.map(a=>`<div style="font-size:10px;color:var(--orange);">⚠️ ${a}</div>`).join('')}</div>` : ''}
-      ${aiRec.summary ? `<div style="font-size:10px;color:var(--text3);margin-top:4px;font-style:italic;">${aiRec.summary}</div>` : ''}
-    </div>` : `
-    <div style="margin-top:8px;text-align:center;">
-      <button class="btn btn-secondary btn-sm" onclick="generateZoneAIRecommendation('${z.id}')" 
-        style="background:rgba(96,165,250,.08);border-color:rgba(96,165,250,.2);color:var(--blue);">
-        🤖 AI Рекомендация (полив + фертигация)
-      </button>
-    </div>`;
-
-  if (!soil && !leaf && !water) return '';
-
-  return `
-    <div style="margin-top:12px;padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:10px;">
-      <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🔬 Анализы</div>
-      ${soilHtml}${leafHtml}${waterHtml}
-      ${aiHtml}
-    </div>`;
-}
-
-/** Генерация AI рекомендации для зоны */
-async function generateZoneAIRecommendation(zoneId) {
-  const z = (S.irrigation?.zones||[]).find(x => x.id === zoneId);
-  if (!z) return;
-
-  // Показываем лоадер в кнопке
-  const btn = document.querySelector(`[onclick="generateZoneAIRecommendation('${zoneId}')"]`);
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ AI анализирует...'; }
-
-  try {
-    const soil  = getZoneLastAnalysis(zoneId, 'soil');
-    const leaf  = getZoneLastAnalysis(zoneId, 'leaf');
-    const water = getZoneLastAnalysis(zoneId, 'water');
-
-    // Погода последние 7 дней
-    const w7 = (S.weather||[]).slice(0,7);
-    const totalRain = w7.reduce((s,w)=>s+parseFloat(w.precip||0),0).toFixed(1);
-    const avgTmax   = w7.length ? (w7.reduce((s,w)=>s+parseFloat(w.tmax||0),0)/w7.length).toFixed(1) : '—';
-    const totalEt0  = w7.reduce((s,w)=>s+parseFloat(w.et0||0),0).toFixed(1);
-
-    // Прогноз погоды
-    let forecastText = 'нет данных';
-    try {
-      const fr = await fetch('/api/weather/forecast', { headers: getAuthHeaders() });
-      if (fr.ok) {
-        const fd = await fr.json();
-        if (fd.forecast) {
-          forecastText = fd.forecast.slice(0,5).map(d =>
-            `${d.date}: T${d.tmin}–${d.tmax}°C, осадки ${d.precip}мм, ET₀ ${d.et0||'—'}мм`
-          ).join('; ');
-        }
-      }
-    } catch(e) { /* нет прогноза */ }
-
-    // Баланс воды зоны
-    const wb = calcZoneIrrigRecommendation(z);
-    const balanceText = `дефицит ${wb.deficit.toFixed(1)}мм, ETc 7дн ${wb.etc_7.toFixed(1)}мм, статус: ${wb.status}`;
-
-    // GDD и фаза
-    let gddText = '';
-    try {
-      const crop = getCropById((S.cells[z.cellKeys?.[0]]?.cropId)||'crop_cherry');
-      const gdd = getCurrentGdd(crop?.baseTemp||4.5);
-      const varId = z.varietyIds?.[0];
-      const phase = varId ? getPhaseByGdd(varId, gdd) : null;
-      const variety = varId ? S.varieties.find(v=>v.id===varId) : null;
-      gddText = `GDD=${gdd.toFixed(0)}, фаза=${phase?.name||'—'}, культура=${crop?.name||'—'}, сорт=${variety?.name||'—'}`;
-    } catch(e) {}
-
-    // Последняя фертигация
-    const lastFert = (S.irrigation?.fertigEvents||S.fertigation?.events||[])
-      .filter(e=>e.zoneId===zoneId)
-      .sort((a,b)=>(b.date||'').localeCompare(a.date||''))[0];
-    const lastFertText = lastFert ? `${lastFert.date}: ${JSON.stringify(lastFert)}` : 'нет данных';
-
-    // Формируем промпт
-    const prompt = `Ты опытный агроном-консультант по интенсивному садоводству (вишня, черешня, яблоко).
-Дай конкретные рекомендации по поливу и фертигации для зоны капельного орошения.
-
-ЗОНА: ${z.name}
-${soil ? `АНАЛИЗ ПОЧВЫ (${soil.date}): pH=${soil.pH||'—'}, OM=${soil.OM||'—'}%, NO3=${soil.NO3||'—'}мг/кг, P=${soil.P||'—'}мг/кг, K=${soil.K||'—'}мг/кг, Ca=${soil.Ca||'—'}мг/кг, Mg=${soil.Mg||'—'}мг/кг, B=${soil.B||'—'}мг/кг` : 'АНАЛИЗ ПОЧВЫ: нет данных'}
-${leaf ? `АНАЛИЗ ЛИСТА (${leaf.date}): N=${leaf.N||'—'}%, P=${leaf.P||'—'}%, K=${leaf.K||'—'}%, Ca=${leaf.Ca||'—'}%, Mg=${leaf.Mg||'—'}%, Fe=${leaf.Fe||'—'}мг/кг, Zn=${leaf.Zn||'—'}мг/кг, B=${leaf.B||'—'}мг/кг, Mn=${leaf.Mn||'—'}мг/кг` : 'АНАЛИЗ ЛИСТА: нет данных'}
-${water ? `АНАЛИЗ ВОДЫ: pH=${water.pH||'—'}, EC=${water.EC||'—'}мСм/см, Ca=${water.Ca||'—'}мг/л, Mg=${water.Mg||'—'}мг/л, HCO3=${water.HCO3||'—'}мг/л, NO3=${water.NO3||'—'}мг/л` : 'АНАЛИЗ ВОДЫ: нет данных'}
-ПОГОДА 7 дней: Tmax avg=${avgTmax}°C, осадки=${totalRain}мм, ET₀=${totalEt0}мм
-ПРОГНОЗ 7 дней: ${forecastText}
-БАЛАНС ВОДЫ: ${balanceText}
-ПОСЛЕДНЯЯ ФЕРТИГАЦИЯ: ${lastFertText}
-${gddText ? `ФЕНОЛОГИЯ: ${gddText}` : ''}
-
-Ответь СТРОГО в JSON без пояснений:
-{
-  "irrigation": {
-    "needed": true/false,
-    "mm": число,
-    "when": "сегодня|завтра|через N дней|не нужен",
-    "reason": "краткое объяснение"
-  },
-  "fertigation": [
-    {
-      "element": "Ca",
-      "status": "дефицит|норма|избыток",
-      "product": "название препарата",
-      "dose": "доза на 1000л воды или кг/га",
-      "method": "капельное|листовое|в почву",
-      "priority": "высокий|средний|низкий"
-    }
-  ],
-  "alerts": ["текст алерта если есть"],
-  "summary": "1-2 предложения общий вывод"
-}`;
-
-    const resp = await fetch('/api/ai/advisor', {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({
-        messages: [{ role: 'user', content: prompt }],
-        max_tokens: 1500
-      })
-    });
-
-    if (!resp.ok) throw new Error('AI недоступен: ' + resp.status);
-    const data = await resp.json();
-    const text = (data.content||[]).map(c=>c.text||'').join('');
-
-    // Парсим JSON из ответа
-    let rec;
-    try {
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      rec = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
-    } catch(e) {
-      rec = { summary: text.slice(0, 300), alerts: ['Не удалось распознать структуру ответа AI'] };
-    }
-
-    if (rec) {
-      rec.date = new Date().toLocaleDateString('ru-RU');
-      // Сохраняем в зону
-      const zIdx = S.irrigation.zones.findIndex(x=>x.id===zoneId);
-      if (zIdx >= 0) S.irrigation.zones[zIdx].aiRec = rec;
-      save();
-      renderIrrigZones();
-    }
-  } catch(e) {
-    console.error('[generateZoneAIRecommendation]', e.message);
-    alert('Ошибка AI: ' + e.message);
-    if (btn) { btn.disabled = false; btn.textContent = '🤖 AI Рекомендация (полив + фертигация)'; }
-  }
 }
 
 function openIrrigEventModalForZone(zoneId, mm, durationMin) {
@@ -2081,6 +1829,143 @@ const IRRIG_FORMS = {
     row: r => `<td><strong>${r.name}</strong></td><td style="color:var(--text3);font-size:11px;">${r.ftype||'—'}</td><td>${r.sprink||'—'}</td><td><strong style="color:var(--blue);">${r.flow||'—'}</strong></td><td>${r.pres_min||'—'}</td><td>${r.radius||'—'}</td><td>${r.spacing||'—'}</td><td style="color:${parseFloat(r.temp_on)<0?'var(--blue)':'var(--text2)'};">${r.temp_on!=null?r.temp_on+'°C':'—'}</td><td style="color:var(--text3);font-size:11px;">${r.note||'—'}</td>`,
   },
 };
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 📥 ШАБЛОН И ИМПОРТ ИРРИГАЦИОННОГО ОБОРУДОВАНИЯ
+// ═══════════════════════════════════════════════════════════════════════════
+
+function downloadIrrigEquipTemplate() {
+  if (typeof XLSX === 'undefined') { alert('Библиотека XLSX не загружена'); return; }
+  const wb = XLSX.utils.book_new();
+
+  // Насосы
+  const ws1 = XLSX.utils.aoa_to_sheet([
+    ['Название/модель*', 'Производит. (м³/ч)', 'Давление (бар)', 'Мощность (кВт)', 'Фазы (1-фазный 220В / 3-фазный 380В / Дизельный)', 'Примечание'],
+    ['Grundfos CM5-6', 150, 6, 5, '3-фазный 380В', ''],
+    ['Pedrollo F32', 80, 4, 3, '3-фазный 380В', 'Резервный'],
+  ]);
+  ws1['!cols'] = [20,16,14,12,30,25].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws1, 'Насосы');
+
+  // Клапаны
+  const ws2 = XLSX.utils.aoa_to_sheet([
+    ['Модель*', 'Тип (Электромагнитный/Гидравлический/Ручной/Обратный)', 'Диаметр', 'Макс. давление (бар)', 'Зона', 'Управление', 'Примечание'],
+    ['Bermad 100', 'Электромагнитный', '75мм', 6, '1-9', '12 DC', ''],
+    ['Netafim NP-19', 'Гидравлический', '50мм', 8, '10-18', '24 AC', ''],
+  ]);
+  ws2['!cols'] = [18,35,12,16,12,14,20].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws2, 'Клапаны');
+
+  // Капельная трубка
+  const ws3 = XLSX.utils.aoa_to_sheet([
+    ['Марка*', 'Тип эмиттера (Встроенный/Вставной/Компенсирующий/Лабиринтный)', 'Расст. (см)', 'Водовылив (л/ч)', 'Давл. мин (бар)', 'Давл. ном (бар)', 'Диаметр (мм)', 'Зона', 'Примечание'],
+    ['Netafim Typhoon', 'Компенсирующий (PCE)', 50, 2, 1, 2, 16, '1-1', ''],
+    ['Irritec Premium', 'Встроенный (inline)', 33, 1.6, 0.5, 1.5, 16, '2-1', ''],
+  ]);
+  ws3['!cols'] = [18,35,12,14,14,14,14,12,20].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws3, 'Капельная трубка');
+
+  // Антизаморозка
+  const ws4 = XLSX.utils.aoa_to_sheet([
+    ['Название*', 'Тип (Водяная/Воздушная/Смешанная)', 'Модель спринклера', 'Расход (м³/ч·га)', 'Давл. мин (бар)', 'Радиус (м)', 'Расст. (м)', 'Вкл. при (°C)', 'Зона', 'Примечание'],
+    ['Антизаморозка А', 'Водяная (спринклеры)', 'Nelson R33', 40, 2.5, 12, 18, -0.5, 'Весь сад', ''],
+  ]);
+  ws4['!cols'] = [20,25,18,16,14,12,12,14,12,20].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws4, 'Антизаморозка');
+
+  XLSX.writeFile(wb, 'шаблон_ирригация_оборудование.xlsx');
+}
+
+function importIrrigEquipFromExcel(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  event.target.value = '';
+  if (typeof XLSX === 'undefined') { alert('Библиотека XLSX не загружена'); return; }
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+      const store = _getIrrigStore();
+      let total = 0;
+
+      wb.SheetNames.forEach(sheetName => {
+        const ws = wb.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+        if (rows.length < 2) return;
+
+        const H = rows[0].map(h=>String(h).toLowerCase().trim());
+        const col = (...kws) => { for(const kw of kws){ const i=H.findIndex(h=>h.includes(kw)); if(i>=0) return i; } return -1; };
+        const iName = col('назван','марка','модель','name');
+        if (iName < 0) return;
+
+        const sn = sheetName.toLowerCase();
+        const isPump  = sn.includes('насос') || sn.includes('pump');
+        const isValve = sn.includes('клапан') || sn.includes('valve');
+        const isDrip  = sn.includes('капельн') || sn.includes('drip');
+        const isFrost = sn.includes('антиза') || sn.includes('frost');
+
+        for (let i = 1; i < rows.length; i++) {
+          const r = rows[i];
+          const name = String(r[iName]||'').trim();
+          if (!name) continue;
+
+          if (isPump) {
+            const iFlow  = col('производит','flow','м³');
+            const iPres  = col('давлен','pres','бар');
+            const iPower = col('мощн','power','квт');
+            const iPhase = col('фаз','phase');
+            const iNote  = col('примеч','note');
+            store.pumps.push({ name, flow:parseFloat(r[iFlow])||null, pres:parseFloat(r[iPres])||null, power:parseFloat(r[iPower])||null, phases:String(r[iPhase]||'').trim()||null, note:String(r[iNote]||'').trim()||null });
+            total++;
+          } else if (isValve) {
+            const iVtype = col('тип','type');
+            const iDiam  = col('диам','diam');
+            const iPres  = col('давлен','pres');
+            const iZone  = col('зон','zone');
+            const iVolt  = col('управл','volt','напряж');
+            const iNote  = col('примеч','note');
+            store.valves.push({ name, vtype:String(r[iVtype]||'').trim()||null, diam:String(r[iDiam]||'').trim()||null, pres:parseFloat(r[iPres])||null, zone:String(r[iZone]||'').trim()||null, volt:String(r[iVolt]||'').trim()||null, note:String(r[iNote]||'').trim()||null });
+            total++;
+          } else if (isDrip) {
+            const iEmit   = col('эмиттер','emit','тип');
+            const iSpac   = col('расст','spac');
+            const iFlow   = col('водовылив','flow');
+            const iPmin   = col('мин','pres_min');
+            const iPnom   = col('ном','pres_nom');
+            const iDiam   = col('диам','diam');
+            const iZone   = col('зон','zone');
+            const iNote   = col('примеч','note');
+            store.drip.push({ name, emitter:String(r[iEmit]||'').trim()||null, spacing:parseFloat(r[iSpac])||null, flow:parseFloat(r[iFlow])||null, pres_min:parseFloat(r[iPmin])||null, pres_nom:parseFloat(r[iPnom])||null, diam:String(r[iDiam]||'').trim()||null, zone:String(r[iZone]||'').trim()||null, note:String(r[iNote]||'').trim()||null });
+            total++;
+          } else if (isFrost) {
+            const iFtype  = col('тип','type');
+            const iSprink = col('спринклер','sprink');
+            const iFlow   = col('расход','flow');
+            const iPmin   = col('давл','pres');
+            const iRadius = col('радиус','radius');
+            const iSpac   = col('расст','spac');
+            const iTemp   = col('вкл','temp');
+            const iZone   = col('зон','zone');
+            const iNote   = col('примеч','note');
+            store.frost.push({ name, ftype:String(r[iFtype]||'').trim()||null, sprink:String(r[iSprink]||'').trim()||null, flow:parseFloat(r[iFlow])||null, pres_min:parseFloat(r[iPmin])||null, radius:parseFloat(r[iRadius])||null, spacing:parseFloat(r[iSpac])||null, temp_on:parseFloat(r[iTemp])||null, zone:String(r[iZone]||'').trim()||null, note:String(r[iNote]||'').trim()||null });
+            total++;
+          }
+        }
+      });
+
+      S.irrigEquip = store;
+      save();
+      loadIrrigLists();
+      alert(`✅ Импорт завершён: ${total} записей добавлено`);
+    } catch(err) {
+      alert('Ошибка импорта: ' + err.message);
+      console.error('[importIrrigEquipFromExcel]', err);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
 
 function loadIrrigLists() {
   const store = _getIrrigStore();
