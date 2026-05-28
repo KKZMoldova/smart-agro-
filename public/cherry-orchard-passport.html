@@ -1440,6 +1440,15 @@ body > .panel.active { display: block; }
         <h3 style="font-size:14px;font-weight:700;">💧 Ирригационное оборудование</h3>
       </div>
 
+      <!-- Импорт ирригационного оборудования -->
+      <div style="display:flex;gap:6px;margin-bottom:12px;">
+        <button class="btn btn-secondary btn-sm" onclick="downloadIrrigEquipTemplate()">📥 Шаблон Excel</button>
+        <label class="btn btn-secondary btn-sm" style="cursor:pointer;margin:0;">
+          📤 Импорт Excel
+          <input type="file" accept=".xlsx,.xls" style="display:none;" onchange="importIrrigEquipFromExcel(this)">
+        </label>
+      </div>
+
       <!-- Насосы -->
       <div style="margin-bottom:16px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
