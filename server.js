@@ -344,7 +344,8 @@ app.post('/api/sync-weather', auth, async (req, res) => {
   const station = req.query.station || FC_STATION || '00002158';
   if (!FC_PUBLIC || !FC_PRIVATE) return res.status(500).json({ ok:false, error:'FieldClimate keys not configured' });
   try {
-    const fcPath = `/data/${station}/daily/last/7`;
+    // Try daily first, then hourly for recent days
+    const fcPath = `/data/${station}/hourly/last/7`;
     const fc = await fetch('https://api.fieldclimate.com/v2' + fcPath, { headers: fcHeaders('GET', fcPath) });
     if (!fc.ok) throw new Error('FC: ' + fc.status + ' ' + await fc.text());
     const fcData = await fc.json();
