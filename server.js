@@ -364,7 +364,8 @@ app.post('/api/sync-weather', auth, async (req, res) => {
     sensors.forEach(sensor => {
       const nameOrig = sensor.name_original || sensor.name || '';
       const name = nameOrig.toLowerCase();
-      const group = (sensor.group || '').toLowerCase();
+      const groupRaw = sensor.group;
+      const group = (typeof groupRaw === 'string' ? groupRaw : (groupRaw?.name || groupRaw?.code || '')).toLowerCase();
       let values = sensor.values || sensor.data || [];
       if (!Array.isArray(values)) values = Object.values(values);
 
