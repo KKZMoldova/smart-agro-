@@ -358,20 +358,32 @@ app.post('/api/sync-weather', auth, async (req, res) => {
       if (!byDate[d]) byDate[d] = { date:d, station, tmax:-999, tmin:999, temps:[], precip:0, rh:[], wind:[] };
     });
 
+    // Log all sensor names for debugging
+    console.log('[sync-weather] Sensors:', sensors.map(s => s.name_original || s.name || s.group || '?').join(' | '));
+
     sensors.forEach(sensor => {
-      const name = (sensor.name_original || sensor.name || '').toLowerCase();
+      const nameOrig = sensor.name_original || sensor.name || '';
+      const name = nameOrig.toLowerCase();
+      const group = (sensor.group || '').toLowerCase();
       let values = sensor.values || sensor.data || [];
       if (!Array.isArray(values)) values = Object.values(values);
+
+      // Determine sensor type — support Romanian/Russian/English names
+      const isTemp = name.includes('temp') || name.includes('aerului') || name.includes('aer') || group.includes('temp');
+      const isRain = name.includes('rain') || name.includes('precip') || name.includes('precipit') || name.includes('osad') || group.includes('rain') || group.includes('precip');
+      const isHumid = name.includes('humid') || name.includes('umid') || name.includes('rh') || group.includes('humid');
+      const isWind = name.includes('wind') || name.includes('vant') || name.includes('vânt') || group.includes('wind');
+
       values.forEach((val, i) => {
         const dt = dates[i]; if (!dt) return;
         const d  = dt.slice(0,10);
         if (!byDate[d]) byDate[d] = { date:d, station, tmax:-999, tmin:999, temps:[], precip:0, rh:[], wind:[] };
         const v = parseFloat(val); if (isNaN(v)) return;
         const divided = sensor.divider ? v / sensor.divider : v;
-        if (name.includes('temp'))    { byDate[d].temps.push(divided); byDate[d].tmax = Math.max(byDate[d].tmax, divided); byDate[d].tmin = Math.min(byDate[d].tmin, divided); }
-        else if (name.includes('rain') || name.includes('precip')) { byDate[d].precip += divided; }
-        else if (name.includes('humid') || name.includes('rh'))    { byDate[d].rh.push(divided); }
-        else if (name.includes('wind'))                             { byDate[d].wind.push(divided); }
+        if (isTemp)       { byDate[d].temps.push(divided); byDate[d].tmax = Math.max(byDate[d].tmax, divided); byDate[d].tmin = Math.min(byDate[d].tmin, divided); }
+        else if (isRain)  { byDate[d].precip += divided; }
+        else if (isHumid) { byDate[d].rh.push(divided); }
+        else if (isWind)  { byDate[d].wind.push(divided); }
       });
     });
 
