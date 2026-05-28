@@ -403,14 +403,18 @@ app.post('/api/sync-weather', auth, async (req, res) => {
 
     let updated = 0;
     for (const r of rows) {
-      if (r.tmax === null && r.tmin === null) continue; // пропускаем пустые
       await db.query(`
         INSERT INTO public.weather (date,station,tmax,tmin,tavg,humidity,precip,wind,et0,updated_at)
         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())
         ON CONFLICT (date,station) DO UPDATE SET
-          tmax=EXCLUDED.tmax, tmin=EXCLUDED.tmin, tavg=EXCLUDED.tavg,
-          humidity=EXCLUDED.humidity, precip=EXCLUDED.precip, wind=EXCLUDED.wind, updated_at=NOW()
-        WHERE EXCLUDED.tmax IS NOT NULL
+          tmax=COALESCE(EXCLUDED.tmax, public.weather.tmax),
+          tmin=COALESCE(EXCLUDED.tmin, public.weather.tmin),
+          tavg=COALESCE(EXCLUDED.tavg, public.weather.tavg),
+          humidity=COALESCE(EXCLUDED.humidity, public.weather.humidity),
+          precip=EXCLUDED.precip,
+          wind=COALESCE(EXCLUDED.wind, public.weather.wind),
+          et0=COALESCE(EXCLUDED.et0, public.weather.et0),
+          updated_at=NOW()
       `, [r.date,r.station,r.tmax,r.tmin,r.tavg,r.humidity,r.precip,r.wind,r.et0]);
       updated++;
     }
@@ -419,7 +423,8 @@ app.post('/api/sync-weather', auth, async (req, res) => {
     const sensorNames = sensors.map(s => s.name_original || s.name || JSON.stringify(s.group||'?'));
     console.log('[sync-weather] Sensor names:', JSON.stringify(sensorNames));
     console.log('[sync-weather] Sample byDate:', JSON.stringify(Object.values(byDate)[2]));
-    res.json({ ok:true, updated, dates: rows.map(r=>r.date), raw_dates: dates.length, sensors: sensorNames, sample: rows[2] });
+    const sample25 = rows.find(r=>r.date>='2026-05-25') || rows[0];
+    res.json({ ok:true, updated, dates: rows.map(r=>r.date), raw_dates: dates.length, sensors: sensorNames, sample: sample25 });
   } catch(e) {
     console.error('[sync-weather]', e.message);
     res.status(500).json({ ok:false, error: e.message });
