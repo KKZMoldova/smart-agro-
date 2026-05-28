@@ -493,6 +493,7 @@ body > .panel.active { display: block; }
       <div id="weather-panel-actions" style="display:flex;gap:8px;flex-wrap:wrap;">
         <button class="btn btn-secondary" onclick="document.getElementById('meteo-file-input').click()">📂 Импорт с метеостанции (.xls)</button>
         <input type="file" id="meteo-file-input" accept=".xls,.xlsx,.csv" style="display:none" onchange="importMeteoStation(event)">
+        <button class="btn btn-secondary" onclick="syncWeatherFromStation()" id="btn-sync-weather">🔄 Синхронизировать со станцией</button>
         <button class="btn btn-primary" onclick="openWeatherAddModal()">+ Добавить день вручную</button>
       </div>
       <div id="chill-panel-actions" style="display:none;gap:8px;flex-wrap:wrap;">
