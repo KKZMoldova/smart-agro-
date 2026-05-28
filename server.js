@@ -338,6 +338,76 @@ app.post('/api/weather', auth, async (req, res) => {
   } catch(e) { res.status(500).json({ok:false,error:e.message}); }
 });
 
+
+// ── ПРИНУДИТЕЛЬНАЯ СИНХРОНИЗАЦИЯ ПОГОДЫ ──────────────────────────────────
+app.post('/api/sync-weather', auth, async (req, res) => {
+  const station = req.query.station || FC_STATION || '00002158';
+  if (!FC_PUBLIC || !FC_PRIVATE) return res.status(500).json({ ok:false, error:'FieldClimate keys not configured' });
+  try {
+    const fcPath = `/data/${station}/daily/last/7`;
+    const fc = await fetch('https://api.fieldclimate.com/v2' + fcPath, { headers: fcHeaders('GET', fcPath) });
+    if (!fc.ok) throw new Error('FC: ' + fc.status + ' ' + await fc.text());
+    const fcData = await fc.json();
+
+    const dates   = fcData.dates || [];
+    const sensors = fcData.data  || [];
+    const byDate  = {};
+
+    dates.forEach(dt => {
+      const d = dt.slice(0,10);
+      if (!byDate[d]) byDate[d] = { date:d, station, tmax:-999, tmin:999, temps:[], precip:0, rh:[], wind:[] };
+    });
+
+    sensors.forEach(sensor => {
+      const name = (sensor.name_original || sensor.name || '').toLowerCase();
+      let values = sensor.values || sensor.data || [];
+      if (!Array.isArray(values)) values = Object.values(values);
+      values.forEach((val, i) => {
+        const dt = dates[i]; if (!dt) return;
+        const d  = dt.slice(0,10);
+        if (!byDate[d]) byDate[d] = { date:d, station, tmax:-999, tmin:999, temps:[], precip:0, rh:[], wind:[] };
+        const v = parseFloat(val); if (isNaN(v)) return;
+        const divided = sensor.divider ? v / sensor.divider : v;
+        if (name.includes('temp'))    { byDate[d].temps.push(divided); byDate[d].tmax = Math.max(byDate[d].tmax, divided); byDate[d].tmin = Math.min(byDate[d].tmin, divided); }
+        else if (name.includes('rain') || name.includes('precip')) { byDate[d].precip += divided; }
+        else if (name.includes('humid') || name.includes('rh'))    { byDate[d].rh.push(divided); }
+        else if (name.includes('wind'))                             { byDate[d].wind.push(divided); }
+      });
+    });
+
+    const rows = Object.values(byDate).map(d => ({
+      date:d.date, station:d.station,
+      tmax: d.tmax===-999?null:Math.round(d.tmax*10)/10,
+      tmin: d.tmin===999?null:Math.round(d.tmin*10)/10,
+      tavg: d.temps.length?Math.round(d.temps.reduce((s,v)=>s+v,0)/d.temps.length*10)/10:null,
+      humidity: d.rh.length?Math.round(d.rh.reduce((s,v)=>s+v,0)/d.rh.length):null,
+      precip: Math.round(d.precip*10)/10,
+      wind: d.wind.length?Math.round(d.wind.reduce((s,v)=>s+v,0)/d.wind.length*10)/10:null,
+      et0: null,
+    }));
+
+    let updated = 0;
+    for (const r of rows) {
+      if (r.tmax === null && r.tmin === null) continue; // пропускаем пустые
+      await db.query(`
+        INSERT INTO public.weather (date,station,tmax,tmin,tavg,humidity,precip,wind,et0,updated_at)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())
+        ON CONFLICT (date,station) DO UPDATE SET
+          tmax=EXCLUDED.tmax, tmin=EXCLUDED.tmin, tavg=EXCLUDED.tavg,
+          humidity=EXCLUDED.humidity, precip=EXCLUDED.precip, wind=EXCLUDED.wind, updated_at=NOW()
+        WHERE EXCLUDED.tmax IS NOT NULL
+      `, [r.date,r.station,r.tmax,r.tmin,r.tavg,r.humidity,r.precip,r.wind,r.et0]);
+      updated++;
+    }
+
+    console.log(`[sync-weather] Updated ${updated} days for station ${station}`);
+    res.json({ ok:true, updated, dates: rows.map(r=>r.date), raw_dates: dates.length });
+  } catch(e) {
+    console.error('[sync-weather]', e.message);
+    res.status(500).json({ ok:false, error: e.message });
+  }
+});
+
 // ── TREATMENTS ────────────────────────────────────────────────
 app.get('/api/treatments', auth, async (req, res) => {
   try { const r=await db.query('SELECT * FROM public.treatments ORDER BY date DESC'); res.json({ok:true,data:r.rows}); }
