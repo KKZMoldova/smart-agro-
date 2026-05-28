@@ -299,7 +299,7 @@ app.get('/api/weather', auth, async (req, res) => {
       humidity: d.rh.length?Math.round(d.rh.reduce((s,v)=>s+v,0)/d.rh.length):null,
       precip: Math.round(d.precip*10)/10,
       wind: d.wind.length?Math.round(d.wind.reduce((s,v)=>s+v,0)/d.wind.length*10)/10:null,
-      et0: null,
+      et0: d.et0?.length ? Math.round(d.et0.reduce((s,v)=>s+v,0)/d.et0.length*10)/10 : null,
     }));
     for (const r of rows) {
       await db.query(`
@@ -355,7 +355,7 @@ app.post('/api/sync-weather', auth, async (req, res) => {
 
     dates.forEach(dt => {
       const d = dt.slice(0,10);
-      if (!byDate[d]) byDate[d] = { date:d, station, tmax:-999, tmin:999, temps:[], precip:0, rh:[], wind:[] };
+      if (!byDate[d]) byDate[d] = { date:d, station, tmax:-999, tmin:999, temps:[], precip:0, rh:[], wind:[], et0:[] };
     });
 
     // Log all sensor names for debugging
@@ -369,22 +369,24 @@ app.post('/api/sync-weather', auth, async (req, res) => {
       let values = sensor.values || sensor.data || [];
       if (!Array.isArray(values)) values = Object.values(values);
 
-      // Determine sensor type — support Romanian/Russian/English names
-      const isTemp = name.includes('temp') || name.includes('aerului') || name.includes('aer') || group.includes('temp');
-      const isRain = name.includes('rain') || name.includes('precip') || name.includes('precipit') || name.includes('osad') || group.includes('rain') || group.includes('precip');
-      const isHumid = name.includes('humid') || name.includes('umid') || name.includes('rh') || group.includes('humid');
-      const isWind = name.includes('wind') || name.includes('vant') || name.includes('vânt') || group.includes('wind');
+      // Determine sensor type by exact name matching
+      const isAirTemp  = name === 'hc air temperature' || name === 'air temperature' || name.includes('temp') || name.includes('aerului');
+      const isRain     = name === 'precipitation' || name.includes('rain') || name.includes('precip');
+      const isHumid    = name === 'hc relative humidity' || name.includes('humid') || name.includes('umid');
+      const isWind     = name === 'wind speed' || name === 'wind speed max' || name.includes('wind');
+      const isET0      = name === 'et0' || name === 'eto';
 
       values.forEach((val, i) => {
         const dt = dates[i]; if (!dt) return;
         const d  = dt.slice(0,10);
-        if (!byDate[d]) byDate[d] = { date:d, station, tmax:-999, tmin:999, temps:[], precip:0, rh:[], wind:[] };
+        if (!byDate[d]) byDate[d] = { date:d, station, tmax:-999, tmin:999, temps:[], precip:0, rh:[], wind:[], et0:[] };
         const v = parseFloat(val); if (isNaN(v)) return;
         const divided = sensor.divider ? v / sensor.divider : v;
-        if (isTemp)       { byDate[d].temps.push(divided); byDate[d].tmax = Math.max(byDate[d].tmax, divided); byDate[d].tmin = Math.min(byDate[d].tmin, divided); }
+        if (isAirTemp)    { byDate[d].temps.push(divided); byDate[d].tmax = Math.max(byDate[d].tmax, divided); byDate[d].tmin = Math.min(byDate[d].tmin, divided); }
         else if (isRain)  { byDate[d].precip += divided; }
         else if (isHumid) { byDate[d].rh.push(divided); }
-        else if (isWind)  { byDate[d].wind.push(divided); }
+        else if (isWind && name !== 'wind speed max') { byDate[d].wind.push(divided); }
+        else if (isET0)   { byDate[d].et0.push(divided); }
       });
     });
 
