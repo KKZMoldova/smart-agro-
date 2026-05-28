@@ -345,7 +345,7 @@ app.post('/api/sync-weather', auth, async (req, res) => {
   if (!FC_PUBLIC || !FC_PRIVATE) return res.status(500).json({ ok:false, error:'FieldClimate keys not configured' });
   try {
     // Try daily first, then hourly for recent days
-    const fcPath = `/data/${station}/hourly/last/7`;
+    const fcPath = fcDatePath(station, 7);
     const fc = await fetch('https://api.fieldclimate.com/v2' + fcPath, { headers: fcHeaders('GET', fcPath) });
     if (!fc.ok) throw new Error('FC: ' + fc.status + ' ' + await fc.text());
     const fcData = await fc.json();
@@ -743,6 +743,18 @@ async function start() {
 start();
 
 // ── CRON: Синхронизация погоды каждую ночь в 01:10 ───────────────────────
+
+// Build FieldClimate path with explicit date range
+function fcDatePath(station, days) {
+  const to   = new Date();
+  const from = new Date();
+  from.setDate(from.getDate() - days);
+  const toTs   = Math.floor(to.getTime()/1000);
+  const fromTs = Math.floor(from.getTime()/1000);
+  return `/data/${station}/daily/${fromTs}/${toTs}`;
+}
+
+
 async function syncWeatherCron() {
   if (!FC_PUBLIC || !FC_PRIVATE) return;
   console.log('[cron] Starting weather sync...');
@@ -755,7 +767,7 @@ async function syncWeatherCron() {
       const fcPub  = st.key === 'orchard' ? FC_PUBLIC  : (process.env.FIELDCLIMATE_PUBLIC_KEY_VEG  || '');
       const fcPriv = st.key === 'orchard' ? FC_PRIVATE : (process.env.FIELDCLIMATE_PRIVATE_KEY_VEG || '');
       if (!fcPub || !fcPriv) continue;
-      const path = `/data/${st.id}/daily/last/7`;
+      const path = fcDatePath(st.id, 7);
       const date = new Date().toUTCString();
       const sig  = crypto.createHmac('sha256', fcPriv).update('GET' + path + date + fcPub).digest('hex');
       const headers = { 'Accept':'application/json', 'Authorization':`hmac ${fcPub}:${sig}`, 'Request-Date':date };
@@ -792,7 +804,7 @@ async function syncWeatherCron() {
           }
         });
       });
-      const rows = Object.values(byDate).filter(d => d.temps.length > 0);
+      const rows = Object.values(byDate);
       for (const row of rows) {
         const tavg = row.temps.length ? Math.round(row.temps.reduce((s,v)=>s+v,0)/row.temps.length*10)/10 : null;
         await db.query(`
