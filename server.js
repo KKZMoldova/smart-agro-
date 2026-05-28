@@ -414,7 +414,10 @@ app.post('/api/sync-weather', auth, async (req, res) => {
     }
 
     console.log(`[sync-weather] Updated ${updated} days for station ${station}`);
-    res.json({ ok:true, updated, dates: rows.map(r=>r.date), raw_dates: dates.length });
+    const sensorNames = sensors.map(s => s.name_original || s.name || JSON.stringify(s.group||'?'));
+    console.log('[sync-weather] Sensor names:', JSON.stringify(sensorNames));
+    console.log('[sync-weather] Sample byDate:', JSON.stringify(Object.values(byDate)[2]));
+    res.json({ ok:true, updated, dates: rows.map(r=>r.date), raw_dates: dates.length, sensors: sensorNames, sample: rows[2] });
   } catch(e) {
     console.error('[sync-weather]', e.message);
     res.status(500).json({ ok:false, error: e.message });
