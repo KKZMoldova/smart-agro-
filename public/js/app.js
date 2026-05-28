@@ -960,6 +960,39 @@ function switchTab(tab,el){
 
 // ===================== SETTINGS =====================
 
+
+// ── СИНХРОНИЗАЦИЯ ПОГОДЫ СО СТАНЦИЕЙ ──────────────────────────────────────
+async function syncWeatherFromStation() {
+  const btn = document.getElementById('btn-sync-weather');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Синхронизация...'; }
+  try {
+    const r = await fetch('/api/sync-weather', { method:'POST', headers: getAuthHeaders() });
+    const d = await r.json();
+    if (d.ok) {
+      // Перезагружаем погоду из БД
+      const wr = await fetch('/api/weather?days=90', { headers: getAuthHeaders() });
+      const wd = await wr.json();
+      if (wd.ok && wd.data) {
+        S.weather = wd.data.map(w => ({
+          id: 'w_' + w.date.replace(/-/g,''),
+          date: w.date, tmax: w.tmax, tmin: w.tmin, tavg: w.tavg,
+          humidity: w.humidity, precip: w.precip||0, et0: w.et0,
+          wind: w.wind, note: 'Авто-импорт с метеостанции'
+        }));
+      }
+      if (btn) { btn.disabled = false; btn.textContent = `✅ Обновлено (${d.updated} дн.)`; }
+      setTimeout(() => { if(btn) btn.textContent = '🔄 Синхронизировать со станцией'; btn.disabled=false; }, 3000);
+      if (typeof renderWeather === 'function') renderWeather();
+      if (typeof calcWaterBalance === 'function') calcWaterBalance();
+    } else {
+      throw new Error(d.error || 'Ошибка синхронизации');
+    }
+  } catch(e) {
+    alert('Ошибка: ' + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = '🔄 Синхронизировать со станцией'; }
+  }
+}
+
 // ===================== АЛИАСЫ СОВМЕСТИМОСТИ =====================
 window.openCatalogModal = function(...a){ return openCatalogAddModal(...a); };
 window.saveCatalogItem  = function(...a){ return saveCatalogProduct(...a); };
