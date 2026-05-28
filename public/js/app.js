@@ -980,10 +980,8 @@ async function syncWeatherFromStation() {
           wind: w.wind, note: 'Авто-импорт с метеостанции'
         }));
       }
-      if (btn) { btn.disabled = false; btn.textContent = `✅ Обновлено (${d.updated} дн.)`; }
-      setTimeout(() => { if(btn) btn.textContent = '🔄 Синхронизировать со станцией'; btn.disabled=false; }, 3000);
-      if (typeof renderWeather === 'function') renderWeather();
-      if (typeof calcWaterBalance === 'function') calcWaterBalance();
+      if (btn) { btn.textContent = `✅ Обновлено (${d.updated} дн.) — перезагрузка...`; }
+      setTimeout(() => location.reload(), 1500);
     } else {
       throw new Error(d.error || 'Ошибка синхронизации');
     }
