@@ -832,32 +832,50 @@ function renderCherryForecastRecs(f) {
 }
 
 
-// ═══ ПРОГНОЗ ПОГОДЫ (Open-Meteo) + УМНЫЕ РЕКОМЕНДАЦИИ ═══════════════════
-const FORECAST_LAT = 48.0167;
-const FORECAST_LON = 28.7000;
-let _forecast = null; // кэш прогноза
+// ═══ ПРОГНОЗ ПОГОДЫ (FieldClimate / Open-Meteo fallback) ════════════════
+let _forecast = null;      // кэш [{date,tmax,tmin,precip,humidity,wind,et0}]
+let _forecastSource = '';
 
 async function fetchForecast() {
   try {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${FORECAST_LAT}&longitude=${FORECAST_LON}` +
-  `&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,` +
-  `precipitation_probability_max,weathercode,precipitation_hours` +
-  `&timezone=Europe%2FChisinau&forecast_days=7`;
-    const r = await fetch(url, { signal: (() => { const c=new AbortController(); setTimeout(()=>c.abort(),6000); return c.signal; })() });
+    const token = sessionStorage.getItem('agro_token') || sessionStorage.getItem('agro_jwt') || '';
+    const r = await fetch('/api/weather/forecast', {
+      headers: { 'Authorization': 'Bearer ' + token },
+      signal: (() => { const c = new AbortController(); setTimeout(() => c.abort(), 10000); return c.signal; })(),
+    });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const data = await r.json();
-    _forecast = data.daily;
-    // Добавляем влажность из реальной метеостанции (последние данные)
-    if (_forecast && S.weather?.length) {
-      const recentHum = S.weather.slice(0, 7).map(w => parseFloat(w.humidity)||60);
-      _forecast.relativehumidity_2m_max = _forecast.time.map((_, i) => recentHum[i] || recentHum[0] || 60);
-    } else if (_forecast) {
-      _forecast.relativehumidity_2m_max = _forecast.time.map(() => 60);
+    if (data.ok && data.forecast?.length) {
+      _forecast = data.forecast;
+      _forecastSource = data.source || 'fieldclimate';
+      console.log('[Forecast] Loaded from', _forecastSource, data.forecast.length, 'days');
+      return _forecast;
     }
-    return _forecast;
+    throw new Error('Empty');
   } catch(e) {
-    console.warn('[Forecast] Failed:', e.message);
-    return null;
+    console.warn('[Forecast] Server failed, trying Open-Meteo directly:', e.message);
+    try {
+      const url = 'https://api.open-meteo.com/v1/forecast?latitude=47.7321801&longitude=28.5216181' +
+        '&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,' +
+        'relativehumidity_2m_max,et0_fao_evapotranspiration' +
+        '&timezone=Europe%2FChisinau&forecast_days=7';
+      const om = await fetch(url, { signal: (() => { const c=new AbortController(); setTimeout(()=>c.abort(),6000); return c.signal; })() });
+      const d  = await om.json();
+      _forecast = (d.daily?.time || []).map((date, i) => ({
+        date,
+        tmax:     d.daily.temperature_2m_max?.[i]         ?? null,
+        tmin:     d.daily.temperature_2m_min?.[i]         ?? null,
+        precip:   d.daily.precipitation_sum?.[i]          ?? 0,
+        wind:     d.daily.windspeed_10m_max?.[i]          ?? null,
+        humidity: d.daily.relativehumidity_2m_max?.[i]    ?? null,
+        et0:      d.daily.et0_fao_evapotranspiration?.[i] ?? null,
+      }));
+      _forecastSource = 'open-meteo';
+      return _forecast;
+    } catch(e2) {
+      console.warn('[Forecast] Both failed:', e2.message);
+      return null;
+    }
   }
 }
 
@@ -879,7 +897,7 @@ function renderForecastStrip() {
   const el = document.getElementById('forecast-strip');
   if (!el) return;
 
-  if (!_forecast) {
+  if (!_forecast || !_forecast.length) {
     el.innerHTML = `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;
       background:var(--surface);border:1px solid var(--border);border-radius:10px;
       font-size:11px;color:var(--text3);">
@@ -890,97 +908,89 @@ function renderForecastStrip() {
     return;
   }
 
-  const days = _forecast.time || [];
   const dayNames = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
 
-  // Найти лучшее окно для опрыскивания (нет дождя, ветер < 5 м/с)
-  let sprayWindow = [];
-  days.forEach((date, i) => {
-    const rain = _forecast.precipitation_sum[i] || 0;
-    const wind = _forecast.windspeed_10m_max[i] || 0;
-    const tmax = _forecast.temperature_2m_max[i] || 0;
-    const tmin = _forecast.temperature_2m_min[i] || 0;
-    const hum = _forecast.relativehumidity_2m_max[i] || 0;
-    const rainProb = _forecast.precipitation_probability_max[i] || 0;
-    const good = rain < 1 && wind < 6 && tmax > 8 && tmax < 30 && rainProb < 30;
-    if (good) sprayWindow.push(date);
-  });
+  // Окно опрыскивания
+  const sprayWindow = _forecast.filter(d =>
+    (d.precip||0) < 1 && (d.wind||0) < 20 && (d.tmax||0) > 8 && (d.tmax||0) < 30
+  ).map(d => d.date);
 
-  // Smith Period прогноз
-  let smithForecast = [];
-  days.forEach((date, i) => {
-    const tmin = _forecast.temperature_2m_min[i] || 0;
-    const tmax = _forecast.temperature_2m_max[i] || 0;
-    const hum = _forecast.relativehumidity_2m_max[i] || 0;
-    if (tmin >= 10 && hum >= 80) smithForecast.push(date);
-  });
+  // Smith Period (риск болезней)
+  const smithForecast = _forecast.filter(d => (d.tmin||0) >= 10 && (d.humidity||0) >= 80).map(d => d.date);
 
-  // Frost forecast
-  let frostDays = [];
-  days.forEach((date, i) => {
-    if ((_forecast.temperature_2m_min[i] || 0) <= 2) frostDays.push(date);
-  });
+  // Заморозки
+  const frostDays = _forecast.filter(d => (d.tmin||0) <= 2).map(d => d.date);
+
+  // Иконка по температуре + осадкам (замена WMO кода)
+  function forecastIcon(d) {
+    if ((d.precip||0) >= 5)  return { icon:'🌧️', label:'Дождь' };
+    if ((d.precip||0) >= 1)  return { icon:'🌦️', label:'Ливень' };
+    if ((d.tmin||0) <= 0)    return { icon:'🌨️', label:'Снег/мороз' };
+    if ((d.humidity||0) >= 85) return { icon:'🌫️', label:'Туман' };
+    if ((d.tmax||0) >= 28)   return { icon:'☀️', label:'Жарко' };
+    if ((d.humidity||0) >= 70) return { icon:'🌤️', label:'Облачно' };
+    return { icon:'☀️', label:'Ясно' };
+  }
+
+  const sourceLabel = _forecastSource === 'fieldclimate'
+    ? '<span style="font-size:9px;padding:1px 7px;border-radius:8px;background:rgba(107,221,107,.12);color:var(--accent);">📡 FieldClimate</span>'
+    : '<span style="font-size:9px;padding:1px 7px;border-radius:8px;background:rgba(96,165,250,.12);color:var(--blue);">🌐 Open-Meteo</span>';
 
   const html = `
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;">
-
-    <!-- Заголовок -->
     <div style="padding:10px 16px;background:var(--surface2);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
-      <div style="font-family:'Unbounded',sans-serif;font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:1px;">
-        🌡️ Прогноз погоды · Каменка · 7 дней
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-family:'Unbounded',sans-serif;font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:1px;">🌡️ Прогноз погоды · 7 дней</span>
+        ${sourceLabel}
       </div>
       <div style="display:flex;gap:8px;align-items:center;">
-        ${sprayWindow.length > 0 ? `<span style="font-size:10px;padding:2px 10px;border-radius:10px;background:rgba(107,221,107,.15);color:var(--accent);">💊 Окно опрыскивания: ${sprayWindow.slice(0,3).map(d=>d.slice(5)).join(', ')}</span>` : '<span style="font-size:10px;padding:2px 10px;border-radius:10px;background:rgba(255,153,68,.15);color:var(--orange);">⚠️ Нет хорошего окна для опрыскивания</span>'}
+        ${sprayWindow.length > 0
+          ? `<span style="font-size:10px;padding:2px 10px;border-radius:10px;background:rgba(107,221,107,.15);color:var(--accent);">💊 Опрыскивание: ${sprayWindow.slice(0,3).map(d=>d.slice(5)).join(', ')}</span>`
+          : '<span style="font-size:10px;padding:2px 10px;border-radius:10px;background:rgba(255,153,68,.15);color:var(--orange);">⚠️ Нет окна для опрыскивания</span>'}
         <button class="btn btn-secondary btn-sm" onclick="loadForecastAndRender()" title="Обновить прогноз">🔄</button>
       </div>
     </div>
 
-    <!-- 7 дней -->
     <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--border);">
-      ${days.map((date, i) => {
-        const d = new Date(date);
+      ${_forecast.map(day => {
+        const date    = day.date;
+        const d       = new Date(date + 'T12:00:00');
         const dayName = dayNames[d.getDay()];
         const isToday = date === new Date().toISOString().slice(0,10);
-        const tmax = _forecast.temperature_2m_max[i];
-        const tmin = _forecast.temperature_2m_min[i];
-        const rain = _forecast.precipitation_sum[i] || 0;
-        const wind = _forecast.windspeed_10m_max[i] || 0;
-        const hum = _forecast.relativehumidity_2m_max[i] || 0;
-        const rainProb = _forecast.precipitation_probability_max[i] || 0;
-        const code = _forecast.weathercode[i] || 0;
-        const w = wmoIcon(code);
-        const isFrost = tmin <= 2;
-        const isHeat = tmax >= 32;
-        const isSmith = tmin >= 10 && hum >= 80;
-        const isGoodSpray = rain < 1 && wind < 6 && tmax > 8 && tmax < 30 && rainProb < 30;
-        const bgColor = isToday ? 'var(--surface3)' : 'var(--surface)';
-        return `<div style="padding:10px 8px;background:${bgColor};text-align:center;position:relative;">
-          ${isToday?`<div style="position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent);"></div>`:''}
+        const tmax    = day.tmax ?? '—';
+        const tmin    = day.tmin ?? '—';
+        const rain    = day.precip || 0;
+        const wind    = day.wind ? Math.round(day.wind) : 0;
+        const hum     = day.humidity ? Math.round(day.humidity) : 0;
+        const isFrost    = (day.tmin||99) <= 2;
+        const isHeat     = (day.tmax||0) >= 32;
+        const isSmith    = (day.tmin||0) >= 10 && hum >= 80;
+        const isGoodSpray = rain < 1 && wind < 20 && (day.tmax||0) > 8 && (day.tmax||0) < 30;
+        const w = forecastIcon(day);
+        return `<div style="padding:10px 8px;background:${isToday?'var(--surface3)':'var(--surface)'};text-align:center;position:relative;">
+          ${isToday?'<div style="position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent);"></div>':''}
           <div style="font-size:9px;color:${isToday?'var(--accent)':'var(--text3)'};font-weight:${isToday?'700':'400'};margin-bottom:3px;">${isToday?'СЕГОДНЯ':dayName} ${date.slice(5)}</div>
           <div style="font-size:22px;margin-bottom:3px;">${w.icon}</div>
           <div style="font-size:10px;color:var(--text3);margin-bottom:5px;">${w.label}</div>
           <div style="margin-bottom:4px;">
-            <span style="font-size:13px;font-weight:700;color:${isHeat?'var(--red)':'var(--text)'};">${tmax}°</span>
-            <span style="font-size:11px;color:${isFrost?'var(--blue)':'var(--text3)'};">&nbsp;${tmin}°</span>
+            <span style="font-size:13px;font-weight:700;color:${isHeat?'var(--red)':'var(--text)'};"><b>${tmax}°</b></span>
+            <span style="font-size:11px;color:${isFrost?'var(--blue)':'var(--text3)'};"> ${tmin}°</span>
           </div>
           ${rain > 0 ? `<div style="font-size:10px;color:var(--blue);">💧 ${rain.toFixed(1)}мм</div>` : '<div style="font-size:10px;color:var(--text3);">—</div>'}
-          <div style="font-size:9px;color:var(--text3);margin-top:2px;">💨${wind}м/с 💦${hum}%</div>
-          ${rainProb > 30 ? `<div style="font-size:9px;color:var(--blue);margin-top:2px;">☔${rainProb}%</div>` : ''}
-          <!-- Индикаторы -->
+          <div style="font-size:9px;color:var(--text3);margin-top:2px;">💨${wind}км/ч 💦${hum}%</div>
           <div style="margin-top:5px;display:flex;gap:2px;justify-content:center;flex-wrap:wrap;">
-            ${isGoodSpray?`<span title="Хорошее окно для опрыскивания" style="font-size:9px;padding:1px 5px;border-radius:6px;background:rgba(107,221,107,.2);color:var(--accent);">💊</span>`:''}
-            ${isSmith?`<span title="Smith Period — риск фитофторы" style="font-size:9px;padding:1px 5px;border-radius:6px;background:rgba(255,85,85,.2);color:var(--red);">🟤</span>`:''}
-            ${isFrost?`<span title="Риск заморозка" style="font-size:9px;padding:1px 5px;border-radius:6px;background:rgba(100,180,255,.2);color:#60a5fa;">❄️</span>`:''}
-            ${isHeat?`<span title="Тепловой стресс" style="font-size:9px;padding:1px 5px;border-radius:6px;background:rgba(255,85,85,.2);color:var(--red);">🔥</span>`:''}
+            ${isGoodSpray?'<span title="Окно для опрыскивания" style="font-size:9px;padding:1px 5px;border-radius:6px;background:rgba(107,221,107,.2);color:var(--accent);">💊</span>':''}
+            ${isSmith?'<span title="Smith Period — риск болезней" style="font-size:9px;padding:1px 5px;border-radius:6px;background:rgba(255,85,85,.2);color:var(--red);">🟤</span>':''}
+            ${isFrost?'<span title="Риск заморозка" style="font-size:9px;padding:1px 5px;border-radius:6px;background:rgba(100,180,255,.2);color:#60a5fa;">❄️</span>':''}
+            ${isHeat?'<span title="Тепловой стресс" style="font-size:9px;padding:1px 5px;border-radius:6px;background:rgba(255,85,85,.2);color:var(--red);">🔥</span>':''}
           </div>
         </div>`;
       }).join('')}
     </div>
 
-    <!-- Легенда -->
     <div style="padding:6px 14px;background:var(--surface2);display:flex;gap:12px;flex-wrap:wrap;font-size:10px;color:var(--text3);">
       <span>💊 Окно опрыскивания</span>
-      <span>🟤 Smith Period (фитофтора)</span>
+      <span>🟤 Smith Period</span>
       <span>❄️ Заморозок</span>
       <span>🔥 Тепловой стресс</span>
     </div>
