@@ -690,45 +690,15 @@ app.post('/api/ai/advisor', auth, async (req,res) => {
 });
 
 
-// ── DEBUG: сырой ответ FC forecast (временный) ───────────────────────────
-app.get('/api/weather/forecast-debug', authOpt, async (req, res) => {
-  try {
-    const station = FC_STATION || '00002158';
-    // Пробуем разные пути
-    const paths = [
-      `/forecast/${station}/hourly/last/7`,
-      `/forecast/${station}/daily/last/7`,
-      `/data/${station}/forecast/hourly/last/7`,
-    ];
-    const results = {};
-    for (const fcPath of paths) {
-      try {
-        const date = new Date().toUTCString();
-        const sig  = crypto.createHmac('sha256', FC_PRIVATE).update('GET' + fcPath + date + FC_PUBLIC).digest('hex');
-        const r    = await fetch('https://api.fieldclimate.com/v2' + fcPath, {
-          headers: { 'Accept':'application/json', 'Authorization':`hmac ${FC_PUBLIC}:${sig}`, 'Request-Date':date }
-        });
-        const text = await r.text();
-        results[fcPath] = { status: r.status, body: text.slice(0, 500) };
-      } catch(e) {
-        results[fcPath] = { error: e.message };
-      }
-    }
-    res.json(results);
-  } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
-// ── ПРОГНОЗ ПОГОДЫ ────────────────────────────────────────────────────────
-// Использует Open-Meteo (бесплатно, ~7-14 дней)
-// FieldClimate forecast endpoint уточняется через /forecast-debug
+// ── ПРОГНОЗ ПОГОДЫ (FieldClimate /forecast/{station}/daily/last/7) ────────
+// Структура: { dates:["2026-05-24 00:00:00",...], data:[{name_original, values:{avg,max,min}}, ...] }
 app.get('/api/weather/forecast', auth, async (req, res) => {
   const station = req.query.station || FC_STATION || '00002158';
   const days    = parseInt(req.query.days) || 7;
 
-  // Сначала пробуем FieldClimate hourly forecast → агрегируем в суточные
   if (FC_PUBLIC && FC_PRIVATE) {
     try {
-      const fcPath = `/forecast/${station}/hourly/last/7`;
+      const fcPath = `/forecast/${station}/daily/last/7`;
       const date   = new Date().toUTCString();
       const sig    = crypto.createHmac('sha256', FC_PRIVATE)
         .update('GET' + fcPath + date + FC_PUBLIC).digest('hex');
@@ -737,43 +707,50 @@ app.get('/api/weather/forecast', auth, async (req, res) => {
       });
       if (r.ok) {
         const fcData = await r.json();
-        const rows   = fcData.grid?.data || fcData.data || [];
-        if (rows.length > 0) {
-          const byDate = {};
-          for (const row of rows) {
-            const d = (row.datetime || '').slice(0, 10);
-            if (!d) continue;
-            if (!byDate[d]) byDate[d] = { date:d, temps:[], precip:0, humidity:[], wind:[], et0_vals:[], leaf_wet:0, cloud:[], precip_prob:[] };
+        const dates   = fcData.dates  || [];
+        const sensors = fcData.data   || [];
+
+        const byDate = {};
+        dates.forEach(dt => {
+          const d = dt.slice(0, 10);
+          byDate[d] = { date:d, tmax:null, tmin:null, tavg:null, precip:0, humidity:null, wind:null, et0:null };
+        });
+
+        sensors.forEach(s => {
+          const name = (s.name_original || s.name || '').toLowerCase();
+          const vals = s.values || {};
+          const vAvg = vals.avg || vals.a  || [];
+          const vMax = vals.max || vals.mx || [];
+          const vMin = vals.min || vals.mn || [];
+          const vSum = vals.sum || vals.s  || [];
+
+          dates.forEach((dt, i) => {
+            const d = dt.slice(0, 10);
+            if (!byDate[d]) return;
             const b = byDate[d];
-            if (row.forecast_temperature        != null) b.temps.push(row.forecast_temperature);
-            if (row.forecast_precipitation      != null) b.precip += row.forecast_precipitation;
-            if (row.forecast_relativehumidity   != null) b.humidity.push(row.forecast_relativehumidity);
-            if (row.forecast_windspeed          != null) b.wind.push(row.forecast_windspeed);
-            if (row.aggr_customEto              != null) b.et0_vals.push(row.aggr_customEto);
-            if (row.forecast_leafwetnessindex   != null && row.forecast_leafwetnessindex > 0) b.leaf_wet += row.forecast_leafwetnessindex;
-            if (row.forecast_totalcloudcover    != null) b.cloud.push(row.forecast_totalcloudcover);
-            if (row.forecast_precipitation_probability != null) b.precip_prob.push(row.forecast_precipitation_probability);
-          }
-          const avg = arr => arr.length ? arr.reduce((s,v)=>s+v,0)/arr.length : null;
-          const rnd = (v,n=1) => v!=null ? Math.round(v*Math.pow(10,n))/Math.pow(10,n) : null;
-          const forecast = Object.values(byDate).sort((a,b)=>a.date.localeCompare(b.date)).map(b=>({
-            date:     b.date,
-            tmax:     rnd(b.temps.length ? Math.max(...b.temps) : null),
-            tmin:     rnd(b.temps.length ? Math.min(...b.temps) : null),
-            tavg:     rnd(avg(b.temps)),
-            precip:   rnd(b.precip),
-            humidity: rnd(avg(b.humidity), 0),
-            wind:     rnd(avg(b.wind)),
-            et0:      rnd(b.et0_vals.length ? b.et0_vals.reduce((s,v)=>s+v,0) : null),
-            leaf_wet_hours: rnd(b.leaf_wet/60, 1),
-            cloud:    rnd(avg(b.cloud), 0),
-            precip_prob_max: b.precip_prob.length ? Math.round(Math.max(...b.precip_prob)) : null,
-          }));
-          return res.json({ ok:true, forecast, source:'fieldclimate', station });
-        }
+            if (name.includes('air temperature') || name.includes('temperatura aerului')) {
+              if (vMax[i] != null) b.tmax = Math.round(vMax[i] * 10) / 10;
+              if (vMin[i] != null) b.tmin = Math.round(vMin[i] * 10) / 10;
+              if (vAvg[i] != null) b.tavg = Math.round(vAvg[i] * 10) / 10;
+            } else if (name.includes('rain') || name.includes('precipit') || name.includes('ploaie')) {
+              const v = vSum[i] ?? vAvg[i];
+              if (v != null) b.precip = Math.round(v * 10) / 10;
+            } else if (name.includes('humidity') || name.includes('umiditate') || name.includes('relative')) {
+              if (vAvg[i] != null) b.humidity = Math.round(vAvg[i]);
+            } else if (name.includes('wind') || name.includes('vant') || name.includes('viteza')) {
+              if (vAvg[i] != null) b.wind = Math.round(vAvg[i] * 10) / 10;
+            } else if (name.includes('evapotranspir') || name.includes('et0') || name.includes('eto')) {
+              const v = vSum[i] ?? vAvg[i];
+              if (v != null) b.et0 = Math.round(v * 10) / 10;
+            }
+          });
+        });
+
+        const forecast = Object.values(byDate).sort((a, b) => a.date.localeCompare(b.date));
+        return res.json({ ok:true, forecast, source:'fieldclimate', station });
       }
     } catch(e) {
-      console.warn('[forecast] FC failed, using Open-Meteo:', e.message);
+      console.warn('[forecast] FC failed:', e.message);
     }
   }
 
@@ -782,16 +759,15 @@ app.get('/api/weather/forecast', auth, async (req, res) => {
     const lat = process.env.FARM_LAT || '47.7321801';
     const lon = process.env.FARM_LON || '28.5216181';
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,relativehumidity_2m_max,et0_fao_evapotranspiration&timezone=Europe%2FBucharest&forecast_days=${Math.min(days,14)}`;
-    const om  = await fetch(url);
-    const d   = await om.json();
+    const d   = await (await fetch(url)).json();
     const forecast = (d.daily?.time || []).map((date, i) => ({
       date,
-      tmax:     d.daily.temperature_2m_max?.[i]            ?? null,
-      tmin:     d.daily.temperature_2m_min?.[i]            ?? null,
-      precip:   d.daily.precipitation_sum?.[i]             ?? 0,
-      wind:     d.daily.windspeed_10m_max?.[i]             ?? null,
-      humidity: d.daily.relativehumidity_2m_max?.[i]       ?? null,
-      et0:      d.daily.et0_fao_evapotranspiration?.[i]    ?? null,
+      tmax:     d.daily.temperature_2m_max?.[i]         ?? null,
+      tmin:     d.daily.temperature_2m_min?.[i]         ?? null,
+      precip:   d.daily.precipitation_sum?.[i]          ?? 0,
+      wind:     d.daily.windspeed_10m_max?.[i]          ?? null,
+      humidity: d.daily.relativehumidity_2m_max?.[i]    ?? null,
+      et0:      d.daily.et0_fao_evapotranspiration?.[i] ?? null,
     }));
     res.json({ ok:true, forecast, source:'open-meteo', lat, lon });
   } catch(e2) {
@@ -799,6 +775,7 @@ app.get('/api/weather/forecast', auth, async (req, res) => {
     res.status(500).json({ ok:false, error: e2.message });
   }
 });
+
 
 // ── СТРАНИЦЫ ──────────────────────────────────────────────────
 app.get('/', (req,res) => {
