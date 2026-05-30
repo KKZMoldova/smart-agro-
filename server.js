@@ -690,6 +690,20 @@ app.post('/api/ai/advisor', auth, async (req,res) => {
 });
 
 
+// ── DEBUG: посмотреть сырой ответ FC forecast ─────────────────────────────
+app.get("/api/weather/forecast-debug", authOpt, async (req, res) => {
+  try {
+    const station = FC_STATION || "00002158";
+    const fcPath  = `/forecast/${station}`;
+    const date    = new Date().toUTCString();
+    const sig     = crypto.createHmac("sha256", FC_PRIVATE).update("GET" + fcPath + date + FC_PUBLIC).digest("hex");
+    const r = await fetch("https://api.fieldclimate.com/v2" + fcPath, { headers: { "Accept":"application/json", "Authorization":`hmac ${FC_PUBLIC}:${sig}`, "Request-Date":date } });
+    const text = await r.text();
+    res.setHeader("Content-Type", "application/json");
+    res.send(text.slice(0, 8000));
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // ── ПРОГНОЗ ПОГОДЫ (FieldClimate forecast API) ───────────────────────────
 app.get('/api/weather/forecast', auth, async (req, res) => {
   const station = req.query.station || FC_STATION || '00002158';
@@ -715,7 +729,9 @@ app.get('/api/weather/forecast', auth, async (req, res) => {
     const fcData = await r.json();
 
     // FieldClimate forecast returns grid.data[] with hourly rows
-    const rows = (fcData.grid?.data || []);
+    // Попробуем разные пути (структура зависит от версии API)
+    const rows = fcData.grid?.data || fcData.data?.grid?.data || fcData.forecast || [];
+    console.log('[forecast] FC keys:', Object.keys(fcData).join(','), 'rows:', rows.length);
 
     // Агрегируем почасовые данные в суточные
     const byDate = {};
