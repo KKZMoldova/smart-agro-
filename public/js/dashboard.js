@@ -324,7 +324,7 @@ async function loadEquipLists() {
   const STATUS = {free:'✅ Свободна', busy:'🔄 Занята', repair:'🔧 В ремонте'};
   const ETYPE = {tractor:'🚜',sprayer:'💧',harvester:'🌾',truck:'🚛',other:'🔧'};
   const ATYPE = {sprayer:'💊',mower:'✂️',spreader:'🌱',plow:'🌾',other:'🔧'};
-  const SROLE = {mechanic:'🚜 Механизатор',agronomist:'🌿 Агроном',worker:'👷 Рабочий',manager:'📋 Бригадир',operator:'⚙️ Оператор',other:'👤 Другое'};
+  const SROLE = {mechanic:'🚜 Механизатор',agronomist:'🌿 Агроном',worker:'👷 Рабочий',manager:'📋 Бригадир/Менеджер',accountant:'📊 Бухгалтер',admin:'🖥️ Администратор',operator:'⚙️ Оператор',other:'👤 Другое'};
 
   const equipEl = document.getElementById('equip-list');
   if(equipEl) {
@@ -632,7 +632,10 @@ async function importStaffFromExcel(eventOrEl) {
     'mechanic':'mechanic','механизатор':'mechanic','тракторист':'mechanic',
     'agronomist':'agronomist','агроном':'agronomist',
     'worker':'worker','рабочий':'worker',
-    'manager':'manager','бригадир':'manager','мастер':'manager',
+    'manager':'manager','бригадир':'manager','мастер':'manager','менеджер':'manager',
+    'accountant':'accountant','бухгалтер':'accountant',
+    'admin':'admin','администратор':'admin',
+    'operator':'operator','оператор':'operator',
   };
 
   const reader = new FileReader();
