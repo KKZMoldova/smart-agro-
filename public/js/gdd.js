@@ -2850,7 +2850,8 @@ function renderPhaseLogTable() {
 
 function renderPhaseLogCompare(entries, el) {
   if (!el) return;
-  // Группируем: phaseName + cropId → {год: дата}
+
+  // Группируем: varietyId (или cropId) + phaseName → {год: entry}
   const groups = {};
   entries.forEach(e => {
     const key = `${e.cropId}||${e.varietyId||''}||${e.phaseName}`;
@@ -2862,11 +2863,26 @@ function renderPhaseLogCompare(entries, el) {
   const keys = Object.keys(groups);
   if (!keys.length) { el.innerHTML = ''; return; }
 
-  // Уникальные годы
   const years = [...new Set(entries.map(e => e.year||e.date?.slice(0,4)||'?'))].sort();
 
+  // Вычислить среднюю GDD по годам для каждой группы
+  function calcAvg(g) {
+    const vals = Object.values(g.byYear).map(e => e.gddOnDate).filter(v => v != null && !isNaN(v));
+    if (!vals.length) return null;
+    return Math.round(vals.reduce((s,v)=>s+v,0) / vals.length);
+  }
+
+  // Проверить можно ли применить среднюю (есть varietyId и GDD данные)
+  function canApply(g) {
+    if (!g.varietyId) return false;
+    const avg = calcAvg(g);
+    if (avg == null) return false;
+    const phases = getVarietyPhases(g.varietyId);
+    return phases.some(p => p.name === g.phaseName);
+  }
+
   el.innerHTML = `
-    <div style="font-family:'Unbounded',sans-serif;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">📊 Сравнение по годам</div>
+    <div style="font-family:'Unbounded',sans-serif;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">📊 Сравнение по годам · Средняя · Применение</div>
     <div style="overflow-x:auto;">
     <table style="width:100%;border-collapse:collapse;font-size:11px;">
       <thead>
@@ -2874,6 +2890,8 @@ function renderPhaseLogCompare(entries, el) {
           <th style="padding:8px 10px;text-align:left;">Культура / Сорт</th>
           <th style="padding:8px 10px;text-align:left;">Фаза</th>
           ${years.map(y=>`<th style="padding:8px 10px;text-align:center;">${y}</th>`).join('')}
+          <th style="padding:8px 10px;text-align:center;color:var(--accent2);">Ср. GDD</th>
+          <th style="padding:8px 10px;text-align:center;">Применить</th>
         </tr>
       </thead>
       <tbody>
@@ -2882,21 +2900,102 @@ function renderPhaseLogCompare(entries, el) {
           const crop = getCropById(g.cropId);
           const vari = S.varieties.find(v=>v.id===g.varietyId);
           const label = `${crop?.emoji||''} ${crop?.name||g.cropId}${vari?' · '+vari.name:''}`;
+          const avg = calcAvg(g);
+          const applicable = canApply(g);
           return `<tr style="border-bottom:1px solid var(--border);">
             <td style="padding:8px 10px;">${label}</td>
             <td style="padding:8px 10px;"><span style="padding:2px 8px;border-radius:8px;background:rgba(107,221,107,.12);color:var(--accent);">${g.phaseName}</span></td>
             ${years.map(y => {
               const e = g.byYear[y];
               return `<td style="padding:8px 10px;text-align:center;">
-                ${e ? `<div style="font-weight:700;">${e.date?.slice(5)||'—'}</div><div style="font-size:10px;color:var(--text3);">GDD ${e.gddOnDate!=null?e.gddOnDate:'—'}</div>` : '<span style="color:var(--text3);">—</span>'}
+                ${e
+                  ? `<div style="font-weight:700;">${e.date?.slice(5)||'—'}</div>
+                     <div style="font-size:10px;color:var(--text3);">GDD ${e.gddOnDate!=null?e.gddOnDate:'—'}</div>`
+                  : '<span style="color:var(--text3);">—</span>'}
               </td>`;
             }).join('')}
+            <td style="padding:8px 10px;text-align:center;">
+              ${avg != null
+                ? `<span style="font-family:'Unbounded',sans-serif;font-size:13px;font-weight:700;color:var(--accent2);">${avg}</span>
+                   <div style="font-size:9px;color:var(--text3);">${Object.keys(g.byYear).length} лет</div>`
+                : '<span style="color:var(--text3);">—</span>'}
+            </td>
+            <td style="padding:8px 10px;text-align:center;">
+              ${applicable
+                ? `<button class="btn btn-primary btn-xs" onclick="applyPhaseAvgToGdd('${g.varietyId}','${g.phaseName}',${avg})" title="Применить среднюю GDD ${avg} к порогу фазы '${g.phaseName}'">✓ Применить</button>`
+                : `<span style="font-size:10px;color:var(--text3);">${avg==null?'нет данных':'нет сорта'}</span>`}
+            </td>
           </tr>`;
         }).join('')}
       </tbody>
     </table>
-    </div>`;
+    </div>
+
+    <!-- Кнопка применить всё -->
+    ${keys.some(k => canApply(groups[k]) && calcAvg(groups[k]) != null)
+      ? `<div style="margin-top:12px;padding:10px 14px;background:rgba(107,221,107,.06);border:1px solid rgba(107,221,107,.2);border-radius:8px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+          <div style="font-size:11px;color:var(--text3);">Применить все средние GDD к порогам фаз в базе данных сортов</div>
+          <button class="btn btn-primary btn-sm" onclick="applyAllPhaseAvgs()">✓ Применить все средние</button>
+        </div>`
+      : ''}`;
 }
+
+// Применить одну среднюю GDD к порогу фазы сорта
+function applyPhaseAvgToGdd(varietyId, phaseName, avgGdd) {
+  const variety = S.varieties.find(v => v.id === varietyId);
+  if (!variety) { alert('Сорт не найден'); return; }
+  const crop = getCropById(variety.cropId || 'crop_cherry');
+  const std = crop?.phases || S.gddDb.standardPhases || [];
+  const phaseIdx = std.findIndex(p => p.name === phaseName);
+  if (phaseIdx < 0) { alert('Фаза не найдена в базе'); return; }
+
+  if (!S.gddDb.varietyGdd[varietyId]) S.gddDb.varietyGdd[varietyId] = std.map((_,i) => i * 100);
+  const oldVal = S.gddDb.varietyGdd[varietyId][phaseIdx];
+  if (!confirm(`Обновить GDD порог "${phaseName}" для "${variety.name}"?\n${oldVal} → ${avgGdd}`)) return;
+
+  S.gddDb.varietyGdd[varietyId][phaseIdx] = avgGdd;
+  save();
+  renderPhaseLogTable();
+  renderGdd();
+  alert(`✅ Порог "${phaseName}" для "${variety.name}" обновлён: ${oldVal} → ${avgGdd} GDD`);
+}
+
+// Применить все средние
+function applyAllPhaseAvgs() {
+  const log = getPhaseLog();
+  if (!log.length) return;
+
+  // Считаем средние по varietyId + phaseName
+  const avgs = {};
+  log.forEach(e => {
+    if (!e.varietyId || e.gddOnDate == null) return;
+    const k = `${e.varietyId}||${e.phaseName}`;
+    if (!avgs[k]) avgs[k] = { varietyId:e.varietyId, phaseName:e.phaseName, vals:[] };
+    avgs[k].vals.push(e.gddOnDate);
+  });
+
+  let count = 0;
+  Object.values(avgs).forEach(a => {
+    if (!a.vals.length) return;
+    const avg = Math.round(a.vals.reduce((s,v)=>s+v,0) / a.vals.length);
+    const variety = S.varieties.find(v => v.id === a.varietyId);
+    if (!variety) return;
+    const crop = getCropById(variety.cropId || 'crop_cherry');
+    const std = crop?.phases || S.gddDb.standardPhases || [];
+    const phaseIdx = std.findIndex(p => p.name === a.phaseName);
+    if (phaseIdx < 0) return;
+    if (!S.gddDb.varietyGdd[a.varietyId]) S.gddDb.varietyGdd[a.varietyId] = std.map((_,i) => i * 100);
+    S.gddDb.varietyGdd[a.varietyId][phaseIdx] = avg;
+    count++;
+  });
+
+  if (!count) { alert('Нет данных для применения'); return; }
+  save();
+  renderPhaseLogTable();
+  renderGdd();
+  alert(`✅ Обновлено ${count} порогов фаз на основе средних по годам`);
+}
+
 
 // ---- Модал ----
 let _editingPhaseLogId = null;
