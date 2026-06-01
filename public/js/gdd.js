@@ -2,20 +2,19 @@
 // ═══ ТЕХНОЛОГИЧЕСКАЯ КАРТА BBCH ════════════════════════════════════════
 
 function switchGddSub(sub) {
-  ['gdd','techmap'].forEach(s => {
+  ['gdd','techmap','phaselog'].forEach(s => {
     const panel = document.getElementById('gddsub-panel-'+s);
     const btn   = document.getElementById('gddsub-'+s);
     if(!panel||!btn) return;
     const active = s===sub;
-    panel.style.display = active ? '' : 'none';
-    btn.style.color       = active ? 'var(--accent)' : 'var(--text3)';
-    btn.style.borderBottom= active ? '2px solid var(--accent)' : '2px solid transparent';
-    btn.style.fontWeight  = active ? '700' : '400';
+    panel.style.display    = active ? '' : 'none';
+    btn.style.color        = active ? 'var(--accent)' : 'var(--text3)';
+    btn.style.borderBottom = active ? '2px solid var(--accent)' : '2px solid transparent';
+    btn.style.fontWeight   = active ? '700' : '400';
   });
-  if(sub==='techmap') {
-    fillTechmapCellSelect();
-    renderTechmap();
-  }
+  if(sub==='techmap')  { fillTechmapCellSelect(); renderTechmap(); }
+  if(sub==='phaselog') { fillPhaseLogFilters(); renderPhaseLogTable(); }
+  if(sub==='gdd')      { renderGdd(); }
 }
 
 function fillTechmapCellSelect() {
@@ -2752,24 +2751,6 @@ function getPhaseLog() {
   return S.phaseLog;
 }
 
-// Переключение вкладки phaselog
-const _origSwitchGddSub = switchGddSub;
-function switchGddSub(sub) {
-  const subs = ['gdd', 'techmap', 'phaselog'];
-  subs.forEach(s => {
-    const panel = document.getElementById('gddsub-panel-' + s);
-    const btn   = document.getElementById('gddsub-' + s);
-    if (!panel || !btn) return;
-    const active = s === sub;
-    panel.style.display = active ? '' : 'none';
-    btn.style.color       = active ? 'var(--accent)' : 'var(--text3)';
-    btn.style.borderBottom = active ? '2px solid var(--accent)' : '2px solid transparent';
-    btn.style.fontWeight  = active ? '700' : '400';
-  });
-  if (sub === 'techmap') { fillTechmapCellSelect(); renderTechmap(); }
-  if (sub === 'phaselog') { fillPhaseLogFilters(); renderPhaseLogTable(); }
-  if (sub === 'gdd') { renderGdd(); }
-}
 
 function fillPhaseLogFilters() {
   // Фильтр культур
