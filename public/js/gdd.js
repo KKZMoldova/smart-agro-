@@ -2742,3 +2742,275 @@ function toggleIrrigScience() {
   el.style.display = el.style.display === 'none' ? 'block' : 'none';
 }
 
+
+// ═══ СТАТИСТИКА ФАЗ (калибровка GDD по наблюдениям) ══════════════════════
+
+// S.phaseLog = [{id, cropId, varietyId, phaseName, date, gddOnDate, note, year}]
+
+function getPhaseLog() {
+  if (!S.phaseLog) S.phaseLog = [];
+  return S.phaseLog;
+}
+
+// Переключение вкладки phaselog
+const _origSwitchGddSub = switchGddSub;
+function switchGddSub(sub) {
+  const subs = ['gdd', 'techmap', 'phaselog'];
+  subs.forEach(s => {
+    const panel = document.getElementById('gddsub-panel-' + s);
+    const btn   = document.getElementById('gddsub-' + s);
+    if (!panel || !btn) return;
+    const active = s === sub;
+    panel.style.display = active ? '' : 'none';
+    btn.style.color       = active ? 'var(--accent)' : 'var(--text3)';
+    btn.style.borderBottom = active ? '2px solid var(--accent)' : '2px solid transparent';
+    btn.style.fontWeight  = active ? '700' : '400';
+  });
+  if (sub === 'techmap') { fillTechmapCellSelect(); renderTechmap(); }
+  if (sub === 'phaselog') { fillPhaseLogFilters(); renderPhaseLogTable(); }
+  if (sub === 'gdd') { renderGdd(); }
+}
+
+function fillPhaseLogFilters() {
+  // Фильтр культур
+  const cropSel = document.getElementById('phaselog-filter-crop');
+  if (cropSel) {
+    const cur = cropSel.value;
+    cropSel.innerHTML = '<option value="">— Все культуры —</option>';
+    S.crops.forEach(c => cropSel.innerHTML += `<option value="${c.id}" ${cur===c.id?'selected':''}>${c.emoji||''} ${c.name}</option>`);
+  }
+  // Фильтр сортов
+  const varSel = document.getElementById('phaselog-filter-variety');
+  if (varSel) {
+    varSel.innerHTML = '<option value="">— Все сорта —</option>';
+    S.varieties.forEach(v => varSel.innerHTML += `<option value="${v.id}">${v.name}</option>`);
+  }
+}
+
+function renderPhaseLogTable() {
+  const wrap    = document.getElementById('phaselog-table-wrap');
+  const compare = document.getElementById('phaselog-compare');
+  if (!wrap) return;
+
+  const filterCrop = document.getElementById('phaselog-filter-crop')?.value || '';
+  const filterVar  = document.getElementById('phaselog-filter-variety')?.value || '';
+  const log = getPhaseLog();
+
+  let filtered = log;
+  if (filterCrop)  filtered = filtered.filter(e => e.cropId === filterCrop);
+  if (filterVar)   filtered = filtered.filter(e => e.varietyId === filterVar);
+  filtered = [...filtered].sort((a,b) => (b.date||'').localeCompare(a.date||''));
+
+  if (!filtered.length) {
+    wrap.innerHTML = `<div style="padding:20px;text-align:center;color:var(--text3);font-size:12px;">
+      Нет записей. Нажмите <b>+ Зафиксировать фазу</b> чтобы добавить наблюдение.
+    </div>`;
+    if (compare) compare.innerHTML = '';
+    return;
+  }
+
+  // Таблица
+  wrap.innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <thead>
+        <tr style="background:var(--surface2);font-family:'Unbounded',sans-serif;font-size:10px;color:var(--text3);">
+          <th style="padding:8px 10px;text-align:left;">Дата</th>
+          <th style="padding:8px 10px;text-align:left;">Год</th>
+          <th style="padding:8px 10px;text-align:left;">Культура</th>
+          <th style="padding:8px 10px;text-align:left;">Сорт</th>
+          <th style="padding:8px 10px;text-align:left;">Фаза</th>
+          <th style="padding:8px 10px;text-align:right;">GDD</th>
+          <th style="padding:8px 10px;text-align:left;">Примечание</th>
+          <th style="padding:8px 10px;text-align:center;">✏️</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${filtered.map(e => {
+          const crop = getCropById(e.cropId);
+          const vari = S.varieties.find(v => v.id === e.varietyId);
+          return `<tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:8px 10px;font-family:'Unbounded',sans-serif;font-size:11px;">${e.date||'—'}</td>
+            <td style="padding:8px 10px;color:var(--text3);">${e.year||e.date?.slice(0,4)||'—'}</td>
+            <td style="padding:8px 10px;">${crop?.emoji||''} ${crop?.name||e.cropId||'—'}</td>
+            <td style="padding:8px 10px;color:var(--text3);">${vari?.name||'—'}</td>
+            <td style="padding:8px 10px;"><span style="padding:2px 8px;border-radius:8px;background:rgba(107,221,107,.12);color:var(--accent);font-size:11px;">${e.phaseName||'—'}</span></td>
+            <td style="padding:8px 10px;text-align:right;font-family:'Unbounded',sans-serif;color:var(--accent2);">${e.gddOnDate!=null?e.gddOnDate:'—'}</td>
+            <td style="padding:8px 10px;color:var(--text3);font-size:11px;">${e.note||''}</td>
+            <td style="padding:8px 10px;text-align:center;">
+              <button class="btn btn-secondary btn-xs" onclick="openPhaseLogModal('${e.id}')">✏️</button>
+            </td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+
+  // Сравнение по годам
+  renderPhaseLogCompare(filtered, compare);
+}
+
+function renderPhaseLogCompare(entries, el) {
+  if (!el) return;
+  // Группируем: phaseName + cropId → {год: дата}
+  const groups = {};
+  entries.forEach(e => {
+    const key = `${e.cropId}||${e.varietyId||''}||${e.phaseName}`;
+    if (!groups[key]) groups[key] = { cropId:e.cropId, varietyId:e.varietyId, phaseName:e.phaseName, byYear:{} };
+    const yr = e.year || e.date?.slice(0,4) || '?';
+    if (!groups[key].byYear[yr] || e.date > groups[key].byYear[yr].date) groups[key].byYear[yr] = e;
+  });
+
+  const keys = Object.keys(groups);
+  if (!keys.length) { el.innerHTML = ''; return; }
+
+  // Уникальные годы
+  const years = [...new Set(entries.map(e => e.year||e.date?.slice(0,4)||'?'))].sort();
+
+  el.innerHTML = `
+    <div style="font-family:'Unbounded',sans-serif;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">📊 Сравнение по годам</div>
+    <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:11px;">
+      <thead>
+        <tr style="background:var(--surface2);font-family:'Unbounded',sans-serif;font-size:10px;color:var(--text3);">
+          <th style="padding:8px 10px;text-align:left;">Культура / Сорт</th>
+          <th style="padding:8px 10px;text-align:left;">Фаза</th>
+          ${years.map(y=>`<th style="padding:8px 10px;text-align:center;">${y}</th>`).join('')}
+        </tr>
+      </thead>
+      <tbody>
+        ${keys.map(k => {
+          const g = groups[k];
+          const crop = getCropById(g.cropId);
+          const vari = S.varieties.find(v=>v.id===g.varietyId);
+          const label = `${crop?.emoji||''} ${crop?.name||g.cropId}${vari?' · '+vari.name:''}`;
+          return `<tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:8px 10px;">${label}</td>
+            <td style="padding:8px 10px;"><span style="padding:2px 8px;border-radius:8px;background:rgba(107,221,107,.12);color:var(--accent);">${g.phaseName}</span></td>
+            ${years.map(y => {
+              const e = g.byYear[y];
+              return `<td style="padding:8px 10px;text-align:center;">
+                ${e ? `<div style="font-weight:700;">${e.date?.slice(5)||'—'}</div><div style="font-size:10px;color:var(--text3);">GDD ${e.gddOnDate!=null?e.gddOnDate:'—'}</div>` : '<span style="color:var(--text3);">—</span>'}
+              </td>`;
+            }).join('')}
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+    </div>`;
+}
+
+// ---- Модал ----
+let _editingPhaseLogId = null;
+
+function openPhaseLogModal(id) {
+  _editingPhaseLogId = id || null;
+  const entry = id ? getPhaseLog().find(e => e.id === id) : null;
+  document.getElementById('phaselog-modal-title').textContent = entry ? '✏️ Редактировать запись' : '📅 Зафиксировать фазу';
+  document.getElementById('pl-del-btn').style.display = entry ? 'inline-flex' : 'none';
+  document.getElementById('pl-date').value = entry?.date || new Date().toISOString().slice(0,10);
+  document.getElementById('pl-note').value = entry?.note || '';
+
+  // Заполнить культуры
+  const cropSel = document.getElementById('pl-crop');
+  cropSel.innerHTML = '<option value="">— выбрать —</option>';
+  S.crops.forEach(c => cropSel.innerHTML += `<option value="${c.id}" ${entry?.cropId===c.id?'selected':''}>${c.emoji||''} ${c.name}</option>`);
+  if (entry?.cropId) cropSel.value = entry.cropId;
+
+  onPhaseLogCropChange(entry?.varietyId, entry?.phaseName);
+  document.getElementById('pl-gdd-info').style.display = 'none';
+  openModal('modal-phaselog');
+}
+
+function onPhaseLogCropChange(preselVarId, preselPhase) {
+  const cropId = document.getElementById('pl-crop').value;
+  const crop   = getCropById(cropId);
+
+  // Сорта
+  const varSel = document.getElementById('pl-variety');
+  varSel.innerHTML = '<option value="">— все сорта / культура —</option>';
+  if (cropId) {
+    S.varieties.filter(v=>(v.cropId||'crop_cherry')===cropId).forEach(v =>
+      varSel.innerHTML += `<option value="${v.id}" ${preselVarId===v.id?'selected':''}>${v.name}</option>`
+    );
+  }
+  if (preselVarId) varSel.value = preselVarId;
+
+  // Фазы
+  const phaseSel = document.getElementById('pl-phase');
+  phaseSel.innerHTML = '<option value="">— выбрать фазу —</option>';
+  if (crop) {
+    // Фазы из справочника культуры
+    const phases = crop.phases && crop.phases.length ? crop.phases : [];
+    phases.forEach(ph => phaseSel.innerHTML += `<option value="${ph.name}" ${preselPhase===ph.name?'selected':''}>${ph.name}</option>`);
+    // Также добавить фазы из GDD сортов
+    S.varieties.filter(v=>(v.cropId||'crop_cherry')===cropId).forEach(v => {
+      const vPhases = getVarietyPhases(v.id);
+      vPhases.forEach(ph => {
+        if (!phaseSel.querySelector(`option[value="${ph.name}"]`))
+          phaseSel.innerHTML += `<option value="${ph.name}" ${preselPhase===ph.name?'selected':''}>${ph.name}</option>`;
+      });
+    });
+  }
+  if (preselPhase) phaseSel.value = preselPhase;
+}
+
+function savePhaseLog() {
+  const cropId    = document.getElementById('pl-crop').value;
+  const varietyId = document.getElementById('pl-variety').value || null;
+  const phaseName = document.getElementById('pl-phase').value;
+  const date      = document.getElementById('pl-date').value;
+  const note      = document.getElementById('pl-note').value.trim();
+
+  if (!cropId)    { alert('Выберите культуру'); return; }
+  if (!phaseName) { alert('Выберите фазу'); return; }
+  if (!date)      { alert('Укажите дату'); return; }
+
+  // Вычислить GDD на дату
+  const crop = getCropById(cropId);
+  const tbase = crop?.baseTemp || 5;
+  const gddOnDate = calcGddOnDate(date, tbase);
+  const year = date.slice(0, 4);
+
+  const entry = {
+    id:         _editingPhaseLogId || ('pl_' + Date.now()),
+    cropId, varietyId, phaseName, date, note, year,
+    gddOnDate,
+    savedAt: new Date().toISOString(),
+  };
+
+  if (!S.phaseLog) S.phaseLog = [];
+  const idx = S.phaseLog.findIndex(e => e.id === entry.id);
+  if (idx >= 0) S.phaseLog[idx] = entry; else S.phaseLog.push(entry);
+
+  save();
+  closeModal('modal-phaselog');
+  renderPhaseLogTable();
+
+  // Показать GDD
+  setTimeout(() => {
+    const infoEl = document.getElementById('pl-gdd-info');
+    if (infoEl) { infoEl.style.display='block'; infoEl.textContent = `✅ Сохранено. GDD на ${date}: ${gddOnDate} °C·дней (база +${tbase}°C)`; }
+  }, 100);
+}
+
+function deletePhaseLog() {
+  if (!_editingPhaseLogId || !confirm('Удалить запись?')) return;
+  S.phaseLog = (S.phaseLog||[]).filter(e => e.id !== _editingPhaseLogId);
+  save();
+  closeModal('modal-phaselog');
+  renderPhaseLogTable();
+}
+
+// Вычислить накопленный GDD на конкретную дату
+function calcGddOnDate(targetDate, tbase) {
+  const startDate = S.gddDb?.startDate || (new Date().getFullYear() + '-01-01');
+  let gdd = 0;
+  (S.weather || []).forEach(w => {
+    if (!w.date || w.date < startDate || w.date > targetDate) return;
+    const tmax = parseFloat(w.tmax) || 0;
+    const tmin = parseFloat(w.tmin) || 0;
+    const daily = Math.max(0, ((tmax + tmin) / 2) - tbase);
+    gdd += daily;
+  });
+  return Math.round(gdd);
+}
+
