@@ -995,12 +995,40 @@ function runAgronomistEngine(varietyId, tbase) {
   }
 
   allAlerts.sort((a,b)=>{const rank={critical:4,spray:3,watch:2,ok:1};return (rank[b.level]||0)-(rank[a.level]||0);});
-  return { variety, currentGdd, currentPhase, daysLeft, latestWeather, diseaseResults, pestResults, allAlerts, beesActive, frostRisk, series };
+
+  // ── Рекомендации по текущей фазе (из TECHMAP) ──────────────────────────
+  let phaseRecs = null;
+  if (currentPhase) {
+    const techmapCrop = TECHMAP[cropId] || TECHMAP['crop_cherry'] || [];
+    const tm = techmapCrop.find(t => t.phase === currentPhase.name);
+    if (tm) phaseRecs = tm;
+  }
+
+  // ── Авто-предупреждение о следующей фазе ──────────────────────────────
+  let nextPhaseAlert = null;
+  if (varietyId) {
+    const phases = getVarietyPhases(varietyId);
+    const curIdx = phases.findIndex(p => p.name === currentPhase?.name);
+    if (curIdx >= 0 && curIdx < phases.length - 1) {
+      const nextPh = phases[curIdx + 1];
+      const gddToNext = nextPh.from - currentGdd;
+      // Предупреждение за 50 GDD до следующей фазы
+      if (gddToNext > 0 && gddToNext <= 50) {
+        nextPhaseAlert = {
+          phase: nextPh,
+          gddToNext,
+          daysEstimate: daysLeft,
+        };
+      }
+    }
+  }
+
+  return { variety, currentGdd, currentPhase, daysLeft, latestWeather, diseaseResults, pestResults, allAlerts, beesActive, frostRisk, series, phaseRecs, nextPhaseAlert };
 }
 
 /** Step 11: Render the full agronomist report — human language */
 function renderGddReport(result) {
-  const { variety, currentGdd, currentPhase, daysLeft, latestWeather, diseaseResults, pestResults, allAlerts, beesActive, frostRisk } = result;
+  const { variety, currentGdd, currentPhase, daysLeft, latestWeather, diseaseResults, pestResults, allAlerts, beesActive, frostRisk, phaseRecs, nextPhaseAlert } = result;
   const LVL_COLOR = { critical:'var(--red)', spray:'var(--orange)', watch:'var(--yellow)', ok:'var(--accent)' };
   const LVL_LABEL = { critical:'🔴 КРИТИЧЕСКИЙ', spray:'🟠 ВЫСОКИЙ', watch:'🟡 СРЕДНИЙ', ok:'🟢 НИЗКИЙ' };
   const SENS_LABEL = ['','Устойчивый','Слабо','Средний','Чувствительный','Очень чувствительный'];
@@ -1080,6 +1108,81 @@ function renderGddReport(result) {
       </div>`;
     });
     html += `</div></details>`;
+  }
+
+
+  // ── Авто-предупреждение о следующей фазе ─────────────────────────────
+  if (nextPhaseAlert) {
+    html += `
+    <div style="background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.3);border-radius:10px;padding:14px;margin-top:12px;display:flex;gap:12px;align-items:flex-start;">
+      <div style="font-size:22px;">⏰</div>
+      <div>
+        <div style="font-family:'Unbounded',sans-serif;font-size:11px;font-weight:700;color:var(--yellow);margin-bottom:4px;">СЛЕДУЮЩАЯ ФАЗА ЧЕРЕЗ ${nextPhaseAlert.gddToNext} GDD</div>
+        <div style="font-size:13px;font-weight:700;margin-bottom:4px;">${nextPhaseAlert.phase.name}</div>
+        <div style="font-size:11px;color:var(--text3);">
+          ${nextPhaseAlert.daysEstimate != null ? 'Ориентировочно через ~' + nextPhaseAlert.daysEstimate + ' дн. ' : ''}
+          Подготовьте препараты и операции заранее.
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // ── Рекомендации по текущей фазе (Технокарта) ────────────────────────
+  if (phaseRecs) {
+    const forecast = (_forecast || []).slice(0, 3);
+    const rainNext3 = forecast.reduce((s, d) => s + (d.precip || 0), 0);
+    const windMax   = forecast.length ? Math.max(...forecast.map(d => d.wind || 0)) : 0;
+    const sprayOk   = rainNext3 < 3 && windMax < 20;
+
+    html += `
+    <div style="background:var(--surface2);border:1px solid rgba(107,221,107,.2);border-radius:12px;padding:16px;margin-top:16px;">
+      <div style="font-family:'Unbounded',sans-serif;font-size:10px;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">
+        🌱 Агротехника · ${currentPhase?.name || 'Фаза'} · ${phaseRecs.bbch || ''}
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;">
+
+        ${phaseRecs.protection && phaseRecs.protection.length ? `
+        <div style="background:var(--surface);border-radius:8px;padding:12px;border-left:3px solid var(--orange);">
+          <div style="font-size:11px;font-weight:700;color:var(--orange);margin-bottom:8px;">💊 Защита растений</div>
+          ${phaseRecs.protection.map(p => '<div style=\"font-size:11px;color:var(--text2);padding:3px 0;border-bottom:1px solid var(--border);">• ' + p + '</div>').join('')}
+          ${sprayOk
+            ? '<div style=\"margin-top:8px;font-size:10px;padding:4px 8px;border-radius:6px;background:rgba(107,221,107,.12);color:var(--accent);">✅ Прогноз: условия для обработки хорошие</div>'
+            : '<div style=\"margin-top:8px;font-size:10px;padding:4px 8px;border-radius:6px;background:rgba(255,153,68,.12);color:var(--orange);">⚠️ Прогноз: дождь или ветер — перенести обработку</div>'}
+        </div>` : ''}
+
+        ${phaseRecs.irrigation ? `
+        <div style="background:var(--surface);border-radius:8px;padding:12px;border-left:3px solid var(--blue);">
+          <div style="font-size:11px;font-weight:700;color:var(--blue);margin-bottom:8px;">💧 Ирригация</div>
+          <div style="font-size:11px;color:var(--text2);">${phaseRecs.irrigation}</div>
+          ${phaseRecs.kc != null ? '<div style=\"margin-top:6px;font-size:10px;color:var(--text3);">Kc = ' + phaseRecs.kc + '</div>' : ''}
+        </div>` : ''}
+
+        ${phaseRecs.nutrition ? `
+        <div style="background:var(--surface);border-radius:8px;padding:12px;border-left:3px solid var(--accent2);">
+          <div style="font-size:11px;font-weight:700;color:var(--accent2);margin-bottom:8px;">🧪 Питание</div>
+          <div style="font-size:11px;color:var(--text2);">${phaseRecs.nutrition}</div>
+        </div>` : ''}
+
+        ${phaseRecs.tasks && phaseRecs.tasks.length ? `
+        <div style="background:var(--surface);border-radius:8px;padding:12px;border-left:3px solid var(--accent);">
+          <div style="font-size:11px;font-weight:700;color:var(--accent);margin-bottom:8px;">📋 Агрооперации</div>
+          ${phaseRecs.tasks.map(t => '<div style=\"font-size:11px;color:var(--text2);padding:3px 0;border-bottom:1px solid var(--border);">☐ ' + t + '</div>').join('')}
+        </div>` : ''}
+
+        ${phaseRecs.alert ? `
+        <div style="background:rgba(239,68,68,.06);border-radius:8px;padding:12px;border-left:3px solid var(--red);grid-column:1/-1;">
+          <div style="font-size:11px;font-weight:700;color:var(--red);margin-bottom:4px;">⚠️ Важно в эту фазу</div>
+          <div style="font-size:11px;color:var(--text2);">${phaseRecs.alert}</div>
+        </div>` : ''}
+
+        ${phaseRecs.film ? `
+        <div style="background:var(--surface);border-radius:8px;padding:10px;border-left:3px solid var(--text3);">
+          <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:4px;">🎪 Плёнка / Укрытие</div>
+          <div style="font-size:11px;color:var(--text3);">${phaseRecs.film}</div>
+        </div>` : ''}
+
+      </div>
+    </div>`;
   }
 
   // General conclusion
