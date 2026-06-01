@@ -925,6 +925,8 @@ body > .panel.active { display: block; }
         style="padding:7px 16px;border:none;border-bottom:2px solid var(--accent);background:transparent;color:var(--accent);font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;">📈 GDD / Фазы</button>
       <button id="gddsub-techmap" onclick="switchGddSub('techmap')"
         style="padding:7px 16px;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--text3);font-size:12px;cursor:pointer;font-family:'Inter',sans-serif;">📋 Технокарта</button>
+      <button id="gddsub-phaselog" onclick="switchGddSub('phaselog')"
+        style="padding:7px 16px;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--text3);font-size:12px;cursor:pointer;font-family:'Inter',sans-serif;">📅 Статистика фаз</button>
     </div>
 
     <!-- SUB: GDD (основное содержимое) -->
@@ -992,6 +994,36 @@ body > .panel.active { display: block; }
       <div id="techmap-cell-info" style="font-size:11px;color:var(--text3);"></div>
     </div>
     <div id="techmap-content"></div>
+  </div>
+
+  <!-- SUB: Статистика фаз (калибровка) -->
+  <div id="gddsub-panel-phaselog" style="display:none;">
+    <!-- Заголовок + кнопка добавить -->
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px;">
+      <div>
+        <div style="font-family:'Unbounded',sans-serif;font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px;">📅 Статистика наступления фаз</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:3px;">Агроном фиксирует дату когда увидел фазу в саду. Статистика по годам для корректировки GDD порогов.</div>
+      </div>
+      <button class="btn btn-primary" onclick="openPhaseLogModal()">+ Зафиксировать фазу</button>
+    </div>
+
+    <!-- Фильтры -->
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:center;">
+      <span style="font-size:12px;color:var(--text2);">Культура:</span>
+      <select id="phaselog-filter-crop" onchange="renderPhaseLogTable()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 12px;color:var(--text);font-family:'Inter',sans-serif;">
+        <option value="">— Все —</option>
+      </select>
+      <span style="font-size:12px;color:var(--text2);">Сорт:</span>
+      <select id="phaselog-filter-variety" onchange="renderPhaseLogTable()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 12px;color:var(--text);font-family:'Inter',sans-serif;">
+        <option value="">— Все —</option>
+      </select>
+    </div>
+
+    <!-- Таблица статистики -->
+    <div id="phaselog-table-wrap" style="overflow-x:auto;"></div>
+
+    <!-- Сравнение по годам -->
+    <div id="phaselog-compare" style="margin-top:20px;"></div>
   </div>
 
 </div><!-- end panel-gdd -->
@@ -3986,5 +4018,49 @@ window.switchIrrigSub = function(sub) {
   })();
 })();
 </script>
+
+<!-- MODAL: Зафиксировать фазу -->
+<div class="modal-overlay" id="modal-phaselog" style="display:none;">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header">
+      <h3 id="phaselog-modal-title">📅 Зафиксировать фазу</h3>
+      <button class="modal-close" onclick="closeModal('modal-phaselog')">✕</button>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:14px;">
+      <div>
+        <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:5px;">Культура</label>
+        <select id="pl-crop" onchange="onPhaseLogCropChange()" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:'Inter',sans-serif;">
+          <option value="">— выбрать —</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:5px;">Сорт <span style="color:var(--text3);font-size:10px;">(необязательно)</span></label>
+        <select id="pl-variety" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:'Inter',sans-serif;">
+          <option value="">— все сорта / культура —</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:5px;">Фаза</label>
+        <select id="pl-phase" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:'Inter',sans-serif;">
+          <option value="">— выбрать фазу —</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:5px;">Дата наблюдения</label>
+        <input type="date" id="pl-date" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:'Inter',sans-serif;">
+      </div>
+      <div>
+        <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:5px;">Примечание</label>
+        <input type="text" id="pl-note" placeholder="напр. 20% цветков открылось" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:'Inter',sans-serif;">
+      </div>
+      <div id="pl-gdd-info" style="display:none;padding:10px 14px;background:rgba(107,221,107,.08);border:1px solid rgba(107,221,107,.2);border-radius:8px;font-size:11px;color:var(--accent);"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-phaselog')">Отмена</button>
+      <button id="pl-del-btn" class="btn btn-danger" style="display:none;" onclick="deletePhaseLog()">🗑 Удалить</button>
+      <button class="btn btn-primary" onclick="savePhaseLog()">💾 Сохранить</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
