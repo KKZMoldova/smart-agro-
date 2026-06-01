@@ -622,8 +622,9 @@ app.post('/api/staff', authOpt, async (req,res) => {
   try {
     // Добавляем колонку data если нет
     await db.query('ALTER TABLE public.staff ADD COLUMN IF NOT EXISTS data JSONB').catch(()=>{});
-    await db.query(`INSERT INTO public.staff (id,name,role,data) VALUES ($1,$2,$3,$4) ON CONFLICT (id) DO UPDATE SET name=$2,role=$3,data=$4`,
-      [String(id), b.name||'', b.role||b.type||'operator', JSON.stringify(b)]);
+    await db.query('ALTER TABLE public.staff ADD COLUMN IF NOT EXISTS phone TEXT').catch(()=>{});
+    await db.query(`INSERT INTO public.staff (id,name,role,phone,data) VALUES ($1,$2,$3,$4,$5) ON CONFLICT (id) DO UPDATE SET name=$2,role=$3,phone=$4,data=$5`,
+      [String(id), b.name||'', b.role||b.type||'operator', b.phone||null, JSON.stringify(b)]);
     res.json({ok:true,id});
   } catch(e) { res.status(500).json({ok:false,error:e.message}); }
 });
