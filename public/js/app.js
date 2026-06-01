@@ -709,6 +709,7 @@ async function save() {
         chillPortions: S.chillPortions,
         analyses:    S.analyses,
         diseases:    S.diseases,
+        phaseLog:    S.phaseLog||[],
       })
     });
   } catch(e) { console.warn('[save] Full state sync failed:', e.message); }
@@ -834,6 +835,17 @@ async function load() {
     const gddRes = await API.getSetting('varietyGdd');
     if (gddRes?.value && Object.keys(gddRes.value).length) {
       S.gddDb.varietyGdd = Object.assign({}, S.gddDb.varietyGdd, gddRes.value);
+    }
+
+    // Full orchard state (includes phaseLog, diseases, etc.)
+    const orchardRes = await fetch('/api/state/orchard', { headers: getAuthHeaders() });
+    if (orchardRes.ok) {
+      const orchardData = await orchardRes.json();
+      if (orchardData?.data) {
+        const d = orchardData.data;
+        if (Array.isArray(d.phaseLog) && d.phaseLog.length) S.phaseLog = d.phaseLog;
+        if (Array.isArray(d.diseases) && d.diseases.length) S.diseases = d.diseases;
+      }
     }
 
     // Catalog from server
