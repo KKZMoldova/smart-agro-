@@ -317,8 +317,8 @@ function renderDashboard() {
 async function loadEquipLists() {
   // Техника
   let equip = [], attach = [], staff = [];
-  try { const eq = await fetch('/api/equipment', {headers:getAuthHeaders()}).then(r=>r.json()); equip = Array.isArray(eq)?eq:(eq.data||[]); } catch(e) {}
-  try { const at = await fetch('/api/attachments', {headers:getAuthHeaders()}).then(r=>r.json()); attach = Array.isArray(at)?at:(at.data||[]); } catch(e) {}
+  try { const eq = await fetch('/api/equipment', {headers:getAuthHeaders()}).then(r=>r.json()); const raw = Array.isArray(eq)?eq:(eq.data||[]); equip = raw.map(e=>Object.assign({},e.data||{},e)); } catch(e) {}
+  try { const at = await fetch('/api/attachments', {headers:getAuthHeaders()}).then(r=>r.json()); const raw = Array.isArray(at)?at:(at.data||[]); attach = raw.map(a=>Object.assign({},a.data||{},a)); } catch(e) {}
   try { const st = await fetch('/api/staff', {headers:getAuthHeaders()}).then(r=>r.json()); staff = Array.isArray(st)?st:(st.data||[]); } catch(e) {}
 
   const STATUS = {free:'✅ Свободна', busy:'🔄 Занята', repair:'🔧 В ремонте'};
