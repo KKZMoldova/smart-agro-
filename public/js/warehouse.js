@@ -301,7 +301,9 @@ function renderWarehouse() {
   const lowChemicals = chemicals.filter(c => c.qty <= c.minStock).length;
   const lowParts = parts.filter(p => p.qty <= p.minStock).length;
   const lowSeeds = seeds.filter(s => s.minStock && s.qty <= s.minStock).length;
-  const totalValue = chemicals.reduce((s,c) => s + (c.qty * (c.price||0)), 0);
+  const totalValue    = chemicals.reduce((s,c) => s + (c.qty * (c.price||0)), 0);
+  const totalVatAmt   = chemicals.reduce((s,c) => { const r=c.vatRate||0; return s + (c.qty*(c.price||0)*r/100); }, 0);
+  const totalWithVat  = chemicals.reduce((s,c) => { const r=c.vatRate||0; return s + (c.qty*(c.priceWithVat||c.price*(1+r/100)||0)); }, 0);
   document.getElementById('warehouse-kpis').innerHTML = `
     <div class="kpi-card"><div class="kpi-val">${chemicals.length}</div><div class="kpi-lbl">Препаратов</div></div>
     <div class="kpi-card"><div class="kpi-val">${parts.length}</div><div class="kpi-lbl">Запчастей</div></div>
@@ -310,7 +312,7 @@ function renderWarehouse() {
       <div class="kpi-val" style="color:${lowChemicals||lowParts||lowSeeds?'var(--red)':'var(--accent)'};">${lowChemicals+lowParts+lowSeeds}</div>
       <div class="kpi-lbl">Мало на складе</div>
     </div>
-    <div class="kpi-card"><div class="kpi-val" style="color:var(--accent);">${totalValue.toFixed(4)}</div><div class="kpi-lbl">Стоимость склада (${getCurrencySymbol()})</div></div>`;
+    <div class="kpi-card"><div class="kpi-val" style="color:var(--accent);">${totalWithVat.toFixed(2)}</div><div style='font-size:9px;color:var(--text3);'>БЕЗ НДС: ${totalValue.toFixed(2)}</div><div class="kpi-lbl">Стоимость склада с НДС (${getCurrencySymbol()})</div></div>`;
   // Chemicals table
 
   // Chemicals table
@@ -326,6 +328,8 @@ function renderWarehouse() {
           <td style="font-size:11px;color:var(--text3);">${c.unit||'л'}</td>
           <td style="font-size:11px;color:var(--text3);">${c.minStock||'—'} ${c.unit||'л'}</td>
           <td style="font-size:11px;">${c.price?formatPrice(c.price):'—'}</td>
+          <td style="font-size:11px;color:var(--text3);">${c.vatRate!=null?c.vatRate+'%':'—'}</td>
+          <td style="font-size:11px;color:var(--accent2);font-weight:600;">${c.priceWithVat?formatPrice(c.priceWithVat):(c.price&&c.vatRate?formatPrice(Math.round(c.price*(1+c.vatRate/100)*10000)/10000):'—')}</td>
           <td style="font-size:11px;color:var(--text3);">${c.supplier||'—'}</td>
           <td>${critical?'<span class="badge badge-red">❌ МАЛО</span>':low?'<span class="badge badge-yellow">⚠️ Мало</span>':'<span class="badge badge-green">✅ OK</span>'}</td>
           <td style="display:flex;gap:4px;">
@@ -334,7 +338,18 @@ function renderWarehouse() {
           </td>
         </tr>`;
       }).join('')
-    : `<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:20px;">Нет препаратов на складе. Нажмите + Приход.</td></tr>`;
+    : '<tr><td colspan="11" style="text-align:center;color:var(--text3);padding:20px;">Нет препаратов на складе. Нажмите + Приход.</td></tr>';
+  // Append totals footer
+  if (chemicals.length) {
+    document.getElementById('wh-chemicals-tbody').innerHTML += `
+    <tr style="background:var(--surface2);border-top:2px solid var(--border);">
+      <td colspan="5" style="font-family:'Unbounded',sans-serif;font-size:10px;font-weight:700;color:var(--text3);padding:8px 10px;">ИТОГО ПО СКЛАДУ</td>
+      <td style="font-size:12px;font-weight:700;">${formatPrice(totalValue)}</td>
+      <td style="font-size:11px;color:var(--orange);font-weight:600;">НДС: ${formatPrice(totalVatAmt)}</td>
+      <td style="font-size:12px;font-weight:700;color:var(--accent2);" colspan="2">С НДС: ${formatPrice(totalWithVat)}</td>
+      <td></td><td></td>
+    </tr>`;
+  }
 
   // Parts table
   const CAT_PART_LABELS={filter:'Фильтрация',drip:'Капельное',pump:'Насосы',mechanical:'Механика',electrical:'Электрика',other:'Другое'};
