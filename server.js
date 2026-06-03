@@ -605,6 +605,14 @@ function crudRoutes(route, table, middleware) {
       res.json({ok:true,id});
     } catch(e) { res.status(500).json({ok:false,error:e.message}); }
   });
+  app.put(`${route}/:id`, mw, async (req,res) => {
+    const b=req.body; const id=req.params.id;
+    try {
+      await db.query(`UPDATE public.${table} SET name=$2,type=$3,data=$4 WHERE id=$1`,
+        [String(id), b.name||'', b.type||'', JSON.stringify(b)]);
+      res.json({ok:true,id});
+    } catch(e) { res.status(500).json({ok:false,error:e.message}); }
+  });
   app.delete(`${route}/:id`, mw, async (req,res) => {
     try { await db.query(`DELETE FROM public.${table} WHERE id=$1`,[req.params.id]); res.json({ok:true}); }
     catch(e) { res.status(500).json({ok:false,error:e.message}); }
@@ -612,17 +620,6 @@ function crudRoutes(route, table, middleware) {
 }
 crudRoutes('/api/equipment',   'equipment', authOpt);
 crudRoutes('/api/attachments', 'attachments', authOpt);
-
-// ── MIGRATION ENDPOINT (временный) ──────────────────────────────────────
-app.get('/api/migrate', async (req,res) => {
-  try {
-    await db.query(`
-      ALTER TABLE public.attachments ADD COLUMN IF NOT EXISTS data JSONB;
-      ALTER TABLE public.equipment   ADD COLUMN IF NOT EXISTS data JSONB;
-    `);
-    res.json({ok:true, msg:'Migration done'});
-  } catch(e) { res.status(500).json({ok:false,error:e.message}); }
-});
 // Staff имеет role вместо type — отдельный роут
 app.get('/api/staff', authOpt, async (req,res) => {
   try { const r=await db.query('SELECT * FROM public.staff ORDER BY created_at'); res.json({ok:true,data:r.rows}); }
