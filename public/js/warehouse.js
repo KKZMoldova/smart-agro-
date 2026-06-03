@@ -171,6 +171,8 @@ function saveWarehouseItem() {
     }
     stock.qty = Math.round((stock.qty + qty) * 1000) / 1000;
     stock.price = price || stock.price;
+    stock.priceWithVat = priceWithVat || stock.priceWithVat;
+    stock.vatRate = vatRate != null ? vatRate : stock.vatRate;
     stock.supplier = supplier || stock.supplier;
     stock.minStock = minStock || stock.minStock;
     stock.unit = unit;
