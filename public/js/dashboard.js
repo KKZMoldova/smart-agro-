@@ -512,10 +512,11 @@ function downloadEquipTemplate() {
   XLSX.writeFile(wb, 'шаблон_техника.xlsx');
 }
 
-async function importEquipFromExcel(event) {
-  const file = event.target.files[0];
+async function importEquipFromExcel(eventOrEl) {
+  const el = eventOrEl?.target || eventOrEl;
+  const file = el?.files?.[0];
   if (!file) return;
-  event.target.value = '';
+  el.value = '';
   if (typeof XLSX === 'undefined') { alert('Библиотека XLSX не загружена'); return; }
 
   const TYPE_MAP = {
