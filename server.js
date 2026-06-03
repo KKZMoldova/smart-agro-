@@ -612,6 +612,17 @@ function crudRoutes(route, table, middleware) {
 }
 crudRoutes('/api/equipment',   'equipment', authOpt);
 crudRoutes('/api/attachments', 'attachments', authOpt);
+
+// ── MIGRATION ENDPOINT (временный) ──────────────────────────────────────
+app.get('/api/migrate', async (req,res) => {
+  try {
+    await db.query(`
+      ALTER TABLE public.attachments ADD COLUMN IF NOT EXISTS data JSONB;
+      ALTER TABLE public.equipment   ADD COLUMN IF NOT EXISTS data JSONB;
+    `);
+    res.json({ok:true, msg:'Migration done'});
+  } catch(e) { res.status(500).json({ok:false,error:e.message}); }
+});
 // Staff имеет role вместо type — отдельный роут
 app.get('/api/staff', authOpt, async (req,res) => {
   try { const r=await db.query('SELECT * FROM public.staff ORDER BY created_at'); res.json({ok:true,data:r.rows}); }
@@ -904,4 +915,4 @@ function scheduleCron() {
 scheduleCron();
 // Также запустить сразу при старте
 syncWeatherCron();
-// updated
+
