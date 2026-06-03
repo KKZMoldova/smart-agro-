@@ -895,11 +895,11 @@ async function syncWeatherCron() {
   }
 }
 
-// Запуск cron в 01:10 каждую ночь
+// Запуск cron в 22:05 UTC = 01:05 по Молдове (UTC+3)
 function scheduleCron() {
   const now = new Date();
   const next = new Date();
-  next.setHours(1, 10, 0, 0);
+  next.setUTCHours(22, 5, 0, 0);
   if (next <= now) next.setDate(next.getDate() + 1);
   const delay = next - now;
   console.log(`[cron] Next weather sync in ${Math.round(delay/60000)} minutes`);
