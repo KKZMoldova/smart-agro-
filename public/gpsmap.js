@@ -273,15 +273,27 @@ let _wialonSid = null; // session id после авторизации
 let _wialonUnits = []; // список единиц (тракторов)
 
 // Авторизация в Wialon
+async function wialonCall(svc, params, sid) {
+  const body = new URLSearchParams();
+  body.append('svc', svc);
+  body.append('params', JSON.stringify(params));
+  if (sid) body.append('sid', sid);
+  const r = await fetch(WIALON_HOST + '/wialon/ajax.html', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: body.toString(),
+  });
+  return await r.json();
+}
+
 async function wialonLogin(token) {
   try {
-    const url = WIALON_HOST + '/wialon/ajax.html?svc=token/login&params=' +
-      encodeURIComponent(JSON.stringify({ token, fl: 1 }));
-    const r = await fetch(url);
-    const d = await r.json();
+    const d = await wialonCall('token/login', { token, fl: 1 });
     if (d.error) { console.error('[Wialon] Login error:', d.error); return false; }
     _wialonSid = d.eid;
     console.log('[Wialon] Logged in, sid:', _wialonSid);
+    // Keepalive every 2 sec
+    setInterval(() => wialonCall('avl_evts', {}, _wialonSid).catch(()=>{}), 2000);
     await wialonLoadUnits();
     return true;
   } catch(e) {
@@ -298,10 +310,7 @@ async function wialonLoadUnits() {
       spec: { itemsType:'avl_unit', propName:'sys_name', propValueMask:'*', sortType:'sys_name' },
       force: 1, flags: 1025, from: 0, to: 0
     };
-    const url = WIALON_HOST + '/wialon/ajax.html?svc=core/search_items&params=' +
-      encodeURIComponent(JSON.stringify(params)) + '&sid=' + _wialonSid;
-    const r = await fetch(url);
-    const d = await r.json();
+    const d = await wialonCall('core/search_items', params, _wialonSid);
     _wialonUnits = (d.items || []).map(u => ({
       id: u.id, name: u.nm, lastPos: u.pos
     }));
