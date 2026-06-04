@@ -288,7 +288,7 @@ async function wialonCall(svc, params, sid) {
 
 async function wialonLogin(token) {
   try {
-    const d = await wialonCall('token/login', { token, fl: 1 });
+    const d = await wialonCall('token/login', { token, fl: 3 }); // fl:1 общая + fl:2 пользователь
     if (d.error) { console.error('[Wialon] Login error:', d.error); return false; }
     _wialonSid = d.eid;
     console.log('[Wialon] Logged in, sid:', _wialonSid);
