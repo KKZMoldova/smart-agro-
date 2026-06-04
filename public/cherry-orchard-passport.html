@@ -384,7 +384,7 @@ body > .panel.active { display: block; }
   <!-- GPS Cell label style -->
   <style>
     .gps-cell-label { background:rgba(0,0,0,.7)!important; color:#4ade80!important; border:none!important; font-weight:700; font-size:11px; padding:2px 8px!important; }
-    #panel-gpsmap .leaflet-container { background:#1a2a1a; }
+    .leaflet-container { background:#1a2a1a; }
   </style>
 </head>
 <body>
@@ -4044,6 +4044,7 @@ window.switchIrrigSub = function(sub) {
   const _sw = switchTab;
   window.switchTab = function(tab, el) {
     if (tab === 'gpsmap') { setTimeout(onGpsMapTabOpen, 50); }
+    else { const gp = document.getElementById('panel-gpsmap'); if(gp) gp.style.display='none'; }
     _sw(tab, el);
     setTimeout(() => {
       const p = document.getElementById('panel-' + tab);
