@@ -1,4 +1,12 @@
 // Smart Agro — init.js
+// DEV: set default token if not set
+if (!sessionStorage.getItem('agro_token') && !sessionStorage.getItem('agro_jwt')) {
+  sessionStorage.setItem('agro_token', 'dev');
+  sessionStorage.setItem('agro_jwt', 'dev');
+  sessionStorage.setItem('agro_role', 'owner');
+  sessionStorage.setItem('agro_user_name', 'Dev');
+}
+
 // ===================== INIT =====================
 async function init(){
   await checkServer();
