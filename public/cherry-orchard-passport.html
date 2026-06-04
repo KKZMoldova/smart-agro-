@@ -384,6 +384,8 @@ body > .panel.active { display: block; }
   <!-- GPS Cell label style -->
   <style>
     .gps-cell-label { background:rgba(0,0,0,.7)!important; color:#4ade80!important; border:none!important; font-weight:700; font-size:11px; padding:2px 8px!important; }
+    #panel-gpsmap { position:fixed!important; top:96px; left:0; right:0; bottom:0; z-index:100; width:100vw!important; padding:0!important; }
+    #gps-map { width:100%!important; height:calc(100vh - 165px)!important; }
     .leaflet-container { background:#1a2a1a; }
   </style>
 </head>
@@ -4116,6 +4118,6 @@ window.switchIrrigSub = function(sub) {
     </div>
   </div>
 </div>
-  <script src="gpsmap.js"></script>
+  <script src="js/gpsmap.js"></script>
 </body>
 </html>
