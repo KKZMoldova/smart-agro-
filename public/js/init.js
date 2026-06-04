@@ -113,20 +113,20 @@ init();
 // ═══ СИСТЕМА РОЛЕЙ И ДОСТУПОВ ════════════════════════════════════════════
 
 const ROLE_ACCESS = {
-  agronomist:          ['dashboard','map','crops','weather','gdd','irrigation','catalog','treatments',
+  agronomist:          ['dashboard','map','gpsmap','crops','weather','gdd','irrigation','catalog','treatments',
                         'analysis','diseases','warehouse','tasks','ailog','doses','settings'],
-  owner:               ['dashboard','map','crops','weather','gdd','irrigation','catalog','treatments',
+  owner:               ['dashboard','map','gpsmap','crops','weather','gdd','irrigation','catalog','treatments',
                         'analysis','diseases','warehouse','tasks','ailog','doses','settings'],
-  shareholder:         ['dashboard','map','crops','weather','gdd','irrigation','catalog','treatments',
+  shareholder:         ['dashboard','map','gpsmap','crops','weather','gdd','irrigation','catalog','treatments',
                         'analysis','diseases','warehouse','tasks'],
-  director:            ['dashboard','map','crops','weather','gdd','irrigation','catalog','treatments',
+  director:            ['dashboard','map','gpsmap','crops','weather','gdd','irrigation','catalog','treatments',
                         'analysis','diseases','warehouse','tasks'],
   accountant:          ['dashboard','map','crops','weather','gdd','irrigation','catalog','treatments',
                         'analysis','diseases','warehouse','tasks'],
   engineer:            ['map','irrigation','warehouse','tasks','settings'],
   irrigation_engineer: ['map','weather','irrigation','analysis'],
   operator:            ['treatments','warehouse','tasks'],
-  superadmin:          ['dashboard','map','crops','weather','gdd','irrigation','catalog','treatments',
+  superadmin:          ['dashboard','map','gpsmap','crops','weather','gdd','irrigation','catalog','treatments',
                         'analysis','diseases','warehouse','tasks','ailog','doses','settings'],
 };
 
