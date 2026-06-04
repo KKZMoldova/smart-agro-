@@ -1,4 +1,14 @@
 // Smart Agro — gpsmap.js
+// Local toast (fallback if global showToast not available)
+function gpsToast(msg, duration) {
+  if (typeof showToast === 'function') { showToast(msg, duration||2500); return; }
+  const el = document.createElement('div');
+  el.style.cssText = 'position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:var(--accent,#4ade80);color:#000;padding:10px 20px;border-radius:10px;font-size:12px;font-weight:600;z-index:99999;box-shadow:0 4px 16px rgba(0,0,0,.3);';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), duration||2500);
+}
+
 // ═══ GPS КАРТА (Leaflet) ═══════════════════════════════════════════════════
 
 let _gpsMap = null;
@@ -27,6 +37,7 @@ function initGpsMap() {
   setTimeout(() => { _gpsMap.invalidateSize(true); }, 300);
   setTimeout(() => { _gpsMap.invalidateSize(true); }, 800);
   console.log('[GPS] Map initialized');
+  wialonStart(); // Запуск Wialon если токен настроен
 }
 
 function gpsToggleSatellite() {
@@ -47,7 +58,7 @@ function gpsStartDraw() {
   _gpsMap.getContainer().style.cursor = 'crosshair';
   document.getElementById('gps-btn-draw').style.display = 'none';
   document.getElementById('gps-btn-stop').style.display = 'inline-flex';
-  showToast('Кликайте на карте чтобы нарисовать клетку. Нажмите ⏹ чтобы закончить.', 4000);
+  gpsToast('Кликайте на карте чтобы нарисовать клетку. Нажмите ⏹ чтобы закончить.', 4000);
 }
 
 function gpsStopDraw() {
@@ -57,7 +68,7 @@ function gpsStopDraw() {
   document.getElementById('gps-btn-stop').style.display = 'none';
 
   if (_gpsDrawPoints.length < 3) {
-    showToast('Нужно минимум 3 точки для полигона');
+    gpsToast('Нужно минимум 3 точки для полигона');
     _gpsDrawMarkers.forEach(m => _gpsMap.removeLayer(m));
     _gpsDrawMarkers = [];
     if (_gpsDrawPolyline) _gpsMap.removeLayer(_gpsDrawPolyline);
@@ -127,7 +138,7 @@ function gpsShowZonePicker(points) {
     save();
     gpsDrawCell(cell);
     document.getElementById('gps-cells-count').textContent = Object.keys(S.gpsCells || {}).length;
-    showToast('✅ Клетка "' + label + '" сохранена');
+    gpsToast('✅ Клетка "' + label + '" сохранена');
   };
 }
 
@@ -152,7 +163,7 @@ function gpsClearDraw() {
   S.gpsCells = {};
   save();
   document.getElementById('gps-cells-count').textContent = '0';
-  showToast('Клетки очищены');
+  gpsToast('Клетки очищены');
 }
 
 function gpsLoadCells() {
@@ -250,4 +261,117 @@ function onGpsMapTabOpen() {
     if (!_gpsMap) initGpsMap(); else _gpsMap.invalidateSize(true);
   }, 200);
   setTimeout(() => { if (_gpsMap) _gpsMap.invalidateSize(true); }, 500);
+}
+
+// ═══ WIALON API ИНТЕГРАЦИЯ ════════════════════════════════════════════════
+// Документация: https://sdk.wialon.com/wiki/en/sidebar/remoteapi/apiref/apiref
+// Заполнить WIALON_TOKEN в Railway Variables когда получишь API ключ
+
+const WIALON_HOST = 'https://hst-api.wialon.com'; // Wialon Hosting
+// Для Wialon Local: 'https://your-server.com'
+
+let _wialonSid = null; // session id после авторизации
+let _wialonUnits = []; // список единиц (тракторов)
+
+// Авторизация в Wialon
+async function wialonLogin(token) {
+  try {
+    const url = WIALON_HOST + '/wialon/ajax.html?svc=token/login&params=' +
+      encodeURIComponent(JSON.stringify({ token, fl: 1 }));
+    const r = await fetch(url);
+    const d = await r.json();
+    if (d.error) { console.error('[Wialon] Login error:', d.error); return false; }
+    _wialonSid = d.eid;
+    console.log('[Wialon] Logged in, sid:', _wialonSid);
+    await wialonLoadUnits();
+    return true;
+  } catch(e) {
+    console.error('[Wialon] Login failed:', e.message);
+    return false;
+  }
+}
+
+// Загрузить список единиц (тракторов)
+async function wialonLoadUnits() {
+  if (!_wialonSid) return;
+  try {
+    const params = {
+      spec: { itemsType:'avl_unit', propName:'sys_name', propValueMask:'*', sortType:'sys_name' },
+      force: 1, flags: 1025, from: 0, to: 0
+    };
+    const url = WIALON_HOST + '/wialon/ajax.html?svc=core/search_items&params=' +
+      encodeURIComponent(JSON.stringify(params)) + '&sid=' + _wialonSid;
+    const r = await fetch(url);
+    const d = await r.json();
+    _wialonUnits = (d.items || []).map(u => ({
+      id: u.id, name: u.nm, lastPos: u.pos
+    }));
+    console.log('[Wialon] Units loaded:', _wialonUnits.length);
+    return _wialonUnits;
+  } catch(e) {
+    console.error('[Wialon] Load units failed:', e.message);
+  }
+}
+
+// Получить текущие позиции всех единиц
+async function wialonGetPositions() {
+  if (!_wialonSid || !_wialonUnits.length) return [];
+  try {
+    const ids = _wialonUnits.map(u => u.id);
+    const params = { ids, flags: 1025 };
+    const url = WIALON_HOST + '/wialon/ajax.html?svc=core/update_data_flags&params=' +
+      encodeURIComponent(JSON.stringify([{ type:'type', data:'avl_unit', flags:1025, mode:0 }])) +
+      '&sid=' + _wialonSid;
+    const r = await fetch(url);
+    const d = await r.json();
+
+    return _wialonUnits.map(u => {
+      const item = Array.isArray(d) ? d.find(i => i.i === u.id) : null;
+      const pos = item?.d?.pos;
+      return pos ? {
+        device_id: String(u.id),
+        name: u.name,
+        lat: pos.y,
+        lon: pos.x,
+        speed: pos.s || 0,
+        status: pos.s > 1 ? 'working' : 'stopped',
+        timestamp: new Date().toISOString(),
+      } : null;
+    }).filter(Boolean);
+  } catch(e) {
+    console.error('[Wialon] Get positions failed:', e.message);
+    return [];
+  }
+}
+
+// Запуск Wialon интеграции (вызывается автоматически если токен задан)
+async function wialonStart() {
+  // Токен будет передан через сервер чтобы не светить в коде
+  try {
+    const r = await fetch('/api/wialon/token');
+    if (!r.ok) return; // токен не настроен
+    const d = await r.json();
+    if (!d.token) return;
+    const ok = await wialonLogin(d.token);
+    if (ok) {
+      console.log('[Wialon] Integration active');
+      // Переключаем live на Wialon
+      if (_gpsLiveInterval) clearInterval(_gpsLiveInterval);
+      _gpsLiveInterval = setInterval(async () => {
+        const positions = await wialonGetPositions();
+        if (positions.length) {
+          const activeIds = new Set();
+          positions.forEach(d => { activeIds.add(d.device_id); gpsupdateTractorMarker(d); });
+          Object.keys(_gpsTractorMarkers).forEach(id => {
+            if (!activeIds.has(id)) { _gpsMap.removeLayer(_gpsTractorMarkers[id]); delete _gpsTractorMarkers[id]; }
+          });
+          document.getElementById('gps-tractors-count').textContent = 'Тракторов онлайн: ' + positions.length;
+          const badge = document.getElementById('gps-live-badge');
+          if (badge) badge.style.display = 'inline-block';
+        }
+      }, 5000);
+    }
+  } catch(e) {
+    console.log('[Wialon] Not configured yet');
+  }
 }
