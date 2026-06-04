@@ -27,8 +27,8 @@ function initGpsMap() {
   });
 
   // Tile layers
-  _gpsTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap',
+  _gpsTileLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: '© Esri',
     maxZoom: 20,
   }).addTo(_gpsMap);
 
@@ -50,12 +50,12 @@ function gpsToggleSatellite() {
   if (_gpsTileLayer) _gpsMap.removeLayer(_gpsTileLayer);
   if (_gpsSatellite) {
     _gpsTileLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      attribution: '© Esri',
+      attribution: '© Esri World Imagery',
       maxZoom: 20,
     }).addTo(_gpsMap);
   } else {
-    _gpsTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap',
+    _gpsTileLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+      attribution: '© Esri World Street Map',
       maxZoom: 20,
     }).addTo(_gpsMap);
   }
