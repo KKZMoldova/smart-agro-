@@ -41,6 +41,10 @@ function initGpsMap() {
   // Start live tracking
   gpsStartLive();
 
+  // Force size after short delay
+  setTimeout(() => { _gpsMap.invalidateSize(true); }, 300);
+  setTimeout(() => { _gpsMap.invalidateSize(true); }, 800);
+
   console.log('[GPS] Map initialized');
 }
 
@@ -264,8 +268,19 @@ function gpsupdateTractorMarker(d) {
 // ── Инициализация при переключении вкладки ───────────────────────────────
 // Вызывается из switchTab
 function onGpsMapTabOpen() {
+  const panel = document.getElementById('panel-gpsmap');
+  if (panel) {
+    panel.style.display = 'block';
+    panel.style.width = '100%';
+  }
   setTimeout(() => {
-    initGpsMap();
-    if (_gpsMap) _gpsMap.invalidateSize();
-  }, 100);
+    if (!_gpsMap) {
+      initGpsMap();
+    } else {
+      _gpsMap.invalidateSize(true);
+    }
+  }, 200);
+  setTimeout(() => {
+    if (_gpsMap) _gpsMap.invalidateSize(true);
+  }, 500);
 }
