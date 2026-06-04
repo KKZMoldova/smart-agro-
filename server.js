@@ -803,6 +803,68 @@ app.get('/orchard', (req,res) => {
   res.sendFile(path.join(__dirname,'public','cherry-orchard-passport.html'));
 });
 app.get('/vegetable', (req,res) => res.sendFile(path.join(__dirname,'public','smart-vegetable.html')));
+
+// ═══ GPS ТРЕКИНГ ══════════════════════════════════════════════════════════
+db.query(`
+  CREATE TABLE IF NOT EXISTS public.gps_tracks (
+    id SERIAL PRIMARY KEY,
+    device_id TEXT, device_name TEXT,
+    lat DOUBLE PRECISION, lon DOUBLE PRECISION,
+    speed REAL DEFAULT 0, status TEXT DEFAULT 'working',
+    session_id TEXT, type TEXT DEFAULT 'work',
+    timestamp TIMESTAMPTZ DEFAULT NOW()
+  );
+  CREATE INDEX IF NOT EXISTS gps_tracks_device_idx ON public.gps_tracks(device_id);
+  CREATE INDEX IF NOT EXISTS gps_tracks_ts_idx ON public.gps_tracks(timestamp DESC);
+`).catch(e => console.warn('[GPS] table:', e.message));
+
+app.post('/api/gps', async (req, res) => {
+  try {
+    const { device_id, device_name, lat, lon, speed, status, session_id, type } = req.body;
+    if (!device_id || !lat || !lon) return res.status(400).json({ ok:false, error:'Missing fields' });
+    await db.query(
+      'INSERT INTO public.gps_tracks (device_id,device_name,lat,lon,speed,status,session_id,type) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
+      [device_id, device_name||device_id, parseFloat(lat), parseFloat(lon), parseFloat(speed)||0, status||'working', session_id||null, type||'work']
+    );
+    res.json({ ok:true });
+  } catch(e) { res.status(500).json({ ok:false, error:e.message }); }
+});
+
+app.get('/api/gps/live', async (req, res) => {
+  try {
+    const r = await db.query(`
+      SELECT DISTINCT ON (device_id)
+        device_id, device_name, lat, lon, speed, status, session_id, type, timestamp
+      FROM public.gps_tracks
+      WHERE timestamp > NOW() - INTERVAL '2 minutes'
+      ORDER BY device_id, timestamp DESC
+    `);
+    res.json({ ok:true, devices: r.rows });
+  } catch(e) { res.status(500).json({ ok:false, error:e.message }); }
+});
+
+app.get('/api/gps/track/:session_id', async (req, res) => {
+  try {
+    const r = await db.query(
+      'SELECT lat,lon,speed,status,type,timestamp FROM public.gps_tracks WHERE session_id=$1 ORDER BY timestamp ASC',
+      [req.params.session_id]
+    );
+    res.json({ ok:true, points: r.rows });
+  } catch(e) { res.status(500).json({ ok:false, error:e.message }); }
+});
+
+app.get('/api/gps/stops', async (req, res) => {
+  try {
+    const r = await db.query(`
+      SELECT device_id,device_name,lat,lon,timestamp,session_id
+      FROM public.gps_tracks WHERE status='empty_tank'
+      ORDER BY timestamp DESC LIMIT 100
+    `);
+    res.json({ ok:true, stops: r.rows });
+  } catch(e) { res.status(500).json({ ok:false, error:e.message }); }
+});
+
+
 app.get('*', (req,res) => {
   if (req.path.startsWith('/api/')) return res.status(404).json({ok:false,error:'Not found'});
   const ext = path.extname(req.path);
@@ -914,65 +976,4 @@ function scheduleCron() {
 scheduleCron();
 // Также запустить сразу при старте
 syncWeatherCron();
-
-
-// ═══ GPS ТРЕКИНГ ══════════════════════════════════════════════════════════
-db.query(`
-  CREATE TABLE IF NOT EXISTS public.gps_tracks (
-    id SERIAL PRIMARY KEY,
-    device_id TEXT, device_name TEXT,
-    lat DOUBLE PRECISION, lon DOUBLE PRECISION,
-    speed REAL DEFAULT 0, status TEXT DEFAULT 'working',
-    session_id TEXT, type TEXT DEFAULT 'work',
-    timestamp TIMESTAMPTZ DEFAULT NOW()
-  );
-  CREATE INDEX IF NOT EXISTS gps_tracks_device_idx ON public.gps_tracks(device_id);
-  CREATE INDEX IF NOT EXISTS gps_tracks_ts_idx ON public.gps_tracks(timestamp DESC);
-`).catch(e => console.warn('[GPS] table:', e.message));
-
-app.post('/api/gps', async (req, res) => {
-  try {
-    const { device_id, device_name, lat, lon, speed, status, session_id, type } = req.body;
-    if (!device_id || !lat || !lon) return res.status(400).json({ ok:false, error:'Missing fields' });
-    await db.query(
-      'INSERT INTO public.gps_tracks (device_id,device_name,lat,lon,speed,status,session_id,type) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
-      [device_id, device_name||device_id, parseFloat(lat), parseFloat(lon), parseFloat(speed)||0, status||'working', session_id||null, type||'work']
-    );
-    res.json({ ok:true });
-  } catch(e) { res.status(500).json({ ok:false, error:e.message }); }
-});
-
-app.get('/api/gps/live', async (req, res) => {
-  try {
-    const r = await db.query(`
-      SELECT DISTINCT ON (device_id)
-        device_id, device_name, lat, lon, speed, status, session_id, type, timestamp
-      FROM public.gps_tracks
-      WHERE timestamp > NOW() - INTERVAL '2 minutes'
-      ORDER BY device_id, timestamp DESC
-    `);
-    res.json({ ok:true, devices: r.rows });
-  } catch(e) { res.status(500).json({ ok:false, error:e.message }); }
-});
-
-app.get('/api/gps/track/:session_id', async (req, res) => {
-  try {
-    const r = await db.query(
-      'SELECT lat,lon,speed,status,type,timestamp FROM public.gps_tracks WHERE session_id=$1 ORDER BY timestamp ASC',
-      [req.params.session_id]
-    );
-    res.json({ ok:true, points: r.rows });
-  } catch(e) { res.status(500).json({ ok:false, error:e.message }); }
-});
-
-app.get('/api/gps/stops', async (req, res) => {
-  try {
-    const r = await db.query(`
-      SELECT device_id,device_name,lat,lon,timestamp,session_id
-      FROM public.gps_tracks WHERE status='empty_tank'
-      ORDER BY timestamp DESC LIMIT 100
-    `);
-    res.json({ ok:true, stops: r.rows });
-  } catch(e) { res.status(500).json({ ok:false, error:e.message }); }
-});
 
