@@ -378,6 +378,14 @@ body > .panel { padding: 24px 28px; position: relative; z-index: 1; background: 
 body > .panel.active { display: block; }
 
 </style>
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- GPS Cell label style -->
+  <style>
+    .gps-cell-label { background:rgba(0,0,0,.7)!important; color:#4ade80!important; border:none!important; font-weight:700; font-size:11px; padding:2px 8px!important; }
+    .leaflet-container { background:#1a2a1a; }
+  </style>
 </head>
 <body>
 
@@ -406,6 +414,7 @@ body > .panel.active { display: block; }
 <div class="tabs">
   <div class="tab" onclick="switchTab('dashboard',this)" style="color:var(--accent);font-weight:600;">🌅 Dashboard</div>
   <div class="tab active" onclick="switchTab('map',this)">🗺 Карта</div>
+  <div class="tab" onclick="switchTab('gpsmap',this)">🛰️ GPS Карта</div>
   <div class="tab" onclick="switchTab('crops',this)">🌿 Культуры</div>
   <div class="tab" onclick="switchTab('weather',this)">🌡️ Погода / ❄️ Chill</div>
   <div class="tab" onclick="switchTab('gdd',this)">📈 GDD / Фазы</div>
@@ -487,6 +496,46 @@ body > .panel.active { display: block; }
 </div><!-- end panel-crops -->
 
   <!-- WEATHER -->
+
+  <!-- GPS MAP PANEL -->
+  <div class="panel" id="panel-gpsmap" style="display:none;padding:0;">
+    <!-- Toolbar -->
+    <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--surface2);border-bottom:1px solid var(--border);flex-wrap:wrap;">
+      <span style="font-family:'Unbounded',sans-serif;font-size:11px;font-weight:700;color:var(--accent);">🛰️ GPS Карта</span>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button id="gps-btn-draw" class="btn btn-secondary btn-sm" onclick="gpsStartDraw()">✏️ Нарисовать клетку</button>
+        <button id="gps-btn-stop" class="btn btn-danger btn-sm" style="display:none;" onclick="gpsStopDraw()">⏹ Остановить</button>
+        <button class="btn btn-secondary btn-sm" onclick="gpsClearDraw()">🗑 Очистить</button>
+        <button class="btn btn-secondary btn-sm" onclick="gpsFitBounds()">🔍 По центру</button>
+        <button class="btn btn-secondary btn-sm" onclick="gpsToggleSatellite()">🛰 Спутник</button>
+      </div>
+      <div style="margin-left:auto;display:flex;gap:8px;align-items:center;">
+        <span id="gps-live-badge" style="display:none;font-size:10px;padding:3px 10px;border-radius:10px;background:rgba(107,221,107,.15);color:var(--accent);">● LIVE</span>
+        <span id="gps-tractors-count" style="font-size:11px;color:var(--text3);">Тракторов онлайн: 0</span>
+      </div>
+    </div>
+
+    <!-- Legend -->
+    <div style="display:flex;gap:16px;padding:6px 16px;background:var(--surface);border-bottom:1px solid var(--border);font-size:10px;color:var(--text3);flex-wrap:wrap;">
+      <span>🟢 Работает</span>
+      <span>🟡 Стоит</span>
+      <span>🔴 Закончилась смесь</span>
+      <span>🔵 Едет по дороге</span>
+      <span>━ Трек работы</span>
+      <span>┅ Трек по дороге</span>
+    </div>
+
+    <!-- Map container -->
+    <div id="gps-map" style="height:calc(100vh - 200px);width:100%;background:#1a2a1a;"></div>
+
+    <!-- Bottom info bar -->
+    <div id="gps-info-bar" style="padding:8px 16px;background:var(--surface2);border-top:1px solid var(--border);display:flex;gap:20px;flex-wrap:wrap;font-size:11px;color:var(--text3);">
+      <span>📐 Клеток нарисовано: <b id="gps-cells-count">0</b></span>
+      <span>🚜 Активных сессий: <b id="gps-sessions-count">0</b></span>
+      <span>📍 Точек остановки: <b id="gps-stops-count">0</b></span>
+    </div>
+  </div><!-- end panel-gpsmap -->
+
   <div class="panel" id="panel-weather">
     <div class="section-hdr">
       <h2 id="weather-panel-title">🌡️ Журнал погоды</h2>
@@ -3994,6 +4043,7 @@ window.switchIrrigSub = function(sub) {
   if(typeof switchTab !== 'function'){ setTimeout(patchSwitchTab,50); return; }
   const _sw = switchTab;
   window.switchTab = function(tab, el) {
+    if (tab === 'gpsmap') { setTimeout(onGpsMapTabOpen, 50); }
     _sw(tab, el);
     setTimeout(() => {
       const p = document.getElementById('panel-' + tab);
@@ -4066,5 +4116,6 @@ window.switchIrrigSub = function(sub) {
     </div>
   </div>
 </div>
+  <script src="js/gpsmap.js"></script>
 </body>
 </html>
