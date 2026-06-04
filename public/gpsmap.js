@@ -267,8 +267,7 @@ function onGpsMapTabOpen() {
 // Документация: https://sdk.wialon.com/wiki/en/sidebar/remoteapi/apiref/apiref
 // Заполнить WIALON_TOKEN в Railway Variables когда получишь API ключ
 
-const WIALON_HOST = 'https://hst-api.wialon.com'; // Wialon Hosting
-// Для Wialon Local: 'https://your-server.com'
+let WIALON_HOST = 'https://hst-api.wialon.com'; // будет обновлён из /api/wialon/token
 
 let _wialonSid = null; // session id после авторизации
 let _wialonUnits = []; // список единиц (тракторов)
@@ -352,6 +351,7 @@ async function wialonStart() {
     if (!r.ok) return; // токен не настроен
     const d = await r.json();
     if (!d.token) return;
+    if (d.host) WIALON_HOST = d.host; // Wialon Local support
     const ok = await wialonLogin(d.token);
     if (ok) {
       console.log('[Wialon] Integration active');
