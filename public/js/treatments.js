@@ -593,7 +593,7 @@ function renderTreatments(){
 
       return `<tr id="tr-row-${origIdx}">
         <td style="text-align:center;"><input type="checkbox" class="tr-check" data-idx="${origIdx}" onchange="trUpdateBulkBar()" style="cursor:pointer;width:15px;height:15px;"></td>
-        <td style="font-size:11px;font-family:'Unbounded',sans-serif;white-space:nowrap;">${t.date||'—'}</td>
+        <td style="font-size:11px;font-family:'Unbounded',sans-serif;white-space:nowrap;">${(t.date||'—').slice(0,10)}</td>
         <td>${cropBadge}</td>
         <td>${prodHtml}${typeLabel}${methodLabel}${t.note?`<br><span style="font-size:10px;color:var(--text3);">${t.note}</span>`:''}</td>
         <td style="font-size:11px;">${t.dose||'—'}${t.dose?' л/га':''}<br><span style="font-size:10px;color:var(--text3);">${t.water||400} л/га воды</span></td>
@@ -601,7 +601,7 @@ function renderTreatments(){
         <td><span style="font-size:11px;font-family:'Unbounded',sans-serif;">${t.duration||14}д</span>
           <div class="tl-bar" style="width:90px;"><div class="tl-fill" style="width:${pct}%;background:${colHex};"></div><div class="tl-lbl">${dl>0?dl+'д':0}</div></div>
         </td>
-        <td style="font-size:11px;white-space:nowrap;">${t.endDate||'—'}</td>
+        <td style="font-size:11px;white-space:nowrap;">${(t.endDate||'—').slice(0,10)}</td>
         <td>${sb}</td>
         <td style="font-size:11px;">${wn}</td>
         <td style="white-space:nowrap;">
