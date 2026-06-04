@@ -916,14 +916,6 @@ scheduleCron();
 syncWeatherCron();
 
 
-
-// ── Wialon API токен (задать WIALON_TOKEN в Railway Variables) ────────────
-app.get('/api/wialon/token', auth, (req, res) => {
-  const token = process.env.WIALON_TOKEN || '';
-  if (!token) return res.json({ ok: false, token: null });
-  res.json({ ok: true, token });
-});
-
 // ═══ GPS ТРЕКИНГ ══════════════════════════════════════════════════════════
 db.query(`
   CREATE TABLE IF NOT EXISTS public.gps_tracks (
