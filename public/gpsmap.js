@@ -8,64 +8,36 @@ let _gpsDrawing = false;
 let _gpsDrawPoints = [];
 let _gpsDrawMarkers = [];
 let _gpsDrawPolyline = null;
-let _gpsCellLayers = {};      // polygons клеток
-let _gpsTractorMarkers = {};  // маркеры тракторов
-let _gpsTrackLayers = {};     // треки сессий
-let _gpsStopMarkers = [];     // точки остановки (смесь)
+let _gpsCellLayers = {};
+let _gpsTractorMarkers = {};
+let _gpsTrackLayers = {};
+let _gpsStopMarkers = [];
 let _gpsLiveInterval = null;
 
-// ── Инициализация карты ──────────────────────────────────────────────────
 function initGpsMap() {
   if (_gpsMap) return;
   if (!document.getElementById('gps-map')) return;
-
-  // Leaflet подключён через CDN в HTML
-  _gpsMap = L.map('gps-map', {
-    center: [47.732, 28.522],
-    zoom: 15,
-    zoomControl: true,
-  });
-
-  // Tile layers
+  _gpsMap = L.map('gps-map', { center: [47.732, 28.522], zoom: 15, zoomControl: true });
   _gpsTileLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-    attribution: '© Esri',
-    maxZoom: 20,
+    attribution: '© Esri', maxZoom: 20,
   }).addTo(_gpsMap);
-
-  // Click handler for drawing
   _gpsMap.on('click', gpsMapClick);
-
-  // Load saved cells
   gpsLoadCells();
-
-  // Start live tracking
   gpsStartLive();
-
-  // Force size after short delay
   setTimeout(() => { _gpsMap.invalidateSize(true); }, 300);
   setTimeout(() => { _gpsMap.invalidateSize(true); }, 800);
-
   console.log('[GPS] Map initialized');
 }
 
-// ── Переключение спутника ────────────────────────────────────────────────
 function gpsToggleSatellite() {
   _gpsSatellite = !_gpsSatellite;
   if (_gpsTileLayer) _gpsMap.removeLayer(_gpsTileLayer);
-  if (_gpsSatellite) {
-    _gpsTileLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      attribution: '© Esri World Imagery',
-      maxZoom: 20,
-    }).addTo(_gpsMap);
-  } else {
-    _gpsTileLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
-      attribution: '© Esri World Street Map',
-      maxZoom: 20,
-    }).addTo(_gpsMap);
-  }
+  const url = _gpsSatellite
+    ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+    : 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}';
+  _gpsTileLayer = L.tileLayer(url, { attribution: '© Esri', maxZoom: 20 }).addTo(_gpsMap);
 }
 
-// ── Рисование полигонов клеток ───────────────────────────────────────────
 function gpsStartDraw() {
   _gpsDrawing = true;
   _gpsDrawPoints = [];
@@ -92,41 +64,79 @@ function gpsStopDraw() {
     return;
   }
 
-  // Ask for cell name
-  const name = prompt('Название клетки (например: 1-1, A2, Черешня-3):');
-  if (!name) return;
-
-  const cellId = 'gc_' + Date.now();
-  const cell = { id: cellId, name, points: _gpsDrawPoints.slice() };
-
-  // Save
-  if (!S.gpsCells) S.gpsCells = {};
-  S.gpsCells[cellId] = cell;
-  save();
-
-  // Draw on map
-  gpsDrawCell(cell);
-
-  // Clear temp drawing
+  const savedPoints = _gpsDrawPoints.slice();
   _gpsDrawMarkers.forEach(m => _gpsMap.removeLayer(m));
   _gpsDrawMarkers = [];
   if (_gpsDrawPolyline) _gpsMap.removeLayer(_gpsDrawPolyline);
   _gpsDrawPoints = [];
 
-  document.getElementById('gps-cells-count').textContent = Object.keys(S.gpsCells||{}).length;
-  showToast(`✅ Клетка "${name}" сохранена`);
+  gpsShowZonePicker(savedPoints);
+}
+
+function gpsShowZonePicker(points) {
+  const zones = (typeof S !== 'undefined' && S.irrigation && S.irrigation.zones) || [];
+
+  let zoneSelectHtml = '';
+  if (zones.length) {
+    const opts = zones.map(z => '<option value="' + z.id + '">' + z.name + (z.area ? ' · ' + z.area + ' га' : '') + '</option>').join('');
+    zoneSelectHtml = '<div style="margin-bottom:12px;">'
+      + '<label style="font-size:11px;color:var(--text3);display:block;margin-bottom:5px;">Зона из справочника</label>'
+      + '<select id="gps-zone-select" style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">'
+      + '<option value="">— выбрать зону —</option>' + opts
+      + '</select></div>'
+      + '<div style="text-align:center;font-size:11px;color:var(--text3);margin-bottom:12px;">— или —</div>';
+  }
+
+  const el = document.createElement('div');
+  el.id = 'gps-zone-modal';
+  el.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:99999;display:flex;align-items:center;justify-content:center;';
+  el.innerHTML = '<div style="background:var(--surface);border-radius:16px;padding:24px;width:420px;max-width:94vw;border:1px solid var(--border);">'
+    + '<div style="font-family:\'Unbounded\',sans-serif;font-size:12px;font-weight:700;color:var(--accent);margin-bottom:16px;">📐 Привязать клетку к зоне</div>'
+    + zoneSelectHtml
+    + '<div style="margin-bottom:16px;">'
+    + '<label style="font-size:11px;color:var(--text3);display:block;margin-bottom:5px;">Название вручную</label>'
+    + '<input type="text" id="gps-zone-name" placeholder="напр. Черешня 1-1, Яблоня А2..." style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);box-sizing:border-box;">'
+    + '</div>'
+    + '<div style="display:flex;gap:8px;justify-content:flex-end;">'
+    + '<button onclick="document.getElementById(\'gps-zone-modal\').remove()" class="btn btn-secondary">Отмена</button>'
+    + '<button id="gps-zone-save-btn" class="btn btn-primary">💾 Сохранить клетку</button>'
+    + '</div></div>';
+
+  document.body.appendChild(el);
+
+  const sel = document.getElementById('gps-zone-select');
+  if (sel) {
+    sel.addEventListener('change', function() {
+      const z = zones.find(z => z.id === this.value);
+      if (z) document.getElementById('gps-zone-name').value = z.name;
+    });
+  }
+
+  document.getElementById('gps-zone-save-btn').onclick = function() {
+    const zoneId = document.getElementById('gps-zone-select') ? document.getElementById('gps-zone-select').value : null;
+    const nameVal = document.getElementById('gps-zone-name').value.trim();
+    const zone = zones.find(z => z.id === zoneId);
+    const label = nameVal || (zone && zone.name) || '';
+    if (!label) { alert('Введите название или выберите зону'); return; }
+
+    document.getElementById('gps-zone-modal').remove();
+    const cellId = 'gc_' + Date.now();
+    const cell = { id: cellId, name: label, zoneId: zoneId || null, points: points };
+    if (!S.gpsCells) S.gpsCells = {};
+    S.gpsCells[cellId] = cell;
+    save();
+    gpsDrawCell(cell);
+    document.getElementById('gps-cells-count').textContent = Object.keys(S.gpsCells || {}).length;
+    showToast('✅ Клетка "' + label + '" сохранена');
+  };
 }
 
 function gpsMapClick(e) {
   if (!_gpsDrawing) return;
   const pt = [e.latlng.lat, e.latlng.lng];
   _gpsDrawPoints.push(pt);
-
-  // Add vertex marker
   const m = L.circleMarker(pt, { radius: 5, color: '#4ade80', fillColor: '#4ade80', fillOpacity: 1 }).addTo(_gpsMap);
   _gpsDrawMarkers.push(m);
-
-  // Update preview polyline
   if (_gpsDrawPolyline) _gpsMap.removeLayer(_gpsDrawPolyline);
   if (_gpsDrawPoints.length > 1) {
     _gpsDrawPolyline = L.polyline([..._gpsDrawPoints, _gpsDrawPoints[0]], {
@@ -145,7 +155,6 @@ function gpsClearDraw() {
   showToast('Клетки очищены');
 }
 
-// ── Загрузка и отрисовка клеток ──────────────────────────────────────────
 function gpsLoadCells() {
   const cells = S.gpsCells || {};
   Object.values(cells).forEach(cell => gpsDrawCell(cell));
@@ -155,53 +164,39 @@ function gpsLoadCells() {
 function gpsDrawCell(cell) {
   if (!cell.points || cell.points.length < 3) return;
   if (_gpsCellLayers[cell.id]) _gpsMap.removeLayer(_gpsCellLayers[cell.id]);
-
-  // Calculate area in ha
   const areaM2 = L.GeometryUtil ? L.GeometryUtil.geodesicArea(cell.points.map(p => L.latLng(p[0], p[1]))) : 0;
   const areaHa = (areaM2 / 10000).toFixed(2);
-
   const polygon = L.polygon(cell.points, {
-    color: '#4ade80',
-    fillColor: '#4ade80',
-    fillOpacity: 0.1,
-    weight: 2,
+    color: '#4ade80', fillColor: '#4ade80', fillOpacity: 0.1, weight: 2,
   }).addTo(_gpsMap);
-
-  polygon.bindTooltip(`<b>${cell.name}</b>${areaHa > 0 ? '<br>' + areaHa + ' га' : ''}`, {
+  polygon.bindTooltip('<b>' + cell.name + '</b>' + (areaHa > 0 ? '<br>' + areaHa + ' га' : ''), {
     permanent: true, direction: 'center', className: 'gps-cell-label'
   });
-
-  polygon.on('click', () => {
-    if (!_gpsDrawing) gpsShowCellInfo(cell);
-  });
-
+  polygon.on('click', function() { if (!_gpsDrawing) gpsShowCellInfo(cell); });
   _gpsCellLayers[cell.id] = polygon;
 }
 
 function gpsShowCellInfo(cell) {
   const areaM2 = L.GeometryUtil ? L.GeometryUtil.geodesicArea(cell.points.map(p => L.latLng(p[0], p[1]))) : 0;
   const areaHa = (areaM2 / 10000).toFixed(2);
-  if (confirm(`Клетка: ${cell.name}\nПлощадь: ~${areaHa} га\n\nУдалить клетку?`)) {
+  if (confirm('Клетка: ' + cell.name + '\nПлощадь: ~' + areaHa + ' га\n\nУдалить клетку?')) {
     _gpsMap.removeLayer(_gpsCellLayers[cell.id]);
     delete _gpsCellLayers[cell.id];
     delete S.gpsCells[cell.id];
     save();
-    document.getElementById('gps-cells-count').textContent = Object.keys(S.gpsCells||{}).length;
+    document.getElementById('gps-cells-count').textContent = Object.keys(S.gpsCells || {}).length;
   }
 }
 
-// ── По центру ────────────────────────────────────────────────────────────
 function gpsFitBounds() {
   const layers = Object.values(_gpsCellLayers);
   if (layers.length) {
-    const group = L.featureGroup(layers);
-    _gpsMap.fitBounds(group.getBounds().pad(0.1));
+    _gpsMap.fitBounds(L.featureGroup(layers).getBounds().pad(0.1));
   } else {
     _gpsMap.setView([47.732, 28.522], 15);
   }
 }
 
-// ── Live GPS трекинг ─────────────────────────────────────────────────────
 function gpsStartLive() {
   if (_gpsLiveInterval) clearInterval(_gpsLiveInterval);
   _gpsLiveInterval = setInterval(gpsUpdateLive, 5000);
@@ -218,69 +213,41 @@ async function gpsUpdateLive() {
     if (!r.ok) return;
     const data = await r.json();
     const devices = data.devices || [];
-
-    // Update tractor markers
     const activeIds = new Set();
-    devices.forEach(d => {
-      activeIds.add(d.device_id);
-      gpsupdateTractorMarker(d);
-    });
-
-    // Remove offline tractors
+    devices.forEach(d => { activeIds.add(d.device_id); gpsupdateTractorMarker(d); });
     Object.keys(_gpsTractorMarkers).forEach(id => {
-      if (!activeIds.has(id)) {
-        _gpsMap.removeLayer(_gpsTractorMarkers[id]);
-        delete _gpsTractorMarkers[id];
-      }
+      if (!activeIds.has(id)) { _gpsMap.removeLayer(_gpsTractorMarkers[id]); delete _gpsTractorMarkers[id]; }
     });
-
     document.getElementById('gps-tractors-count').textContent = 'Тракторов онлайн: ' + devices.length;
     const badge = document.getElementById('gps-live-badge');
     if (badge) badge.style.display = devices.length > 0 ? 'inline-block' : 'none';
     document.getElementById('gps-sessions-count').textContent = devices.length;
-
-  } catch(e) {
-    // Server might not have GPS endpoint yet — silent fail
-  }
+  } catch(e) {}
 }
 
 function gpsupdateTractorMarker(d) {
   const pos = [d.lat, d.lon];
   const statusColor = d.status === 'working' ? '#4ade80' : d.status === 'stopped' ? '#facc15' : '#60a5fa';
   const icon = L.divIcon({
-    html: `<div style="background:${statusColor};width:20px;height:20px;border-radius:50%;border:2px solid white;display:flex;align-items:center;justify-content:center;font-size:10px;box-shadow:0 2px 6px rgba(0,0,0,.4);">🚜</div>`,
-    className: '',
-    iconSize: [20, 20],
-    iconAnchor: [10, 10],
+    html: '<div style="background:' + statusColor + ';width:20px;height:20px;border-radius:50%;border:2px solid white;display:flex;align-items:center;justify-content:center;font-size:10px;box-shadow:0 2px 6px rgba(0,0,0,.4);">🚜</div>',
+    className: '', iconSize: [20, 20], iconAnchor: [10, 10],
   });
-
   if (_gpsTractorMarkers[d.device_id]) {
     _gpsTractorMarkers[d.device_id].setLatLng(pos);
     _gpsTractorMarkers[d.device_id].setIcon(icon);
   } else {
     const m = L.marker(pos, { icon })
-      .bindPopup(`<b>🚜 ${d.name||d.device_id}</b><br>Скорость: ${d.speed||0} км/ч<br>Статус: ${d.status||'—'}`)
+      .bindPopup('<b>🚜 ' + (d.name || d.device_id) + '</b><br>Скорость: ' + (d.speed || 0) + ' км/ч<br>Статус: ' + (d.status || '—'))
       .addTo(_gpsMap);
     _gpsTractorMarkers[d.device_id] = m;
   }
 }
 
-// ── Инициализация при переключении вкладки ───────────────────────────────
-// Вызывается из switchTab
 function onGpsMapTabOpen() {
   const panel = document.getElementById('panel-gpsmap');
-  if (panel) {
-    panel.style.display = 'block';
-    panel.style.width = '100%';
-  }
+  if (panel) { panel.style.display = 'block'; panel.style.width = '100%'; }
   setTimeout(() => {
-    if (!_gpsMap) {
-      initGpsMap();
-    } else {
-      _gpsMap.invalidateSize(true);
-    }
+    if (!_gpsMap) initGpsMap(); else _gpsMap.invalidateSize(true);
   }, 200);
-  setTimeout(() => {
-    if (_gpsMap) _gpsMap.invalidateSize(true);
-  }, 500);
+  setTimeout(() => { if (_gpsMap) _gpsMap.invalidateSize(true); }, 500);
 }
