@@ -595,6 +595,104 @@ function deleteWorkType() {
   renderFuelVehicles();
 }
 
+function downloadWorkTypesTemplate() {
+  if(typeof XLSX==='undefined'){alert('XLSX не загружен');return;}
+  const headers = ['Вид работ','Эмодзи','Допуск отклонения %'];
+  const examples = [
+    ['Опрыскивание','🌿',10],
+    ['Пахота','🔵',8],
+    ['Культивация','🟡',12],
+    ['Дискование','⚫',12],
+    ['Боронование','🟤',12],
+    ['Внесение удобрений','🌱',10],
+    ['Покос','✂️',15],
+    ['Транспорт','🚛',15],
+  ];
+  const infoRows = [
+    [],
+    ['Подсказки:'],
+    ['• «Вид работ» — обязательное поле, название произвольное'],
+    ['• «Эмодзи» — необязательно (для удобства в списках)'],
+    ['• «Допуск отклонения %» — порог факт/план для алерта по топливу (если пусто — 15%)'],
+    ['• Расход л/га по каждому виду задаётся отдельно в карточке техники (ГСМ → Техника)'],
+    ['• Повторно загруженные одноимённые виды обновят допуск, дубли не создаются'],
+  ];
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...examples, ...infoRows]);
+  ws['!cols'] = [24,10,22].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws, 'Виды работ');
+  XLSX.writeFile(wb, 'шаблон_виды_работ.xlsx');
+}
+
+function importWorkTypesFromExcel(event) {
+  const file = event.target.files[0];
+  if(!file) return;
+  event.target.value = '';
+  _initFuel();
+  if(typeof XLSX==='undefined'){alert('XLSX не загружен');return;}
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+
+      // Найти строку заголовков
+      let hi = 0;
+      for (let i = 0; i < Math.min(5, rows.length); i++) {
+        const r = (rows[i]||[]).map(c => String(c).toLowerCase());
+        if (r.some(c => c.includes('вид раб') || c.includes('назван') || c.includes('lucr') || c.includes('name'))) { hi = i; break; }
+      }
+      const H = (rows[hi]||[]).map(c => String(c).toLowerCase().trim());
+      const col = (...kws) => { for(const kw of kws){ const i=H.findIndex(h=>h.includes(kw)); if(i>=0) return i; } return -1; };
+
+      const iName  = col('вид раб','назван','lucr','name','denumire');
+      const iEmoji = col('эмодзи','эмоджи','emoji','icon','иконк');
+      const iDelta = col('допуск','отклон','delta','abater','%');
+
+      if (iName < 0) { alert('Не найден столбец «Вид работ» / «Название». Скачайте шаблон.'); return; }
+
+      let added = 0, updated = 0, skipped = 0;
+      for (let i = hi+1; i < rows.length; i++) {
+        const row = rows[i] || [];
+        const name = String(row[iName]||'').trim();
+        if (!name) continue;
+        // пропускаем строки-подсказки
+        if (name.startsWith('•') || name.toLowerCase().startsWith('подсказ')) continue;
+
+        const emoji = iEmoji>=0 ? String(row[iEmoji]||'').trim() : '';
+        let delta = iDelta>=0 ? parseFloat(String(row[iDelta]||'').replace(',','.')) : NaN;
+        if (isNaN(delta)) delta = 15;
+
+        // ищем существующий по имени (без учёта регистра)
+        const exist = (S.workTypes||[]).find(w => (w.name||'').toLowerCase() === name.toLowerCase());
+        if (exist) {
+          exist.name = name;
+          if (emoji) exist.emoji = emoji;
+          exist.deltaPercent = delta;
+          updated++;
+        } else {
+          S.workTypes.push({
+            id: 'wt_'+Date.now()+'_'+Math.floor(Math.random()*1000),
+            name, emoji, code:'', deltaPercent: delta,
+          });
+          added++;
+        }
+      }
+
+      save();
+      renderWorkTypes();
+      renderFuelVehicles();
+      const msg = `✅ Импорт видов работ: добавлено ${added}, обновлено ${updated}`;
+      if (typeof showToast==='function') showToast(msg, 3500); else alert(msg);
+    } catch(err) {
+      alert('Ошибка импорта: ' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
 function openRefuelModal() {
   _initFuel();
   document.getElementById('rf-date').value = today();
