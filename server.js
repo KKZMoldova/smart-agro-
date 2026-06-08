@@ -963,7 +963,7 @@ app.get('/api/wialon/track/:unit_id', auth, async (req, res) => {
     body.append('svc', 'messages/load_interval');
     body.append('params', JSON.stringify({
       itemId: unitId, timeFrom, timeTo,
-      flags: 0x0001, flagsMask: 0xFF00, loadCount: 0xFFFFFFFF
+      flags: 1, flagsMask: 1, loadCount: 10000
     }));
     body.append('sid', _wialonSid);
 
@@ -974,7 +974,7 @@ app.get('/api/wialon/track/:unit_id', auth, async (req, res) => {
       body: body.toString(),
     });
     const d = await r.json();
-    if (d.error) { _wialonSid = null; return res.json({ ok: false, points: [] }); }
+    if (d.error) { _wialonSid = null; return res.json({ ok: false, points: [], error: d.error }); }
 
     const msgs = d.messages || [];
     const points = msgs
