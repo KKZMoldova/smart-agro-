@@ -1,4 +1,4 @@
-// Smart Agro — fuel.js
+// Smart Agro — fuel.js (v2: нормы топлива по видам работ для каждого трактора)
 // ═══════════════════════════════════════════════════════════════
 //  ⛽ ГСМ МОДУЛЬ
 // ═══════════════════════════════════════════════════════════════
@@ -16,6 +16,27 @@ function _initFuel() {
   if(!S.fuel) S.fuel = { tanks:[], receipts:[], refuels:[], operations:[], alerts:[] };
   if(!S.vehicles) S.vehicles = [];
   if(!S.implements) S.implements = [];
+  // Справочник видов работ (редактируемый). code — для совместимости со старыми типами операций.
+  if(!S.workTypes || !S.workTypes.length) {
+    S.workTypes = [
+      { id:'wt_spray',     name:'Опрыскивание', code:'spray',     emoji:'🌿', deltaPercent:10 },
+      { id:'wt_plow',      name:'Пахота',       code:'plow',      emoji:'🔵', deltaPercent:8  },
+      { id:'wt_cultivate', name:'Культивация',  code:'cultivate', emoji:'🟡', deltaPercent:12 },
+      { id:'wt_transport', name:'Транспорт',    code:'transport', emoji:'🚛', deltaPercent:15 },
+      { id:'wt_other',     name:'Прочее',       code:'other',     emoji:'⚙️', deltaPercent:20 },
+    ];
+  }
+}
+
+// Найти вид работ по id ИЛИ по старому code (миграция операций без workTypeId)
+function _findWorkType(idOrCode) {
+  const list = S.workTypes||[];
+  return list.find(w=>w.id===idOrCode) || list.find(w=>w.code===idOrCode) || null;
+}
+function _workTypeLabel(idOrCode) {
+  const w = _findWorkType(idOrCode);
+  if(w) return (w.emoji?w.emoji+' ':'')+w.name;
+  return OP_TYPES[idOrCode] || idOrCode || '—';
 }
 
 // ── Переключение подвкладок ГСМ ──────────────────────────────────────────
@@ -175,7 +196,7 @@ function renderFuelOps() {
       const overLimit = op.deltaPercent && Math.abs(op.deltaPercent) > limit;
       return `<tr style="${overLimit?'background:rgba(220,38,38,.04);':''}">
         <td style="font-family:monospace;font-size:11px;">${op.date}</td>
-        <td style="font-size:11px;">${OP_TYPES[op.operationType]||op.operationType}</td>
+        <td style="font-size:11px;">${_workTypeLabel(op.operationType)}</td>
         <td style="font-weight:600;">${v?.name||'—'}</td>
         <td style="font-size:10px;color:var(--text3);">${(op.cellKeys||[]).join(', ')}</td>
         <td style="text-align:center;">${(op.areaHa||0).toFixed(2)}</td>
@@ -195,7 +216,7 @@ function renderFuelOps() {
     alertsBlock.innerHTML = unresolved.length ? `
       <div style="font-size:11px;color:var(--red);font-weight:600;margin-bottom:8px;">⚠️ Превышение дельты расхода (${unresolved.length})</div>
       ${unresolved.map(a=>`<div style="padding:10px 12px;background:rgba(220,38,38,.06);border:1px solid rgba(220,38,38,.2);border-radius:8px;margin-bottom:6px;font-size:11px;">
-        <div style="font-weight:600;">${a.vehicleName} — ${OP_TYPES[a.operationType]||a.operationType} · ${a.date}</div>
+        <div style="font-weight:600;">${a.vehicleName} — ${_workTypeLabel(a.operationType)} · ${a.date}</div>
         <div style="color:var(--text3);">Участки: ${(a.cellKeys||[]).join(', ')} · План: ${a.fuelPlan?.toFixed(1)} л · Факт: ${a.fuelFact?.toFixed(1)} л · Δ: +${a.deltaPercent?.toFixed(1)}% (лимит ${a.limit}%)</div>
         <div style="margin-top:6px;display:flex;gap:8px;">
           <button class="btn btn-secondary btn-xs" onclick="resolveFuelAlert('${a.id}')">✅ Принять к сведению</button>
@@ -376,6 +397,8 @@ function openVehicleModal(id) {
   document.getElementById('fv-tank-cap').value   = v?.tankCapacityL||'';
   document.getElementById('fv-norm-field').value = v?.fuelNormField||'';
   document.getElementById('fv-norm-road').value  = v?.fuelNormRoad||'';
+  // Динамические нормы по видам работ
+  renderVehicleWorkNorms(v);
   document.getElementById('fv-norm-hour').value  = v?.fuelNormHour||'';
   document.getElementById('fv-moto-hours').value = v?.motoHours||'';
   document.getElementById('fv-gps-id').value     = v?.gpsDeviceId||'';
@@ -393,10 +416,38 @@ function openVehicleModal(id) {
   openModal('modal-fuel-vehicle');
 }
 
+function renderVehicleWorkNorms(v) {
+  const wrap = document.getElementById('fv-work-norms');
+  if(!wrap) return;
+  _initFuel();
+  const list = S.workTypes||[];
+  const norms = (v && v.fuelNormByWork) || {};
+  // fallback: старая единая норма поля → подставим в первый вид работ, если новых нет
+  const legacy = v?.fuelNormField||0;
+  wrap.innerHTML = list.map((w,i)=>{
+    let val = norms[w.id];
+    if((val===undefined || val===null || val==='') && legacy && i===0 && Object.keys(norms).length===0) val = legacy;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--surface2);border-radius:6px;">
+      <span style="flex:1;font-size:12px;">${w.emoji?w.emoji+' ':''}${w.name}</span>
+      <input type="number" step="0.1" min="0" id="fv-wn-${w.id}" value="${val||''}" placeholder="л/га"
+        style="width:90px;padding:5px 8px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);text-align:right;">
+      <span style="font-size:10px;color:var(--text3);">л/га</span>
+    </div>`;
+  }).join('') || '<div style="color:var(--text3);font-size:11px;">Сначала добавьте виды работ в справочнике.</div>';
+}
+
 function saveFuelVehicle() {
   if(!S.vehicles) S.vehicles=[];
+  _initFuel();
   const name = document.getElementById('fv-name').value.trim();
   if(!name){alert('Введите название');return;}
+  // Собираем нормы по видам работ из динамических полей
+  const fuelNormByWork = {};
+  (S.workTypes||[]).forEach(w=>{
+    const inp = document.getElementById('fv-wn-'+w.id);
+    const val = inp ? parseFloat(inp.value) : NaN;
+    if(!isNaN(val) && val>0) fuelNormByWork[w.id] = val;
+  });
   const obj = {
     id: _editVehicleId||uid(),
     name,
@@ -406,6 +457,7 @@ function saveFuelVehicle() {
     fuelType: document.getElementById('fv-fuel-type').value,
     tankCapacityL: parseFloat(document.getElementById('fv-tank-cap').value)||0,
     fuelNormField: parseFloat(document.getElementById('fv-norm-field').value)||0,
+    fuelNormByWork,
     fuelNormRoad:  parseFloat(document.getElementById('fv-norm-road').value)||0,
     fuelNormHour:  parseFloat(document.getElementById('fv-norm-hour').value)||0,
     motoHours: parseFloat(document.getElementById('fv-moto-hours').value)||0,
@@ -477,6 +529,72 @@ function deleteImplement() {
   save(); closeModal('modal-implement'); renderFuelVehicles();
 }
 
+// ── СПРАВОЧНИК ВИДОВ РАБОТ ────────────────────────────────────────────────
+let _editWorkTypeId = null;
+
+function renderWorkTypes() {
+  _initFuel();
+  const tbl = document.getElementById('worktypes-table');
+  if(!tbl) return;
+  const list = S.workTypes||[];
+  if(!list.length) {
+    tbl.innerHTML = '<div style="color:var(--text3);font-size:12px;padding:8px;">Виды работ не добавлены.</div>';
+    return;
+  }
+  tbl.innerHTML = `<table class="data-table"><thead><tr>
+    <th>Вид работ</th><th>Допуск откл. (%)</th><th></th>
+  </tr></thead><tbody>${list.map(w=>`<tr>
+    <td style="font-weight:600;">${w.emoji?w.emoji+' ':''}${w.name}</td>
+    <td style="text-align:center;">±${w.deltaPercent||15}%</td>
+    <td><button class="btn btn-secondary btn-xs" onclick="openWorkTypeModal('${w.id}')">✏️</button></td>
+  </tr>`).join('')}</tbody></table>`;
+}
+
+function openWorkTypeModal(id) {
+  _initFuel();
+  _editWorkTypeId = id||null;
+  const w = id ? (S.workTypes||[]).find(x=>x.id===id) : null;
+  document.getElementById('wt-modal-title').textContent = w?`✏️ ${w.name}`:'🌾 Новый вид работ';
+  document.getElementById('wt-name').value  = w?.name||'';
+  document.getElementById('wt-emoji').value = w?.emoji||'';
+  document.getElementById('wt-delta').value = w?.deltaPercent ?? 15;
+  document.getElementById('wt-del-btn').style.display = w?'inline-flex':'none';
+  openModal('modal-worktype');
+}
+
+function saveWorkType() {
+  _initFuel();
+  const name = document.getElementById('wt-name').value.trim();
+  if(!name){alert('Введите название вида работ');return;}
+  const obj = {
+    id: _editWorkTypeId || ('wt_'+Date.now()),
+    name,
+    emoji: document.getElementById('wt-emoji').value.trim(),
+    code: _editWorkTypeId ? (_findWorkType(_editWorkTypeId)?.code||'') : '',
+    deltaPercent: parseFloat(document.getElementById('wt-delta').value)||15,
+  };
+  if(_editWorkTypeId) {
+    const idx = S.workTypes.findIndex(x=>x.id===_editWorkTypeId);
+    if(idx>=0) S.workTypes[idx] = { ...S.workTypes[idx], ...obj };
+  } else {
+    S.workTypes.push(obj);
+  }
+  save();
+  closeModal('modal-worktype');
+  renderWorkTypes();
+  renderFuelVehicles();
+}
+
+function deleteWorkType() {
+  if(!_editWorkTypeId) return;
+  if(!confirm('Удалить вид работ? Нормы тракторов по нему сохранятся, но не будут использоваться.')) return;
+  S.workTypes = (S.workTypes||[]).filter(x=>x.id!==_editWorkTypeId);
+  save();
+  closeModal('modal-worktype');
+  renderWorkTypes();
+  renderFuelVehicles();
+}
+
 function openRefuelModal() {
   _initFuel();
   document.getElementById('rf-date').value = today();
@@ -546,6 +664,9 @@ function openFuelOpModal() {
   document.getElementById('fo-delta-display').textContent = '—';
   document.getElementById('fo-calc-details').innerHTML = 'Выберите технику и участки для расчёта';
   document.getElementById('fo-distribution-block').style.display = 'none';
+  // Виды работ из справочника
+  const otSel = document.getElementById('fo-op-type');
+  if(otSel) otSel.innerHTML = (S.workTypes||[]).map(w=>`<option value="${w.id}">${w.emoji?w.emoji+' ':''}${w.name}</option>`).join('');
   // Техника
   const vSel = document.getElementById('fo-vehicle');
   vSel.innerHTML = '<option value="">— выбрать —</option>'+(S.vehicles||[]).map(v=>`<option value="${v.id}">${v.name}</option>`).join('');
@@ -633,8 +754,12 @@ function foRecalc() {
     cellData.push({key, ha, cd});
   });
 
-  // Нормы
-  const normField = (v.fuelNormField||0) * (imp?.fuelCoeff||1.0);
+  // Нормы — по выбранному виду работ у этого трактора
+  const wt = _findWorkType(opType);
+  const wtId = wt?.id || opType;
+  let baseNormField = (v.fuelNormByWork && v.fuelNormByWork[wtId]);
+  if(baseNormField===undefined || baseNormField===null || baseNormField==='') baseNormField = v.fuelNormField||0; // fallback
+  const normField = (baseNormField||0) * (imp?.fuelCoeff||1.0);
   const normRoad  = v.fuelNormRoad||0;
 
   // Маршрут
@@ -677,6 +802,7 @@ function foRecalc() {
     </div>
     <div>🌾 Работа в поле: <b>${totalHa.toFixed(2)} га</b> × ${normField.toFixed(2)} л/га × ${passes} проходов = <b>${fuelField.toFixed(2)} л</b>
       ${pricePerL?` (${costField.toFixed(0)} MDL)`:''}
+      ${baseNormField>0?'':'<span style="color:var(--yellow);font-size:10px;"> ⚠️ норма «'+(wt?.name||opType)+'» не задана для «'+v.name+'» — задайте в карточке техники</span>'}
     </div>
     <div style="margin-top:6px;padding:8px;background:rgba(74,222,128,.1);border-radius:6px;">
       <b>⛽ ИТОГО ПЛАН: ${fuelPlan.toFixed(2)} л</b>
@@ -808,8 +934,13 @@ function saveFuelOp() {
 }
 
 function _getFuelDeltaLimit(vehicleId, opType) {
+  // 1) допуск из справочника видов работ (новый источник)
+  const wt = _findWorkType(opType);
+  if(wt && wt.deltaPercent!=null) return wt.deltaPercent;
+  // 2) fallback: старые лимиты на тракторе по code
   const v = S.vehicles?.find(x=>x.id===vehicleId);
-  return v?.fuelDeltaLimits?.find(d=>d.operationType===opType)?.deltaPercent ?? 15;
+  const code = wt?.code || opType;
+  return v?.fuelDeltaLimits?.find(d=>d.operationType===code)?.deltaPercent ?? 15;
 }
 
 function resolveFuelAlert(id) {
@@ -1006,3 +1137,18 @@ function importVarietiesFromExcel(event) {
   reader.readAsArrayBuffer(file);
 }
 
+
+// ── Авто-рендер справочника видов работ при открытии Настроек ─────────────
+(function hookWorkTypesRender(){
+  function tryHook(){
+    if(typeof window.switchTab !== 'function'){ setTimeout(tryHook, 100); return; }
+    const _orig = window.switchTab;
+    window.switchTab = function(tab, el){
+      _orig(tab, el);
+      if(tab === 'settings'){
+        setTimeout(()=>{ if(typeof renderWorkTypes==='function') renderWorkTypes(); }, 30);
+      }
+    };
+  }
+  tryHook();
+})();
