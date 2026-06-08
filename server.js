@@ -804,6 +804,79 @@ app.get('/orchard', (req,res) => {
 });
 app.get('/vegetable', (req,res) => res.sendFile(path.join(__dirname,'public','smart-vegetable.html')));
 
+
+// ── Wialon Proxy (избегаем CORS в браузере) ───────────────────────────────
+let _wialonSid = null;
+let _wialonSidExpiry = 0;
+
+async function wialonCall(svc, params) {
+  const host = process.env.WIALON_HOST || 'https://hst-api.wialon.com';
+  const body = new URLSearchParams();
+  body.append('svc', svc);
+  body.append('params', JSON.stringify(params));
+  if (_wialonSid) body.append('sid', _wialonSid);
+  const r = await fetch(host + '/wialon/ajax.html', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: body.toString(),
+  });
+  return await r.json();
+}
+
+async function wialonLogin() {
+  const token = process.env.WIALON_TOKEN || '';
+  if (!token) return false;
+  const d = await wialonCall('token/login', { token, fl: 3 });
+  if (d.error) { console.error('[Wialon] Login error:', d.error); return false; }
+  _wialonSid = d.eid;
+  _wialonSidExpiry = Date.now() + 4 * 60 * 1000; // 4 min
+  console.log('[Wialon] Logged in');
+  return true;
+}
+
+async function wialonEnsureSession() {
+  if (!_wialonSid || Date.now() > _wialonSidExpiry) {
+    return await wialonLogin();
+  }
+  return true;
+}
+
+// GET /api/wialon/live — позиции всех единиц
+app.get('/api/wialon/live', auth, async (req, res) => {
+  try {
+    const ok = await wialonEnsureSession();
+    if (!ok) return res.json({ ok: false, devices: [], error: 'Wialon not configured' });
+
+    // Получить список единиц с последними позициями
+    const d = await wialonCall('core/search_items', {
+      spec: { itemsType:'avl_unit', propName:'sys_name', propValueMask:'*', sortType:'sys_name' },
+      force: 1, flags: 1025, from: 0, to: 0,
+      sid: _wialonSid,
+    });
+
+    const items = d.items || [];
+    const devices = items.map(u => {
+      const pos = u.pos;
+      return pos ? {
+        device_id: String(u.id),
+        name: u.nm,
+        lat: pos.y,
+        lon: pos.x,
+        speed: pos.s || 0,
+        status: (pos.s || 0) > 1 ? 'working' : 'stopped',
+        timestamp: new Date(pos.t * 1000).toISOString(),
+      } : null;
+    }).filter(Boolean);
+
+    res.json({ ok: true, devices });
+  } catch(e) {
+    console.error('[Wialon] live error:', e.message);
+    // Try re-login
+    _wialonSid = null;
+    res.json({ ok: false, devices: [], error: e.message });
+  }
+});
+
 // ── Wialon API токен ──────────────────────────────────────────────────────
 app.get('/api/wialon/token', auth, (req, res) => {
   const token = process.env.WIALON_TOKEN || '';
