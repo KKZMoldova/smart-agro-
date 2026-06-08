@@ -993,29 +993,34 @@ app.get('/api/wialon/track/:unit_id', auth, async (req, res) => {
 });
 
 
-// DEBUG: Wialon raw messages
+// DEBUG: Wialon raw messages - try multiple methods
 app.get('/api/wialon/debug/:unit_id', auth, async (req, res) => {
   try {
     const ok = await wialonEnsureSession();
     if (!ok) return res.json({ ok: false, error: 'No session' });
     const unitId = parseInt(req.params.unit_id);
-    const timeTo   = Math.floor(Date.now() / 1000);
-    const timeFrom = timeTo - 24 * 3600;
-    const body = new URLSearchParams();
-    body.append('svc', 'messages/load_interval');
-    body.append('params', JSON.stringify({
-      itemId: unitId, timeFrom, timeTo,
-      flags: 1, flagsMask: 255, loadCount: 100
-    }));
-    body.append('sid', _wialonSid);
     const host = process.env.WIALON_HOST || 'https://hst-api.wialon.com';
-    const r = await fetch(host + '/wialon/ajax.html', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: body.toString(),
-    });
-    const d = await r.json();
-    res.json({ raw: d, sid: _wialonSid, unitId, timeFrom, timeTo });
+    const results = {};
+
+    // Method 1: load_last 10 messages
+    const b1 = new URLSearchParams();
+    b1.append('svc', 'messages/load_last');
+    b1.append('params', JSON.stringify({ itemId: unitId, lastTime: 0, lastCount: 10, flags: 1, flagsMask: 255 }));
+    b1.append('sid', _wialonSid);
+    const r1 = await fetch(host + '/wialon/ajax.html', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: b1.toString() });
+    results.load_last = await r1.json();
+
+    // Method 2: load_interval with different flags
+    const timeTo = Math.floor(Date.now() / 1000);
+    const timeFrom = timeTo - 24 * 3600;
+    const b2 = new URLSearchParams();
+    b2.append('svc', 'messages/load_interval');
+    b2.append('params', JSON.stringify({ itemId: unitId, timeFrom, timeTo, flags: 0x0001, flagsMask: 0x0001, loadCount: 50 }));
+    b2.append('sid', _wialonSid);
+    const r2 = await fetch(host + '/wialon/ajax.html', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: b2.toString() });
+    results.load_interval = await r2.json();
+
+    res.json({ results, sid: _wialonSid, unitId, timeFrom, timeTo });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
