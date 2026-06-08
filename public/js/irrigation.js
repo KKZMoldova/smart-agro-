@@ -1,5 +1,15 @@
-// Smart Agro — irrigation.js
+// Smart Agro — irrigation.js (фикс: площадь зоны пересчитывается из клеток, не из кэша)
 // ═══ ИРРИГАЦИЯ: ЗОНЫ / БАЛАНС / ФЕРТИГАЦИЯ ══════════════════════════════
+
+// Актуальная площадь зоны (га): пересчёт из привязанных клеток, чтобы не
+// зависеть от устаревшего кэша z.area при редактировании клеток.
+// Fallback на z.area, если клетки к зоне не привязаны.
+function zoneAreaHa(z) {
+  if (z && Array.isArray(z.cellKeys) && z.cellKeys.length) {
+    return z.cellKeys.reduce((s,k)=>{ const cd=S.cells[k]; return s + (cd ? calcCellTotals(cd).totalHa : 0); }, 0);
+  }
+  return (z && z.area) || 0;
+}
 
 function switchIrrigSub(sub) {
   const subs = ['sensors','zones','balance','fertigation'];
@@ -707,7 +717,7 @@ function renderWaterBalance() {
     // Рекомендация по зонам
     const zones = S.irrigation.zones||[];
     const zoneRecs = zones.map(z=>{
-      const ha = z.area||1;
+      const ha = zoneAreaHa(z)||1;
       const vol = Math.round(irrigNorm*ha*10*10)/10; // мм → м³
       const flow = z.flowRate||3.5;
       const hours = Math.round(vol/flow*10)/10;
@@ -1036,7 +1046,7 @@ function calcIrrigVolume() {
   if(zone && durationMin > 0) {
     const flowM3h = zone.flowRate || 0;
     const volumeM3 = Math.round(flowM3h * durationMin / 60 * 10) / 10;
-    const areaHa = zone.area || 1;
+    const areaHa = zoneAreaHa(zone) || 1;
     const mm = Math.round(volumeM3 / areaHa / 10 * 10) / 10; // м³ → мм (1 мм = 10 м³/га)
     document.getElementById('ie-volume').value = volumeM3;
     document.getElementById('ie-mm').value = mm;
@@ -1187,7 +1197,7 @@ function openFertCalcModal() {
   if(zoneSel) {
     zoneSel.innerHTML = '<option value="">— весь сад —</option>' +
       (S.irrigation.zones||[]).map(z=>
-        `<option value="${z.id}">${z.name} (${z.area?.toFixed(1)||'?'}га)</option>`
+        `<option value="${z.id}">${z.name} (${zoneAreaHa(z)?.toFixed(1)||'?'}га)</option>`
       ).join('');
   }
 
@@ -1437,9 +1447,10 @@ function onFertCalcZoneChange() {
   const zone = (S.irrigation.zones||[]).find(z=>z.id===zoneId);
 
   // Объём воды из зоны
-  if(zone?.flowRate && zone?.area) {
+  const _zArea = zoneAreaHa(zone);
+  if(zone?.flowRate && _zArea) {
     // ETc примерно 5 мм/день → 50 м³/га/день
-    const vol = Math.round(zone.area * 50 * 10)/10;
+    const vol = Math.round(_zArea * 50 * 10)/10;
     const el = document.getElementById('fc-water-vol');
     if(el && !el.value) el.value = vol;
   }
@@ -1556,7 +1567,7 @@ function calcFertDose() {
   const zone     = (S.irrigation.zones||[]).find(z=>z.id===zoneId);
 
   // Площадь: из иерархической выборки (культура/участки/сорта) или из зоны полива
-  const areaHa = zone?.area || fcGetSelectionArea();
+  const areaHa = zoneAreaHa(zone) || fcGetSelectionArea();
 
   // Метка объекта для заголовка результата
   let selLabel = zone?.name || 'Весь сад';
