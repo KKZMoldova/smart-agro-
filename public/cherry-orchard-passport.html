@@ -1468,6 +1468,16 @@ body > .panel.active { display: block; }
       </div>
     </div>
 
+    <!-- Виды работ -->
+    <div style="margin-top:20px;">
+      <div class="section-hdr" style="margin-bottom:12px;">
+        <h3 style="font-size:14px;font-weight:700;">🌾 Виды работ (нормы топлива)</h3>
+        <button class="btn btn-primary btn-sm" onclick="openWorkTypeModal()">+ Добавить</button>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:8px;">Список видов работ. Расход л/га по каждому виду задаётся индивидуально в карточке техники (ГСМ → Техника).</div>
+      <div id="worktypes-table"><div style="color:var(--text3);font-size:12px;padding:8px;">Загрузка...</div></div>
+    </div>
+
     <!-- Техника -->
     <div style="margin-top:20px;">
       <div class="section-hdr" style="margin-bottom:12px;">
@@ -2690,7 +2700,12 @@ body > .panel.active { display: block; }
         </select>
       </div>
       <div class="ff"><label>Объём бака (л)</label><input type="number" id="fv-tank-cap" placeholder="130" step="5"></div>
-      <div class="ff"><label>Норма в поле (л/га)</label><input type="number" id="fv-norm-field" placeholder="12.0" step="0.1"></div>
+      <input type="hidden" id="fv-norm-field" value="">
+      <div class="ff full">
+        <label>⛽ Расход топлива по видам работ (л/га)</label>
+        <div id="fv-work-norms" style="display:flex;flex-direction:column;gap:6px;margin-top:4px;"></div>
+        <div style="font-size:10px;color:var(--text3);margin-top:4px;">Виды работ настраиваются в ⚙️ Настройки → Виды работ</div>
+      </div>
       <div class="ff"><label>Норма на дороге (л/км)</label><input type="number" id="fv-norm-road" placeholder="0.4" step="0.05"></div>
       <div class="ff"><label>Норма в час (л/ч)</label><input type="number" id="fv-norm-hour" placeholder="8.5" step="0.1"></div>
       <div class="ff"><label>Моточасов всего</label><input type="number" id="fv-moto-hours" placeholder="0" step="1"></div>
@@ -2724,6 +2739,23 @@ body > .panel.active { display: block; }
       <button class="btn btn-danger btn-sm" id="fv-del-btn" style="display:none;margin-right:auto;" onclick="deleteFuelVehicle()">🗑 Удалить</button>
       <button class="btn btn-secondary" onclick="closeModal('modal-fuel-vehicle')">Отмена</button>
       <button class="btn btn-primary" onclick="saveFuelVehicle()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Вид работ -->
+<div class="modal-overlay" id="modal-worktype">
+  <div class="modal" style="max-width:420px;width:96%;">
+    <h2 id="wt-modal-title">🌾 Новый вид работ</h2>
+    <div class="form-grid">
+      <div class="ff full"><label>Название</label><input type="text" id="wt-name" placeholder="Дискование, Боронование, Покос..."></div>
+      <div class="ff"><label>Эмодзи (опц.)</label><input type="text" id="wt-emoji" placeholder="🌾" maxlength="4" style="font-size:18px;"></div>
+      <div class="ff"><label>Допуск отклонения факт/план (%)</label><input type="number" id="wt-delta" value="15" step="1" min="0"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger btn-sm" id="wt-del-btn" style="display:none;margin-right:auto;" onclick="deleteWorkType()">🗑 Удалить</button>
+      <button class="btn btn-secondary" onclick="closeModal('modal-worktype')">Отмена</button>
+      <button class="btn btn-primary" onclick="saveWorkType()">Сохранить</button>
     </div>
   </div>
 </div>
