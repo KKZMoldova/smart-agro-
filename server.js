@@ -992,6 +992,33 @@ app.get('/api/wialon/track/:unit_id', auth, async (req, res) => {
   }
 });
 
+
+// DEBUG: Wialon raw messages
+app.get('/api/wialon/debug/:unit_id', auth, async (req, res) => {
+  try {
+    const ok = await wialonEnsureSession();
+    if (!ok) return res.json({ ok: false, error: 'No session' });
+    const unitId = parseInt(req.params.unit_id);
+    const timeTo   = Math.floor(Date.now() / 1000);
+    const timeFrom = timeTo - 24 * 3600;
+    const body = new URLSearchParams();
+    body.append('svc', 'messages/load_interval');
+    body.append('params', JSON.stringify({
+      itemId: unitId, timeFrom, timeTo,
+      flags: 1, flagsMask: 255, loadCount: 100
+    }));
+    body.append('sid', _wialonSid);
+    const host = process.env.WIALON_HOST || 'https://hst-api.wialon.com';
+    const r = await fetch(host + '/wialon/ajax.html', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString(),
+    });
+    const d = await r.json();
+    res.json({ raw: d, sid: _wialonSid, unitId, timeFrom, timeTo });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('*', (req,res) => {
   if (req.path.startsWith('/api/')) return res.status(404).json({ok:false,error:'Not found'});
   const ext = path.extname(req.path);
