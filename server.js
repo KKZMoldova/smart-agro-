@@ -947,6 +947,51 @@ app.get('/api/gps/stops', async (req, res) => {
 });
 
 
+
+// GET /api/wialon/track/:unit_id — трек единицы за сегодня
+app.get('/api/wialon/track/:unit_id', auth, async (req, res) => {
+  try {
+    const ok = await wialonEnsureSession();
+    if (!ok) return res.json({ ok: false, points: [] });
+
+    const unitId = parseInt(req.params.unit_id);
+    const hoursBack = parseInt(req.query.hours) || 12;
+    const timeTo   = Math.floor(Date.now() / 1000);
+    const timeFrom = timeTo - hoursBack * 3600;
+
+    const body = new URLSearchParams();
+    body.append('svc', 'messages/load_interval');
+    body.append('params', JSON.stringify({
+      itemId: unitId, timeFrom, timeTo,
+      flags: 0x0001, flagsMask: 0xFF00, loadCount: 0xFFFFFFFF
+    }));
+    body.append('sid', _wialonSid);
+
+    const host = process.env.WIALON_HOST || 'https://hst-api.wialon.com';
+    const r = await fetch(host + '/wialon/ajax.html', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString(),
+    });
+    const d = await r.json();
+    if (d.error) { _wialonSid = null; return res.json({ ok: false, points: [] }); }
+
+    const msgs = d.messages || [];
+    const points = msgs
+      .filter(m => m.pos)
+      .map(m => ({
+        lat: m.pos.y, lon: m.pos.x,
+        speed: m.pos.s || 0,
+        timestamp: new Date(m.t * 1000).toISOString(),
+      }));
+
+    res.json({ ok: true, points, unit_id: unitId });
+  } catch(e) {
+    console.error('[Wialon track]', e.message);
+    res.json({ ok: false, points: [], error: e.message });
+  }
+});
+
 app.get('*', (req,res) => {
   if (req.path.startsWith('/api/')) return res.status(404).json({ok:false,error:'Not found'});
   const ext = path.extname(req.path);
