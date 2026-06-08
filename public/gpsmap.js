@@ -234,6 +234,24 @@ async function gpsUpdateLive() {
     if (badge) badge.style.display = devices.length > 0 ? 'inline-block' : 'none';
     document.getElementById('gps-sessions-count').textContent = devices.length;
   } catch(e) {}
+
+  // Wialon proxy (server-side)
+  try {
+    const token2 = sessionStorage.getItem('agro_token') || '';
+    const rw = await fetch('/api/wialon/live', {
+      headers: { 'Authorization': 'Bearer ' + token2 },
+      signal: (() => { const c = new AbortController(); setTimeout(() => c.abort(), 5000); return c.signal; })(),
+    });
+    if (!rw.ok) return;
+    const wd = await rw.json();
+    const wdevices = wd.devices || [];
+    if (wdevices.length) {
+      wdevices.forEach(d => gpsupdateTractorMarker(d));
+      document.getElementById('gps-tractors-count').textContent = 'Тракторов онлайн: ' + wdevices.length;
+      const badge = document.getElementById('gps-live-badge');
+      if (badge) badge.style.display = 'inline-block';
+    }
+  } catch(e) {}
 }
 
 function gpsupdateTractorMarker(d) {
@@ -353,7 +371,8 @@ async function wialonGetPositions() {
 }
 
 // Запуск Wialon интеграции (вызывается автоматически если токен задан)
-async function wialonStart() {
+async function wialonStart() { /* now proxied via /api/wialon/live */ return; }
+async function _wialonStartDisabled() {
   // Токен будет передан через сервер чтобы не светить в коде
   try {
     const r = await fetch('/api/wialon/token');
