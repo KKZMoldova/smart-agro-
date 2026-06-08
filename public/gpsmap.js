@@ -266,9 +266,56 @@ function gpsupdateTractorMarker(d) {
     _gpsTractorMarkers[d.device_id].setIcon(icon);
   } else {
     const m = L.marker(pos, { icon })
-      .bindPopup('<b>🚜 ' + (d.name || d.device_id) + '</b><br>Скорость: ' + (d.speed || 0) + ' км/ч<br>Статус: ' + (d.status || '—'))
+      .bindPopup('<b>🚜 ' + (d.name || d.device_id) + '</b><br>Скорость: ' + (d.speed || 0) + ' км/ч<br>Статус: ' + (d.status || '—') + '<br><button onclick="gpsShowTrack(\'' + d.device_id + '\',\'' + (d.name||d.device_id).replace(/'/g,'') + '\')" style="margin-top:6px;padding:4px 10px;background:#3b82f6;color:#fff;border:none;border-radius:6px;cursor:pointer;">📍 Показать трек</button>')
       .addTo(_gpsMap);
     _gpsTractorMarkers[d.device_id] = m;
+  }
+}
+
+
+// ── Треки тракторов ──────────────────────────────────────────────────────
+const _gpsTrackPolylines = {}; // device_id -> polyline
+let _gpsActiveTrackId = null;
+
+async function gpsShowTrack(deviceId, deviceName) {
+  // Скрыть предыдущий трек
+  if (_gpsActiveTrackId && _gpsTrackPolylines[_gpsActiveTrackId]) {
+    _gpsMap.removeLayer(_gpsTrackPolylines[_gpsActiveTrackId]);
+    delete _gpsTrackPolylines[_gpsActiveTrackId];
+  }
+  if (_gpsActiveTrackId === deviceId) { _gpsActiveTrackId = null; return; }
+  _gpsActiveTrackId = deviceId;
+
+  gpsToast('⏳ Загружаю трек ' + deviceName + '...', 2000);
+
+  try {
+    const token = sessionStorage.getItem('agro_token') || '';
+    const r = await fetch('/api/wialon/track/' + deviceId + '?hours=12', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    const d = await r.json();
+    const points = (d.points || []).map(p => [p.lat, p.lon]);
+    if (!points.length) { gpsToast('Нет данных трека за 12 часов'); return; }
+
+    // Рисуем трек
+    const polyline = L.polyline(points, {
+      color: '#60a5fa', weight: 3, opacity: 0.8,
+      dashArray: null,
+    }).addTo(_gpsMap);
+
+    // Начало и конец
+    L.circleMarker(points[0], { radius: 6, color: '#4ade80', fillColor: '#4ade80', fillOpacity: 1 })
+      .bindPopup('🚀 Начало маршрута<br>' + d.points[0].timestamp?.slice(0,16).replace('T',' '))
+      .addTo(_gpsMap);
+    L.circleMarker(points[points.length-1], { radius: 6, color: '#f59e0b', fillColor: '#f59e0b', fillOpacity: 1 })
+      .bindPopup('🏁 Последняя точка<br>' + d.points[d.points.length-1].timestamp?.slice(0,16).replace('T',' '))
+      .addTo(_gpsMap);
+
+    _gpsTrackPolylines[deviceId] = polyline;
+    _gpsMap.fitBounds(polyline.getBounds().pad(0.1));
+    gpsToast('✅ Трек ' + deviceName + ': ' + points.length + ' точек', 3000);
+  } catch(e) {
+    gpsToast('❌ Ошибка загрузки трека: ' + e.message);
   }
 }
 
