@@ -535,31 +535,29 @@ function renderNtMachines() {
         <span style="font-size:11px;font-weight:600;color:var(--text3);">🚜 Агрегат ${i + 1}</span>
         <button onclick="removeNtMachine(${i})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:13px;padding:0 4px;">✕</button>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
-        <div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 80px;gap:8px;">
+        <div style="min-width:0;">
           <div style="font-size:10px;color:var(--text3);margin-bottom:3px;">Техника</div>
           <select onchange="updateNtMachine(${i},'equipId',this.value,this.selectedOptions[0]?.dataset.name||'')"
             style="width:100%;padding:6px 8px;background:var(--surface);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:11px;">
             ${equipOpts.replace(`value="${m.equipId}"`, `value="${m.equipId}" selected`)}
           </select>
         </div>
-        <div>
+        <div style="min-width:0;">
           <div style="font-size:10px;color:var(--text3);margin-bottom:3px;">Навесное</div>
           <select onchange="updateNtMachine(${i},'attachId',this.value,this.selectedOptions[0]?.dataset.name||'')"
             style="width:100%;padding:6px 8px;background:var(--surface);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:11px;">
             ${attachOpts.replace(`value="${m.attachId}"`, `value="${m.attachId}" selected`)}
           </select>
         </div>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 80px;gap:8px;">
-        <div>
+        <div style="min-width:0;">
           <div style="font-size:10px;color:var(--text3);margin-bottom:3px;">Механизатор</div>
           <select onchange="updateNtMachine(${i},'mechanicId',this.value,this.selectedOptions[0]?.dataset.name||'')"
             style="width:100%;padding:6px 8px;background:var(--surface);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:11px;">
             ${mechOpts.replace(`value="${m.mechanicId}"`, `value="${m.mechanicId}" selected`)}
           </select>
         </div>
-        <div>
+        <div style="min-width:0;">
           <div style="font-size:10px;color:var(--text3);margin-bottom:3px;">Скорость (км/ч)</div>
           <input type="number" min="1" max="30" value="${m.speed||''}" placeholder="—"
             onchange="updateNtMachine(${i},'speed',this.value)"
