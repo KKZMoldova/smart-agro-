@@ -228,6 +228,7 @@ async function openNewTask() {
   document.getElementById('nt-selected-tags').innerHTML = '';
   document.getElementById('nt-area-info').textContent = '';
   document.getElementById('nt-calc-summary').style.display = 'none';
+  if(document.getElementById('nt-tank-card')) document.getElementById('nt-tank-card').style.display='none';
   document.getElementById('nt-water').value = '400';
   document.getElementById('nt-due').value = today();
   document.getElementById('nt-desc').value = '';
@@ -307,7 +308,7 @@ function ntUpdateCalc() {
   const haPerTankManual = parseFloat(document.getElementById('nt-ha-per-tank')?.value)||0;
   const chems = _newTaskChems.filter(c=>parseFloat(c.dose_actual||c.dose_default)>0);
 
-  if(!chems.length||!totalHa){ calcEl.style.display='none'; return; }
+  if(!chems.length||!totalHa){ calcEl.style.display='none'; ntRenderRowTankCard(); return; }
 
   const totalWaterL = waterPerHa * totalHa;
   const haPerTank = haPerTankManual || (tankVol / waterPerHa);
@@ -407,7 +408,207 @@ function ntUpdateCalc() {
 
   calcEl.innerHTML = html;
   calcEl.style.display = 'block';
+  ntRenderRowTankCard();
 }
+
+// ═══ КАРТА БАКОВ ПО РЯДАМ (гибрид: несколько сортов в разных рядах) ═══════
+// Дозаправки строго на границах рядов. Источник — ряды клеток S.cells.
+const _NT_VPAL=['#6bdd6b','#60a5fa','#fb923c','#a855f7','#2dd4bf','#fbbf24','#f87171','#f472b6'];
+let _ntTankMode = 'byVariety'; // 'byVariety' | 'merge'
+function setNtTankMode(m){ _ntTankMode=m; ntRenderRowTankCard(); }
+
+function _ntEnsureTankCardEl(){
+  let el = document.getElementById('nt-tank-card');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'nt-tank-card';
+    el.style.cssText='margin-bottom:14px;';
+    const anchor = document.getElementById('nt-calc-summary');
+    if(anchor && anchor.parentNode) anchor.parentNode.insertBefore(el, anchor.nextSibling);
+    else return null;
+  }
+  return el;
+}
+
+// Диапазон рядов в компактном виде: "1–30", "31–34, 36"
+function _ntRangeLabel(rows){
+  const nums=rows.map(r=>r.row).sort((a,b)=>a-b);
+  let parts=[],s=nums[0],p=nums[0];
+  for(let i=1;i<=nums.length;i++){
+    if(nums[i]===p+1){p=nums[i];continue;}
+    parts.push(s===p?`${s}`:`${s}–${p}`); s=nums[i]; p=nums[i];
+  }
+  return parts.join(', ');
+}
+
+// Группировка рядов в баки: разрыв по ёмкости и (в режиме по сортам) по смене сорта
+function _ntBuildTanks(rowList, tankVol, mode){
+  rowList.sort((a,b)=>a.row-b.row);
+  const tanks=[]; let cur=null;
+  const flush=()=>{ if(cur&&cur.rows.length) tanks.push(cur); cur=null; };
+  for(const r of rowList){
+    const vBreak = mode==='byVariety' && cur && cur.variety!==r.variety;
+    const cBreak = cur && (cur.water + r.waterPerRow > tankVol+1e-6);
+    if(vBreak||cBreak) flush();
+    if(!cur) cur={rows:[],water:0,area:0,variety:r.variety,color:r.color,mv:new Set()};
+    cur.rows.push(r); cur.water+=r.waterPerRow; cur.area+=r.areaPerRow; cur.mv.add(r.variety);
+  }
+  flush();
+  return tanks;
+}
+
+function ntRenderRowTankCard(){
+  const el = _ntEnsureTankCardEl(); if(!el) return;
+  const tankVol    = parseFloat(document.getElementById('nt-tank-vol')?.value)||0;
+  const waterPerHa = parseFloat(document.getElementById('nt-water')?.value)||0;
+
+  // Только выбранные клетки, у которых заполнены ряды
+  const cells = _newTaskParcels.map(p=>({key:p.id, cd:S.cells[p.id]}))
+    .filter(o=>o.cd && Array.isArray(o.cd.rows) && o.cd.rows.length);
+  if(!cells.length || tankVol<=0 || waterPerHa<=0){ el.style.display='none'; el.innerHTML=''; return; }
+
+  const single = cells.length===1;
+  const rf = single ? (parseInt(document.getElementById('nt-rowfrom')?.value)||null) : null;
+  const rt = single ? (parseInt(document.getElementById('nt-rowto')?.value)||null) : null;
+
+  const chems = (_newTaskChems||[])
+    .map(c=>({name:c.name, dose:parseFloat(c.dose_actual||c.dose_default)||0,
+              unit:(S.catalog?.find(x=>x.id===c.id)?.unit)||'л/кг'}))
+    .filter(c=>c.name && c.dose>0);
+
+  // Шапка карты: режим долива + (для одной клетки) диапазон рядов
+  let html = `<div style="border:1px solid var(--border);border-radius:10px;padding:14px;background:var(--surface);">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+      <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;">🧪 Карта баков по рядам · бак ${tankVol}л · ${waterPerHa}л/га</div>
+      <div style="display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;">
+        <button type="button" onclick="setNtTankMode('byVariety')" style="border:none;cursor:pointer;font-size:11px;padding:5px 10px;background:${_ntTankMode==='byVariety'?'var(--accent)':'transparent'};color:${_ntTankMode==='byVariety'?'#06210b':'var(--text3)'};font-weight:${_ntTankMode==='byVariety'?'700':'400'};">По сортам</button>
+        <button type="button" onclick="setNtTankMode('merge')" style="border:none;cursor:pointer;font-size:11px;padding:5px 10px;background:${_ntTankMode==='merge'?'var(--accent)':'transparent'};color:${_ntTankMode==='merge'?'#06210b':'var(--text3)'};font-weight:${_ntTankMode==='merge'?'700':'400'};">Единый состав</button>
+      </div>
+    </div>`;
+
+  if(single){
+    html += `<div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">
+      <span style="font-size:11px;color:var(--text3);">Диапазон рядов (необязательно):</span>
+      <input type="number" id="nt-rowfrom" placeholder="с" value="${rf||''}" min="1" onchange="ntRenderRowTankCard()"
+        style="width:70px;padding:5px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:12px;">
+      <input type="number" id="nt-rowto" placeholder="по" value="${rt||''}" min="1" onchange="ntRenderRowTankCard()"
+        style="width:70px;padding:5px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:12px;">
+      <span style="font-size:10px;color:var(--text3);">пусто = все ряды клетки</span>
+    </div>`;
+  } else {
+    html += `<div style="font-size:11px;color:var(--text3);margin-bottom:10px;">Выбрано несколько клеток — карта по каждой отдельно, нумерация рядов в пределах клетки.</div>`;
+  }
+
+  // Собираем все баки по клеткам (без рендера), затем распределим по механизаторам
+  let allTanks=[]; const warnings=[];
+  cells.forEach(({key,cd})=>{
+    const rowSpacing = parseFloat(cd.rowSpacing)||5;
+    const vOrder=[...new Set((cd.rows||[]).map(r=>r.varietyId))];
+    let rowList=[];
+    (cd.rows||[]).forEach(rEntry=>{
+      const from=parseInt(rEntry.from)||0, to=parseInt(rEntry.to)||0, length=parseFloat(rEntry.rowLength)||0;
+      if(!(to>=from) || length<=0) return;
+      const v=(S.varieties||[]).find(x=>x.id===rEntry.varietyId);
+      const vname=v?.name||'Без сорта';
+      const color=_NT_VPAL[Math.max(0,vOrder.indexOf(rEntry.varietyId))%_NT_VPAL.length];
+      const areaPerRow=length*rowSpacing/10000;
+      const waterPerRow=waterPerHa*areaPerRow;
+      for(let r=from;r<=to;r++){
+        if(single && rf && r<rf) continue;
+        if(single && rt && r>rt) continue;
+        rowList.push({row:r,variety:vname,color,areaPerRow,waterPerRow,length});
+      }
+    });
+    if(!rowList.length){ warnings.push(`Клетка ${key}: нет рядов в диапазоне.`); return; }
+    const tooBig=rowList.find(r=>r.waterPerRow>tankVol+1e-6);
+    if(tooBig){ warnings.push(`Клетка ${key}: ряд №${tooBig.row} (${tooBig.length}м) требует ${Math.round(tooBig.waterPerRow)}л — больше бака.`); return; }
+    _ntBuildTanks(rowList, tankVol, _ntTankMode).forEach(t=>{ t.cellKey=key; allTanks.push(t); });
+  });
+
+  if(warnings.length) html += `<div style="font-size:11px;color:var(--yellow);margin-bottom:8px;">⚠️ ${warnings.join('<br>⚠️ ')}</div>`;
+
+  // Рендер одной таблицы баков (нумерация 1..k в пределах переданного списка)
+  const renderTankTable = (tanks)=>{
+    let h = `<div style="overflow-x:auto;margin-bottom:6px;"><table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <thead><tr style="color:var(--text3);font-size:10px;text-transform:uppercase;">
+        <th style="text-align:left;padding:6px 8px;border-bottom:1px solid var(--border);">Бак</th>
+        <th style="text-align:left;padding:6px 8px;border-bottom:1px solid var(--border);">Клетка</th>
+        <th style="text-align:left;padding:6px 8px;border-bottom:1px solid var(--border);">Ряды</th>
+        <th style="text-align:left;padding:6px 8px;border-bottom:1px solid var(--border);">Сорт</th>
+        <th style="text-align:right;padding:6px 8px;border-bottom:1px solid var(--border);">Вода</th>
+        ${chems.length?'<th style="text-align:left;padding:6px 8px;border-bottom:1px solid var(--border);">Препараты в бак</th>':''}
+      </tr></thead><tbody>`;
+    tanks.forEach((t,i)=>{
+      const fill=t.water/tankVol;
+      const partial = fill<0.85 ? ` <span style="color:var(--yellow);font-size:10px;">неполн. ${Math.round(fill*100)}%</span>` : '';
+      const mvMap={}; t.rows.forEach(r=>{ mvMap[r.variety]=r.color; });
+      const vCell = Object.entries(mvMap).map(([v,col])=>`<span style="padding:1px 8px;border-radius:10px;font-size:11px;background:${col}22;color:${col};">${v}</span>`).join(' ');
+      const chemCells = chems.map(c=>`<span style="display:inline-block;padding:1px 7px;border-radius:6px;font-size:11px;background:var(--surface3);margin:1px 3px 1px 0;font-family:'JetBrains Mono',monospace;">${c.name}: ${(c.dose*t.area).toFixed(2)} ${c.unit}</span>`).join('');
+      h += `<tr>
+        <td style="padding:8px;border-bottom:1px solid var(--border);"><span style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:var(--accent);color:#06210b;font-weight:700;font-size:11px;">${i+1}</span></td>
+        <td style="padding:8px;border-bottom:1px solid var(--border);font-size:11px;color:var(--text3);">${t.cellKey}</td>
+        <td style="padding:8px;border-bottom:1px solid var(--border);font-family:'JetBrains Mono',monospace;font-weight:700;">${_ntRangeLabel(t.rows)} <span style="color:var(--text3);font-weight:400;">(${t.rows.length}р · ${t.area.toFixed(3)}га)</span>${partial}</td>
+        <td style="padding:8px;border-bottom:1px solid var(--border);">${vCell}</td>
+        <td style="padding:8px;border-bottom:1px solid var(--border);text-align:right;font-family:'JetBrains Mono',monospace;">${Math.round(t.water)} л</td>
+        ${chems.length?`<td style="padding:8px;border-bottom:1px solid var(--border);">${chemCells||'—'}</td>`:''}
+      </tr>`;
+    });
+    h += `</tbody></table></div>`;
+    return h;
+  };
+
+  // Итоги по списку баков (ряды, га, вода, препараты)
+  const unitTotals = (tanks)=>{
+    const rows=tanks.reduce((s,t)=>s+t.rows.length,0);
+    const area=tanks.reduce((s,t)=>s+t.area,0);
+    const water=tanks.reduce((s,t)=>s+t.water,0);
+    const chemStr = chems.map(c=>`${c.name} ${(c.dose*area).toFixed(2)} ${c.unit}`).join(' · ');
+    return `<div style="font-size:11px;color:var(--text2);margin:2px 0 14px;">Итого: <b>${tanks.length}</b> баков · ${rows} рядов · ${area.toFixed(2)} га · ${Math.round(water)} л воды${chemStr?' · '+chemStr:''}</div>`;
+  };
+
+  // Разбить массив на n непрерывных групп, как можно ровнее
+  const splitContiguous=(arr,n)=>{
+    const out=[]; const base=Math.floor(arr.length/n); let extra=arr.length%n, idx=0;
+    for(let i=0;i<n;i++){ const take=base+(extra>0?1:0); if(extra>0)extra--; out.push(arr.slice(idx,idx+take)); idx+=take; }
+    return out;
+  };
+
+  // Агрегаты с механизатором или техникой = бригады, между которыми делим работу
+  const units = (_ntMachines||[]).filter(m=>m.mechanicId||m.equipId);
+
+  if(units.length>=2 && allTanks.length){
+    const groups = splitContiguous(allTanks, units.length);
+    units.forEach((u,ui)=>{
+      const g=groups[ui]||[];
+      const machine=[u.equipName, u.attachName].filter(Boolean).join(' + ')||'техника не выбрана';
+      html += `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px;">
+          <div style="font-size:13px;font-weight:700;">👤 ${u.mechanicName||'Механизатор '+(ui+1)}</div>
+          <div style="font-size:11px;color:var(--text3);">🚜 ${machine}</div>
+        </div>`;
+      if(!g.length){ html += `<div style="font-size:11px;color:var(--text3);">Рядов не назначено.</div>`; }
+      else { html += renderTankTable(g) + unitTotals(g); }
+      html += `</div>`;
+    });
+    html += `<div style="font-size:11px;color:var(--text3);">Работа разделена на ${units.length} непрерывных участка по числу агрегатов. У каждого механизатора своя нумерация баков. Долив — в конце ряда.</div>`;
+  } else {
+    // Один агрегат (или ни одного) — общая карта
+    const u = units[0];
+    if(u){
+      const machine=[u.equipName, u.attachName].filter(Boolean).join(' + ')||'техника не выбрана';
+      html += `<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:8px;">
+        <div style="font-size:13px;font-weight:700;">👤 ${u.mechanicName||'Механизатор'}</div>
+        <div style="font-size:11px;color:var(--text3);">🚜 ${machine}</div></div>`;
+    }
+    if(allTanks.length){ html += renderTankTable(allTanks) + unitTotals(allTanks); }
+    html += `<div style="font-size:11px;color:var(--text3);">Долив — в конце последнего ряда бака. Рядов на бак = ⌊бак ÷ (расход × площадь ряда)⌋.${units.length<2?' Добавьте агрегаты («+ Добавить агрегат»), чтобы разделить работу между механизаторами.':''}</div>`;
+  }
+  html += `</div>`;
+
+  el.innerHTML = html;
+  el.style.display = 'block';
+}
+
 function searchNtChems(q) {
   const dd = document.getElementById('nt-chem-dropdown');
   const catalog = S.catalog||[];
@@ -571,11 +772,13 @@ function renderNtMachines() {
 function addNtMachine() {
   _ntMachines.push({ equipId:'', equipName:'', attachId:'', attachName:'', mechanicId:'', mechanicName:'', speed:null });
   renderNtMachines();
+  ntRenderRowTankCard();
 }
 
 function removeNtMachine(i) {
   _ntMachines.splice(i, 1);
   renderNtMachines();
+  ntRenderRowTankCard();
 }
 
 function updateNtMachine(i, field, value, name) {
