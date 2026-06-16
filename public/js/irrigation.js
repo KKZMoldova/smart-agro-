@@ -11,6 +11,47 @@ function zoneAreaHa(z) {
   return (z && z.area) || 0;
 }
 
+// ── Выбор зоны для вкладок «Баланс воды» и «Фертигация» ────────────────────
+// '' = весь сад (общая картина), иначе id зоны.
+let _wbZone = '';
+let _fertZone = '';
+
+// Сорт / культура / базовая температура / Kc для конкретной зоны.
+// Берём сорт из первой клетки зоны (как в calcZoneIrrigRecommendation),
+// fallback — varietyIds зоны или первый сорт сада.
+function zoneVarietyInfo(z, gdd) {
+  const varietyId = (() => {
+    for (const cellKey of (z?.cellKeys||[])) {
+      const cd = S.cells?.[cellKey];
+      if (!cd) continue;
+      const rid = cd.rows?.[0]?.varietyId || (cd.cols?.[0]?.varietyId);
+      if (rid) return rid;
+    }
+    return z?.varietyIds?.[0] || S.varieties?.[0]?.id;
+  })();
+  const zoneCell = S.cells?.[(z?.cellKeys||[])[0]];
+  const cropId = zoneCell?.cropId || 'crop_cherry';
+  const baseTemp = cropId === 'crop_apple' ? 4.0 : 4.5;
+  const phase = getPhaseByGdd(varietyId, gdd != null ? gdd : getCurrentGdd(baseTemp));
+  const kc = phase?.kc || (cropId === 'crop_cherry' ? 0.9 : 1.0);
+  return { varietyId, cropId, baseTemp, phase, kc };
+}
+
+// Селектор зоны для шапки вкладки. onChangeFn — имя глобальной функции.
+function zoneSelectorHtml(current, onChangeFn) {
+  const zones = S.irrigation.zones||[];
+  if(!zones.length) return '';
+  const opt = (val,label,sel)=>`<option value="${val}" ${sel?'selected':''}>${label}</option>`;
+  return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+    <span style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;">🗺 Зона:</span>
+    <select onchange="${onChangeFn}(this.value)"
+      style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-family:'Inter',sans-serif;font-size:12px;">
+      ${opt('','🌳 Весь сад',!current)}
+      ${zones.map(z=>opt(z.id, `${z.name} · ${zoneAreaHa(z).toFixed(2)} га`, current===z.id)).join('')}
+    </select>
+  </div>`;
+}
+
 function switchIrrigSub(sub) {
   const subs = ['sensors','zones','balance','fertigation'];
   const colors = {sensors:'var(--accent)',zones:'var(--blue)',balance:'var(--teal)',fertigation:'var(--orange)'};
@@ -668,17 +709,71 @@ function calcWaterBalance() {
   if(document.getElementById('stress-alerts-banner')) renderStressAlerts(null);
 }
 
+// Баланс воды для одной зоны — считается на лету, ничего не сохраняет.
+// Отличия от общего: полив фильтруется по zoneId, Kc — от сорта зоны.
+function calcZoneWaterBalanceLog(zoneId) {
+  const z = (S.irrigation.zones||[]).find(x=>x.id===zoneId);
+  if(!z) return [];
+  const sp = S.irrigation.waterBalance?.soilParams || {};
+  const fc = sp.fc||32, pwp = sp.pwp||14, rootCm = sp.rootDepth||60;
+  const taw = (fc-pwp) * rootCm * 0.1;
+  const raw = taw * 0.35;
+
+  const sorted = [...(S.weather||[])].sort((a,b)=>a.date.localeCompare(b.date)).slice(-30);
+  if(!sorted.length) return [];
+
+  const vinfo = zoneVarietyInfo(z);
+  let balance = taw * 0.6;
+  const log = [];
+
+  sorted.forEach(w => {
+    const et0 = parseFloat(w.et0) || ((parseFloat(w.tmax)||25)-(parseFloat(w.tmin)||10))*0.2;
+    const gdd = getCurrentGdd(vinfo.baseTemp);
+    const phase = getPhaseByGdd(vinfo.varietyId, gdd);
+    const kc = phase?.kc || vinfo.kc;
+    const etc = Math.round(et0 * kc * 10)/10;
+    const rain = parseFloat(w.precip)||0;
+    // Полив — только события ЭТОЙ зоны за эту дату
+    const irrig = (S.irrigation.events||[])
+      .filter(e=>e.date===w.date && e.zoneId===zoneId)
+      .reduce((s,e)=>s+parseFloat(e.mm||0),0);
+    const prev = balance;
+    balance = Math.min(taw, Math.max(0, balance + rain + irrig - etc));
+    const drainage = Math.max(0, prev + rain + irrig - etc - taw);
+    log.push({
+      date:w.date, balance:Math.round(balance*10)/10,
+      rainfall:rain, irrigation:Math.round(irrig*10)/10,
+      etc, drainage:Math.round(drainage*10)/10,
+      deficit:Math.round(Math.max(0,raw-balance)*10)/10,
+      status: balance<=0?'critical':balance<raw*0.5?'stress':balance<raw?'watch':'ok',
+      kc, et0:Math.round(et0*10)/10,
+    });
+  });
+  return log;
+}
+
+// Переключение зоны на вкладке «Баланс воды»
+function onWbZoneChange(val) {
+  _wbZone = val || '';
+  renderWaterBalance();
+}
+
 function renderWaterBalance() {
   const sp = S.irrigation.waterBalance?.soilParams || {};
   const fc=sp.fc||32, pwp=sp.pwp||14, rootCm=sp.rootDepth||60;
   const taw = (fc-pwp)*rootCm*0.1;
   const raw = taw*0.35;
-  const log = S.irrigation.waterBalance?.log||[];
+  // Зона: '' = весь сад (сохранённый общий лог), иначе пересчёт по зоне на лету
+  const zoneObj = _wbZone ? (S.irrigation.zones||[]).find(z=>z.id===_wbZone) : null;
+  if(_wbZone && !zoneObj) _wbZone = '';
+  const log = _wbZone ? calcZoneWaterBalanceLog(_wbZone) : (S.irrigation.waterBalance?.log||[]);
   const last = log[log.length-1];
+  const selectorHtml = zoneSelectorHtml(_wbZone, 'onWbZoneChange');
 
   // Параметры почвы
   const spEl = document.getElementById('wb-soil-params');
-  if(spEl) spEl.innerHTML = `
+  if(spEl) spEl.innerHTML = selectorHtml + `
+    ${_wbZone&&zoneObj?`<div style="font-size:11px;color:var(--teal);margin-bottom:8px;">⚖️ Баланс по зоне «${zoneObj.name}» · ${zoneAreaHa(zoneObj).toFixed(2)} га · сорт: ${(S.varieties||[]).find(v=>v.id===zoneVarietyInfo(zoneObj).varietyId)?.name||'—'}</div>`:''}
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:4px;">
       <div style="background:var(--surface2);border-radius:8px;padding:10px;text-align:center;">
         <div style="font-size:15px;font-weight:700;color:var(--blue);">${taw.toFixed(0)} мм</div>
@@ -702,9 +797,9 @@ function renderWaterBalance() {
   const recEl = document.getElementById('wb-recommendation');
   if(recEl && last) {
     const et0 = parseFloat(S.weather[0]?.et0)||2.5;
-    const gdd = getCurrentGdd(5);
-    const phase = getPhaseByGdd(S.varieties[0]?.id, gdd);
-    const kc = phase?.kc||1.0;
+    // Kc: для зоны — от её сорта, для всего сада — от первого сорта (как было)
+    const kc = _wbZone && zoneObj ? zoneVarietyInfo(zoneObj).kc
+                                  : (getPhaseByGdd(S.varieties[0]?.id, getCurrentGdd(5))?.kc||1.0);
     const etc = Math.round(et0*kc*10)/10;
     const daysToStress = last.balance>0 ? Math.floor(last.balance/etc) : 0;
     const irrigNorm = Math.round((raw-last.balance)*1.15*10)/10;
@@ -714,8 +809,8 @@ function renderWaterBalance() {
       ok:{c:'var(--accent)',t:'✅ Влажность в норме'}};
     const s = STATUS[last.status]||STATUS.ok;
 
-    // Рекомендация по зонам
-    const zones = S.irrigation.zones||[];
+    // Рекомендация по зонам: если выбрана зона — только она, иначе все
+    const zones = (_wbZone && zoneObj) ? [zoneObj] : (S.irrigation.zones||[]);
     const zoneRecs = zones.map(z=>{
       const ha = zoneAreaHa(z)||1;
       const vol = Math.round(irrigNorm*ha*10*10)/10; // мм → м³
@@ -817,7 +912,13 @@ const FERT_INCOMPAT = [
 function renderFertigation() {
   const el = document.getElementById('fertigation-content');
   if(!el) return;
-  const programs = S.irrigation.fertigation?.programs||[];
+  const allPrograms = S.irrigation.fertigation?.programs||[];
+  // Фильтр по зоне: выбранная зона показывает свои программы + общие (без zoneId)
+  if(_fertZone && !(S.irrigation.zones||[]).some(z=>z.id===_fertZone)) _fertZone = '';
+  const programs = _fertZone
+    ? allPrograms.filter(p => p.zoneId===_fertZone || !p.zoneId)
+    : allPrograms;
+  const fertSelectorHtml = zoneSelectorHtml(_fertZone, 'onFertZoneChange');
 
   // Последний анализ воды из S.analyses (единый источник данных)
   const waterAnalyses = [...(S.analyses||[])].filter(a=>a.type==='water'&&a.date).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
@@ -867,7 +968,7 @@ function renderFertigation() {
   // Programs
   let progHtml = '';
   if(!programs.length) {
-    progHtml = `<div style="text-align:center;padding:30px;color:var(--text3);font-size:12px;">Программы фертигации не добавлены.<br>Нажмите <strong>+ Программа</strong> выше.</div>`;
+    progHtml = `<div style="text-align:center;padding:30px;color:var(--text3);font-size:12px;">${_fertZone?'Для этой зоны программ фертигации нет.':'Программы фертигации не добавлены.'}<br>Нажмите <strong>+ Программа</strong> выше.</div>`;
   } else {
     progHtml = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;">` +
       programs.map(p=>{
@@ -890,9 +991,15 @@ function renderFertigation() {
       }).join('') + `</div>`;
   }
 
-  el.innerHTML = wqHtml +
-    `<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">🌱 Программы фертигации</div>` +
+  el.innerHTML = fertSelectorHtml + wqHtml +
+    `<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">🌱 Программы фертигации${_fertZone?` · зона: ${(S.irrigation.zones||[]).find(z=>z.id===_fertZone)?.name||''}`:''}</div>` +
     progHtml;
+}
+
+// Переключение зоны на вкладке «Фертигация»
+function onFertZoneChange(val) {
+  _fertZone = val || '';
+  renderFertigation();
 }
 
 function analyzeWaterQuality(wq) {
