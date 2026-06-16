@@ -103,25 +103,87 @@ function toggleTrCell(k) {
   orchardUpdateChecks();
 }
 
+// ── Учёт сорта при расчёте площади обработки ──────────────────────────────
+// Текущий выбранный сорт в модале ('all' = все сорта клетки).
+function _treatmentVarietyId() {
+  return document.getElementById('t-var')?.value || 'all';
+}
+// Площадь обработки с учётом выбранного сорта:
+// 'all' → вся площадь клеток; конкретный сорт → только его га в этих клетках.
+function _treatmentSelectedHa(varietyId) {
+  const vid = varietyId || _treatmentVarietyId();
+  let ha = 0;
+  _otCells.forEach(k => {
+    const cd = S.cells[k]; if(!cd) return;
+    const ct = calcCellTotals(cd); if(!ct) return;
+    if(vid && vid!=='all') ha += (ct.byVariety?.[vid]?.ha || 0);
+    else ha += (ct.totalHa || 0);
+  });
+  return ha;
+}
+// Сорта, реально присутствующие в выбранных клетках (или во всём саду, если клетки не выбраны).
+function _treatmentVarietiesInCells() {
+  const ids = new Set();
+  const cells = _otCells.length ? _otCells : Object.keys(S.cells);
+  cells.forEach(k=>{
+    const cd=S.cells[k]; if(!cd) return;
+    const bv = calcCellTotals(cd)?.byVariety||{};
+    Object.keys(bv).forEach(id=>ids.add(id));
+  });
+  return [...ids].map(id=>(S.varieties||[]).find(v=>v.id===id)).filter(Boolean);
+}
+// Перезаполняет селектор «Сорт» сортами выбранных клеток, сохраняя текущий выбор.
+function _refreshTreatVarietyOptions() {
+  const vs=document.getElementById('t-var'); if(!vs) return;
+  const prev=vs.value;
+  const vars=_treatmentVarietiesInCells();
+  vs.innerHTML='<option value="all">Все сорта</option>'+
+    vars.map(v=>`<option value="${v.id}">${v.name}</option>`).join('');
+  vs.value = [...vs.options].some(o=>o.value===prev) ? prev : 'all';
+}
+
 function _updateTrCellInfo() {
   const infoEl = document.getElementById('t-cell-crop-info');
   const tagsEl = document.getElementById('t-cell-tags');
   if(!infoEl||!tagsEl) return;
+  // Обновляем список сортов под выбранные клетки (мультисорт в клетке/зоне)
+  _refreshTreatVarietyOptions();
   if(!_otCells.length) {
     tagsEl.innerHTML = '';
     infoEl.textContent = '';
     return;
   }
+  const vid = _treatmentVarietyId();
   let totalHa = 0;
+  // Площадь по каждому сорту в выбранных клетках
+  const varHa = {};
+  _otCells.forEach(k => {
+    const cd = S.cells[k]; if(!cd) return;
+    const ct = calcCellTotals(cd); if(!ct) return;
+    totalHa += ct.totalHa||0;
+    Object.entries(ct.byVariety||{}).forEach(([id,d])=>{ varHa[id]=(varHa[id]||0)+(d.ha||0); });
+  });
   const tags = _otCells.map(k => {
     const cd = S.cells[k]; if(!cd) return '';
     const col = getCellColors(cd);
-    const ha = calcCellTotals(cd)?.totalHa||0;
-    totalHa += ha;
     return `<span style="padding:2px 8px;border-radius:10px;background:rgba(107,221,107,.15);color:var(--accent);font-size:11px;">${k}${col[0]?' '+col[0].name:''}</span>`;
   });
   tagsEl.innerHTML = tags.join('');
-  infoEl.textContent = `${_otCells.length} кл. · ${totalHa.toFixed(3)} га`;
+  // Если клетки смешанные — показываем разбивку по сортам
+  const varNames = Object.keys(varHa);
+  const breakdown = varNames.length>1
+    ? ' · ' + varNames.map(id=>{
+        const v=(S.varieties||[]).find(x=>x.id===id);
+        return `${v?.name||'?'} ${varHa[id].toFixed(2)}`;
+      }).join(' / ') + ' га'
+    : '';
+  if(vid && vid!=='all') {
+    const v=(S.varieties||[]).find(x=>x.id===vid);
+    const selHa=_treatmentSelectedHa(vid);
+    infoEl.innerHTML = `${_otCells.length} кл. · обработка сорта <strong>🍒 ${v?.name||'?'}</strong>: <strong style="color:var(--accent);">${selHa.toFixed(3)} га</strong> <span style="color:var(--text3);">(вся площадь клеток ${totalHa.toFixed(2)} га)</span>`;
+  } else {
+    infoEl.innerHTML = `${_otCells.length} кл. · <strong>${totalHa.toFixed(3)} га</strong>${breakdown}${varNames.length>1?' <span style="color:var(--yellow);">— смешанные сорта, можно выбрать один в поле «Сорт»</span>':''}`;
+  }
 }
 
 function openTreatmentModal(prefillProdId){
@@ -139,10 +201,10 @@ function openTreatmentModal(prefillProdId){
   // Мультивыбор клеток — по умолчанию весь сад
   _buildTreatCellList([]);
 
-  // Variety select
+  // Variety select — сорта берутся из выбранных клеток, пересчёт при смене
   const vs=document.getElementById('t-var');
-  vs.innerHTML='<option value="all">Все сорта</option>';
-  S.varieties.forEach(v=>vs.innerHTML+=`<option value="${v.id}">${v.name}</option>`);
+  _refreshTreatVarietyOptions();
+  vs.onchange = () => { _updateTrCellInfo(); orchardUpdateChecks(); };
 
   // Copy-from
   const cf=document.getElementById('ot-copy-from');
@@ -262,13 +324,12 @@ function orchardUpdateChecks(){
     document.getElementById('ot-tank-order').style.display='block';
   } else document.getElementById('ot-tank-order').style.display='none';
 
-  // Расчёт итого на площадь клеток
+  // Расчёт итого на площадь клеток (с учётом выбранного сорта)
   const waterPerHa = parseFloat(document.getElementById('t-water')?.value)||400;
-  // Суммируем площадь выбранных клеток
-  let totalHa = 0;
-  if(_otCells.length) {
-    _otCells.forEach(k => { const cd=S.cells[k]; if(cd) totalHa+=calcCellTotals(cd)?.totalHa||0; });
-  }
+  const vid = _treatmentVarietyId();
+  // Площадь: если выбран конкретный сорт — только его га, иначе вся площадь клеток
+  let totalHa = _otCells.length ? _treatmentSelectedHa(vid) : 0;
+  const varName = (vid&&vid!=='all') ? ((S.varieties||[]).find(v=>v.id===vid)?.name||'') : '';
   const calcEl = document.getElementById('ot-calc-summary');
   if(!calcEl) return;
   if(!names.length){ calcEl.style.display='none'; return; }
@@ -276,7 +337,7 @@ function orchardUpdateChecks(){
   const totalWater = totalHa>0 ? Math.round(waterPerHa*totalHa) : null;
   let html = '';
   if(totalHa>0){
-    html += `<div style="font-size:10px;color:var(--text3);margin-bottom:8px;">📐 Площадь: <strong style="color:var(--accent);">${totalHa.toFixed(3)} га</strong> · Вода: <strong style="color:var(--blue);">${totalWater} л</strong></div>`;
+    html += `<div style="font-size:10px;color:var(--text3);margin-bottom:8px;">📐 Площадь${varName?` (сорт ${varName})`:''}: <strong style="color:var(--accent);">${totalHa.toFixed(3)} га</strong> · Вода: <strong style="color:var(--blue);">${totalWater} л</strong></div>`;
     html += `<div style="display:flex;flex-wrap:wrap;gap:6px;">`;
     rows.forEach(r=>{
       const dose=parseFloat(r.dose)||0;
