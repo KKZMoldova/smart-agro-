@@ -135,7 +135,13 @@ async function _safeFetch(url) {
     const r = await fetch(url);
     if(!r.ok) return null;
     const d = await r.json();
-    return Array.isArray(d) ? d : null;
+    if(Array.isArray(d)) return d;
+    // Сервер может отдавать массив в обёртке — разворачиваем распространённые формы
+    if(d && typeof d==='object') {
+      const inner = d.data || d.rows || d.items || d.result || d.list;
+      if(Array.isArray(inner)) return inner;
+    }
+    return null;
   } catch(e) { return null; }
 }
 
@@ -143,13 +149,18 @@ async function openNewTask() {
   if(!_taskStaff.length) {
     _taskStaff = await _safeFetch('/api/staff') || [];
   }
+  // Fallback: если сервер пуст/недоступен — берём персонал из локального зеркала Настроек
+  if(!_taskStaff.length) _taskStaff = (S.staff||[]).slice();
   if(!_taskWorkTypes.length) {
     _taskWorkTypes = await _safeFetch('/api/work-types') || _DEFAULT_WORK_TYPES;
   }
 
-  // Техника и навесное
+  // Техника и навесное — источник: Настройки (/api/equipment, /api/attachments).
+  // Fallback на локальное зеркало Настроек, если API пуст.
   _allEquip  = await _safeFetch('/api/equipment') || [];
+  if(!_allEquip.length)  _allEquip  = (S.equipment||[]).slice();
   _allAttach = await _safeFetch('/api/attachments') || [];
+  if(!_allAttach.length) _allAttach = (S.attachments||[]).slice();
 
   _newTaskParcels = [];
   _newTaskChems = [];
@@ -759,11 +770,18 @@ async function openTaskEng(id) {
   const t = _tasks.find(x=>x.id===id);
   if(!t) return;
   if(!_taskStaff.length) {
-    try { _taskStaff = await fetch('/api/staff').then(r=>r.json()); } catch(e) { _taskStaff = []; }
+    try {
+      const d = await fetch('/api/staff').then(r=>r.json());
+      _taskStaff = Array.isArray(d) ? d : (d?.data || d?.rows || d?.items || []);
+    } catch(e) { _taskStaff = []; }
   }
+  if(!Array.isArray(_taskStaff) || !_taskStaff.length) _taskStaff = (S.staff||[]).slice();
   let allEquip = [], attachArr = [];
-  try { allEquip = await fetch('/api/equipment').then(r=>r.json()); } catch(e) {}
-  try { const at = await fetch('/api/attachments').then(r=>r.json()); attachArr = Array.isArray(at)?at:(at.data||[]); } catch(e) {}
+  try { const eq = await fetch('/api/equipment').then(r=>r.json()); allEquip = Array.isArray(eq)?eq:(eq?.data||eq?.rows||eq?.items||[]); } catch(e) {}
+  try { const at = await fetch('/api/attachments').then(r=>r.json()); attachArr = Array.isArray(at)?at:(at?.data||at?.rows||at?.items||[]); } catch(e) {}
+  // Fallback на локальное зеркало Настроек
+  if(!Array.isArray(allEquip)  || !allEquip.length)  allEquip  = (S.equipment||[]).slice();
+  if(!Array.isArray(attachArr) || !attachArr.length) attachArr = (S.attachments||[]).slice();
   document.getElementById('task-eng-id').value = id;
   const chems = t.chemicals?(typeof t.chemicals==='string'?JSON.parse(t.chemicals):t.chemicals):[];
   document.getElementById('task-eng-info').innerHTML = `
