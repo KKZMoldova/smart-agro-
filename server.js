@@ -215,7 +215,7 @@ function fcHeaders(method, path) {
 }
 
 app.get('/api/weather', auth, async (req, res) => {
-  const days    = Math.min(parseInt(req.query.days) || 7, 90);
+  const days    = Math.min(parseInt(req.query.days) || 7, 400);
   const station = req.query.station || '00002158';
   try {
     const from = new Date();

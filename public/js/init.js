@@ -28,7 +28,7 @@ async function init(){
       await load();
     }
     try {
-      const wRes = await fetch('/api/weather?days=90&station='+(sessionStorage.getItem('agro_fc_orchard')||'00002158'),{headers:getAuthHeaders()});
+      const wRes = await fetch('/api/weather?days=400&station='+(sessionStorage.getItem('agro_fc_orchard')||'00002158'),{headers:getAuthHeaders()});
       const wJson = await wRes.json();
       if (wJson.ok && wJson.data && wJson.data.length) {
         S.weather = wJson.data.map(d => ({

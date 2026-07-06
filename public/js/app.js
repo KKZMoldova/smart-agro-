@@ -981,7 +981,7 @@ async function syncWeatherFromStation() {
     const d = await r.json();
     if (d.ok) {
       // Перезагружаем погоду из БД
-      const wr = await fetch('/api/weather?days=90', { headers: getAuthHeaders() });
+      const wr = await fetch('/api/weather?days=400', { headers: getAuthHeaders() });
       const wd = await wr.json();
       if (wd.ok && wd.data) {
         S.weather = wd.data.map(w => ({
