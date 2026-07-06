@@ -115,7 +115,7 @@ function renderTaskActions(t) {
 }
 
 async function updateTaskStatus(id, status, extra) {
-  await fetch(`/api/tasks/${id}/status`, {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status,...extra})});
+  await fetch(`/api/tasks/${id}/status`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status,...extra})});
   renderTasks();
 }
 
@@ -2550,7 +2550,7 @@ function exportWarehouseCSV() {
 // ═══ PDF АНАЛИЗЫ ══════════════════════════════════════════════════════════
 
 // Загрузить список PDF для анализа
-async function loadAnalysisPdfs(analysisId) {
+async function loadVanAnalysisPdfs(analysisId) {
   const listEl = document.getElementById('van-pdf-list');
   const parseBtn = document.getElementById('van-parse-btn');
   if (!listEl) return;
@@ -2600,7 +2600,7 @@ async function uploadAnalysisPdfs(event) {
       console.warn('PDF upload failed:', e.message);
     }
   }
-  loadAnalysisPdfs(_vegAnEditId);
+  loadVanAnalysisPdfs(_vegAnEditId);
   if (statusEl) statusEl.style.display = 'none';
 }
 

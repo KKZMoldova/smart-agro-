@@ -767,13 +767,13 @@ function importWarehouseFromExcel(event) {
   reader.readAsArrayBuffer(file);
 }
 
-// ── Import/Export ─────────────────────────────────────────────────────────
-function exportData() {
+// ── Import/Export (vegetable-app variant — not wired up in this HTML, kept separate from dashboard.js's exportData/importData to avoid shadowing it) ──
+function exportVegData() {
   const data=JSON.stringify(S,null,2);
   const a=document.createElement('a');a.href='data:application/json,'+encodeURIComponent(data);
   a.download='smart_vegetable_'+today()+'.json';a.click();
 }
-function importData(event) {
+function importVegData(event) {
   const file=event.target.files[0];if(!file)return;event.target.value='';
   const reader=new FileReader();
   reader.onload=e=>{try{Object.assign(S,JSON.parse(e.target.result));save();renderParcels();}catch(err){alert('Ошибка импорта: '+err.message);}};

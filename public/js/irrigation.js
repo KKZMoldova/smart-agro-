@@ -1117,6 +1117,8 @@ function openIrrigEventModal(id) {
   document.getElementById('ie-volume').value = ev?.volumeM3||'';
   document.getElementById('ie-mm').value = ev?.mm||'';
   document.getElementById('ie-note').value = ev?.note||'';
+  const delBtn = document.getElementById('ie-del-btn');
+  if(delBtn) delBtn.style.display = ev ? 'block' : 'none';
 
   // Заполняем зоны
   const zoneSel = document.getElementById('ie-zone');
@@ -1158,6 +1160,27 @@ function calcIrrigVolume() {
     document.getElementById('ie-volume').value = volumeM3;
     document.getElementById('ie-mm').value = mm;
   }
+}
+
+function calcIrrigMm() {
+  const zoneId = document.getElementById('ie-zone').value;
+  const volumeM3 = parseFloat(document.getElementById('ie-volume').value)||0;
+  const zone = (S.irrigation.zones||[]).find(z=>z.id===zoneId);
+
+  if(zone && volumeM3 > 0) {
+    const areaHa = zoneAreaHa(zone) || 1;
+    const mm = Math.round(volumeM3 / areaHa / 10 * 10) / 10; // м³ → мм (1 мм = 10 м³/га)
+    document.getElementById('ie-mm').value = mm;
+  }
+}
+
+function deleteIrrigEvent() {
+  const id = document.getElementById('ie-id').value;
+  if(!id || !confirm('Удалить запись полива?')) return;
+  S.irrigation.events = (S.irrigation.events||[]).filter(e=>e.id!==id);
+  save();
+  closeModal('modal-irrig-event');
+  calcWaterBalance();
 }
 
 function saveIrrigEvent() {

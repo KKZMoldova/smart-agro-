@@ -949,7 +949,6 @@ function switchTab(tab,el){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   el.classList.add('active');document.getElementById('panel-'+tab).classList.add('active');
   if(tab==='crops'){switchCropsSub('overview'); renderCrops();}
-  if(tab==='chill'){renderChill();}
   if(tab==='weather'){renderWeather(); loadCherryForecast(); switchWeatherSub('weather');}
   if(tab==='irrigation'){renderIrrigation(); switchIrrigSub('sensors');}
   if(tab==='gdd'){
