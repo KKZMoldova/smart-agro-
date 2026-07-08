@@ -152,8 +152,8 @@ function saveWarehouseItem() {
         name: manualName,
         type: 'other',
         ai: '', dose: '', whi: 0, crops: '', targets: '',
-        buhName: manualName,
-        legal: 'legal', payment, inBuh: 'yes',
+        buhName: '',
+        payment,
         priceOrig: priceRaw, priceCurrency,
         price, supplier, unit, minStock,
       };
@@ -291,6 +291,33 @@ function saveWarehouseItem() {
   }
   closeModal('modal-warehouse');
   renderWarehouse();
+}
+
+// ═══ ВЫГРУЗКА ДЛЯ БУХГАЛТЕРИИ ═══════════════════════════════════════════
+// Только официальные приходы (с накладной) и только бухгалтерское название —
+// настоящее название/действующее вещество сюда не попадают.
+function exportWarehouseBuhReport() {
+  const rows = (S.warehouse?.history || []).filter(h => h.type === 'chemical' && h.operation === 'in' && h.payment !== 'cash');
+  if (!rows.length) { alert('Нет официальных приходов химии для выгрузки'); return; }
+
+  let missingBuhName = 0;
+  const out = [['Дата','Поставщик','Бухгалтерское название','Количество','Ед.','Цена','НДС %','Сумма с НДС','Примечание']];
+  rows.forEach(h => {
+    const cat = S.catalog.find(c => c.name === h.name);
+    const buhName = cat?.buhName || h.name;
+    if (!cat?.buhName) missingBuhName++;
+    out.push([h.date, h.supplier||'—', buhName, h.qty, h.unit||'л', h.price||0, h.vatRate??0, h.totalWithVat??h.total??0, h.note||'']);
+  });
+
+  const csv = out.map(r=>r.join(';')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,﻿'+encodeURIComponent(csv);
+  a.download = 'buh_sklad_himii_'+today()+'.csv';
+  a.click();
+
+  if (missingBuhName) {
+    alert(`⚠️ ${missingBuhName} позиций выгружены под настоящим названием — заполните бухгалтерское название в карточке препарата (Каталог → изменить).`);
+  }
 }
 
 function renderWarehouse() {

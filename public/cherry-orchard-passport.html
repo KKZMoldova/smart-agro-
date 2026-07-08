@@ -2017,6 +2017,9 @@ body > .panel.active { display: block; }
     <h2 id="cat-modal-title">📦 Новый препарат</h2>
     <div class="form-grid">
       <div class="ff"><label>Название препарата</label><input type="text" id="cp-name" placeholder="Хорус, Скор, Актара..."></div>
+      <div class="ff"><label>Бухгалтерское название <span style="color:var(--text3);font-size:10px;">(если препарат не зарегистрирован под настоящим именем)</span></label>
+        <input type="text" id="cp-buh-name" placeholder="Оставьте пустым, если совпадает с названием выше" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+      </div>
       <div class="ff"><label>Тип</label>
         <select id="cp-type">
           <option value="fungicide">Фунгицид</option>
@@ -2479,6 +2482,7 @@ body > .panel.active { display: block; }
       <button class="btn btn-secondary" onclick="showConsumptionReport()">📊 Расход</button>
       <button class="btn btn-secondary" onclick="showInventory()">🗂️ Инвентаризация</button>
       <button class="btn btn-secondary" onclick="exportWarehouseCSV()">📤 Экспорт</button>
+      <button class="btn btn-secondary" onclick="exportWarehouseBuhReport()">🧾 Выгрузка для бухгалтерии</button>
       <button class="btn btn-primary" id="btn-add-warehouse" onclick="openWarehouseModal()">+ Приход</button>
       <button class="btn btn-secondary" onclick="downloadWarehouseTemplate()">📥 Шаблон Excel</button>
       <label class="btn btn-secondary" style="cursor:pointer;">

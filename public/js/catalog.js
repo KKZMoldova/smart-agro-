@@ -26,6 +26,7 @@ function renderCatalog(){
     return`<div class="prod-card">
       <div class="pc-type ${p.type}">${TYPE_LABELS[p.type]||p.type}</div>
       <div class="pc-name">${p.name}</div>
+      ${p.buhName&&p.buhName!==p.name?`<div style="font-size:10px;color:var(--text3);margin-bottom:2px;">🧾 Бух: ${p.buhName}</div>`:''}
       <div class="pc-active">${p.activeSubstance}${(p.fracCode||p.moaGroup)?` · <span style="color:${(MOA_DB.frac[p.fracCode]||MOA_DB.irac[p.fracCode]||{}).color||'var(--text3)'};font-weight:600;">FRAC ${p.fracCode||'?'}</span> ${p.moaGroup||''}`:''}</div>
       <div class="pc-row"><span class="pc-lbl">Доза</span><span class="pc-val">${p.dose} кг/л·га</span></div>
       <div class="pc-row"><span class="pc-lbl">Расход воды</span><span class="pc-val">${p.water} л/га</span></div>
@@ -87,7 +88,7 @@ function openCatalogAddModal(){
   S.editingCatalogId=null;
   document.getElementById('cat-modal-title').textContent='📦 Новый препарат';
   document.getElementById('cp-del-btn').style.display='none';
-  ['cp-name','cp-active','cp-targets','cp-note'].forEach(id=>document.getElementById(id).value='');
+  ['cp-name','cp-buh-name','cp-active','cp-targets','cp-note'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('cp-dose').value='';
   document.getElementById('cp-water').value='400';
   document.getElementById('cp-duration').value='14';
@@ -106,6 +107,7 @@ function editCatalogProduct(id){
   document.getElementById('cat-modal-title').textContent='✏️ Редактировать: '+p.name;
   document.getElementById('cp-del-btn').style.display='inline-flex';
   document.getElementById('cp-name').value=p.name;
+  document.getElementById('cp-buh-name').value=p.buhName||'';
   document.getElementById('cp-active').value=p.activeSubstance;
   document.getElementById('cp-frac').value=p.fracCode||p.fracGroup||MOA_PRODUCTS[p.name]?.frac||MOA_PRODUCTS[p.name]?.irac||'';
   document.getElementById('cp-moa-group').value=p.moaGroup||p.fracGroup||MOA_PRODUCTS[p.name]?.fracGroup||MOA_PRODUCTS[p.name]?.iracGroup||'';
@@ -130,6 +132,7 @@ function saveCatalogProduct(){
   const prod={
     id:S.editingCatalogId||('p'+Date.now()),
     name,
+    buhName:document.getElementById('cp-buh-name').value.trim(),
     type:document.getElementById('cp-type').value,
     activeSubstance:document.getElementById('cp-active').value,
     fracCode: document.getElementById('cp-frac').value.trim(),
