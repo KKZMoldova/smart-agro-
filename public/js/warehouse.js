@@ -38,6 +38,7 @@ function openWarehouseModal() {
   document.getElementById('wh-supplier').value = '';
   document.getElementById('wh-min-stock').value = '';
   document.getElementById('wh-note').value = '';
+  document.getElementById('wh-has-invoice').value = 'yes';
   document.getElementById('wh-chemical-name').value = '';
   document.getElementById('wh-part-name').value = '';
   document.getElementById('wh-part-qty').value = '';
@@ -139,6 +140,7 @@ function saveWarehouseItem() {
     const supplier = document.getElementById('wh-supplier').value.trim();
     const minStock = parseFloat(document.getElementById('wh-min-stock').value) || 0;
     const payment = document.getElementById('wh-payment').value;
+    const hasInvoice = document.getElementById('wh-has-invoice').value !== 'no';
     const note = document.getElementById('wh-note').value.trim();
     const date = document.getElementById('wh-date').value;
 
@@ -184,7 +186,7 @@ function saveWarehouseItem() {
       price, priceWithVat, vatRate, vatAmount,
       total: Math.round(qty * price * 10000) / 10000,
       totalWithVat: Math.round(qty * priceWithVat * 10000) / 10000,
-      supplier, payment, note
+      supplier, payment, hasInvoice, note
     });
 
   } else if (type === 'part') {
@@ -294,10 +296,12 @@ function saveWarehouseItem() {
 }
 
 // ═══ ВЫГРУЗКА ДЛЯ БУХГАЛТЕРИИ ═══════════════════════════════════════════
-// Только официальные приходы (с накладной) и только бухгалтерское название —
-// настоящее название/действующее вещество сюда не попадают.
+// Только приходы с накладной (независимо от способа оплаты — нал/безнал)
+// и только бухгалтерское название — настоящее название/действующее
+// вещество сюда не попадают. Приходы без накладной (hasInvoice===false)
+// остаются только в управленческом учёте.
 function exportWarehouseBuhReport() {
-  const rows = (S.warehouse?.history || []).filter(h => h.type === 'chemical' && h.operation === 'in' && h.payment !== 'cash');
+  const rows = (S.warehouse?.history || []).filter(h => h.type === 'chemical' && h.operation === 'in' && h.hasInvoice !== false);
   if (!rows.length) { alert('Нет официальных приходов химии для выгрузки'); return; }
 
   let missingBuhName = 0;
