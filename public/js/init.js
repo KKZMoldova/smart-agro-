@@ -1,6 +1,10 @@
 // Smart Agro — init.js
-// Без токена — на экран входа, а не сразу в приложение
-if (!sessionStorage.getItem('agro_token')) {
+// Без токена — на экран входа, а не сразу в приложение.
+// 'dev' — служебное значение из старой (дев-режим) версии кода, оставшееся
+// в sessionStorage открытых вкладок с прошлого деплоя — тоже считаем как "нет токена".
+const _agroToken = sessionStorage.getItem('agro_token');
+if (!_agroToken || _agroToken === 'dev') {
+  sessionStorage.clear();
   window.location.href = '/login';
   throw new Error('Redirecting to login');
 }
