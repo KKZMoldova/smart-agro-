@@ -233,7 +233,11 @@ function renderDashboard() {
   const lastLeaf = [...(S.analyses||[])].filter(a=>a.type==='leaf'&&a.date)
     .sort((a,b)=>(b.date||'').localeCompare(a.date||''))[0];
   if(lastLeaf) {
-    const norms = LEAF_NORMS_CHERRY;
+    // Нормы листа зависят от культуры клетки, из которой взят анализ —
+    // раньше здесь всегда сравнивали с нормами черешни, даже для яблони.
+    const firstCellKey = lastLeaf.cellKey?.split(',')[0];
+    const leafCropId = firstCellKey ? (S.cells[firstCellKey]?.cropId || 'crop_cherry') : 'crop_cherry';
+    const norms = leafCropId === 'crop_apple' ? LEAF_NORMS_APPLE : LEAF_NORMS_CHERRY;
     const deficits = Object.entries(norms).filter(([el,n])=>{
       const val = parseFloat(lastLeaf[el]||lastLeaf[el.toLowerCase()]);
       return !isNaN(val) && val > 0 && val < n.min;
