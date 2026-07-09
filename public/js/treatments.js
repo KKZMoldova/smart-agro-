@@ -944,6 +944,16 @@ function saveOrchardCalibration() {
     }
   });
 
+  S.settings[calibKey] = calib;
+
+  if (!enteredPhases.length) {
+    // Ничего не пересчитываем и не пишем в историю — иначе в calibrationHistory
+    // попадала бы фиктивная запись со стандартными значениями, разбавляя среднее.
+    save();
+    alert('⚠️ Введите хотя бы одну фактическую дату фазы — заметки без даты сохранены, но пороги GDD не пересчитывались.');
+    return;
+  }
+
   // Interpolate: fill gaps between calibrated anchor points
   // If we have anchors at idx=4 (GDD=280) and idx=7 (GDD=560),
   // intermediate phases are scaled proportionally
@@ -975,7 +985,10 @@ function saveOrchardCalibration() {
   }
 
   // ── Сохраняем в историю по годам ──────────────────────────────────────
-  const year = new Date().getFullYear().toString();
+  // Год берём из даты старта GDD-сезона, а не из текущей даты — иначе
+  // калибровка, внесённая задним числом (например, в январе за прошлый
+  // сезон), попала бы не в тот год истории.
+  const year = new Date(startDate).getFullYear().toString();
   if(!S.gddDb.calibrationHistory) S.gddDb.calibrationHistory = {};
   if(!S.gddDb.calibrationHistory[varietyId]) S.gddDb.calibrationHistory[varietyId] = {};
 
@@ -999,30 +1012,21 @@ function saveOrchardCalibration() {
   // ── Пересчитываем среднее по всем годам ──────────────────────────────
   const avgGdds = calcAverageGdd(varietyId, phases.length);
   S.gddDb.varietyGdd[varietyId] = avgGdds;
-  S.settings[calibKey] = calib;
   save();
 
-  const years = Object.keys(S.gddDb.calibrationHistory[varietyId]||{}).sort();
-  alert(`✅ Калибровка ${year} сохранена!\n\nДанных за ${years.length} ${years.length===1?'год':years.length<5?'года':'лет'}: ${years.join(', ')}\n${years.length>=2?`Пороги фаз обновлены как среднее за ${years.length} лет.`:'Накопи данные за 2+ года для автоматического усреднения.'}`);
-
-  // Re-render everything that depends on GDD
+  // Re-render everything that depends on GDD (renderGdd() also refreshes
+  // the calibration panel itself if it's open)
   renderGdd();
-  renderOrchardCalibRows();
 
-  // Show summary
-  const changedCount = enteredPhases.length;
-  const msg = changedCount > 0
-    ? `✅ Калибровка применена для ${S.varieties.find(v=>v.id===varietyId)?.name||varietyId}:\n` +
-      enteredPhases.map(ep => {
-        const ph = phases[ep.idx];
-        const std = stdGdds[ep.idx];
-        const diff = Math.round(ep.gdd - std);
-        return `  ${ph.name}: ${std} → ${ep.gdd} GDD (${diff>0?'+':''}${diff})`;
-      }).join('\n') +
-      `\n\nФазы пересчитаны. Риски и алерты обновлены.`
-    : '⚠️ Введите хотя бы одну фактическую дату фазы';
+  const years = Object.keys(S.gddDb.calibrationHistory[varietyId]||{}).sort();
+  const details = enteredPhases.map(ep => {
+    const ph = phases[ep.idx];
+    const std = stdGdds[ep.idx];
+    const diff = Math.round(ep.gdd - std);
+    return `  ${ph.name}: ${std} → ${ep.gdd} GDD (${diff>0?'+':''}${diff})`;
+  }).join('\n');
 
-  alert(msg);
+  alert(`✅ Калибровка ${year} сохранена для ${S.varieties.find(v=>v.id===varietyId)?.name||varietyId}:\n${details}\n\nДанных за ${years.length} ${years.length===1?'год':years.length<5?'года':'лет'}: ${years.join(', ')}\n${years.length>=2?`Пороги фаз обновлены как среднее за ${years.length} лет.`:'Накопи данные за 2+ года для автоматического усреднения.'}`);
 }
 
 function autoFillPrecip() {

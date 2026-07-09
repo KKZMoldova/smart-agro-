@@ -1255,6 +1255,11 @@ function renderGdd() {
   const crop = getCropById(cropId);
   const tbase = crop?.baseTemp || 5;
 
+  // Панель калибровки завязана на этот же выбор культуры/сорта — если она
+  // открыта, обновляем и её, иначе в ней остаются поля от прошлого сорта.
+  const calibEl = document.getElementById('orchard-calibration');
+  if (calibEl && calibEl.style.display === 'block') renderOrchardCalibRows();
+
   // Handle "crop:id" mode — no variety, use crop phases directly
   const isCropMode = rawVarietyId.startsWith('crop:');
   const varietyId = isCropMode ? null : rawVarietyId;
