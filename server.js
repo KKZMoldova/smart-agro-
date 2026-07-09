@@ -225,6 +225,9 @@ async function initDB() {
       created_at TIMESTAMPTZ DEFAULT NOW(),
       UNIQUE(company_id, crop_id)
     );
+    CREATE TABLE IF NOT EXISTS public.agro_migrations (
+      name TEXT PRIMARY KEY, applied_at TIMESTAMPTZ DEFAULT NOW()
+    );
   `);
   console.log('[DB] Tables ready');
   await migrateMultiTenant();
@@ -259,6 +262,18 @@ async function migrateMultiTenant() {
       console.log(`[DB] Bootstrap admin created — login: ${adminUsername}${process.env.ADMIN_PASSWORD ? ' / пароль из ADMIN_PASSWORD' : ` / пароль: ${adminPassword} (сохраните и смените после входа!)`}`);
     }
   } catch(e) { console.warn('[DB] Bootstrap admin:', e.message); }
+  // Одноразово: колонка must_change_password появилась позже, чем мог быть
+  // создан первый admin-пользователь — у него по умолчанию встало false.
+  // Помечаем через agro_migrations, чтобы выполнить эту правку ровно один раз.
+  try {
+    const marker = 'force_first_admin_password_change';
+    const done = await db.query('SELECT 1 FROM public.agro_migrations WHERE name=$1', [marker]);
+    if (!done.rows.length) {
+      await db.query('UPDATE public.agro_users SET must_change_password=true WHERE company_id=1');
+      await db.query('INSERT INTO public.agro_migrations (name) VALUES ($1) ON CONFLICT DO NOTHING', [marker]);
+      console.log('[DB] Форсирована смена пароля для существующего admin-аккаунта KKZ');
+    }
+  } catch(e) { console.warn('[DB] force_first_admin_password_change:', e.message); }
   for (const t of TENANT_TABLES) {
     await db.query(`UPDATE public.${t} SET company_id = 1 WHERE company_id IS NULL`).catch(()=>{});
   }
