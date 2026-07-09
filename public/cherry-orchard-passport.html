@@ -1047,6 +1047,29 @@ body > .panel.active { display: block; }
     <div id="techmap-content"></div>
   </div>
 
+  <div class="modal-overlay" id="modal-tank-calc">
+    <div class="modal" style="max-width:440px;width:96%;">
+      <h2>🧮 Норма этикетки → в бак</h2>
+      <div class="form-grid" style="margin-bottom:12px;">
+        <div class="ff full"><label>Норма указана как</label>
+          <select id="tc-mode" onchange="calcTankMix()">
+            <option value="percent">% раствора (напр. 0.3%)</option>
+            <option value="g100l">г (или мл) на 100 л воды</option>
+            <option value="ppm">ppm (мг/л)</option>
+            <option value="kgha">кг (или л) на гектар</option>
+          </select>
+        </div>
+        <div class="ff"><label>Значение нормы</label><input type="number" step="any" id="tc-rate" placeholder="напр. 0.3" oninput="calcTankMix()"></div>
+        <div class="ff"><label>Объём бака (л)</label><input type="number" id="tc-tank" placeholder="напр. 400" oninput="calcTankMix()"></div>
+        <div class="ff full" id="tc-sprayvol-wrap"><label>Расход рабочего раствора (л/га)</label><input type="number" id="tc-sprayvol" placeholder="напр. 400" oninput="calcTankMix()"></div>
+      </div>
+      <div id="tc-result" style="padding:10px 14px;background:var(--surface2);border-radius:8px;font-size:13px;color:var(--text);min-height:20px;"></div>
+      <div style="display:flex;gap:8px;margin-top:14px;">
+        <button class="btn" onclick="closeModal('modal-tank-calc')">Закрыть</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="modal-weekly-digest">
     <div class="modal" style="max-width:640px;width:96%;max-height:88vh;overflow-y:auto;">
       <h2>📋 Недельный дайджест для агронома</h2>
@@ -1832,6 +1855,7 @@ body > .panel.active { display: block; }
         </select>
       </div>
       <div class="ff"><label>Расход воды (л/га)</label><input type="number" id="t-water" value="400" placeholder="400" oninput="orchardUpdateChecks()"></div>
+      <div class="ff" style="align-self:flex-end;"><button type="button" class="btn btn-sm" onclick="openTankCalc()">🧮 Норма → бак</button></div>
       <div class="ff full"><label>Цель обработки / примечание</label>
         <input type="text" id="t-note" placeholder="Против монилиоза, профилактика, подкормка...">
       </div>

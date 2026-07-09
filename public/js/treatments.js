@@ -5,6 +5,52 @@
 // ORCHARD TREATMENT SYSTEM — баковые смеси, ротация, редактирование
 // ═══════════════════════════════════════════════════════════════════════════
 
+// Калькулятор "норма этикетки → количество в бак" — убирает арифметику %/ppm/кг-на-га
+// как барьер для новичка, который знает норму, но не умеет с ходу перевести её в граммы на бак.
+function calcTankMixAmount(mode, rate, tankVolumeL, sprayVolumeLHa) {
+  rate = parseFloat(rate); tankVolumeL = parseFloat(tankVolumeL); sprayVolumeLHa = parseFloat(sprayVolumeLHa);
+  if (!rate || !tankVolumeL) return null;
+  let grams = null, perHaGrams = null, tanksPerHa = null;
+  if (mode === 'percent') { grams = tankVolumeL * rate * 10; }
+  else if (mode === 'g100l') { grams = tankVolumeL / 100 * rate; }
+  else if (mode === 'ppm') { grams = tankVolumeL * rate / 1000; }
+  else if (mode === 'kgha') {
+    if (!sprayVolumeLHa) return null;
+    perHaGrams = rate * 1000;
+    grams = perHaGrams * tankVolumeL / sprayVolumeLHa;
+  }
+  if (sprayVolumeLHa && tankVolumeL) tanksPerHa = sprayVolumeLHa / tankVolumeL;
+  return { grams, perHaGrams, tanksPerHa };
+}
+
+function openTankCalc() {
+  const water = document.getElementById('t-water')?.value;
+  const tc = document.getElementById('tc-sprayvol');
+  if (tc && water) tc.value = water;
+  const tank = document.getElementById('tc-tank');
+  if (tank && !tank.value) tank.value = 400;
+  calcTankMix();
+  openModal('modal-tank-calc');
+}
+
+function calcTankMix() {
+  const mode = document.getElementById('tc-mode')?.value;
+  const rate = document.getElementById('tc-rate')?.value;
+  const tank = document.getElementById('tc-tank')?.value;
+  const sprayVol = document.getElementById('tc-sprayvol')?.value;
+  const out = document.getElementById('tc-result');
+  if (!out) return;
+  const r = calcTankMixAmount(mode, rate, tank, sprayVol);
+  if (!r || r.grams==null) {
+    out.textContent = 'Заполните норму и объём бака' + (mode==='kgha' ? ' и расход л/га' : '') + '.';
+    return;
+  }
+  const kg = r.grams/1000;
+  let text = `На бак ${tank} л: ${r.grams.toFixed(1)} г (${kg.toFixed(3)} кг) препарата.`;
+  if (r.tanksPerHa) text += ` На 1 га потребуется ≈${r.tanksPerHa.toFixed(2)} бака.`;
+  out.textContent = text;
+}
+
 // Несовместимости в баковой смеси — по ключевым словам в названии/д.в. препарата.
 // Источники: BC Tree Fruit Production Guide (Ca-раздел), WSU Crop Protection Guide (Cu+CaCl₂).
 // Список не претендует на полноту — покрывает только уже задокументированные в технокарте случаи.
