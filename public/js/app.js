@@ -83,10 +83,11 @@ let S = {
     {id:'vs3',name:'Шпанка',      ripening:'Ранний',  pollType:'cross',pollinators:'Любская',   color:'vc6',note:'Ранний. Сладко-кислая. Перекрёстное опыление.',cropId:'crop_sour_cherry'},
     {id:'vs4',name:'Норд Стар',   ripening:'Средний', pollType:'self',pollinators:'',            color:'vc7',note:'Самоопыляемый. Компактное дерево. Устойчив к болезням.',cropId:'crop_sour_cherry'},
     // Apple varieties with full GDD profiles
-    {id:'va1',name:'Granny Smith',  ripening:'Поздний', pollType:'cross',pollinators:'Golden Delicious, Red Delicious',color:'vc3',note:'GDD 1750–1950. Высокий риск жары, мучнистой росы, fire blight. Зелёный, поздний сбор.',cropId:'crop_apple'},
-    {id:'va2',name:'Red Delicious', ripening:'Средний', pollType:'cross',pollinators:'Golden Delicious, Jonagold',     color:'vc1',note:'GDD 1650–1850. Критичен цвет (ночные T° <18°C) и Ca-программа против bitter pit.',cropId:'crop_apple'},
+    {id:'va1',name:'Granny Smith',  ripening:'Поздний', pollType:'cross',pollinators:'Golden Delicious, Red Delicious',color:'vc3',note:'GDD 1750–1950. Высокий риск жары, мучнистой росы, fire blight. Зелёный, поздний сбор. Подтверждено (UC Davis): TA на съём ≤0.75%, очень восприимчив к горькой ямчатости и загару (scald) — Ca-дип 3–4% CaCl₂ хлопья (77%) или 2–3% обычный CaCl₂ перед хранением. ⚠️ Официальной модели РОСТА ПЛОДА у WSU DAS для этого сорта нет (fruit growth там только для Cripps Pink/Gala/Red Delicious) — только модель цветения (база 43°F/6.11°C по Tmax), конкретные пороги стадий для Granny Smith не опубликованы, наш GDD 1750–1950 — калибровка проекта, не WSU-источник.',cropId:'crop_apple'},
+    {id:'va2',name:'Red Delicious', ripening:'Средний', pollType:'cross',pollinators:'Golden Delicious, Jonagold',     color:'vc1',note:'GDD 1650–1850. Критичен цвет (ночные T° <18°C) и Ca-программа против bitter pit. Подтверждено (WTFRC/Hoogenboom 2015, база 43°F/6.11°C по Tmax — другой метод, чем у нашего счётчика GDD, напрямую не сравнивать): Полное цветение 234–333 GDD(°F) от зелёного конуса, Опадение лепестков 291–361 GDD(°F).',cropId:'crop_apple'},
     {id:'va3',name:'Jonagold',      ripening:'Средний', pollType:'cross',pollinators:'Golden Delicious, Granny Smith', color:'vc4',note:'GDD 1700–1900. Сильнорослый. Главные риски: fire blight (5) и парша (4).',cropId:'crop_apple'},
     {id:'va4',name:'Braeburn',      ripening:'Поздний', pollType:'cross',pollinators:'Granny Smith, Jonagold',         color:'vc5',note:'GDD 1800–2000. Поздний. Парша (5), мучнистая роса (4), стресс жары (4).',cropId:'crop_apple'},
+    {id:'va5',name:'Gala',          ripening:'Ранний',  pollType:'cross',pollinators:'Golden Delicious, Granny Smith', color:'vc2',note:'GDD 1550–1750 (калибровка проекта по аналогии с другими сортами — реальных данных для НАШЕГО счётчика GDD пока нет, уточнить по факту сезона). Подтверждено (WTFRC/Hoogenboom 2015, база 43°F/6.11°C по Tmax — другой метод, не сравнивать напрямую): Полное цветение 243–329 GDD(°F) от зелёного конуса, Опадение лепестков 298–365 GDD(°F). Один из немногих сортов яблони с официальной моделью РОСТА ПЛОДА в WSU DAS.',cropId:'crop_apple'},
   ],
   catalog:[
     {id:'p1',name:'Хорус',type:'fungicide',activeSubstance:'Ципродинил + Флудиоксонил',dose:0.2,water:400,duration:10,washMm:10,washType:'partial',method:'foliar',phi:7,hazard:3,targets:'Монилиоз, Коккомикоз',note:'Работает при низких температурах от +3°C'},
@@ -377,6 +378,7 @@ let S = {
       'va2': [0, 60, 110, 165, 220, 330, 590, 740, 1650, 1850], // Red Delicious
       'va3': [0, 60, 115, 170, 225, 340, 600, 750, 1700, 1900], // Jonagold
       'va4': [0, 60, 115, 175, 235, 350, 610, 770, 1800, 2000], // Braeburn
+      'va5': [0, 55, 105, 155, 210, 310, 560, 700, 1550, 1750], // Gala — предварительная оценка по аналогии, уточнить по факту сезона
     },
     // OLD varietyPhases kept for backward compat but not used in new UI
     varietyPhases: {},
