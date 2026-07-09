@@ -127,10 +127,20 @@ const TECHMAP = {
     { phase:'Набухание почек', bbch:'BBCH 01–03 (Delayed Dormant – ½" Green)', period:'Начало марта', kc:0.15, film:'Открытый сад', irrigation:'Минимальный — 5–8 мм/неделю', nutrition:'Некорневая мочевина 2–3% при слабом N по листовому анализу прошлого года. Zn: сульфат цинка ЕЖЕГОДНО (планово, не по дефициту) от этой стадии до зелёного конуса — ZnSO₄ 36% ≈40 кг/га (≈14 кг актив. Zn/га), дополняется хелатом Zn в фазы "Мышиное ухо"–"Розовый бутон"; ⚠️ НЕ применять летом — ожог листа (BC Tree Fruit Guide). Fe хелат — при хлорозе на карбонатных почвах, ежегодно рано весной; НЕ смешивать в баке с пестицидами или другими микроэлементами (BC Tree Fruit Guide)',
       protection:['Медьсодержащий (фиксированная медь) или каптан — старт защиты от парши, первые аскоспоры при влажной погоде','Минеральное масло — против щитовки и яиц клещей (Rutgers: Delayed Dormant–½" Green)'],
       tasks:['Проверить работу феромонных ловушек и метеостанции','Установить ловушки на яблонную плодожорку — старт отсчёта DD (база 10°C) от первого устойчивого улова','Первая калибровка датчиков влажности почвы'],
+      decisionRules:[{ nutrient:'N', label:'Некорневая N (мочевина)', resolve(leaf){
+        if(!leaf || leaf.N==null) return {status:'unknown', text:'Нет данных листового анализа за прошлый год — без него нельзя решить, нужна ли некорневая N. Возьмите анализ или уточните у агронома.'};
+        if(leaf.N < 2.2) return {status:'action', text:`Лист N=${leaf.N}% (<2.2% — ниже нормы) → внести некорневую мочевину 2–3%.`};
+        return {status:'skip', text:`Лист N=${leaf.N}% — в норме, некорневая подкормка не нужна.`};
+      }}],
       alert:'❄️ Почки уязвимы к заморозкам от -3…-4°C на этой стадии' },
     { phase:'Зелёный конус', bbch:'BBCH 07–09 (Green Tip)', period:'Середина марта', kc:0.25, film:'Открытый сад', irrigation:'8–10 мм/неделю', nutrition:'N-старт: аммиачная селитра или КАС по норме почвенного анализа (общий вынос сезона N 170 кг/га на 60 т/га — Sela Прил.II). Mn — только при подтверждённом дефиците по листу: 2.24 кг Mn/га (MnSO₄) или хелат по этикетке; встречается редко (WSU); ⚠️ избыток Mn — один из факторов "измерения" (measles) коры именно у Red Delicious (BC Tree Fruit Guide) — не превышать норму даже при желании подстраховаться. Zn: последнее окно для плановой обработки ZnSO₄ (см. фазу "Набухание почек") — далее до конца лета только хелат, сульфат вызывает ожог листа',
       protection:['Продолжение медь/каптан программы против парши по мере разворачивания листьев','Инсектицид/масло против яблонной тли при обнаружении колоний (Rutgers: Apple Aphid — May)'],
       tasks:['Финальная обрезка если не сделана зимой','Проверка капельной системы после зимы','Мониторинг разворачивания листьев для уточнения фенофазы'],
+      decisionRules:[{ nutrient:'Mn', label:'Марганец (MnSO₄ или хелат)', resolve(leaf){
+        if(!leaf || leaf.Mn==null) return {status:'unknown', text:'Нет данных по Mn в листе — без анализа обработку не назначаем (встречается редко, форсировать не нужно).'};
+        if(leaf.Mn < 35) return {status:'action', text:`Лист Mn=${leaf.Mn}ppm (<35 — дефицит) → 2.24 кг Mn/га (MnSO₄) или хелат по этикетке. ⚠️ У Red Delicious не превышать норму (риск measles).`};
+        return {status:'skip', text:`Лист Mn=${leaf.Mn}ppm — в норме, обработка не нужна.`};
+      }}],
       alert:'🌡️ Следить за заморозками — ткань конуса менее устойчива, чем спящая почка' },
     { phase:'Мышиное ухо', bbch:'BBCH 10 (Tight Cluster, Pre-Pink)', period:'Конец марта', kc:0.35, film:'Открытый сад', irrigation:'10–12 мм/неделю', nutrition:'Ca хелат некорневая — старт программы против горькой ямчатости (bitter pit), продолжать до конца лета (Rutgers 10.3)',
       protection:['Пик первичных инфекций парши при влажной погоде — системный фунгицид (д.в. дифеноконазол, ципродинил) по прогнозу осадков','Zn хелат (EDTA) 1 л/100 л воды — при низком Zn по листовому анализу, ДОПОЛНЯЕТ, а не заменяет плановый ZnSO₄ набухания почек (Rutgers: Tight Cluster to Pink; BC Tree Fruit Guide)','Начало учёта яиц/вылупления минирующей моли и клещей'],
@@ -139,6 +149,12 @@ const TECHMAP = {
     { phase:'Розовый бутон', bbch:'BBCH 55–57 (Pink)', period:'Начало апреля', kc:0.45, film:'Открытый сад', irrigation:'12–15 мм/неделю', nutrition:'B — предпочтительное весеннее окно "от предцветения до розового бутона" (WSU): поддерживающая норма 0.56 кг B/га/год, максимум 48 г B/100 л рабочего раствора (свыше ~95 г/100л — ожог листа). При подтверждённом дефиците (лист <20ppm или почва <0.5 мг/кг) — до 1.12 кг B/га/год. ⚠️ Бор НЕ вносить через капельную фертигацию — неравномерность и риск фитотоксичности (WSU): только некорневая обработка. Участвует в транспорте Ca — снижает пробковую пятнистость и горькую ямчатость',
       protection:['Последняя обработка от парши системным фунгицидом ПЕРЕД цветением','Контактный инсектицид против долгоносика-цветоеда и тли — строго ДО раскрытия цветков','Завершить обработки без остаточного действия на пчёл к началу цветения'],
       tasks:['Развезти ульи к саду (2–3 семьи/га для перекрёстного опыления)','Проверить сроки последней обработки — выдержать срок ожидания для пчёл','Уточнить прогноз заморозков в цветение'],
+      decisionRules:[{ nutrient:'B', label:'Бор (некорневая, весеннее окно)', resolve(leaf){
+        const deficient = leaf && leaf.B!=null && leaf.B < 20;
+        if(!leaf || leaf.B==null) return {status:'action', text:'Нет данных по листу — вносить поддерживающую норму 0.56 кг B/га/год (48 г B/100л макс.), т.к. это плановое окно, а не коррекция дефицита.'};
+        if(deficient) return {status:'action', text:`Лист B=${leaf.B}ppm (<20 — дефицит) → усиленная норма до 1.12 кг B/га/год (не превышать 48 г/100л — ожог листа).`};
+        return {status:'action', text:`Лист B=${leaf.B}ppm — в норме, вносим стандартную поддерживающую норму 0.56 кг B/га/год.`};
+      }}],
       alert:'🐝 Прекратить инсектициды широкого спектра — пчёлы приступают к лёту' },
     { phase:'Цветение', bbch:'BBCH 61–69 (Bloom)', period:'Апрель', kc:0.6, film:'Открытый сад', irrigation:'При заморозках — дождевание для защиты цветков, иначе не поливать', nutrition:'N мочевина 1% некорневая при слабом облиствении (не подменяет почвенное внесение)',
       protection:['🚫 ИНСЕКТИЦИДЫ ЗАПРЕЩЕНЫ — защита пчёл (Rutgers: "Do not apply insecticides during Bloom!")','Бактериальный ожог (Fire Blight) — КЛЮЧЕВАЯ угроза именно в цветение: стрептомициновый/биологический бактерицид по модели инфекции (T>15.5°C + влажность/дождь в открытых цветках)','ATS (тиосульфат аммония) как прореживатель цветков (80% цветков открыто) и вспомогательное средство против ожога (Rutgers 10.5.1); ⚠️ НЕ применять на Braeburn (низкая завязываемость — риск чрезмерного прореживания, BC Tree Fruit Guide); Jonagold чувствителен к дозам выше 1.2 л/100л; Red Delicious переносит дозы до 1.6 л/100л'],
@@ -153,6 +169,11 @@ const TECHMAP = {
     { phase:'Рост плода', bbch:'BBCH 75–79 (First–Late Covers)', period:'Июнь – начало августа', kc:1.0, film:'Открытый сад', irrigation:'20–30 мм/неделю в жару, пульсирующий полив 2–3 цикла/день на лёгких почвах', nutrition:'K (сульфат калия) 8–12 кг/га на налив + продолжение Ca-программы (хелат каждые 7–10 дней). N по остаточной потребности, не форсировать. Mg — только при подтверждённом дефиците: некорневая в июне, при необходимости повторить в июле; ⛔ НЕ применять после 1 августа (WSU Crop Protection Guide). Наш подход — "Mg только по дефициту" (WSU), а не ежегодная профилактика MgSO₄ при опадении лепестков, как предлагает BC Tree Fruit Guide — сохраняем WSU-логику, т.к. она завязана на наши листовые нормы. ⚠️ Избыток K подавляет усвоение Ca и Mg — не превышать дозу сульфата калия (BC Tree Fruit Guide)',
       protection:['Плодожорка яблонная — 2-е и 3-е поколение по DD-модели (1250 и 2300 DD от биофикса), чередовать группы д.в. против резистентности','Яблонная плодовая муха (Apple Maggot) — с конца июня/июля, порог 2–5 мух/жёлтую ловушку/неделю','Мучнистая роса, сажистый налёт и мухосед (Sooty Blotch/Flyspeck) — покровные фунгициды в влажную погоду','Растительноядные клопы (стинк-баги) и цикадки — по порогу на листовых учётах'],
       tasks:['Ротация препаратов по FRAC/IRAC группам — не более 2 обработок подряд одним МОА (риск резистентности парши и плодожорки)','Контроль летней обрезки/пасынкования для проветривания кроны (снижает сажистый налёт, а на сильнорослых деревьях в июле дополнительно улучшает проникновение Ca-обработок к плодам — BC Tree Fruit Guide)','Подготовить сети/отпугиватели от птиц к созреванию ранних сортов'],
+      decisionRules:[{ nutrient:'Mg', label:'Магний (некорневая, июнь–июль)', resolve(leaf){
+        if(!leaf || leaf.Mg==null) return {status:'unknown', text:'Нет данных по Mg в листе — без анализа обработку не назначаем.'};
+        if(leaf.Mg < 0.35) return {status:'action', text:`Лист Mg=${leaf.Mg}% (<0.35% — дефицит) → некорневая обработка сейчас, повторить в июле при необходимости. ⛔ НЕ применять после 1 августа.`};
+        return {status:'skip', text:`Лист Mg=${leaf.Mg}% — в норме, обработка не нужна.`};
+      }}],
       regulators:['Защита от солнечных ожогов — начинать сразу после прореживания, до жары: Surround WP (каолин) стартовая доза 5%-раствор, поддерживающая 2.5% — держать видимый белый налёт на плодах','Purshade (карбонат кальция) от 19мм плода, повтор каждые 2–3 недели, низкообъёмное опрыскивание','Raynox — от размера "golf ball" (~42мм), повтор каждые 2–4 недели; НЕ применять при прогнозе T>29°C во время обработки, наносить отдельно от прочих препаратов'],
       alert:'💧 Жара >30°C ускоряет транспирацию — на лёгких почвах дефицит проявляется за 1–2 дня' },
     { phase:'Созревание', bbch:'BBCH 81–89', period:'Август – сентябрь (по сорту)', kc:0.9, film:'Открытый сад', irrigation:'15–20 мм/неделю, избыток воды снижает Brix и лёжкость', nutrition:'⛔ Стоп N за 4–6 недель до сбора. Соотношение K/N важнее абсолютного количества N и должно быть максимально высоким в последние 1.5–2 месяца перед сбором (ICL Growing Solutions) — избыток N при низком K повышает риск горькой ямчатости так же, как и дефицит Ca. Ca-обработки продолжать до последней недели — главная защита от горькой ямчатости в хранении',
@@ -164,9 +185,38 @@ const TECHMAP = {
       nutrition:'Осенняя некорневая N: мочевина 1.0–1.2 кг д.в. N/100 л рабочего раствора, после сбора но ДО начала естественного листопада (пока листья ещё зелёные/желтеют), при 20–29°C, влажно, без сильного ветра — усвоение 30–80%. Вносить только если N по листу <1.7% или было тяжёлое плодоношение (при 1.7–2.5% — не нужно). BC Tree Fruit Guide даёт альтернативный триггер того же приёма — по нагрузке урожаем: для деревьев с урожаем ≥40 бинов/акр (≈16 т/га) рекомендует рутинную позднюю N-подкормку (до/после сбора) в размере ~15–20% от общей сезонной N, независимо от листового теста; используем оба критерия (лист И нагрузка) вместе. Осенний B — второе из двух предпочтительных окон WSU (наравне с розовым бутоном): та же поддерживающая норма 0.56 кг B/га/год (до 1.12 кг/га при дефиците, максимум 48 г/100 л раствора), некорневая, НЕ фертигация (см. фаза "Розовый бутон"). Осенний Zn (яблоня, сульфат цинка): поддерживающая норма 2.2–4.5 кг Zn/га/год — ЭТО ДОБАВКА к плановому весеннему ZnSO₄ (см. фазу "Набухание почек"), не замена; при подтверждённом дефиците по листу (<15 ppm) — разовая коррекция 10.1 кг Zn/га сразу после сбора. Разовая осенняя обработка цинк в листьях в целом не поднимает, только в почках/цветках — нужны регулярные обработки в течение сезона, не только осенью. Смешивание микроэлементов с мочевиной улучшает усвоение (WSU Tree Fruit, Sallato).',
       protection:['Ca-ванна перед закладкой на хранение — хлорид кальция (пищевой) в дип-растворе снижает горькую ямчатость и улучшает лёжкость (Rutgers 10.3, "Dip before Storage")','Мочевина 5% — ускоряет листопад и разложение листвы, снижает запас инфекции парши (Venturia inaequalis) на будущий год (WSU Tree Fruit)','Мочевина 2% + сульфат цинка 2% — ускоряет листопад и повышает морозостойкость дерева (WSU Tree Fruit)','Медьсодержащий препарат перед листопадом — снижает инфекционный фон парши и бактериального ожога; при подтверждённом дефиците Cu по листу (редко) этот же препарат частично закрывает и потребность в меди (1.12 кг Cu/га как CuSO₄, WSU) — риск ожога плода при обработке до полного сбора; ⚠️ Cu-препарат НЕ смешивать в баке с хлоридом кальция — несовместимы, риск повреждения плода (WSU Crop Protection Guide)'],
       tasks:['Обрезка после листопада, вырезка язв бактериального ожога — санитария на будущий сезон','Почвенный и листовой анализ — основа плана питания и решения об осенней N-подкормке','Ревизия системы капельного полива и антизаморозки к зиме'],
+      decisionRules:[
+        { nutrient:'N', label:'Осенняя некорневая N', resolve(leaf){
+          if(!leaf || leaf.N==null) return {status:'unknown', text:'Нет данных листового анализа — без него нельзя решить по критерию листа (можно ориентироваться только по нагрузке урожаем ≥40 бинов/акр, BC Tree Fruit Guide).'};
+          if(leaf.N < 1.7) return {status:'action', text:`Лист N=${leaf.N}% (<1.7% — дефицит) → мочевина 1.0–1.2 кг д.в. N/100л, при 20–29°C, влажно, ДО начала листопада.`};
+          return {status:'skip', text:`Лист N=${leaf.N}% (1.7–2.5% — в норме) → осенняя N не нужна, если только нагрузка урожаем не была очень высокой (≥40 бинов/акр).`};
+        }},
+        { nutrient:'Zn', label:'Осенняя коррекция Zn', resolve(leaf){
+          if(!leaf || leaf.Zn==null) return {status:'skip', text:'Нет данных по Zn в листе — плановый весенний ZnSO₄ (см. "Набухание почек") уже покрывает базовую потребность, разовая осенняя коррекция без анализа не назначается.'};
+          if(leaf.Zn < 15) return {status:'action', text:`Лист Zn=${leaf.Zn}ppm (<15 — дефицит) → разовая коррекция 10.1 кг Zn/га сразу после сбора.`};
+          return {status:'skip', text:`Лист Zn=${leaf.Zn}ppm — в норме, достаточно планового весеннего ZnSO₄.`};
+        }},
+      ],
       alert:'🌡️ Осеннюю некорневую N/B/Zn не вносить при <20°C или >29°C — резко падает усвоение (WSU Tree Fruit)' },
   ],
 };
+
+// Последний листовой анализ для клетки (или для всей культуры/сада, если по клетке данных нет)
+function getLastLeafAnalysisForCell(cellKey, cropId) {
+  const leafAnalyses = (S.analyses||[]).filter(a=>a.type==='leaf'&&a.date);
+  if(!leafAnalyses.length) return null;
+  const byCell = cellKey ? leafAnalyses.filter(a=>(a.cellKey||'').split(',').includes(cellKey)) : [];
+  const byCrop = cropId ? leafAnalyses.filter(a=>a.cropId===cropId) : [];
+  const pool = byCell.length ? byCell : (byCrop.length ? byCrop : leafAnalyses);
+  return [...pool].sort((a,b)=>(b.date||'').localeCompare(a.date||''))[0];
+}
+
+// Разрешает условные (if-по-листу) пункты питания фазы в одно конкретное действие вместо текста с ветвлениями
+function resolveDecisionRules(phase, cellKey, cropId) {
+  if(!phase.decisionRules || !phase.decisionRules.length) return [];
+  const leaf = getLastLeafAnalysisForCell(cellKey, cropId);
+  return phase.decisionRules.map(rule => ({ nutrient: rule.nutrient, label: rule.label, ...rule.resolve(leaf) }));
+}
 
 function getTechmapAutoData(p, idx, cellKey) {
   const parts = [];
@@ -257,6 +307,62 @@ function getTechmapAutoData(p, idx, cellKey) {
 
   return parts.join('<br>');
 }
+// Единая лента "что делать сегодня": риски (болезни/вредители/погода) + разрешённые
+// условные решения по питанию + регуляторы роста текущей фазы + невыполненные задачи —
+// вместо того чтобы новичок сам собирал это из 4-5 разных полей технокарты.
+function getTodayActions(varietyId, cellKey, tbase) {
+  if(!varietyId) return null;
+  const engine = runAgronomistEngine(varietyId, tbase);
+  const variety = engine.variety;
+  const cropId = variety?.cropId || 'crop_cherry';
+  const phase = engine.phaseRecs;
+  const items = [];
+  const rank = {critical:4, spray:3, watch:2, ok:1};
+
+  (engine.allAlerts||[]).forEach(a => {
+    items.push({ group:'risk', level:a.level, title:a.title||'', text:a.recommendation||a.body||'' });
+  });
+
+  if (phase) {
+    resolveDecisionRules(phase, cellKey, cropId).forEach(r=>{
+      const level = r.status==='action' ? 'spray' : (r.status==='unknown' ? 'watch' : 'ok');
+      items.push({ group:'nutrition', level, title:`🌱 ${r.label}`, text:r.text });
+    });
+
+    (phase.regulators||[]).forEach(reg=>{
+      items.push({ group:'regulator', level:'watch', title:'🧪 Прореживание / регулятор роста', text:reg });
+    });
+
+    const idx = (TECHMAP[cropId]||[]).findIndex(p=>p.phase===phase.phase);
+    if (idx>=0) {
+      const phaseKey = `${cellKey||cropId}_${varietyId||'v1'}_${idx}`;
+      const log = (S.techLog||{})[phaseKey] || {};
+      (phase.tasks||[]).forEach((t,ti)=>{
+        if(!log.tasks?.[ti]?.done) items.push({ group:'task', level:'ok', title:'✅ Задача агронома', text:t });
+      });
+    }
+  }
+
+  items.sort((a,b)=>(rank[b.level]||0)-(rank[a.level]||0));
+  return { items, currentPhase: engine.currentPhase, daysLeft: engine.daysLeft, nextPhaseAlert: engine.nextPhaseAlert };
+}
+
+function renderTodayActionsHtml(today) {
+  if(!today) return `<div style="padding:16px;border-radius:12px;background:var(--surface2);margin-bottom:16px;font-size:12px;color:var(--text3);text-align:center;">Выберите сорт выше, чтобы увидеть ленту «Сегодня»</div>`;
+  const LEVEL_COLOR = {critical:'var(--red,#dc2626)', spray:'var(--orange)', watch:'var(--yellow)', ok:'var(--accent)'};
+  const LEVEL_LABEL = {critical:'🔴 Критично', spray:'🟠 Обработать', watch:'🟡 Наблюдать', ok:'✅ Ок'};
+  const shown = today.items.slice(0, 12);
+  return `<div style="padding:16px;border-radius:12px;background:var(--surface2);border:1px solid var(--border);margin-bottom:16px;">
+    <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">📋 Сегодня — фаза «${today.currentPhase?.name||'?'}»</div>
+    ${shown.length ? shown.map(it=>`
+      <div style="display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-bottom:1px solid var(--border);">
+        <span style="flex-shrink:0;font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;background:${LEVEL_COLOR[it.level]};color:#000;white-space:nowrap;">${LEVEL_LABEL[it.level]||it.level}</span>
+        <div style="flex:1;font-size:12px;color:var(--text2);"><strong>${it.title}</strong>${it.text?' — '+it.text:''}</div>
+      </div>`).join('') : '<div style="font-size:12px;color:var(--text3);">Активных действий нет — фаза в штатном режиме.</div>'}
+    ${today.nextPhaseAlert ? `<div style="margin-top:8px;font-size:11px;color:var(--blue);">⏭ Скоро следующая фаза «${today.nextPhaseAlert.phase.name}» — через ~${today.nextPhaseAlert.daysEstimate??'?'} дн.</div>` : ''}
+  </div>`;
+}
+
 function renderTechmap() {
   const el = document.getElementById('techmap-content');
   if(!el) return;
@@ -282,7 +388,10 @@ function renderTechmap() {
   const FILM_COLOR = t => t.includes('ЗАКРЫТЬ')||t.includes('Закрыта') ? 'var(--orange)' : t.includes('ОТКРЫТА')||t.includes('Открыта') ? 'var(--accent)' : 'var(--text3)';
   if(!S.techLog) S.techLog = {};
 
-  el.innerHTML = phases.map((p, idx) => {
+  const todayActions = varId ? getTodayActions(varId, cellKey, tbase) : null;
+  const todayHtml = renderTodayActionsHtml(todayActions);
+
+  el.innerHTML = todayHtml + phases.map((p, idx) => {
     const isCurrent = currentPhase?.name === p.phase;
     const phaseKey = `${cellKey||cropId}_${varId||'v1'}_${idx}`;
     const log = S.techLog[phaseKey] || {};
