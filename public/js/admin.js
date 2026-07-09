@@ -79,7 +79,7 @@ function openCompanyDetail(companyId, name) {
 }
 
 // ═══ ПОЛЬЗОВАТЕЛИ ═══════════════════════════════════════════════════════
-const ROLE_LABELS_ADMIN = { owner:'👑 Владелец', agronomist:'🌱 Агроном', accountant:'💼 Бухгалтер', director:'📋 Директор', operator:'⚙️ Оператор' };
+const ROLE_LABELS_ADMIN = { owner:'👑 Владелец', agronomist:'🌱 Агроном', accountant:'💼 Бухгалтер', director:'📋 Директор', shareholder:'📊 Акционер', engineer:'🔧 Инженер', irrigation_engineer:'💧 Инж. ирригации', operator:'⚙️ Оператор' };
 
 async function renderAdminUsers() {
   const el = document.getElementById('admin-users-list');
