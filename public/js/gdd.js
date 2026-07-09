@@ -363,6 +363,95 @@ function renderTodayActionsHtml(today) {
   </div>`;
 }
 
+// Недельный дайджест для "приходящего" (не постоянно на месте) агронома —
+// не рутина за 15 минут просмотра, а только сводка: что сделано, риски, отклонения.
+function generateWeeklyDigest(varietyId, cellKey, tbase) {
+  const cd = cellKey ? S.cells[cellKey] : null;
+  const cropName = getCropById(cd?.cropId)?.name || cd?.cropId || '—';
+  const variety = S.varieties.find(v=>v.id===varietyId);
+  const lines = [];
+  lines.push(`НЕДЕЛЬНЫЙ ДАЙДЖЕСТ · ${new Date().toLocaleDateString('ru-RU')}`);
+  lines.push(`Участок: ${cd?.name || cellKey || '—'} · Культура: ${cropName} · Сорт: ${variety?.name || '—'}`);
+  lines.push('');
+
+  if (!varietyId) {
+    lines.push('Выберите сорт в техкарте, чтобы сформировать дайджест.');
+    return lines.join('\n');
+  }
+
+  const engine = runAgronomistEngine(varietyId, tbase);
+  lines.push(`ТЕКУЩАЯ ФАЗА: ${engine.currentPhase?.name || '?'} (GDD ${engine.currentGdd})`);
+  if (engine.nextPhaseAlert) {
+    lines.push(`Скоро следующая фаза «${engine.nextPhaseAlert.phase.name}» — через ~${engine.nextPhaseAlert.daysEstimate??'?'} дн.`);
+  } else if (engine.daysLeft!=null) {
+    lines.push(`До следующей фазы: ~${engine.daysLeft} дн.`);
+  }
+  lines.push('');
+
+  // Обработки за 7 дней
+  const weekAgo = new Date(Date.now()-7*864e5).toISOString().split('T')[0];
+  const recentTreatments = (S.treatments||[]).filter(t=>{
+    if (!t.date || t.date < weekAgo) return false;
+    if (!cellKey) return true;
+    if (t.cellTarget === 'all') return true;
+    return (t.cellsTarget||[]).includes(cellKey) || t.cellTarget === cellKey;
+  });
+  lines.push(`ОБРАБОТКИ ЗА 7 ДНЕЙ (${recentTreatments.length}):`);
+  if (recentTreatments.length) {
+    recentTreatments.forEach(t=>lines.push(`  • ${t.date} — ${t.product}${t.dose?' ('+t.dose+')':''}`));
+  } else {
+    lines.push('  Нет обработок за последнюю неделю.');
+  }
+  lines.push('');
+
+  // Риски (не ok)
+  const activeRisks = (engine.allAlerts||[]).filter(a=>a.level!=='ok').slice(0,6);
+  lines.push(`АКТИВНЫЕ РИСКИ (${activeRisks.length}):`);
+  if (activeRisks.length) {
+    activeRisks.forEach(a=>lines.push(`  [${a.level.toUpperCase()}] ${a.title} — ${a.recommendation||a.body||''}`));
+  } else {
+    lines.push('  Критичных рисков не обнаружено.');
+  }
+  lines.push('');
+
+  // Выполнение задач текущей фазы (план vs факт)
+  const phase = engine.phaseRecs;
+  if (phase) {
+    const cropId = variety?.cropId || 'crop_cherry';
+    const idx = (TECHMAP[cropId]||[]).findIndex(p=>p.phase===phase.phase);
+    const phaseKey = `${cellKey||cropId}_${varietyId||'v1'}_${idx}`;
+    const log = (S.techLog||{})[phaseKey] || {};
+    const done = (phase.tasks||[]).filter((_,ti)=>log.tasks?.[ti]?.done).length;
+    lines.push(`ЗАДАЧИ ФАЗЫ «${phase.phase}»: выполнено ${done} из ${(phase.tasks||[]).length}`);
+    (phase.tasks||[]).forEach((t,ti)=>{
+      lines.push(`  [${log.tasks?.[ti]?.done ? 'x' : ' '}] ${t}`);
+    });
+    if (log.agronNote) lines.push(`  Заметка агронома: ${log.agronNote}`);
+  }
+
+  return lines.join('\n');
+}
+
+function openWeeklyDigest() {
+  const cellKey = document.getElementById('techmap-cell-select')?.value;
+  const varId   = document.getElementById('techmap-variety-select')?.value;
+  const cd = cellKey ? S.cells[cellKey] : null;
+  const cropId = cd?.cropId || 'crop_cherry';
+  const crop = getCropById(cropId);
+  const tbase = crop?.baseTemp || 4.5;
+  const text = generateWeeklyDigest(varId, cellKey, tbase);
+  const el = document.getElementById('weekly-digest-content');
+  if (el) el.textContent = text;
+  openModal('modal-weekly-digest');
+}
+
+function copyWeeklyDigest() {
+  const text = document.getElementById('weekly-digest-content')?.textContent || '';
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(text).then(()=>alert('Скопировано в буфер обмена'));
+  }
+}
+
 function renderTechmap() {
   const el = document.getElementById('techmap-content');
   if(!el) return;

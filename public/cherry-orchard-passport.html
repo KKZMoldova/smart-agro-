@@ -1042,8 +1042,20 @@ body > .panel.active { display: block; }
       <span style="font-size:12px;color:var(--text2);">Сорт:</span>
       <select id="techmap-variety-select" onchange="renderTechmap()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:'Inter',sans-serif;"></select>
       <div id="techmap-cell-info" style="font-size:11px;color:var(--text3);"></div>
+      <button class="btn btn-sm" style="margin-left:auto;" onclick="openWeeklyDigest()">📋 Недельный дайджест</button>
     </div>
     <div id="techmap-content"></div>
+  </div>
+
+  <div class="modal-overlay" id="modal-weekly-digest">
+    <div class="modal" style="max-width:640px;width:96%;max-height:88vh;overflow-y:auto;">
+      <h2>📋 Недельный дайджест для агронома</h2>
+      <div id="weekly-digest-content" style="font-size:12px;line-height:1.7;color:var(--text2);white-space:pre-wrap;"></div>
+      <div style="display:flex;gap:8px;margin-top:14px;">
+        <button class="btn btn-primary" onclick="copyWeeklyDigest()">📋 Копировать текст</button>
+        <button class="btn" onclick="closeModal('modal-weekly-digest')">Закрыть</button>
+      </div>
+    </div>
   </div>
 
   <!-- SUB: Статистика фаз (калибровка) -->
