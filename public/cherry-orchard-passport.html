@@ -4059,7 +4059,7 @@ body > .panel.active { display: block; }
         <input type="date" id="ie-date" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
       </div>
       <div class="ff"><label>Зона полива (если настроена)</label>
-        <select id="ie-zone" onchange="calcIrrigVolume()" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+        <select id="ie-zone" onchange="calcIrrigVolume();updateIrrigRecommendation();" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
           <option value="">— без зоны / вручную —</option>
         </select>
       </div>

@@ -211,11 +211,10 @@ let S = {
         {name:'Созревание',         color:'#dc2626'},
         {name:'После сбора',        color:'#92400e'},
       ],
-      diseases:[],
+      diseases:['dc8','dc9','dc10'], // refs to diseaseCatalog — парша, мучнистая роса, плодожорка (полная модель риска)
       pests:[
         {id:'app_codm',name:'Яблонная плодожорка',gddThreshold:250,phaseRisk:'Рост плода',alertLevel:'spray',products:'Калипсо, Димилин',recommendation:'Феромонные ловушки с апреля.'},
         {id:'app_saph',name:'Яблонная тля',       gddThreshold:100,phaseRisk:'Зелёный конус',alertLevel:'watch',products:'Актара, Биотлин',recommendation:'Осмотр листьев, обработка при колониях.'},
-        {id:'app_scab',name:'Парша (sporothecium)',gddThreshold:150,phaseRisk:'Мышиное ухо',  alertLevel:'watch',products:'Хорус, Скор',recommendation:'Обработка при первых симптомах.'},
       ],
       note:'Семечковая. База 4.5°C. Высокие нормы Ca для предотвращения bitter pit.',
       kc:{dormant:0.55, flowering:0.80, fruitGrowth:1.10, ripening:0.95, postHarvest:0.70},

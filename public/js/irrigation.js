@@ -1126,25 +1126,40 @@ function openIrrigEventModal(id) {
     (S.irrigation.zones||[]).map(z=>`<option value="${z.id}" ${ev?.zoneId===z.id?'selected':''}>${z.name} (${z.flowRate||'?'} м³/ч)</option>`).join('');
   if(ev?.zoneId) zoneSel.value = ev.zoneId;
 
-  // Текущая фаза
-  const gdd = getCurrentGdd(4.5);
-  const phase = getPhaseByGdd(S.varieties[0]?.id, gdd);
-  document.getElementById('ie-phase').value = ev?.phase || phase?.name || '';
-
-  // Рекомендация из технокарты
-  const rec = document.getElementById('ie-recommendation');
-  if(phase) {
-    const phaseData = TECHMAP.crop_cherry?.find(p=>p.phase===phase.name);
-    if(phaseData) {
-      rec.style.display = 'block';
-      rec.innerHTML = `<strong>Рекомендация технокарты для фазы "${phase.name}":</strong><br>
-        💧 ${phaseData.irrigation}<br>
-        Kc: ${phaseData.kc} · ETc: ~${(parseFloat(S.weather[0]?.et0||3)*phaseData.kc).toFixed(1)}мм/день`;
-    }
-  }
-
+  updateIrrigRecommendation(ev?.phase);
   calcIrrigVolume();
   openModal('modal-irrig-event');
+}
+
+// Определяет культуру/сорт по выбранной зоне (через её клетки) и показывает
+// актуальную фазу + рекомендацию из ЕЁ технокарты — раньше здесь всегда
+// была захардкожена черешня (база 4.5°C, первый сорт списка, TECHMAP.crop_cherry),
+// поэтому для других культур (например, яблока) рекомендация была неверной.
+function updateIrrigRecommendation(savedPhaseName) {
+  const zoneId = document.getElementById('ie-zone')?.value;
+  const zone = (S.irrigation.zones||[]).find(z=>z.id===zoneId);
+  const cellKey = zone?.cellKeys?.[0];
+  const cd = cellKey ? S.cells[cellKey] : null;
+  const cropId = cd?.cropId || 'crop_cherry';
+  const crop = getCropById(cropId);
+  const baseTemp = crop?.baseTemp || 4.5;
+  const cropVarieties = S.varieties.filter(v => (v.cropId||'crop_cherry') === cropId);
+  const varietyId = cd?.rows?.find(r=>r.varietyId)?.varietyId || cropVarieties[0]?.id || S.varieties[0]?.id;
+
+  const gdd = getCurrentGdd(baseTemp, varietyId);
+  const phase = getPhaseByGdd(varietyId, gdd);
+  document.getElementById('ie-phase').value = savedPhaseName || phase?.name || '';
+
+  const rec = document.getElementById('ie-recommendation');
+  const phaseData = phase ? (TECHMAP[cropId] || TECHMAP.crop_cherry)?.find(p=>p.phase===phase.name) : null;
+  if (phaseData) {
+    rec.style.display = 'block';
+    rec.innerHTML = `<strong>Рекомендация технокарты для фазы "${phase.name}" (${crop?.name||cropId}):</strong><br>
+      💧 ${phaseData.irrigation}<br>
+      Kc: ${phaseData.kc} · ETc: ~${(parseFloat(S.weather[0]?.et0||3)*phaseData.kc).toFixed(1)}мм/день`;
+  } else {
+    rec.style.display = 'none';
+  }
 }
 
 function calcIrrigVolume() {
