@@ -199,6 +199,8 @@ async function initDB() {
     CREATE TABLE IF NOT EXISTS public.agro_companies (
       id SERIAL PRIMARY KEY, name TEXT NOT NULL,
       status TEXT DEFAULT 'active',
+      fc_public_key TEXT, fc_private_key TEXT, fc_station_id TEXT,
+      wialon_token TEXT, wialon_host TEXT,
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
     CREATE TABLE IF NOT EXISTS public.agro_users (
@@ -246,6 +248,11 @@ async function migrateMultiTenant() {
   await db.query(`ALTER TABLE public.agro_users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN DEFAULT false`).catch(()=>{});
   await db.query(`ALTER TABLE public.agro_users ADD COLUMN IF NOT EXISTS phone TEXT`).catch(()=>{});
   await db.query(`ALTER TABLE public.agro_users ADD COLUMN IF NOT EXISTS email TEXT`).catch(()=>{});
+  await db.query(`ALTER TABLE public.agro_companies ADD COLUMN IF NOT EXISTS fc_public_key TEXT`).catch(()=>{});
+  await db.query(`ALTER TABLE public.agro_companies ADD COLUMN IF NOT EXISTS fc_private_key TEXT`).catch(()=>{});
+  await db.query(`ALTER TABLE public.agro_companies ADD COLUMN IF NOT EXISTS fc_station_id TEXT`).catch(()=>{});
+  await db.query(`ALTER TABLE public.agro_companies ADD COLUMN IF NOT EXISTS wialon_token TEXT`).catch(()=>{});
+  await db.query(`ALTER TABLE public.agro_companies ADD COLUMN IF NOT EXISTS wialon_host TEXT`).catch(()=>{});
   await db.query(`INSERT INTO public.agro_companies (id, name) VALUES (1, 'KKZ (основная ферма)') ON CONFLICT (id) DO NOTHING`).catch(()=>{});
   await db.query(`SELECT setval('public.agro_companies_id_seq', GREATEST((SELECT COALESCE(MAX(id),1) FROM public.agro_companies), 1))`).catch(()=>{});
   // Стартовый логин владельца KKZ — без него после введения реального логина
@@ -383,8 +390,32 @@ function requireRole(...roles) {
 
 app.get('/api/admin/companies', auth, requireRole('owner'), async (req, res) => {
   try {
-    const r = await db.query('SELECT id, name, status, created_at FROM public.agro_companies ORDER BY created_at');
+    const r = await db.query(`
+      SELECT id, name, status, created_at,
+        (fc_public_key IS NOT NULL AND fc_private_key IS NOT NULL) AS "hasWeatherStation",
+        (wialon_token IS NOT NULL) AS "hasGps"
+      FROM public.agro_companies ORDER BY created_at
+    `);
     res.json({ ok:true, data: r.rows });
+  } catch(e) { res.status(500).json({ ok:false, error:e.message }); }
+});
+
+// Учётные данные интеграций (FieldClimate/Wialon) — сырые ключи никогда не
+// возвращаются обратно клиенту, только сохраняются. Пустое поле в запросе
+// не трогает уже сохранённое значение (COALESCE на NULLIF пустой строки).
+app.put('/api/admin/companies/:id/integrations', auth, requireRole('owner'), async (req, res) => {
+  const { fcPublicKey, fcPrivateKey, fcStationId, wialonToken, wialonHost } = req.body;
+  try {
+    await db.query(`
+      UPDATE public.agro_companies SET
+        fc_public_key  = COALESCE(NULLIF($2,''), fc_public_key),
+        fc_private_key = COALESCE(NULLIF($3,''), fc_private_key),
+        fc_station_id  = COALESCE(NULLIF($4,''), fc_station_id),
+        wialon_token   = COALESCE(NULLIF($5,''), wialon_token),
+        wialon_host    = COALESCE(NULLIF($6,''), wialon_host)
+      WHERE id=$1
+    `, [req.params.id, fcPublicKey||'', fcPrivateKey||'', fcStationId||'', wialonToken||'', wialonHost||'']);
+    res.json({ ok:true });
   } catch(e) { res.status(500).json({ ok:false, error:e.message }); }
 });
 
@@ -547,18 +578,32 @@ app.post('/api/admin/crop-access/disable', auth, requireRole('owner'), async (re
 });
 
 // ── WEATHER ───────────────────────────────────────────────────
-function fcHeaders(method, path) {
+function fcHeaders(method, path, pub, priv) {
+  pub  = pub  || FC_PUBLIC;
+  priv = priv || FC_PRIVATE;
   const date = new Date().toUTCString();
   // FieldClimate HMAC: method + route + date + public_key
-  const sig  = crypto.createHmac('sha256', FC_PRIVATE)
-    .update(method.toUpperCase() + path + date + FC_PUBLIC).digest('hex');
-  return { 'Accept':'application/json', 'Authorization':`hmac ${FC_PUBLIC}:${sig}`, 'Request-Date':date };
+  const sig  = crypto.createHmac('sha256', priv)
+    .update(method.toUpperCase() + path + date + pub).digest('hex');
+  return { 'Accept':'application/json', 'Authorization':`hmac ${pub}:${sig}`, 'Request-Date':date };
+}
+
+// Свои ключи FieldClimate у компании, иначе (только для company_id=1) — общие ENV.
+async function getFcCredentials(companyId, queryStation) {
+  if (companyId === 1) return { pub: FC_PUBLIC, priv: FC_PRIVATE, station: queryStation || '00002158' };
+  try {
+    const r = await db.query('SELECT fc_public_key, fc_private_key, fc_station_id FROM public.agro_companies WHERE id=$1', [companyId]);
+    const c = r.rows[0];
+    if (!c?.fc_public_key || !c?.fc_private_key) return null;
+    return { pub: c.fc_public_key, priv: c.fc_private_key, station: queryStation || c.fc_station_id || '00002158' };
+  } catch { return null; }
 }
 
 app.get('/api/weather', auth, async (req, res) => {
   const days      = Math.min(parseInt(req.query.days) || 7, 400);
-  const station   = req.query.station || '00002158';
   const companyId = req.user.companyId || 1;
+  const creds     = await getFcCredentials(companyId, req.query.station);
+  const station   = creds?.station || req.query.station || '00002158';
   try {
     const from = new Date();
     from.setDate(from.getDate() - days);
@@ -572,11 +617,9 @@ app.get('/api/weather', auth, async (req, res) => {
     })) });
   } catch(e) { console.warn('[weather] DB read:', e.message); }
 
-  // Живой запрос к FieldClimate использует ОДИН общий аккаунт (глобальные ENV) —
-  // пока у компаний нет своих метеостанций, это только для основной фермы (id=1),
-  // иначе новая компания увидела бы чужую живую погоду при пустой базе.
-  if (companyId !== 1) return res.json({ ok: true, data: [] });
-  if (!FC_PUBLIC || !FC_PRIVATE) return res.json({ ok: true, data: [] });
+  // Живой запрос к FieldClimate — своими ключами компании, если настроены,
+  // иначе (только для основной фермы, id=1) через общие ENV.
+  if (!creds) return res.json({ ok: true, data: [] });
 
   try {
     const end   = new Date();
@@ -588,7 +631,7 @@ app.get('/api/weather', auth, async (req, res) => {
     const fcTimeout = setTimeout(() => fcController.abort(), 10000);
     let fc;
     try {
-      fc = await fetch('https://api.fieldclimate.com/v2' + fcPath, { headers: fcHeaders('GET', fcPath), signal: fcController.signal });
+      fc = await fetch('https://api.fieldclimate.com/v2' + fcPath, { headers: fcHeaders('GET', fcPath, creds.pub, creds.priv), signal: fcController.signal });
       clearTimeout(fcTimeout);
     } catch(fetchErr) {
       clearTimeout(fcTimeout);
@@ -652,11 +695,11 @@ app.get('/api/weather', auth, async (req, res) => {
     for (const r of rows) {
       await db.query(`
         INSERT INTO public.weather (company_id,date,station,tmax,tmin,tavg,humidity,precip,wind,et0,updated_at)
-        VALUES (1,$1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW())
         ON CONFLICT (company_id,date,station) DO UPDATE SET
           tmax=EXCLUDED.tmax,tmin=EXCLUDED.tmin,tavg=EXCLUDED.tavg,
           humidity=EXCLUDED.humidity,precip=EXCLUDED.precip,wind=EXCLUDED.wind,updated_at=NOW()
-      `, [r.date,r.station,r.tmax,r.tmin,r.tavg,r.humidity,r.precip,r.wind,r.et0]);
+      `, [companyId,r.date,r.station,r.tmax,r.tmin,r.tavg,r.humidity,r.precip,r.wind,r.et0]);
     }
     res.json({ ok:true, data:rows.sort((a,b)=>b.date.localeCompare(a.date)) });
   } catch(e) {
@@ -692,15 +735,16 @@ app.post('/api/weather', auth, async (req, res) => {
 // Использует общий FieldClimate-аккаунт (ENV) — пока это только для основной
 // фермы (company_id=1); у остальных компаний своих метеостанций пока нет.
 app.post('/api/sync-weather', auth, async (req, res) => {
-  if ((req.user.companyId || 1) !== 1) return res.status(403).json({ ok:false, error:'Метеостанция не настроена для этой компании' });
-  const station = req.query.station || FC_STATION || '00002158';
-  if (!FC_PUBLIC || !FC_PRIVATE) return res.status(500).json({ ok:false, error:'FieldClimate keys not configured' });
+  const companyId = req.user.companyId || 1;
+  const creds = await getFcCredentials(companyId, req.query.station || (companyId === 1 ? FC_STATION : null));
+  if (!creds) return res.status(403).json({ ok:false, error:'Метеостанция не настроена для этой компании' });
+  const station = creds.station;
   try {
     // Try daily first, then hourly for recent days
     const fcPath = `/ag-grid/${station}/daily/last/7`;
     const fc = await fetch('https://api.fieldclimate.com/v2' + fcPath, {
       method: 'POST',
-      headers: { ...fcHeaders('POST', fcPath), 'Content-Type': 'application/json' },
+      headers: { ...fcHeaders('POST', fcPath, creds.pub, creds.priv), 'Content-Type': 'application/json' },
       body: JSON.stringify({})
     });
     if (!fc.ok) throw new Error('FC: ' + fc.status + ' ' + await fc.text());
@@ -736,23 +780,25 @@ app.post('/api/sync-weather', auth, async (req, res) => {
     for (const r of rows) {
       await db.query(`
         INSERT INTO public.weather (company_id,date,station,tmax,tmin,tavg,humidity,precip,wind,et0,updated_at)
-        VALUES (1,$1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW())
         ON CONFLICT (company_id,date,station) DO UPDATE SET
           tmax=EXCLUDED.tmax, tmin=EXCLUDED.tmin, tavg=EXCLUDED.tavg,
           humidity=EXCLUDED.humidity, precip=EXCLUDED.precip,
           wind=EXCLUDED.wind,
           et0=COALESCE(EXCLUDED.et0, public.weather.et0),
           updated_at=NOW()
-      `, [r.date, r.station, r.tmax, r.tmin, r.tavg, r.humidity, r.precip, r.wind, r.et0]);
+      `, [companyId, r.date, r.station, r.tmax, r.tmin, r.tavg, r.humidity, r.precip, r.wind, r.et0]);
       updated++;
     }
 
     console.log(`[sync-weather] Updated ${updated} FC days for station ${station}`);
 
-    // Fallback: fill missing recent days with Open-Meteo data
+    // Fallback: fill missing recent days with Open-Meteo data.
+    // FARM_LAT/LON — координаты KKZ (глобальный ENV), поэтому это только для company_id=1;
+    // для остальных компаний координаты пока не настраиваются, лучше пропустить, чем взять чужие.
+    if (companyId === 1) try {
     const lat = process.env.FARM_LAT || '47.98';
     const lon = process.env.FARM_LON || '28.72';
-    try {
       const omUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,relativehumidity_2m_max,et0_fao_evapotranspiration&timezone=Europe%2FBucharest&past_days=7&forecast_days=1`;
       const https = require('https');
       const omData = await new Promise((resolve, reject) => {
@@ -772,7 +818,7 @@ app.post('/api/sync-weather', auth, async (req, res) => {
         // Only fill if FC data is missing
         await db.query(`
           INSERT INTO public.weather (company_id,date,station,tmax,tmin,tavg,humidity,precip,wind,et0,updated_at)
-          VALUES (1,$1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW())
           ON CONFLICT (company_id,date,station) DO UPDATE SET
             tmax=CASE WHEN public.weather.tmax IS NULL THEN EXCLUDED.tmax ELSE public.weather.tmax END,
             tmin=CASE WHEN public.weather.tmin IS NULL THEN EXCLUDED.tmin ELSE public.weather.tmin END,
@@ -781,7 +827,7 @@ app.post('/api/sync-weather', auth, async (req, res) => {
             precip=CASE WHEN public.weather.precip IS NULL OR public.weather.precip=0 THEN EXCLUDED.precip ELSE public.weather.precip END,
             et0=CASE WHEN public.weather.et0 IS NULL THEN EXCLUDED.et0 ELSE public.weather.et0 END,
             updated_at=NOW()
-        `, [date, station,
+        `, [companyId, date, station,
             tmax, tmin,
             tmax && tmin ? Math.round((tmax+tmin)/2*10)/10 : null,
             omData.daily.relativehumidity_2m_max?.[i] ?? null,
@@ -1164,15 +1210,31 @@ app.get('/login', (req,res) => res.sendFile(path.join(__dirname,'public','login.
 
 
 // ── Wialon Proxy (избегаем CORS в браузере) ───────────────────────────────
-let _wialonSid = null;
-let _wialonSidExpiry = 0;
+// Сессии — отдельно на каждую компанию, чтобы одна не сбрасывала/не путала
+// сессию другой (раньше был один общий sid на весь процесс).
+const _wialonSessions = new Map(); // companyId -> {sid, expiry}
 
-async function wialonCall(svc, params) {
-  const host = process.env.WIALON_HOST || 'https://hst-api.wialon.com';
+// Свои Wialon-данные у компании, иначе (только company_id=1) — общий ENV.
+async function getWialonCredentials(companyId) {
+  if (companyId === 1) {
+    const token = process.env.WIALON_TOKEN || '';
+    if (!token) return null;
+    return { token, host: process.env.WIALON_HOST || 'https://hst-api.wialon.com' };
+  }
+  try {
+    const r = await db.query('SELECT wialon_token, wialon_host FROM public.agro_companies WHERE id=$1', [companyId]);
+    const c = r.rows[0];
+    if (!c?.wialon_token) return null;
+    return { token: c.wialon_token, host: c.wialon_host || 'https://hst-api.wialon.com' };
+  } catch { return null; }
+}
+
+async function wialonCall(companyId, host, svc, params) {
   const body = new URLSearchParams();
   body.append('svc', svc);
   body.append('params', JSON.stringify(params));
-  if (_wialonSid) body.append('sid', _wialonSid);
+  const sess = _wialonSessions.get(companyId);
+  if (sess?.sid) body.append('sid', sess.sid);
   const r = await fetch(host + '/wialon/ajax.html', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -1181,35 +1243,37 @@ async function wialonCall(svc, params) {
   return await r.json();
 }
 
-async function wialonLogin() {
-  const token = process.env.WIALON_TOKEN || '';
-  if (!token) return false;
-  const d = await wialonCall('token/login', { token, fl: 3 });
+async function wialonLogin(companyId) {
+  const creds = await getWialonCredentials(companyId);
+  if (!creds) return false;
+  const d = await wialonCall(companyId, creds.host, 'token/login', { token: creds.token, fl: 3 });
   if (d.error) { console.error('[Wialon] Login error:', d.error); return false; }
-  _wialonSid = d.eid;
-  _wialonSidExpiry = Date.now() + 4 * 60 * 1000; // 4 min
-  console.log('[Wialon] Logged in');
+  _wialonSessions.set(companyId, { sid: d.eid, expiry: Date.now() + 4 * 60 * 1000, host: creds.host }); // 4 min
+  console.log(`[Wialon] Logged in (company ${companyId})`);
   return true;
 }
 
-async function wialonEnsureSession() {
-  if (!_wialonSid || Date.now() > _wialonSidExpiry) {
-    return await wialonLogin();
+async function wialonEnsureSession(companyId) {
+  const sess = _wialonSessions.get(companyId);
+  if (!sess || Date.now() > sess.expiry) {
+    return await wialonLogin(companyId);
   }
   return true;
 }
 
 // GET /api/wialon/live — позиции всех единиц
 app.get('/api/wialon/live', auth, async (req, res) => {
+  const companyId = req.user.companyId || 1;
   try {
-    const ok = await wialonEnsureSession();
+    const ok = await wialonEnsureSession(companyId);
     if (!ok) return res.json({ ok: false, devices: [], error: 'Wialon not configured' });
+    const sess = _wialonSessions.get(companyId);
 
     // Получить список единиц с последними позициями
-    const d = await wialonCall('core/search_items', {
+    const d = await wialonCall(companyId, sess.host, 'core/search_items', {
       spec: { itemsType:'avl_unit', propName:'sys_name', propValueMask:'*', sortType:'sys_name' },
       force: 1, flags: 1025, from: 0, to: 0,
-      sid: _wialonSid,
+      sid: sess.sid,
     });
 
     const items = d.items || [];
@@ -1229,18 +1293,16 @@ app.get('/api/wialon/live', auth, async (req, res) => {
     res.json({ ok: true, devices });
   } catch(e) {
     console.error('[Wialon] live error:', e.message);
-    // Try re-login
-    _wialonSid = null;
+    _wialonSessions.delete(companyId); // Try re-login next time
     res.json({ ok: false, devices: [], error: e.message });
   }
 });
 
 // ── Wialon API токен ──────────────────────────────────────────────────────
-app.get('/api/wialon/token', auth, (req, res) => {
-  const token = process.env.WIALON_TOKEN || '';
-  const host  = process.env.WIALON_HOST  || 'https://hst-api.wialon.com';
-  if (!token) return res.json({ ok: false, token: null });
-  res.json({ ok: true, token, host });
+app.get('/api/wialon/token', auth, async (req, res) => {
+  const creds = await getWialonCredentials(req.user.companyId || 1);
+  if (!creds) return res.json({ ok: false, token: null });
+  res.json({ ok: true, token: creds.token, host: creds.host });
 });
 
 
@@ -1308,9 +1370,11 @@ app.get('/api/gps/stops', async (req, res) => {
 
 // GET /api/wialon/track/:unit_id — трек единицы за сегодня
 app.get('/api/wialon/track/:unit_id', auth, async (req, res) => {
+  const companyId = req.user.companyId || 1;
   try {
-    const ok = await wialonEnsureSession();
+    const ok = await wialonEnsureSession(companyId);
     if (!ok) return res.json({ ok: false, points: [] });
+    const sess = _wialonSessions.get(companyId);
 
     const unitId = parseInt(req.params.unit_id);
     const hoursBack = parseInt(req.query.hours) || 12;
@@ -1323,16 +1387,15 @@ app.get('/api/wialon/track/:unit_id', auth, async (req, res) => {
       itemId: unitId, timeFrom, timeTo,
       flags: 1, flagsMask: 1, loadCount: 10000
     }));
-    body.append('sid', _wialonSid);
+    body.append('sid', sess.sid);
 
-    const host = process.env.WIALON_HOST || 'https://hst-api.wialon.com';
-    const r = await fetch(host + '/wialon/ajax.html', {
+    const r = await fetch(sess.host + '/wialon/ajax.html', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: body.toString(),
     });
     const d = await r.json();
-    if (d.error) { _wialonSid = null; return res.json({ ok: false, points: [], error: d.error }); }
+    if (d.error) { _wialonSessions.delete(companyId); return res.json({ ok: false, points: [], error: d.error }); }
 
     const msgs = d.messages || [];
     const points = msgs
@@ -1353,19 +1416,20 @@ app.get('/api/wialon/track/:unit_id', auth, async (req, res) => {
 
 // DEBUG: Wialon raw messages - try multiple methods
 app.get('/api/wialon/debug/:unit_id', auth, async (req, res) => {
+  const companyId = req.user.companyId || 1;
   try {
-    const ok = await wialonEnsureSession();
+    const ok = await wialonEnsureSession(companyId);
     if (!ok) return res.json({ ok: false, error: 'No session' });
+    const sess = _wialonSessions.get(companyId);
     const unitId = parseInt(req.params.unit_id);
-    const host = process.env.WIALON_HOST || 'https://hst-api.wialon.com';
     const results = {};
 
     // Method 1: load_last 10 messages
     const b1 = new URLSearchParams();
     b1.append('svc', 'messages/load_last');
     b1.append('params', JSON.stringify({ itemId: unitId, lastTime: 0, lastCount: 10, flags: 1, flagsMask: 255 }));
-    b1.append('sid', _wialonSid);
-    const r1 = await fetch(host + '/wialon/ajax.html', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: b1.toString() });
+    b1.append('sid', sess.sid);
+    const r1 = await fetch(sess.host + '/wialon/ajax.html', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: b1.toString() });
     results.load_last = await r1.json();
 
     // Method 2: load_interval with different flags
@@ -1374,11 +1438,11 @@ app.get('/api/wialon/debug/:unit_id', auth, async (req, res) => {
     const b2 = new URLSearchParams();
     b2.append('svc', 'messages/load_interval');
     b2.append('params', JSON.stringify({ itemId: unitId, timeFrom, timeTo, flags: 0x0001, flagsMask: 0x0001, loadCount: 50 }));
-    b2.append('sid', _wialonSid);
-    const r2 = await fetch(host + '/wialon/ajax.html', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: b2.toString() });
+    b2.append('sid', sess.sid);
+    const r2 = await fetch(sess.host + '/wialon/ajax.html', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: b2.toString() });
     results.load_interval = await r2.json();
 
-    res.json({ results, sid: _wialonSid, unitId, timeFrom, timeTo });
+    res.json({ results, sid: sess.sid, unitId, timeFrom, timeTo });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -1421,21 +1485,33 @@ function fcDatePath(station, days) {
 
 
 async function syncWeatherCron() {
-  if (!FC_PUBLIC || !FC_PRIVATE) return;
   console.log('[cron] Starting weather sync...');
-  const stations = [
-    { id: FC_STATION || '00002158', key: 'orchard' },
-    { id: process.env.FIELDCLIMATE_STATION_VEG || '0020BCDC', key: 'vegetable' },
-  ];
+  const stations = [];
+  if (FC_PUBLIC && FC_PRIVATE) {
+    stations.push({ id: FC_STATION || '00002158', pub: FC_PUBLIC, priv: FC_PRIVATE, companyId: 1 });
+    const vegPub  = process.env.FIELDCLIMATE_PUBLIC_KEY_VEG  || '';
+    const vegPriv = process.env.FIELDCLIMATE_PRIVATE_KEY_VEG || '';
+    if (vegPub && vegPriv) {
+      stations.push({ id: process.env.FIELDCLIMATE_STATION_VEG || '0020BCDC', pub: vegPub, priv: vegPriv, companyId: 1 });
+    }
+  }
+  // Компании со своими ключами FieldClimate (не KKZ)
+  try {
+    const r = await db.query(`
+      SELECT id, fc_public_key, fc_private_key, fc_station_id FROM public.agro_companies
+      WHERE id <> 1 AND fc_public_key IS NOT NULL AND fc_private_key IS NOT NULL AND fc_station_id IS NOT NULL
+    `);
+    for (const c of r.rows) {
+      stations.push({ id: c.fc_station_id, pub: c.fc_public_key, priv: c.fc_private_key, companyId: c.id });
+    }
+  } catch(e) { console.warn('[cron] company stations lookup:', e.message); }
+
   for (const st of stations) {
     try {
-      const fcPub  = st.key === 'orchard' ? FC_PUBLIC  : (process.env.FIELDCLIMATE_PUBLIC_KEY_VEG  || '');
-      const fcPriv = st.key === 'orchard' ? FC_PRIVATE : (process.env.FIELDCLIMATE_PRIVATE_KEY_VEG || '');
-      if (!fcPub || !fcPriv) continue;
       const path = `/ag-grid/${st.id}/daily/last/7`;
       const date = new Date().toUTCString();
-      const sig  = crypto.createHmac('sha256', fcPriv).update('POST' + path + date + fcPub).digest('hex');
-      const headers = { 'Accept':'application/json', 'Authorization':`hmac ${fcPub}:${sig}`, 'Request-Date':date, 'Content-Type':'application/json' };
+      const sig  = crypto.createHmac('sha256', st.priv).update('POST' + path + date + st.pub).digest('hex');
+      const headers = { 'Accept':'application/json', 'Authorization':`hmac ${st.pub}:${sig}`, 'Request-Date':date, 'Content-Type':'application/json' };
       const r = await fetch('https://api.fieldclimate.com/v2' + path, { method:'POST', headers, body:'{}' });
       if (!r.ok) { console.warn(`[cron] FC ${st.id}: ${r.status}`); continue; }
       const fcData = await r.json();
@@ -1457,12 +1533,12 @@ async function syncWeatherCron() {
       for (const row of rows) {
         await db.query(`
           INSERT INTO public.weather (company_id,date,station,tmax,tmin,tavg,humidity,precip,wind,et0,updated_at)
-          VALUES (1,$1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW())
           ON CONFLICT (company_id,date,station) DO UPDATE SET
             tmax=EXCLUDED.tmax, tmin=EXCLUDED.tmin, tavg=EXCLUDED.tavg,
             humidity=EXCLUDED.humidity, precip=EXCLUDED.precip,
             wind=EXCLUDED.wind, et0=COALESCE(EXCLUDED.et0, public.weather.et0), updated_at=NOW()
-        `, [row.date, st.id,
+        `, [st.companyId, row.date, st.id,
             row.tmax !== null ? Math.round(row.tmax*10)/10 : null,
             row.tmin !== null ? Math.round(row.tmin*10)/10 : null,
             row.tavg !== null ? Math.round(row.tavg*10)/10 : null,

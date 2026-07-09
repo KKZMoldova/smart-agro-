@@ -78,6 +78,45 @@ function openCompanyDetail(companyId, name) {
   document.getElementById('admin-company-detail').style.display = 'block';
   renderAdminUsers();
   renderAdminCropAccess();
+  renderAdminIntegrations();
+}
+
+// ═══ ИНТЕГРАЦИИ (своя метеостанция / GPS на компанию) ═══════════════════
+async function renderAdminIntegrations() {
+  const statusEl = document.getElementById('admin-integrations-status');
+  ['int-fc-public','int-fc-private','int-fc-station','int-wialon-token','int-wialon-host'].forEach(id => document.getElementById(id).value = '');
+  if (!_adminCurrentCompanyId || !statusEl) return;
+  statusEl.innerHTML = '<div style="color:var(--text3);font-size:12px;">Загрузка...</div>';
+  try {
+    const r = await fetch('/api/admin/companies', { headers: getAuthHeaders() });
+    const d = await r.json();
+    if (!d.ok) { statusEl.innerHTML = ''; return; }
+    const c = d.data.find(x => x.id === _adminCurrentCompanyId);
+    if (!c) { statusEl.innerHTML = ''; return; }
+    statusEl.innerHTML = `
+      <span class="badge ${c.hasWeatherStation ? 'badge-green' : 'badge-gray'}">🌡️ Метеостанция: ${c.hasWeatherStation ? 'подключена' : 'не настроена'}</span>
+      <span class="badge ${c.hasGps ? 'badge-green' : 'badge-gray'}">🛰️ GPS: ${c.hasGps ? 'подключен' : 'не настроен'}</span>
+    `;
+  } catch(e) { statusEl.innerHTML = `<div style="color:var(--red);font-size:12px;">${e.message}</div>`; }
+}
+
+async function saveIntegrations() {
+  if (!_adminCurrentCompanyId) return;
+  const body = {
+    fcPublicKey: document.getElementById('int-fc-public').value.trim(),
+    fcPrivateKey: document.getElementById('int-fc-private').value.trim(),
+    fcStationId: document.getElementById('int-fc-station').value.trim(),
+    wialonToken: document.getElementById('int-wialon-token').value.trim(),
+    wialonHost: document.getElementById('int-wialon-host').value.trim(),
+  };
+  try {
+    const r = await fetch(`/api/admin/companies/${_adminCurrentCompanyId}/integrations`, {
+      method:'PUT', headers: getAuthHeaders(), body: JSON.stringify(body)
+    });
+    const d = await r.json();
+    if (!d.ok) { alert('Ошибка: ' + d.error); return; }
+    renderAdminIntegrations();
+  } catch(e) { alert('Ошибка: ' + e.message); }
 }
 
 // ═══ ПОЛЬЗОВАТЕЛИ ═══════════════════════════════════════════════════════
