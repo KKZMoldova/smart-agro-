@@ -108,7 +108,7 @@ async function hasCropAccess(companyId, cropId) {
   if (!companyId) return true; // легаси/дев-режим без компании — не ограничиваем
   try {
     const r = await db.query(
-      `SELECT status, trial_expires_at FROM public.company_crop_access WHERE company_id=$1 AND crop_id=$2`,
+      `SELECT status, trial_expires_at FROM public.agro_crop_access WHERE company_id=$1 AND crop_id=$2`,
       [companyId, cropId]
     );
     const row = r.rows[0];
@@ -196,30 +196,30 @@ async function initDB() {
       id TEXT PRIMARY KEY, status TEXT DEFAULT 'new', data JSONB,
       created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
     );
-    CREATE TABLE IF NOT EXISTS public.companies (
+    CREATE TABLE IF NOT EXISTS public.agro_companies (
       id SERIAL PRIMARY KEY, name TEXT NOT NULL,
       status TEXT DEFAULT 'active',
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
-    CREATE TABLE IF NOT EXISTS public.users (
+    CREATE TABLE IF NOT EXISTS public.agro_users (
       id SERIAL PRIMARY KEY,
-      company_id INTEGER REFERENCES public.companies(id),
+      company_id INTEGER REFERENCES public.agro_companies(id),
       username TEXT UNIQUE NOT NULL,
       password_hash TEXT NOT NULL,
       role TEXT NOT NULL,
       active BOOLEAN DEFAULT true,
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
-    CREATE TABLE IF NOT EXISTS public.company_crop_access (
+    CREATE TABLE IF NOT EXISTS public.agro_crop_access (
       id SERIAL PRIMARY KEY,
-      company_id INTEGER REFERENCES public.companies(id),
+      company_id INTEGER REFERENCES public.agro_companies(id),
       crop_id TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'trial',
       trial_started_at DATE,
       trial_expires_at DATE,
-      paid_confirmed_by INTEGER REFERENCES public.users(id),
+      paid_confirmed_by INTEGER REFERENCES public.agro_users(id),
       paid_confirmed_at TIMESTAMPTZ,
-      enabled_by INTEGER REFERENCES public.users(id),
+      enabled_by INTEGER REFERENCES public.agro_users(id),
       enabled_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ DEFAULT NOW(),
       UNIQUE(company_id, crop_id)
@@ -235,23 +235,23 @@ async function initDB() {
 async function migrateMultiTenant() {
   const TENANT_TABLES = ['state','treatments','analyses','catalog','equipment','attachments','staff','tasks','weather'];
   for (const t of TENANT_TABLES) {
-    await db.query(`ALTER TABLE public.${t} ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES public.companies(id)`).catch(()=>{});
+    await db.query(`ALTER TABLE public.${t} ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES public.agro_companies(id)`).catch(()=>{});
   }
-  await db.query(`INSERT INTO public.companies (id, name) VALUES (1, 'KKZ (основная ферма)') ON CONFLICT (id) DO NOTHING`).catch(()=>{});
-  await db.query(`SELECT setval('public.companies_id_seq', GREATEST((SELECT COALESCE(MAX(id),1) FROM public.companies), 1))`).catch(()=>{});
+  await db.query(`INSERT INTO public.agro_companies (id, name) VALUES (1, 'KKZ (основная ферма)') ON CONFLICT (id) DO NOTHING`).catch(()=>{});
+  await db.query(`SELECT setval('public.agro_agro_companies_id_seq', GREATEST((SELECT COALESCE(MAX(id),1) FROM public.agro_companies), 1))`).catch(()=>{});
   // Стартовый логин владельца KKZ — без него после введения реального логина
   // зайти в уже работающий сайт будет некому. Пароль берётся из ENV, либо
   // генерируется случайно при первом запуске и печатается только в лог —
   // в коде никакого реального пароля не хранится.
   try {
     const adminUsername = process.env.ADMIN_USERNAME || 'admin';
-    const hasAdmin = await db.query('SELECT id FROM public.users WHERE company_id=1 LIMIT 1');
+    const hasAdmin = await db.query('SELECT id FROM public.agro_users WHERE company_id=1 LIMIT 1');
     if (!hasAdmin.rows.length) {
       const generated = crypto.randomBytes(9).toString('base64url');
       const adminPassword = process.env.ADMIN_PASSWORD || generated;
       const hash = await hashPassword(adminPassword);
       await db.query(
-        `INSERT INTO public.users (company_id, username, password_hash, role) VALUES (1,$1,$2,'owner') ON CONFLICT (username) DO NOTHING`,
+        `INSERT INTO public.agro_users (company_id, username, password_hash, role) VALUES (1,$1,$2,'owner') ON CONFLICT (username) DO NOTHING`,
         [adminUsername, hash]
       );
       console.log(`[DB] Bootstrap admin created — login: ${adminUsername}${process.env.ADMIN_PASSWORD ? ' / пароль из ADMIN_PASSWORD' : ` / пароль: ${adminPassword} (сохраните и смените после входа!)`}`);
@@ -267,7 +267,7 @@ async function migrateMultiTenant() {
   const crops = ['crop_cherry','crop_sour_cherry','crop_apricot','crop_apple','crop_peach','crop_plum','crop_grape','crop_walnut'];
   for (const cropId of crops) {
     await db.query(
-      `INSERT INTO public.company_crop_access (company_id, crop_id, status) VALUES (1, $1, 'paid') ON CONFLICT (company_id, crop_id) DO NOTHING`,
+      `INSERT INTO public.agro_crop_access (company_id, crop_id, status) VALUES (1, $1, 'paid') ON CONFLICT (company_id, crop_id) DO NOTHING`,
       [cropId]
     ).catch(()=>{});
   }
@@ -291,12 +291,12 @@ app.post('/api/auth/login-company', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).json({ ok:false, error:'Введите логин и пароль' });
   try {
-    const r = await db.query('SELECT * FROM public.users WHERE username=$1 AND active=true', [String(username).trim()]);
+    const r = await db.query('SELECT * FROM public.agro_users WHERE username=$1 AND active=true', [String(username).trim()]);
     const user = r.rows[0];
     if (!user) return res.status(401).json({ ok:false, error:'Неверный логин или пароль' });
     const valid = await verifyPassword(password, user.password_hash);
     if (!valid) return res.status(401).json({ ok:false, error:'Неверный логин или пароль' });
-    const companyR = await db.query('SELECT * FROM public.companies WHERE id=$1', [user.company_id]);
+    const companyR = await db.query('SELECT * FROM public.agro_companies WHERE id=$1', [user.company_id]);
     const company = companyR.rows[0];
     if (company && company.status !== 'active') return res.status(403).json({ ok:false, error:'Доступ компании приостановлен' });
     const token = signToken({ userId: user.id, companyId: user.company_id, role: user.role });
@@ -326,7 +326,7 @@ function requireRole(...roles) {
 
 app.get('/api/admin/companies', auth, requireRole('owner'), async (req, res) => {
   try {
-    const r = await db.query('SELECT id, name, status, created_at FROM public.companies ORDER BY created_at');
+    const r = await db.query('SELECT id, name, status, created_at FROM public.agro_companies ORDER BY created_at');
     res.json({ ok:true, data: r.rows });
   } catch(e) { res.status(500).json({ ok:false, error:e.message }); }
 });
@@ -335,13 +335,13 @@ app.post('/api/admin/companies', auth, requireRole('owner'), async (req, res) =>
   const { name, username, password, role } = req.body;
   if (!name) return res.status(400).json({ ok:false, error:'Введите название компании' });
   try {
-    const c = await db.query('INSERT INTO public.companies (name) VALUES ($1) RETURNING id, name, status, created_at', [name]);
+    const c = await db.query('INSERT INTO public.agro_companies (name) VALUES ($1) RETURNING id, name, status, created_at', [name]);
     const company = c.rows[0];
     let user = null;
     if (username && password) {
       const hash = await hashPassword(password);
       const u = await db.query(
-        'INSERT INTO public.users (company_id, username, password_hash, role) VALUES ($1,$2,$3,$4) RETURNING id, username, role, active',
+        'INSERT INTO public.agro_users (company_id, username, password_hash, role) VALUES ($1,$2,$3,$4) RETURNING id, username, role, active',
         [company.id, String(username).trim(), hash, role || 'owner']
       );
       user = u.rows[0];
@@ -354,8 +354,8 @@ app.get('/api/admin/users', auth, requireRole('owner'), async (req, res) => {
   const companyId = req.query.companyId ? parseInt(req.query.companyId) : null;
   try {
     const r = companyId
-      ? await db.query('SELECT id, company_id, username, role, active, created_at FROM public.users WHERE company_id=$1 ORDER BY created_at', [companyId])
-      : await db.query('SELECT id, company_id, username, role, active, created_at FROM public.users ORDER BY created_at');
+      ? await db.query('SELECT id, company_id, username, role, active, created_at FROM public.agro_users WHERE company_id=$1 ORDER BY created_at', [companyId])
+      : await db.query('SELECT id, company_id, username, role, active, created_at FROM public.agro_users ORDER BY created_at');
     res.json({ ok:true, data: r.rows });
   } catch(e) { res.status(500).json({ ok:false, error:e.message }); }
 });
@@ -366,7 +366,7 @@ app.post('/api/admin/users', auth, requireRole('owner'), async (req, res) => {
   try {
     const hash = await hashPassword(password);
     const u = await db.query(
-      'INSERT INTO public.users (company_id, username, password_hash, role) VALUES ($1,$2,$3,$4) RETURNING id, company_id, username, role, active',
+      'INSERT INTO public.agro_users (company_id, username, password_hash, role) VALUES ($1,$2,$3,$4) RETURNING id, company_id, username, role, active',
       [companyId, String(username).trim(), hash, role]
     );
     res.json({ ok:true, user: u.rows[0] });
@@ -376,7 +376,7 @@ app.post('/api/admin/users', auth, requireRole('owner'), async (req, res) => {
 app.put('/api/admin/users/:id', auth, requireRole('owner'), async (req, res) => {
   const { active, role } = req.body;
   try {
-    await db.query('UPDATE public.users SET active=COALESCE($2,active), role=COALESCE($3,role) WHERE id=$1', [req.params.id, active, role]);
+    await db.query('UPDATE public.agro_users SET active=COALESCE($2,active), role=COALESCE($3,role) WHERE id=$1', [req.params.id, active, role]);
     res.json({ ok:true });
   } catch(e) { res.status(500).json({ ok:false, error:e.message }); }
 });
@@ -387,7 +387,7 @@ app.get('/api/admin/crop-access', auth, requireRole('owner','accountant'), async
   const companyId = parseInt(req.query.companyId);
   if (!companyId) return res.status(400).json({ ok:false, error:'Укажите companyId' });
   try {
-    const r = await db.query('SELECT * FROM public.company_crop_access WHERE company_id=$1', [companyId]);
+    const r = await db.query('SELECT * FROM public.agro_crop_access WHERE company_id=$1', [companyId]);
     const byCrop = Object.fromEntries(r.rows.map(row => [row.crop_id, row]));
     const data = ALL_CROP_IDS.map(cropId => byCrop[cropId] || { company_id: companyId, crop_id: cropId, status: 'none' });
     res.json({ ok:true, data });
@@ -402,7 +402,7 @@ app.post('/api/admin/crop-access/trial', auth, requireRole('owner'), async (req,
   if (!(days > 0) || days > 365) return res.status(400).json({ ok:false, error:'Пробный период не может быть больше 365 дней' });
   try {
     await db.query(`
-      INSERT INTO public.company_crop_access (company_id, crop_id, status, trial_started_at, trial_expires_at)
+      INSERT INTO public.agro_crop_access (company_id, crop_id, status, trial_started_at, trial_expires_at)
       VALUES ($1,$2,'trial',$3,$4)
       ON CONFLICT (company_id, crop_id) DO UPDATE SET status='trial', trial_started_at=$3, trial_expires_at=$4
     `, [companyId, cropId, trialStartedAt, trialExpiresAt]);
@@ -416,7 +416,7 @@ app.post('/api/admin/crop-access/confirm-payment', auth, requireRole('owner','ac
   if (!companyId || !cropId) return res.status(400).json({ ok:false, error:'Укажите компанию и культуру' });
   try {
     await db.query(`
-      INSERT INTO public.company_crop_access (company_id, crop_id, status, paid_confirmed_by, paid_confirmed_at)
+      INSERT INTO public.agro_crop_access (company_id, crop_id, status, paid_confirmed_by, paid_confirmed_at)
       VALUES ($1,$2,'trial',$3,NOW())
       ON CONFLICT (company_id, crop_id) DO UPDATE SET paid_confirmed_by=$3, paid_confirmed_at=NOW()
     `, [companyId, cropId, req.user.userId || null]);
@@ -429,10 +429,10 @@ app.post('/api/admin/crop-access/enable', auth, requireRole('owner'), async (req
   const { companyId, cropId } = req.body;
   if (!companyId || !cropId) return res.status(400).json({ ok:false, error:'Укажите компанию и культуру' });
   try {
-    const r = await db.query('SELECT paid_confirmed_at FROM public.company_crop_access WHERE company_id=$1 AND crop_id=$2', [companyId, cropId]);
+    const r = await db.query('SELECT paid_confirmed_at FROM public.agro_crop_access WHERE company_id=$1 AND crop_id=$2', [companyId, cropId]);
     if (!r.rows[0]?.paid_confirmed_at) return res.status(400).json({ ok:false, error:'Сначала бухгалтер должен подтвердить оплату' });
     await db.query(`
-      UPDATE public.company_crop_access SET status='paid', enabled_by=$3, enabled_at=NOW()
+      UPDATE public.agro_crop_access SET status='paid', enabled_by=$3, enabled_at=NOW()
       WHERE company_id=$1 AND crop_id=$2
     `, [companyId, cropId, req.user.userId || null]);
     res.json({ ok:true });
@@ -444,7 +444,7 @@ app.post('/api/admin/crop-access/disable', auth, requireRole('owner'), async (re
   if (!companyId || !cropId) return res.status(400).json({ ok:false, error:'Укажите компанию и культуру' });
   try {
     await db.query(`
-      INSERT INTO public.company_crop_access (company_id, crop_id, status) VALUES ($1,$2,'disabled')
+      INSERT INTO public.agro_crop_access (company_id, crop_id, status) VALUES ($1,$2,'disabled')
       ON CONFLICT (company_id, crop_id) DO UPDATE SET status='disabled'
     `, [companyId, cropId]);
     res.json({ ok:true });
