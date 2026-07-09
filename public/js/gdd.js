@@ -1,6 +1,33 @@
 // Smart Agro — gdd.js
 // ═══ ТЕХНОЛОГИЧЕСКАЯ КАРТА BBCH ════════════════════════════════════════
 
+// Глоссарий жаргона для начинающего агронома — подсказки по наведению (title=),
+// не меняет сам текст, только добавляет объяснение термина при ховере.
+const GLOSSARY = {
+  'BBCH': 'Международная шкала фенофаз растений (00–99) — стандарт описания стадий развития',
+  'GDD':  'Growing Degree Days — сумма эффективных температур с начала отсчёта; определяет наступление фенофазы точнее календарной даты',
+  'DD':   'Degree Days — то же самое, что GDD: накопленные градусо-дни от базовой температуры',
+  'Kc':   'Коэффициент культуры (crop coefficient) — множитель к эталонной эвапотранспирации ET₀ для расчёта реальной потребности растения в воде: ETc = ET₀ × Kc',
+  'FRAC': 'Fungicide Resistance Action Committee — код группы действия фунгицида; ротация групп предотвращает резистентность патогена',
+  'IRAC': 'Insecticide Resistance Action Committee — код группы действия инсектицида; аналогично FRAC, но для вредителей',
+  'PHI':  'Pre-Harvest Interval — срок ожидания: минимальное число дней от последней обработки до сбора урожая',
+  'REI':  'Re-Entry Interval — срок, через который человеку разрешено находиться на обработанном участке без СИЗ',
+  'ppm':  'parts per million — частей на миллион (мг/кг или мг/л), единица малых концентраций',
+};
+
+// Оборачивает упоминания терминов из GLOSSARY в тексте в <span title="...">,
+// чтобы новичок мог навести курсор и увидеть расшифровку, не гугля термин.
+function glossify(text) {
+  if (!text || typeof text !== 'string') return text;
+  let out = text;
+  Object.keys(GLOSSARY).forEach(term => {
+    // ppm часто пишут слитно с числом ("20ppm") — там нет левой \b, разрешаем и это
+    const re = new RegExp(`(?:\\b|(?<=\\d))${term}\\b`, 'g');
+    out = out.replace(re, `<span title="${GLOSSARY[term].replace(/"/g,'&quot;')}" style="border-bottom:1px dotted var(--text3);cursor:help;">${term}</span>`);
+  });
+  return out;
+}
+
 function switchGddSub(sub) {
   ['gdd','techmap','phaselog'].forEach(s => {
     const panel = document.getElementById('gddsub-panel-'+s);
@@ -357,7 +384,7 @@ function renderTodayActionsHtml(today) {
     ${shown.length ? shown.map(it=>`
       <div style="display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-bottom:1px solid var(--border);">
         <span style="flex-shrink:0;font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;background:${LEVEL_COLOR[it.level]};color:#000;white-space:nowrap;">${LEVEL_LABEL[it.level]||it.level}</span>
-        <div style="flex:1;font-size:12px;color:var(--text2);"><strong>${it.title}</strong>${it.text?' — '+it.text:''}</div>
+        <div style="flex:1;font-size:12px;color:var(--text2);"><strong>${glossify(it.title)}</strong>${it.text?' — '+glossify(it.text):''}</div>
       </div>`).join('') : '<div style="font-size:12px;color:var(--text3);">Активных действий нет — фаза в штатном режиме.</div>'}
     ${today.nextPhaseAlert ? `<div style="margin-top:8px;font-size:11px;color:var(--blue);">⏭ Скоро следующая фаза «${today.nextPhaseAlert.phase.name}» — через ~${today.nextPhaseAlert.daysEstimate??'?'} дн.</div>` : ''}
   </div>`;
@@ -512,12 +539,12 @@ function renderTechmap() {
         <div style="width:12px;height:12px;border-radius:50%;background:${(crop?.phases?.[idx]||S.gddDb.standardPhases[idx])?.color||'var(--text3)'};flex-shrink:0;"></div>
         <div style="flex:1;">
           <span style="font-size:13px;font-weight:700;color:${isCurrent?'var(--accent)':'var(--text)'};">${p.phase}</span>
-          <span style="font-size:11px;color:var(--text3);margin-left:8px;">${p.bbch} · ${p.period}</span>
+          <span style="font-size:11px;color:var(--text3);margin-left:8px;">${glossify(p.bbch)} · ${p.period}</span>
           ${isCurrent?`<span style="margin-left:8px;padding:1px 8px;border-radius:8px;font-size:10px;background:var(--accent);color:#000;font-weight:700;">▶ СЕЙЧАС</span>`:''}
         </div>
         <div style="display:flex;align-items:center;gap:8px;">
           ${doneTasks>0?`<span style="font-size:11px;font-weight:600;color:${pctColor};">${doneTasks}/${p.tasks.length} ✓</span>`:''}
-          <span style="font-size:11px;color:var(--blue);">Kc ${p.kc}</span>
+          <span style="font-size:11px;color:var(--blue);">${glossify('Kc')} ${p.kc}</span>
         </div>
       </div>
       <div id="techmap-body-${phaseKey}" style="${isCurrent?'':'display:none;'}padding:16px;background:var(--surface);">
@@ -531,16 +558,16 @@ function renderTechmap() {
         </div>
         <div style="padding:10px;background:var(--surface2);border-radius:8px;margin-bottom:12px;">
           <div style="font-size:10px;color:var(--text3);margin-bottom:3px;">🌱 Питание / Фертигация</div>
-          <div style="font-size:12px;color:var(--yellow);">${p.nutrition}</div>
+          <div style="font-size:12px;color:var(--yellow);">${glossify(p.nutrition)}</div>
         </div>
         <div style="margin-bottom:12px;">
           <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">🛡️ Рекомендации по защите</div>
-          ${p.protection.map(t=>`<div style="font-size:12px;color:var(--text2);padding:3px 0 3px 12px;border-left:2px solid var(--border);">${t}</div>`).join('')}
+          ${p.protection.map(t=>`<div style="font-size:12px;color:var(--text2);padding:3px 0 3px 12px;border-left:2px solid var(--border);">${glossify(t)}</div>`).join('')}
         </div>
 
         ${p.regulators?.length?`<div style="margin-bottom:12px;">
           <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">🧪 Прореживание / регуляторы роста / защита от солнца</div>
-          ${p.regulators.map(t=>`<div style="font-size:12px;color:var(--text2);padding:3px 0 3px 12px;border-left:2px solid var(--purple, #a78bfa);">${t}</div>`).join('')}
+          ${p.regulators.map(t=>`<div style="font-size:12px;color:var(--text2);padding:3px 0 3px 12px;border-left:2px solid var(--purple, #a78bfa);">${glossify(t)}</div>`).join('')}
         </div>`:''}
 
         ${treatmentHtml}
@@ -555,7 +582,7 @@ function renderTechmap() {
                 ${done?'<span style="color:#000;font-size:11px;font-weight:700;">✓</span>':''}
               </div>
               <div style="flex:1;">
-                <div style="font-size:12px;color:${done?'var(--text3)':'var(--text2)'};${done?'text-decoration:line-through;':''}">${t}</div>
+                <div style="font-size:12px;color:${done?'var(--text3)':'var(--text2)'};${done?'text-decoration:line-through;':''}">${glossify(t)}</div>
                 ${taskLog.date?`<div style="font-size:10px;color:var(--text3);">📅 ${taskLog.date}${taskLog.comment?' · '+taskLog.comment:''}</div>`:''}
               </div>
             </div>`;
