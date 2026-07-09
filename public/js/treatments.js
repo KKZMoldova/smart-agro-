@@ -5,6 +5,45 @@
 // ORCHARD TREATMENT SYSTEM — баковые смеси, ротация, редактирование
 // ═══════════════════════════════════════════════════════════════════════════
 
+// Несовместимости в баковой смеси — по ключевым словам в названии/д.в. препарата.
+// Источники: BC Tree Fruit Production Guide (Ca-раздел), WSU Crop Protection Guide (Cu+CaCl₂).
+// Список не претендует на полноту — покрывает только уже задокументированные в технокарте случаи.
+const TANK_MIX_INCOMPATIBLE = [
+  { a:['хлорид кальция','хлористый кальц','кальция хлор','cacl2'], b:['каптан','captan'],
+    reason:'CaCl₂ несовместим с каптаном — риск ожога листа (BC Tree Fruit Guide)' },
+  { a:['хлорид кальция','хлористый кальц','кальция хлор','cacl2'], b:['карбарил','севин','sevin'],
+    reason:'CaCl₂ несовместим с карбарилом (Sevin XLR) (BC Tree Fruit Guide)' },
+  { a:['хлорид кальция','хлористый кальц','кальция хлор','cacl2'], b:['тиофанат','топсин','senator'],
+    reason:'CaCl₂ несовместим с тиофанат-метилом (Топсин/Senator) (BC Tree Fruit Guide)' },
+  { a:['хлорид кальция','хлористый кальц','кальция хлор','cacl2'], b:['магни','эпсом','mgso'],
+    reason:'CaCl₂ не совместим с препаратами Mg (BC Tree Fruit Guide)' },
+  { a:['хлорид кальция','хлористый кальц','кальция хлор','cacl2'], b:['цинк сульфат','сульфат цинка','zinc sulph','znso'],
+    reason:'CaCl₂ не совместим с препаратами Zn (BC Tree Fruit Guide)' },
+  { a:['медьсодерж','медный купорос','сuso','сupric','купроксат','бордоск'], b:['хлорид кальция','хлористый кальц','кальция хлор','cacl2'],
+    reason:'Медьсодержащий препарат нельзя смешивать с CaCl₂ — риск повреждения плода (WSU Crop Protection Guide)' },
+  { a:['ретейн','retain'], b:['naa','нaa-','этефон','ethephon'],
+    reason:'ReTain (AVG) нельзя смешивать с NAA/этефоном — противоположный эффект на этилен (BC Tree Fruit Guide)' },
+];
+
+function checkTankMixConflicts(products) {
+  const conflicts = [];
+  for (let i=0; i<products.length; i++) {
+    for (let j=i+1; j<products.length; j++) {
+      const textA = ((products[i].name||'')+' '+(products[i].active||'')).toLowerCase();
+      const textB = ((products[j].name||'')+' '+(products[j].active||'')).toLowerCase();
+      TANK_MIX_INCOMPATIBLE.forEach(rule => {
+        const matches = (list, text) => list.some(k=>text.includes(k));
+        const direct  = matches(rule.a, textA) && matches(rule.b, textB);
+        const reverse = matches(rule.a, textB) && matches(rule.b, textA);
+        if (direct || reverse) {
+          conflicts.push({ p1: products[i].name, p2: products[j].name, reason: rule.reason });
+        }
+      });
+    }
+  }
+  return conflicts;
+}
+
 // FRAC / IRAC группы для ротации (расширенный список для сада)
 const ORCHARD_RESIST = {
   'Скор':{frac:'3',g:'ДМИ Триазолы'},'Топаз':{frac:'3',g:'ДМИ Триазолы'},
@@ -682,6 +721,16 @@ function saveTreatment(){
   if(!date){alert('Введите дату');return;}
   const products=_otProductRows.filter(r=>r.name?.trim());
   if(!products.length){alert('Добавьте хотя бы один препарат');return;}
+
+  if(products.length>1){
+    const conflicts = checkTankMixConflicts(products);
+    if(conflicts.length){
+      const msg = '⚠️ Несовместимость в баковой смеси:\n\n' +
+        conflicts.map(c=>`${c.p1} + ${c.p2}\n${c.reason}`).join('\n\n') +
+        '\n\nВсё равно сохранить эту обработку?';
+      if(!confirm(msg)) return;
+    }
+  }
 
   // Use first product for backward compat fields
   const first=products[0];
