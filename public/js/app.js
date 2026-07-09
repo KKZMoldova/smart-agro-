@@ -967,6 +967,7 @@ function switchTab(tab,el){
   if(tab==='warehouse')renderWarehouse();
   if(tab==='tasks')renderTasks();
   if(tab==='ailog')renderAiLog();
+  if(tab==='admin')renderAdminCompanies();
 }
 
 // ===================== SETTINGS =====================

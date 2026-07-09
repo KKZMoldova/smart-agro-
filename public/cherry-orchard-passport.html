@@ -428,6 +428,7 @@ body > .panel.active { display: block; }
   <div class="tab" onclick="switchTab('ailog',this)">🤖 Журнал AI</div>
   <div class="tab" onclick="switchTab('doses',this)">⚗️ Дозы</div>
   <div class="tab" onclick="switchTab('settings',this)">⚙️ Настройки</div>
+  <div class="tab" onclick="switchTab('admin',this)">🛠 Админ</div>
 </div>
 
 <div class="main" style="background:var(--bg);min-height:100vh;">
@@ -3876,6 +3877,102 @@ body > .panel.active { display: block; }
   <div id="ailog-list"></div>
 </div>
 
+<!-- ═══ АДМИН: компании, пользователи, доступ по культурам ═══ -->
+<div class="panel" id="panel-admin">
+  <div class="section-hdr">
+    <h2>🛠 Компании и доступ по культурам</h2>
+    <button class="btn btn-primary btn-sm" onclick="openCompanyAddModal()">+ Новая компания</button>
+  </div>
+
+  <div id="admin-companies-list" style="margin-bottom:24px;"></div>
+
+  <div id="admin-company-detail" style="display:none;">
+    <div class="section-hdr" style="margin-top:8px;">
+      <h2 id="admin-detail-title" style="font-size:14px;">Компания</h2>
+      <button class="btn btn-secondary btn-sm" onclick="document.getElementById('admin-company-detail').style.display='none'">✕ Закрыть</button>
+    </div>
+
+    <div style="margin-bottom:20px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <h3 style="font-size:12px;color:var(--text2);">👤 Пользователи</h3>
+        <button class="btn btn-secondary btn-xs" onclick="openUserAddModal()">+ Добавить пользователя</button>
+      </div>
+      <div id="admin-users-list"></div>
+    </div>
+
+    <div>
+      <h3 style="font-size:12px;color:var(--text2);margin-bottom:8px;">🌿 Доступ по культурам</h3>
+      <div id="admin-crop-access-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Новая компания -->
+<div class="modal-overlay" id="modal-company-add">
+  <div class="modal" style="max-width:420px;">
+    <h2>🏢 Новая компания</h2>
+    <div class="form-grid">
+      <div class="ff full"><label>Название компании</label><input type="text" id="cmp-name" placeholder="ООО Пример"></div>
+      <div class="ff full"><label style="color:var(--text3);font-size:10px;">Первый пользователь (необязательно, можно добавить позже)</label></div>
+      <div class="ff"><label>Логин</label><input type="text" id="cmp-username" placeholder="owner_firma"></div>
+      <div class="ff"><label>Пароль</label><input type="password" id="cmp-password"></div>
+      <div class="ff full"><label>Роль</label>
+        <select id="cmp-role">
+          <option value="owner">👑 Владелец</option>
+          <option value="agronomist">🌱 Агроном</option>
+          <option value="accountant">💼 Бухгалтер</option>
+          <option value="director">📋 Директор</option>
+          <option value="operator">⚙️ Оператор</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-company-add')">Отмена</button>
+      <button class="btn btn-primary" onclick="saveCompany()">Создать</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Новый пользователь -->
+<div class="modal-overlay" id="modal-user-add">
+  <div class="modal" style="max-width:380px;">
+    <h2>👤 Новый пользователь</h2>
+    <div class="form-grid">
+      <div class="ff full"><label>Логин</label><input type="text" id="usr-username" placeholder="agronom_firma"></div>
+      <div class="ff full"><label>Пароль</label><input type="password" id="usr-password"></div>
+      <div class="ff full"><label>Роль</label>
+        <select id="usr-role">
+          <option value="owner">👑 Владелец</option>
+          <option value="agronomist">🌱 Агроном</option>
+          <option value="accountant">💼 Бухгалтер</option>
+          <option value="director">📋 Директор</option>
+          <option value="operator">⚙️ Оператор</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-user-add')">Отмена</button>
+      <button class="btn btn-primary" onclick="saveUser()">Создать</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Пробный доступ -->
+<div class="modal-overlay" id="modal-trial-access">
+  <div class="modal" style="max-width:380px;">
+    <h2>🎁 Пробный доступ</h2>
+    <input type="hidden" id="trial-crop-id">
+    <div class="form-grid">
+      <div class="ff"><label>С даты</label><input type="date" id="trial-start"></div>
+      <div class="ff"><label>По дату (не больше года)</label><input type="date" id="trial-end"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-trial-access')">Отмена</button>
+      <button class="btn btn-primary" onclick="saveTrialAccess()">Выдать доступ</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: Комментарий агронома -->
 <div class="modal-overlay" id="modal-ai-comment">
   <div class="modal" style="max-width:500px;width:96%;">
@@ -4077,6 +4174,7 @@ body > .panel.active { display: block; }
 <script src="/js/fuel.js"></script>
 <script src="/js/import.js"></script>
 <script src="/js/tasks.js"></script>
+<script src="/js/admin.js"></script>
 <script src="/js/init.js"></script>
 <script>
 // Переопределяем switchIrrigSub чтобы рендерить историю при открытии фертигации

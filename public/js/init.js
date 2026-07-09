@@ -1,10 +1,8 @@
 // Smart Agro — init.js
-// DEV: set default token if not set
-if (!sessionStorage.getItem('agro_token') && !sessionStorage.getItem('agro_jwt')) {
-  sessionStorage.setItem('agro_token', 'dev');
-  sessionStorage.setItem('agro_jwt', 'dev');
-  sessionStorage.setItem('agro_role', 'owner');
-  sessionStorage.setItem('agro_user_name', 'Dev');
+// Без токена — на экран входа, а не сразу в приложение
+if (!sessionStorage.getItem('agro_token')) {
+  window.location.href = '/login';
+  throw new Error('Redirecting to login');
 }
 
 // ===================== INIT =====================
@@ -116,18 +114,18 @@ const ROLE_ACCESS = {
   agronomist:          ['dashboard','map','gpsmap','crops','weather','gdd','irrigation','catalog','treatments',
                         'analysis','diseases','warehouse','tasks','ailog','doses','settings'],
   owner:               ['dashboard','map','gpsmap','crops','weather','gdd','irrigation','catalog','treatments',
-                        'analysis','diseases','warehouse','tasks','ailog','doses','settings'],
+                        'analysis','diseases','warehouse','tasks','ailog','doses','settings','admin'],
   shareholder:         ['dashboard','map','gpsmap','crops','weather','gdd','irrigation','catalog','treatments',
                         'analysis','diseases','warehouse','tasks'],
   director:            ['dashboard','map','gpsmap','crops','weather','gdd','irrigation','catalog','treatments',
                         'analysis','diseases','warehouse','tasks'],
   accountant:          ['dashboard','map','crops','weather','gdd','irrigation','catalog','treatments',
-                        'analysis','diseases','warehouse','tasks'],
+                        'analysis','diseases','warehouse','tasks','admin'],
   engineer:            ['map','irrigation','warehouse','tasks','settings'],
   irrigation_engineer: ['map','weather','irrigation','analysis'],
   operator:            ['treatments','warehouse','tasks'],
   superadmin:          ['dashboard','map','gpsmap','crops','weather','gdd','irrigation','catalog','treatments',
-                        'analysis','diseases','warehouse','tasks','ailog','doses','settings'],
+                        'analysis','diseases','warehouse','tasks','ailog','doses','settings','admin'],
 };
 
 // Только просмотр для этих ролей (кнопки редактирования скрыты)
