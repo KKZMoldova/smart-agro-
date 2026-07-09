@@ -1291,6 +1291,29 @@ const FERT_PHASE_TARGETS = {
   custom: {N:0, P:0, K:0, Ca:0, Mg:0},
 };
 
+// ═══ ВЫНОС ПИТАНИЯ ПО УРОЖАЮ (альтернатива FERT_PHASE_TARGETS для культур
+// без готовой ppm-по-фазам таблицы, например яблоко) ═══════════════════════
+// Источник: WSU Tree Fruit Extension — "Fruit Tree Nutrition"
+// (treefruit.wsu.edu/orchard-management/soils-nutrition/fruit-tree-nutrition)
+// Норма = элементарные N/P/K/Ca (НЕ P₂O₅/K₂O!) на тонну собранного урожая.
+// Доза для фертигации = Вынос ÷ Эффективность (зависит от типа почвы/полива).
+const YIELD_DEMAND = {
+  crop_apple: {
+    N:  {min:0.45, max:1.05, unit:'кг/т', label:'N (элементарный)'},
+    P:  {min:0.10, max:0.20, unit:'кг/т', label:'P (элементарный, не P₂O₅)'},
+    K:  {min:1.00, max:1.95, unit:'кг/т', label:'K (элементарный, не K₂O)'},
+    Ca: {min:0.05, max:0.15, unit:'кг/т', label:'Ca'},
+  },
+};
+
+// Эффективность усвоения фертигации в зависимости от почвы/полива (WSU)
+const FERTIGATION_EFFICIENCY = [
+  {id:'loam_drip_good',  label:'Суглинок, хороший дренаж, капельный полив (>70%)', value:0.75},
+  {id:'loam_irrigated',  label:'Суглинок, регулярный полив (~60%)',                value:0.60},
+  {id:'sandy_over',      label:'Песчаная, избыточный полив (~50%)',                value:0.50},
+  {id:'sandy_coarse',    label:'Песчаная/грубая, избыточный дренаж (<40%)',        value:0.35},
+];
+
 // Листовые нормы черешни (% сухого вещества, середина лета)
 // Источник: Neilsen et al., Cherries CAB 2017, гл. 9
 const LEAF_NORMS_CHERRY = {
@@ -1372,6 +1395,8 @@ function openFertCalcModal() {
   document.getElementById('fc-parcels-row').style.display = 'none';
   document.getElementById('fc-varieties-row').style.display = 'none';
   document.getElementById('fc-selection-summary').style.display = 'none';
+  document.getElementById('fc-ppm-panel').style.display = '';
+  document.getElementById('fc-yield-panel').style.display = 'none';
 
   // Шаг 1: Кнопки культур — ВСЕ из справочника, с пометкой сколько участков заполнено
   const cropBtns = document.getElementById('fc-crop-btns');
@@ -1453,6 +1478,88 @@ function fcSelectCrop(cropId) {
   document.getElementById('fc-varieties-row').style.display = 'none';
   document.getElementById('fc-selection-summary').style.display = 'none';
   fcUpdateSummary();
+  fcTogglePanelMode(cropId);
+}
+
+// Переключает режим расчёта: ppm-по-фазам (Neilsen, только там где есть данные —
+// сейчас только черешня) или вынос-по-урожаю (WSU, когда для культуры нет
+// готовой ppm-таблицы — сейчас яблоко). Раньше здесь всегда считалось по
+// черешне независимо от выбранной культуры.
+function fcTogglePanelMode(cropId) {
+  const hasYieldModel = !!YIELD_DEMAND[cropId];
+  const ppmPanel   = document.getElementById('fc-ppm-panel');
+  const yieldPanel = document.getElementById('fc-yield-panel');
+  if(ppmPanel)   ppmPanel.style.display   = hasYieldModel ? 'none' : '';
+  if(yieldPanel) yieldPanel.style.display = hasYieldModel ? '' : 'none';
+  if(hasYieldModel) fcRenderYieldInputs(cropId);
+}
+
+function fcRenderYieldInputs(cropId) {
+  const demand = YIELD_DEMAND[cropId];
+  const el = document.getElementById('fc-yield-panel');
+  if(!el || !demand) return;
+  el.innerHTML = `
+    <div style="margin-bottom:8px;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;">🎯 Расчёт по выносу урожая (WSU)</div>
+    <div class="form-grid" style="margin-bottom:10px;">
+      <div class="ff"><label>Ожидаемая урожайность (т/га)</label>
+        <input type="number" id="fc-yield-tha" step="0.1" placeholder="напр. 40" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);"></div>
+      <div class="ff"><label>Почва / полив (эффективность усвоения)</label>
+        <select id="fc-yield-eff" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+          ${FERTIGATION_EFFICIENCY.map(e=>`<option value="${e.value}">${e.label}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <button class="btn btn-primary" style="width:100%;margin-bottom:14px;" onclick="calcYieldDemand('${cropId}')">🧮 Рассчитать дозу по выносу</button>
+    <div id="fc-yield-result"></div>
+    <div style="font-size:10px;color:var(--text3);margin-top:8px;line-height:1.5;">
+      📚 Источник: WSU Tree Fruit Extension — Fruit Tree Nutrition. Вынос указан в элементарных N/P/K/Ca
+      (P и K — НЕ P₂O₅/K₂O). Готовой ppm-по-фазам таблицы (как у черешни, Neilsen) для этой культуры пока нет —
+      расчёт даёт общую сезонную потребность, а не разбивку по фазам.
+    </div>`;
+}
+
+function calcYieldDemand(cropId) {
+  const demand = YIELD_DEMAND[cropId];
+  const resEl = document.getElementById('fc-yield-result');
+  if(!demand || !resEl) return;
+  const yieldTHa = parseFloat(document.getElementById('fc-yield-tha')?.value);
+  const eff = parseFloat(document.getElementById('fc-yield-eff')?.value) || 0.6;
+  if(!yieldTHa || yieldTHa <= 0) {
+    resEl.innerHTML = `<div style="color:var(--red);font-size:12px;">Укажите ожидаемую урожайность.</div>`;
+    return;
+  }
+  const zoneId = document.getElementById('fc-zone')?.value;
+  const zone = (S.irrigation.zones||[]).find(z=>z.id===zoneId);
+  const areaHa = zoneAreaHa(zone) || fcGetSelectionArea();
+  const rows = Object.entries(demand).map(([el, d]) => {
+    const demMin = d.min * yieldTHa, demMax = d.max * yieldTHa;
+    const doseMin = demMin / eff, doseMax = demMax / eff;
+    return { el, label:d.label, demMin, demMax, doseMin, doseMax };
+  });
+  resEl.innerHTML = `
+    <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <thead><tr style="color:var(--text3);text-align:left;">
+        <th style="padding:6px 8px;">Элемент</th>
+        <th style="padding:6px 8px;">Вынос урожаем, кг/га</th>
+        <th style="padding:6px 8px;">Доза фертигации, кг/га</th>
+        <th style="padding:6px 8px;">Всего на площадь (${areaHa.toFixed(2)} га)</th>
+      </tr></thead>
+      <tbody>
+        ${rows.map(r=>`<tr style="border-top:1px solid var(--border);">
+          <td style="padding:6px 8px;font-weight:700;">${r.label}</td>
+          <td style="padding:6px 8px;color:var(--text2);">${r.demMin.toFixed(1)}–${r.demMax.toFixed(1)}</td>
+          <td style="padding:6px 8px;color:var(--accent);font-weight:600;">${r.doseMin.toFixed(1)}–${r.doseMax.toFixed(1)}</td>
+          <td style="padding:6px 8px;color:var(--text2);">${(r.doseMin*areaHa).toFixed(0)}–${(r.doseMax*areaHa).toFixed(0)} кг</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+    </div>
+    <div style="font-size:11px;color:var(--orange);margin-top:8px;padding:8px 10px;background:rgba(245,158,11,.06);border-radius:6px;">
+      ⚠️ Это сезонная потребность целиком, без разбивки по фазам. Распределяйте дозу по фазам вручную —
+      см. рекомендации по питанию в 🧭 Технокарте (N — не форсировать после налива, Ca — с завязи каждые 7–10 дней,
+      K — упор на рост плода).
+    </div>`;
 }
 
 function fcToggleParcel(key) {
@@ -1533,8 +1640,10 @@ function fcGetSelectionArea() {
   // Возвращает суммарную площадь по текущей выборке (га)
   let ha = 0;
   if(_fcSelParcels.size === 0) {
-    // Весь сад
-    Object.values(S.cells||{}).forEach(cd => { ha += calcCellTotals(cd).totalHa||0; });
+    // Вся выбранная культура (не весь сад — раньше здесь суммировались участки всех культур)
+    Object.values(S.cells||{}).forEach(cd => {
+      if(!_fcSelCrop || (cd.cropId||'crop_cherry')===_fcSelCrop) ha += calcCellTotals(cd).totalHa||0;
+    });
   } else if(_fcSelVarieties.size === 0) {
     // Выбранные участки целиком
     _fcSelParcels.forEach(k => { ha += calcCellTotals(S.cells[k]||{}).totalHa||0; });

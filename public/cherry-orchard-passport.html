@@ -4133,64 +4133,72 @@ body > .panel.active { display: block; }
       <div class="ff"><label>Зона полива</label>
         <select id="fc-zone" onchange="onFertCalcZoneChange()" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);"></select>
       </div>
-      <div class="ff"><label>Фаза / цель</label>
-        <select id="fc-phase" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
-          <option value="veg">🌿 Вегетация (N-старт)</option>
-          <option value="flower">🌸 Цветение (Ca+B)</option>
-          <option value="fruit_set">🍒 Завязь (Ca-программа)</option>
-          <option value="fruit_growth">📈 Рост плода (K+Ca)</option>
-          <option value="ripening">🍎 Созревание (K)</option>
-          <option value="post_harvest">🍂 После сбора (P+K)</option>
-          <option value="custom">✏️ Вручную</option>
-        </select>
-      </div>
-      <div class="ff"><label>Объём бака фертигатора (л)</label>
-        <input type="number" id="fc-tank" value="200" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);"></div>
-      <div class="ff"><label>Объём воды за цикл (м³)</label>
-        <input type="number" id="fc-water-vol" step="0.1" placeholder="авто из зоны" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);"></div>
     </div>
 
-    <!-- Источник данных -->
-    <div style="margin:14px 0 8px;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;">📊 Источник данных для расчёта</div>
-    <div id="fc-analysis-source" style="padding:10px 14px;background:var(--surface2);border-radius:8px;font-size:11px;color:var(--text2);margin-bottom:14px;"></div>
+    <div id="fc-ppm-panel">
+      <div class="form-grid">
+        <div class="ff"><label>Фаза / цель</label>
+          <select id="fc-phase" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+            <option value="veg">🌿 Вегетация (N-старт)</option>
+            <option value="flower">🌸 Цветение (Ca+B)</option>
+            <option value="fruit_set">🍒 Завязь (Ca-программа)</option>
+            <option value="fruit_growth">📈 Рост плода (K+Ca)</option>
+            <option value="ripening">🍎 Созревание (K)</option>
+            <option value="post_harvest">🍂 После сбора (P+K)</option>
+            <option value="custom">✏️ Вручную</option>
+          </select>
+        </div>
+        <div class="ff"><label>Объём бака фертигатора (л)</label>
+          <input type="number" id="fc-tank" value="200" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);"></div>
+        <div class="ff"><label>Объём воды за цикл (м³)</label>
+          <input type="number" id="fc-water-vol" step="0.1" placeholder="авто из зоны" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);"></div>
+      </div>
 
-    <!-- Потребности N-P-K-Ca-Mg -->
-    <div style="margin-bottom:8px;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;">🎯 Целевые значения (ppm в рабочем растворе)</div>
-    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:14px;">
-      <div style="text-align:center;">
-        <div style="font-size:10px;color:var(--text3);margin-bottom:4px;">N</div>
-        <input type="number" id="fc-ppm-n" step="1" placeholder="ppm" style="width:100%;padding:6px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--accent);font-weight:600;text-align:center;font-size:13px;box-sizing:border-box;">
-        <div style="font-size:9px;color:var(--text3);margin-top:2px;" id="fc-water-n">из воды: —</div>
+      <!-- Источник данных -->
+      <div style="margin:14px 0 8px;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;">📊 Источник данных для расчёта</div>
+      <div id="fc-analysis-source" style="padding:10px 14px;background:var(--surface2);border-radius:8px;font-size:11px;color:var(--text2);margin-bottom:14px;"></div>
+
+      <!-- Потребности N-P-K-Ca-Mg -->
+      <div style="margin-bottom:8px;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;">🎯 Целевые значения (ppm в рабочем растворе)</div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:14px;">
+        <div style="text-align:center;">
+          <div style="font-size:10px;color:var(--text3);margin-bottom:4px;">N</div>
+          <input type="number" id="fc-ppm-n" step="1" placeholder="ppm" style="width:100%;padding:6px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--accent);font-weight:600;text-align:center;font-size:13px;box-sizing:border-box;">
+          <div style="font-size:9px;color:var(--text3);margin-top:2px;" id="fc-water-n">из воды: —</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:10px;color:var(--text3);margin-bottom:4px;">P</div>
+          <input type="number" id="fc-ppm-p" step="1" placeholder="ppm" style="width:100%;padding:6px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--accent);font-weight:600;text-align:center;font-size:13px;box-sizing:border-box;">
+          <div style="font-size:9px;color:var(--text3);margin-top:2px;" id="fc-water-p">из воды: —</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:10px;color:var(--text3);margin-bottom:4px;">K</div>
+          <input type="number" id="fc-ppm-k" step="1" placeholder="ppm" style="width:100%;padding:6px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--accent);font-weight:600;text-align:center;font-size:13px;box-sizing:border-box;">
+          <div style="font-size:9px;color:var(--text3);margin-top:2px;" id="fc-water-k">из воды: —</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:10px;color:var(--text3);margin-bottom:4px;">Ca</div>
+          <input type="number" id="fc-ppm-ca" step="1" placeholder="ppm" style="width:100%;padding:6px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--accent);font-weight:600;text-align:center;font-size:13px;box-sizing:border-box;">
+          <div style="font-size:9px;color:var(--text3);margin-top:2px;" id="fc-water-ca">из воды: —</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:10px;color:var(--text3);margin-bottom:4px;">Mg</div>
+          <input type="number" id="fc-ppm-mg" step="1" placeholder="ppm" style="width:100%;padding:6px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--accent);font-weight:600;text-align:center;font-size:13px;box-sizing:border-box;">
+          <div style="font-size:9px;color:var(--text3);margin-top:2px;" id="fc-water-mg">из воды: —</div>
+        </div>
       </div>
-      <div style="text-align:center;">
-        <div style="font-size:10px;color:var(--text3);margin-bottom:4px;">P</div>
-        <input type="number" id="fc-ppm-p" step="1" placeholder="ppm" style="width:100%;padding:6px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--accent);font-weight:600;text-align:center;font-size:13px;box-sizing:border-box;">
-        <div style="font-size:9px;color:var(--text3);margin-top:2px;" id="fc-water-p">из воды: —</div>
-      </div>
-      <div style="text-align:center;">
-        <div style="font-size:10px;color:var(--text3);margin-bottom:4px;">K</div>
-        <input type="number" id="fc-ppm-k" step="1" placeholder="ppm" style="width:100%;padding:6px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--accent);font-weight:600;text-align:center;font-size:13px;box-sizing:border-box;">
-        <div style="font-size:9px;color:var(--text3);margin-top:2px;" id="fc-water-k">из воды: —</div>
-      </div>
-      <div style="text-align:center;">
-        <div style="font-size:10px;color:var(--text3);margin-bottom:4px;">Ca</div>
-        <input type="number" id="fc-ppm-ca" step="1" placeholder="ppm" style="width:100%;padding:6px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--accent);font-weight:600;text-align:center;font-size:13px;box-sizing:border-box;">
-        <div style="font-size:9px;color:var(--text3);margin-top:2px;" id="fc-water-ca">из воды: —</div>
-      </div>
-      <div style="text-align:center;">
-        <div style="font-size:10px;color:var(--text3);margin-bottom:4px;">Mg</div>
-        <input type="number" id="fc-ppm-mg" step="1" placeholder="ppm" style="width:100%;padding:6px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--accent);font-weight:600;text-align:center;font-size:13px;box-sizing:border-box;">
-        <div style="font-size:9px;color:var(--text3);margin-top:2px;" id="fc-water-mg">из воды: —</div>
-      </div>
+
+      <!-- Кнопка расчёта -->
+      <div id="fc-phase-note" style="display:none;padding:10px 14px;border-radius:8px;border:1px solid;font-size:11px;color:var(--text3);margin-bottom:10px;line-height:1.6;"></div>
+      <div id="fc-soil-note" style="display:none;margin-bottom:10px;"></div>
+      <button class="btn btn-primary" style="width:100%;margin-bottom:14px;" onclick="calcFertDose()">🧮 Рассчитать</button>
+
+      <!-- Результат -->
+      <div id="fc-result" style="display:none;"></div>
     </div>
 
-    <!-- Кнопка расчёта -->
-    <div id="fc-phase-note" style="display:none;padding:10px 14px;border-radius:8px;border:1px solid;font-size:11px;color:var(--text3);margin-bottom:10px;line-height:1.6;"></div>
-    <div id="fc-soil-note" style="display:none;margin-bottom:10px;"></div>
-    <button class="btn btn-primary" style="width:100%;margin-bottom:14px;" onclick="calcFertDose()">🧮 Рассчитать</button>
-
-    <!-- Результат -->
-    <div id="fc-result" style="display:none;"></div>
+    <!-- Режим расчёта по выносу урожая (культуры без ppm-таблицы по фазам, напр. яблоко) -->
+    <div id="fc-yield-panel" style="display:none;"></div>
   </div>
 </div>
 
