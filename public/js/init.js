@@ -21,7 +21,7 @@ async function init(){
         const d = typeof json.data === 'string' ? JSON.parse(json.data) : json.data;
         _mergeState(d);
         console.log('[init] Loaded full state from server');
-        localStorage.setItem('cherry_v5', JSON.stringify(S));
+        localStorage.setItem(storageKey(), JSON.stringify(S));
       } else {
         await load();
       }
@@ -48,7 +48,7 @@ async function init(){
           note: 'Авто-импорт с метеостанции',
         }));
         S.weather.sort((a,b) => b.date.localeCompare(a.date));
-        localStorage.setItem('cherry_v5', JSON.stringify(S));
+        localStorage.setItem(storageKey(), JSON.stringify(S));
         console.log('[init] Weather loaded:', S.weather.length, 'days');
       }
     } catch(e) {

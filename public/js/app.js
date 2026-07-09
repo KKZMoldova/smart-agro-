@@ -682,10 +682,16 @@ async function checkServer() {
   return _serverAvailable;
 }
 
+// Ключ localStorage со своей компанией — без этого на одном компьютере
+// у разных фирм после логина в браузере мелькали бы чужие кэшированные данные.
+function storageKey() {
+  return 'cherry_v5_' + (sessionStorage.getItem('agro_company_id') || 'legacy');
+}
+
 // ── Save — dual mode: API + localStorage backup ───────────────────────────
 async function save() {
   // Always keep localStorage as backup
-  localStorage.setItem('cherry_v5', JSON.stringify(S));
+  localStorage.setItem(storageKey(), JSON.stringify(S));
 
   if (!_serverAvailable) return;
 
@@ -782,7 +788,7 @@ async function save() {
 // ── Load — API first, localStorage fallback ───────────────────────────────
 async function load() {
   // Always load localStorage first (instant, no flash)
-  const s = localStorage.getItem('cherry_v5');
+  const s = localStorage.getItem(storageKey());
   if (s) {
     try {
       const parsed = JSON.parse(s);
@@ -863,7 +869,7 @@ async function load() {
     }
 
     // Update localStorage with fresh server data
-    localStorage.setItem('cherry_v5', JSON.stringify(S));
+    localStorage.setItem(storageKey(), JSON.stringify(S));
 
   } catch(e) {
     console.warn('[load] Server sync error:', e.message);

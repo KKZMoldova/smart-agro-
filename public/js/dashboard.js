@@ -760,7 +760,7 @@ function saveSettings(){
 }
 function exportData(){const b=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='passport_sad_'+new Date().toISOString().split('T')[0]+'.json';a.click();}
 function importData(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{Object.assign(S,JSON.parse(ev.target.result));save();init();alert('Импортировано!');}catch{alert('Ошибка файла');}};r.readAsText(f);}
-function resetData(){localStorage.removeItem('cherry_v5');sessionStorage.clear();location.reload();}
+function resetData(){localStorage.removeItem(storageKey());sessionStorage.clear();location.reload();}
 
 // ===================== MODALS =====================
 function openModal(id){document.getElementById(id).classList.add('open');}

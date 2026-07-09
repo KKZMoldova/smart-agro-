@@ -281,6 +281,20 @@ async function migrateMultiTenant() {
   // свою строку с тем же key ('orchard'/'vegetable'), поэтому ключ должен быть составным.
   await db.query(`ALTER TABLE public.state DROP CONSTRAINT IF EXISTS state_pkey`).catch(()=>{});
   await db.query(`ALTER TABLE public.state ADD PRIMARY KEY (company_id, key)`).catch(()=>{});
+  // weather: (date, station) может совпасть у двух компаний с одинаковым station.
+  await db.query(`ALTER TABLE public.weather DROP CONSTRAINT IF EXISTS weather_pkey`).catch(()=>{});
+  await db.query(`ALTER TABLE public.weather ADD PRIMARY KEY (company_id, date, station)`).catch(()=>{});
+  // catalog: встроенные препараты по умолчанию (p1..p4) сохраняются с одним и
+  // тем же id у КАЖДОЙ компании — без company_id в ключе они бы затирали друг друга.
+  await db.query(`ALTER TABLE public.catalog DROP CONSTRAINT IF EXISTS catalog_pkey`).catch(()=>{});
+  await db.query(`ALTER TABLE public.catalog ADD PRIMARY KEY (company_id, id)`).catch(()=>{});
+  // settings и analysis_pdfs изначально не были в списке — добавляем отдельно.
+  await db.query(`ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES public.agro_companies(id)`).catch(()=>{});
+  await db.query(`UPDATE public.settings SET company_id=1 WHERE company_id IS NULL`).catch(()=>{});
+  await db.query(`ALTER TABLE public.settings DROP CONSTRAINT IF EXISTS settings_pkey`).catch(()=>{});
+  await db.query(`ALTER TABLE public.settings ADD PRIMARY KEY (company_id, key)`).catch(()=>{});
+  await db.query(`ALTER TABLE public.analysis_pdfs ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES public.agro_companies(id)`).catch(()=>{});
+  await db.query(`UPDATE public.analysis_pdfs SET company_id=1 WHERE company_id IS NULL`).catch(()=>{});
   const crops = ['crop_cherry','crop_sour_cherry','crop_apricot','crop_apple','crop_peach','crop_plum','crop_grape','crop_walnut'];
   for (const cropId of crops) {
     await db.query(
@@ -530,14 +544,15 @@ function fcHeaders(method, path) {
 }
 
 app.get('/api/weather', auth, async (req, res) => {
-  const days    = Math.min(parseInt(req.query.days) || 7, 400);
-  const station = req.query.station || '00002158';
+  const days      = Math.min(parseInt(req.query.days) || 7, 400);
+  const station   = req.query.station || '00002158';
+  const companyId = req.user.companyId || 1;
   try {
     const from = new Date();
     from.setDate(from.getDate() - days);
     const r = await db.query(
-      'SELECT * FROM public.weather WHERE station=$1 AND date>=$2 ORDER BY date DESC',
-      [station, from.toISOString().split('T')[0]]
+      'SELECT * FROM public.weather WHERE company_id=$1 AND station=$2 AND date>=$3 ORDER BY date DESC',
+      [companyId, station, from.toISOString().split('T')[0]]
     );
     if (r.rows.length > 0) return res.json({ ok: true, data: r.rows.map(row => ({
       ...row,
@@ -545,6 +560,10 @@ app.get('/api/weather', auth, async (req, res) => {
     })) });
   } catch(e) { console.warn('[weather] DB read:', e.message); }
 
+  // Живой запрос к FieldClimate использует ОДИН общий аккаунт (глобальные ENV) —
+  // пока у компаний нет своих метеостанций, это только для основной фермы (id=1),
+  // иначе новая компания увидела бы чужую живую погоду при пустой базе.
+  if (companyId !== 1) return res.json({ ok: true, data: [] });
   if (!FC_PUBLIC || !FC_PRIVATE) return res.json({ ok: true, data: [] });
 
   try {
@@ -620,9 +639,9 @@ app.get('/api/weather', auth, async (req, res) => {
     }));
     for (const r of rows) {
       await db.query(`
-        INSERT INTO public.weather (date,station,tmax,tmin,tavg,humidity,precip,wind,et0,updated_at)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())
-        ON CONFLICT (date,station) DO UPDATE SET
+        INSERT INTO public.weather (company_id,date,station,tmax,tmin,tavg,humidity,precip,wind,et0,updated_at)
+        VALUES (1,$1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())
+        ON CONFLICT (company_id,date,station) DO UPDATE SET
           tmax=EXCLUDED.tmax,tmin=EXCLUDED.tmin,tavg=EXCLUDED.tavg,
           humidity=EXCLUDED.humidity,precip=EXCLUDED.precip,wind=EXCLUDED.wind,updated_at=NOW()
       `, [r.date,r.station,r.tmax,r.tmin,r.tavg,r.humidity,r.precip,r.wind,r.et0]);
@@ -638,17 +657,18 @@ app.get('/api/weather', auth, async (req, res) => {
 // ── WEATHER POST (manual import) ──────────────────────────────
 app.post('/api/weather', auth, async (req, res) => {
   const rows = Array.isArray(req.body) ? req.body : [req.body];
+  const companyId = req.user.companyId || 1;
   try {
     for (const w of rows) {
       if (!w.date) continue;
       const station = w.station || '00002158';
       await db.query(`
-        INSERT INTO public.weather (date,station,tmax,tmin,tavg,humidity,precip,wind,et0,updated_at)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())
-        ON CONFLICT (date,station) DO UPDATE SET
+        INSERT INTO public.weather (company_id,date,station,tmax,tmin,tavg,humidity,precip,wind,et0,updated_at)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW())
+        ON CONFLICT (company_id,date,station) DO UPDATE SET
           tmax=EXCLUDED.tmax,tmin=EXCLUDED.tmin,tavg=EXCLUDED.tavg,
           humidity=EXCLUDED.humidity,precip=EXCLUDED.precip,updated_at=NOW()
-      `, [w.date, station, w.tmax||null, w.tmin||null, w.tavg||null,
+      `, [companyId, w.date, station, w.tmax||null, w.tmin||null, w.tavg||null,
           w.humidity||null, w.precip||0, w.wind||null, w.et0||null]);
     }
     res.json({ok:true, saved: rows.length});
@@ -657,7 +677,10 @@ app.post('/api/weather', auth, async (req, res) => {
 
 
 // ── ПРИНУДИТЕЛЬНАЯ СИНХРОНИЗАЦИЯ ПОГОДЫ ──────────────────────────────────
+// Использует общий FieldClimate-аккаунт (ENV) — пока это только для основной
+// фермы (company_id=1); у остальных компаний своих метеостанций пока нет.
 app.post('/api/sync-weather', auth, async (req, res) => {
+  if ((req.user.companyId || 1) !== 1) return res.status(403).json({ ok:false, error:'Метеостанция не настроена для этой компании' });
   const station = req.query.station || FC_STATION || '00002158';
   if (!FC_PUBLIC || !FC_PRIVATE) return res.status(500).json({ ok:false, error:'FieldClimate keys not configured' });
   try {
@@ -700,9 +723,9 @@ app.post('/api/sync-weather', auth, async (req, res) => {
     let updated = 0;
     for (const r of rows) {
       await db.query(`
-        INSERT INTO public.weather (date,station,tmax,tmin,tavg,humidity,precip,wind,et0,updated_at)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())
-        ON CONFLICT (date,station) DO UPDATE SET
+        INSERT INTO public.weather (company_id,date,station,tmax,tmin,tavg,humidity,precip,wind,et0,updated_at)
+        VALUES (1,$1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())
+        ON CONFLICT (company_id,date,station) DO UPDATE SET
           tmax=EXCLUDED.tmax, tmin=EXCLUDED.tmin, tavg=EXCLUDED.tavg,
           humidity=EXCLUDED.humidity, precip=EXCLUDED.precip,
           wind=EXCLUDED.wind,
@@ -736,9 +759,9 @@ app.post('/api/sync-weather', auth, async (req, res) => {
         if (tmax === null || tmax === undefined) continue;
         // Only fill if FC data is missing
         await db.query(`
-          INSERT INTO public.weather (date,station,tmax,tmin,tavg,humidity,precip,wind,et0,updated_at)
-          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())
-          ON CONFLICT (date,station) DO UPDATE SET
+          INSERT INTO public.weather (company_id,date,station,tmax,tmin,tavg,humidity,precip,wind,et0,updated_at)
+          VALUES (1,$1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())
+          ON CONFLICT (company_id,date,station) DO UPDATE SET
             tmax=CASE WHEN public.weather.tmax IS NULL THEN EXCLUDED.tmax ELSE public.weather.tmax END,
             tmin=CASE WHEN public.weather.tmin IS NULL THEN EXCLUDED.tmin ELSE public.weather.tmin END,
             tavg=CASE WHEN public.weather.tavg IS NULL THEN EXCLUDED.tavg ELSE public.weather.tavg END,
@@ -773,42 +796,45 @@ app.post('/api/sync-weather', auth, async (req, res) => {
 
 // ── TREATMENTS ────────────────────────────────────────────────
 app.get('/api/treatments', auth, async (req, res) => {
-  try { const r=await db.query('SELECT * FROM public.treatments ORDER BY date DESC'); res.json({ok:true,data:r.rows}); }
+  try { const r=await db.query('SELECT * FROM public.treatments WHERE company_id=$1 ORDER BY date DESC', [req.user.companyId||1]); res.json({ok:true,data:r.rows}); }
   catch(e) { res.status(500).json({ok:false,error:e.message}); }
 });
 app.post('/api/treatments', auth, async (req, res) => {
   const t=req.body;
+  const companyId = req.user.companyId || 1;
   try {
     await db.query(`
-      INSERT INTO public.treatments (id,date,product,products,type,method,volume,max_whi,whi_date,parcel_name,crop_id,note)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
-      ON CONFLICT (id) DO UPDATE SET date=$2,product=$3,products=$4,type=$5,method=$6,volume=$7,max_whi=$8,whi_date=$9,parcel_name=$10,crop_id=$11,note=$12
-    `, [String(t.id),t.date,t.product,JSON.stringify(t.products||[]),t.type,t.method,
+      INSERT INTO public.treatments (id,company_id,date,product,products,type,method,volume,max_whi,whi_date,parcel_name,crop_id,note)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+      ON CONFLICT (id) DO UPDATE SET date=$3,product=$4,products=$5,type=$6,method=$7,volume=$8,max_whi=$9,whi_date=$10,parcel_name=$11,crop_id=$12,note=$13
+    `, [String(t.id),companyId,t.date,t.product,JSON.stringify(t.products||[]),t.type,t.method,
         t.water||400,t.duration||14,t.endDate||null,t.cellTarget||'all',t.cropId||null,t.note||'']);
     res.json({ok:true});
   } catch(e) { res.status(500).json({ok:false,error:e.message}); }
 });
 app.delete('/api/treatments/:id', auth, async (req,res) => {
-  try { await db.query('DELETE FROM public.treatments WHERE id=$1',[req.params.id]); res.json({ok:true}); }
+  try { await db.query('DELETE FROM public.treatments WHERE id=$1 AND company_id=$2',[req.params.id, req.user.companyId||1]); res.json({ok:true}); }
   catch(e) { res.status(500).json({ok:false,error:e.message}); }
 });
 
 // ── ANALYSES ──────────────────────────────────────────────────
 app.get('/api/analyses', auth, async (req,res) => {
-  try { const r=await db.query('SELECT * FROM public.analyses ORDER BY date DESC'); res.json({ok:true,data:r.rows}); }
+  try { const r=await db.query('SELECT * FROM public.analyses WHERE company_id=$1 ORDER BY date DESC', [req.user.companyId||1]); res.json({ok:true,data:r.rows}); }
   catch(e) { res.status(500).json({ok:false,error:e.message}); }
 });
 app.post('/api/analyses', auth, async (req,res) => {
   const a = req.body;
   const id = String(a.id || Date.now());
+  const companyId = req.user.companyId || 1;
   // Сохраняем весь объект в data, отдельные поля для индексации
   try {
     await db.query(`
-      INSERT INTO public.analyses (id, type, date, parcel_id, lab, values, note, data)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-      ON CONFLICT (id) DO UPDATE SET type=$2, date=$3, parcel_id=$4, lab=$5, values=$6, note=$7, data=$8
+      INSERT INTO public.analyses (id, company_id, type, date, parcel_id, lab, values, note, data)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+      ON CONFLICT (id) DO UPDATE SET type=$3, date=$4, parcel_id=$5, lab=$6, values=$7, note=$8, data=$9
     `, [
       id,
+      companyId,
       a.type || 'leaf',
       a.date || null,
       a.cellKey || a.parcel_id || null,
@@ -824,10 +850,10 @@ app.post('/api/analyses', auth, async (req,res) => {
       try {
         await db.query('ALTER TABLE public.analyses ADD COLUMN IF NOT EXISTS data JSONB');
         await db.query(`
-          INSERT INTO public.analyses (id, type, date, parcel_id, lab, values, note, data)
-          VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-          ON CONFLICT (id) DO UPDATE SET type=$2, date=$3, parcel_id=$4, lab=$5, values=$6, note=$7, data=$8
-        `, [id, a.type||'leaf', a.date||null, a.cellKey||a.parcel_id||null, a.lab||'', JSON.stringify(a.values||{}), a.note||'', JSON.stringify(a)]);
+          INSERT INTO public.analyses (id, company_id, type, date, parcel_id, lab, values, note, data)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+          ON CONFLICT (id) DO UPDATE SET type=$3, date=$4, parcel_id=$5, lab=$6, values=$7, note=$8, data=$9
+        `, [id, companyId, a.type||'leaf', a.date||null, a.cellKey||a.parcel_id||null, a.lab||'', JSON.stringify(a.values||{}), a.note||'', JSON.stringify(a)]);
         return res.json({ ok: true, id });
       } catch(e2) { return res.status(500).json({ ok:false, error: e2.message }); }
     }
@@ -836,28 +862,28 @@ app.post('/api/analyses', auth, async (req,res) => {
   }
 });
 app.delete('/api/analyses/:id', auth, async (req,res) => {
-  try { await db.query('DELETE FROM public.analyses WHERE id=$1',[req.params.id]); res.json({ok:true}); }
+  try { await db.query('DELETE FROM public.analyses WHERE id=$1 AND company_id=$2',[req.params.id, req.user.companyId||1]); res.json({ok:true}); }
   catch(e) { res.status(500).json({ok:false,error:e.message}); }
 });
 
 // PDF к анализам
 app.get('/api/analyses/:id/pdfs', auth, async (req,res) => {
   try {
-    const r=await db.query('SELECT id,filename,mime_type,created_at FROM public.analysis_pdfs WHERE analysis_id=$1 ORDER BY created_at',[req.params.id]);
+    const r=await db.query('SELECT id,filename,mime_type,created_at FROM public.analysis_pdfs WHERE analysis_id=$1 AND company_id=$2 ORDER BY created_at',[req.params.id, req.user.companyId||1]);
     res.json({ok:true,data:r.rows});
   } catch(e) { res.status(500).json({ok:false,error:e.message}); }
 });
 app.post('/api/analyses/:id/pdfs', auth, upload.single('file'), async (req,res) => {
   try {
     if (!req.file) return res.status(400).json({ok:false,error:'No file'});
-    await db.query('INSERT INTO public.analysis_pdfs (analysis_id,filename,mime_type,data) VALUES ($1,$2,$3,$4)',
-      [req.params.id,req.file.originalname,req.file.mimetype,req.file.buffer]);
+    await db.query('INSERT INTO public.analysis_pdfs (analysis_id,company_id,filename,mime_type,data) VALUES ($1,$2,$3,$4,$5)',
+      [req.params.id,req.user.companyId||1,req.file.originalname,req.file.mimetype,req.file.buffer]);
     res.json({ok:true});
   } catch(e) { res.status(500).json({ok:false,error:e.message}); }
 });
 app.get('/api/analyses/:id/pdfs/:fileId/download', auth, async (req,res) => {
   try {
-    const r=await db.query('SELECT filename,mime_type,data FROM public.analysis_pdfs WHERE id=$1 AND analysis_id=$2',[req.params.fileId,req.params.id]);
+    const r=await db.query('SELECT filename,mime_type,data FROM public.analysis_pdfs WHERE id=$1 AND analysis_id=$2 AND company_id=$3',[req.params.fileId,req.params.id,req.user.companyId||1]);
     if (!r.rows.length) return res.status(404).json({ok:false});
     res.setHeader('Content-Type',r.rows[0].mime_type);
     res.setHeader('Content-Disposition',`attachment; filename="${r.rows[0].filename}"`);
@@ -865,44 +891,45 @@ app.get('/api/analyses/:id/pdfs/:fileId/download', auth, async (req,res) => {
   } catch(e) { res.status(500).json({ok:false,error:e.message}); }
 });
 app.delete('/api/analyses/:id/pdfs/:fileId', auth, async (req,res) => {
-  try { await db.query('DELETE FROM public.analysis_pdfs WHERE id=$1',[req.params.fileId]); res.json({ok:true}); }
+  try { await db.query('DELETE FROM public.analysis_pdfs WHERE id=$1 AND company_id=$2',[req.params.fileId, req.user.companyId||1]); res.json({ok:true}); }
   catch(e) { res.status(500).json({ok:false,error:e.message}); }
 });
 
 // ── CATALOG ───────────────────────────────────────────────────
 app.get('/api/catalog', auth, async (req,res) => {
-  try { const r=await db.query('SELECT * FROM public.catalog ORDER BY name'); res.json({ok:true,data:r.rows}); }
+  try { const r=await db.query('SELECT * FROM public.catalog WHERE company_id=$1 ORDER BY name', [req.user.companyId||1]); res.json({ok:true,data:r.rows}); }
   catch(e) { res.status(500).json({ok:false,error:e.message}); }
 });
 app.post('/api/catalog', auth, async (req,res) => {
   const c=req.body;
+  const companyId = req.user.companyId || 1;
   try {
     await db.query(`
-      INSERT INTO public.catalog (id,name,type,active_substance,dose,whi,frac,note)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-      ON CONFLICT (id) DO UPDATE SET name=$2,type=$3,active_substance=$4,dose=$5,whi=$6,frac=$7,note=$8
-    `, [String(c.id),c.name,c.type||'fungicide',c.activeSubstance||'',String(c.dose||'0'),parseInt(c.whi)||0,c.fracCode||'',c.note||'']);
+      INSERT INTO public.catalog (id,company_id,name,type,active_substance,dose,whi,frac,note)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+      ON CONFLICT (company_id,id) DO UPDATE SET name=$3,type=$4,active_substance=$5,dose=$6,whi=$7,frac=$8,note=$9
+    `, [String(c.id),companyId,c.name,c.type||'fungicide',c.activeSubstance||'',String(c.dose||'0'),parseInt(c.whi)||0,c.fracCode||'',c.note||'']);
     res.json({ok:true});
   } catch(e) { res.status(500).json({ok:false,error:e.message}); }
 });
 app.delete('/api/catalog/:id', auth, async (req,res) => {
-  try { await db.query('DELETE FROM public.catalog WHERE id=$1',[req.params.id]); res.json({ok:true}); }
+  try { await db.query('DELETE FROM public.catalog WHERE id=$1 AND company_id=$2',[req.params.id, req.user.companyId||1]); res.json({ok:true}); }
   catch(e) { res.status(500).json({ok:false,error:e.message}); }
 });
 
 // ── SETTINGS ──────────────────────────────────────────────────
 app.get('/api/settings/:key', auth, async (req,res) => {
   try {
-    const r=await db.query('SELECT value FROM public.settings WHERE key=$1',[req.params.key]);
+    const r=await db.query('SELECT value FROM public.settings WHERE key=$1 AND company_id=$2',[req.params.key, req.user.companyId||1]);
     res.json({ok:true,value:r.rows[0]?.value??null});
   } catch(e) { res.status(500).json({ok:false,error:e.message}); }
 });
 app.post('/api/settings/:key', auth, async (req,res) => {
   try {
     await db.query(`
-      INSERT INTO public.settings (key,value,updated_at) VALUES ($1,$2,NOW())
-      ON CONFLICT (key) DO UPDATE SET value=$2,updated_at=NOW()
-    `, [req.params.key, req.body.value??req.body]);
+      INSERT INTO public.settings (key,company_id,value,updated_at) VALUES ($1,$2,$3,NOW())
+      ON CONFLICT (company_id,key) DO UPDATE SET value=$3,updated_at=NOW()
+    `, [req.params.key, req.user.companyId||1, req.body.value??req.body]);
     res.json({ok:true});
   } catch(e) { res.status(500).json({ok:false,error:e.message}); }
 });
@@ -911,27 +938,28 @@ app.post('/api/settings/:key', auth, async (req,res) => {
 function crudRoutes(route, table, middleware) {
   const mw = middleware || auth;
   app.get(route, mw, async (req,res) => {
-    try { const r=await db.query(`SELECT * FROM public.${table} ORDER BY created_at`); res.json({ok:true,data:r.rows}); }
+    try { const r=await db.query(`SELECT * FROM public.${table} WHERE company_id=$1 ORDER BY created_at`, [req.user.companyId||1]); res.json({ok:true,data:r.rows}); }
     catch(e) { res.status(500).json({ok:false,error:e.message}); }
   });
   app.post(route, mw, async (req,res) => {
     const b=req.body; const id=b.id||String(Date.now());
+    const companyId = req.user.companyId || 1;
     try {
-      await db.query(`INSERT INTO public.${table} (id,name,type,data) VALUES ($1,$2,$3,$4) ON CONFLICT (id) DO UPDATE SET name=$2,type=$3,data=$4`,
-        [String(id),b.name||'',b.type||'',JSON.stringify(b)]);
+      await db.query(`INSERT INTO public.${table} (id,company_id,name,type,data) VALUES ($1,$2,$3,$4,$5) ON CONFLICT (id) DO UPDATE SET name=$3,type=$4,data=$5`,
+        [String(id),companyId,b.name||'',b.type||'',JSON.stringify(b)]);
       res.json({ok:true,id});
     } catch(e) { res.status(500).json({ok:false,error:e.message}); }
   });
   app.put(`${route}/:id`, mw, async (req,res) => {
     const b=req.body; const id=req.params.id;
     try {
-      await db.query(`UPDATE public.${table} SET name=$2,type=$3,data=$4 WHERE id=$1`,
-        [String(id), b.name||'', b.type||'', JSON.stringify(b)]);
+      await db.query(`UPDATE public.${table} SET name=$2,type=$3,data=$4 WHERE id=$1 AND company_id=$5`,
+        [String(id), b.name||'', b.type||'', JSON.stringify(b), req.user.companyId||1]);
       res.json({ok:true,id});
     } catch(e) { res.status(500).json({ok:false,error:e.message}); }
   });
   app.delete(`${route}/:id`, mw, async (req,res) => {
-    try { await db.query(`DELETE FROM public.${table} WHERE id=$1`,[req.params.id]); res.json({ok:true}); }
+    try { await db.query(`DELETE FROM public.${table} WHERE id=$1 AND company_id=$2`,[req.params.id, req.user.companyId||1]); res.json({ok:true}); }
     catch(e) { res.status(500).json({ok:false,error:e.message}); }
   });
 }
@@ -939,44 +967,46 @@ crudRoutes('/api/equipment',   'equipment', authOpt);
 crudRoutes('/api/attachments', 'attachments', authOpt);
 // Staff имеет role вместо type — отдельный роут
 app.get('/api/staff', authOpt, async (req,res) => {
-  try { const r=await db.query('SELECT * FROM public.staff ORDER BY created_at'); res.json({ok:true,data:r.rows}); }
+  try { const r=await db.query('SELECT * FROM public.staff WHERE company_id=$1 ORDER BY created_at', [req.user.companyId||1]); res.json({ok:true,data:r.rows}); }
   catch(e) { res.status(500).json({ok:false,error:e.message}); }
 });
 app.post('/api/staff', authOpt, async (req,res) => {
   const b=req.body; const id=b.id||String(Date.now());
+  const companyId = req.user.companyId || 1;
   try {
     // Добавляем колонку data если нет
     await db.query('ALTER TABLE public.staff ADD COLUMN IF NOT EXISTS data JSONB').catch(()=>{});
     await db.query('ALTER TABLE public.staff ADD COLUMN IF NOT EXISTS phone TEXT').catch(()=>{});
-    await db.query(`INSERT INTO public.staff (id,name,role,phone,data) VALUES ($1,$2,$3,$4,$5) ON CONFLICT (id) DO UPDATE SET name=$2,role=$3,phone=$4,data=$5`,
-      [String(id), b.name||'', b.role||b.type||'operator', b.phone||null, JSON.stringify(b)]);
+    await db.query(`INSERT INTO public.staff (id,company_id,name,role,phone,data) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (id) DO UPDATE SET name=$3,role=$4,phone=$5,data=$6`,
+      [String(id), companyId, b.name||'', b.role||b.type||'operator', b.phone||null, JSON.stringify(b)]);
     res.json({ok:true,id});
   } catch(e) { res.status(500).json({ok:false,error:e.message}); }
 });
 app.delete('/api/staff/:id', authOpt, async (req,res) => {
-  try { await db.query('DELETE FROM public.staff WHERE id=$1',[req.params.id]); res.json({ok:true}); }
+  try { await db.query('DELETE FROM public.staff WHERE id=$1 AND company_id=$2',[req.params.id, req.user.companyId||1]); res.json({ok:true}); }
   catch(e) { res.status(500).json({ok:false,error:e.message}); }
 });
 
 // ── TASKS ─────────────────────────────────────────────────────
 app.get('/api/tasks', authOpt, async (req,res) => {
-  try { const r=await db.query('SELECT * FROM public.tasks ORDER BY created_at DESC'); res.json({ok:true,data:r.rows}); }
+  try { const r=await db.query('SELECT * FROM public.tasks WHERE company_id=$1 ORDER BY created_at DESC', [req.user.companyId||1]); res.json({ok:true,data:r.rows}); }
   catch(e) { res.status(500).json({ok:false,error:e.message}); }
 });
 app.post('/api/tasks', authOpt, async (req,res) => {
   const b=req.body; const id=b.id||String(Date.now());
+  const companyId = req.user.companyId || 1;
   try {
-    await db.query(`INSERT INTO public.tasks (id,status,data) VALUES ($1,$2,$3) ON CONFLICT (id) DO UPDATE SET status=$2,data=$3,updated_at=NOW()`,
-      [String(id),b.status||'new',JSON.stringify(b)]);
+    await db.query(`INSERT INTO public.tasks (id,company_id,status,data) VALUES ($1,$2,$3,$4) ON CONFLICT (id) DO UPDATE SET status=$3,data=$4,updated_at=NOW()`,
+      [String(id),companyId,b.status||'new',JSON.stringify(b)]);
     res.json({ok:true,id});
   } catch(e) { res.status(500).json({ok:false,error:e.message}); }
 });
 app.put('/api/tasks/:id/status', authOpt, async (req,res) => {
-  try { await db.query('UPDATE public.tasks SET status=$2,updated_at=NOW() WHERE id=$1',[req.params.id,req.body.status]); res.json({ok:true}); }
+  try { await db.query('UPDATE public.tasks SET status=$2,updated_at=NOW() WHERE id=$1 AND company_id=$3',[req.params.id,req.body.status,req.user.companyId||1]); res.json({ok:true}); }
   catch(e) { res.status(500).json({ok:false,error:e.message}); }
 });
 app.delete('/api/tasks/:id', authOpt, async (req,res) => {
-  try { await db.query('DELETE FROM public.tasks WHERE id=$1',[req.params.id]); res.json({ok:true}); }
+  try { await db.query('DELETE FROM public.tasks WHERE id=$1 AND company_id=$2',[req.params.id, req.user.companyId||1]); res.json({ok:true}); }
   catch(e) { res.status(500).json({ok:false,error:e.message}); }
 });
 
@@ -1414,9 +1444,9 @@ async function syncWeatherCron() {
       }).filter(Boolean);
       for (const row of rows) {
         await db.query(`
-          INSERT INTO public.weather (date,station,tmax,tmin,tavg,humidity,precip,wind,et0,updated_at)
-          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())
-          ON CONFLICT (date,station) DO UPDATE SET
+          INSERT INTO public.weather (company_id,date,station,tmax,tmin,tavg,humidity,precip,wind,et0,updated_at)
+          VALUES (1,$1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())
+          ON CONFLICT (company_id,date,station) DO UPDATE SET
             tmax=EXCLUDED.tmax, tmin=EXCLUDED.tmin, tavg=EXCLUDED.tavg,
             humidity=EXCLUDED.humidity, precip=EXCLUDED.precip,
             wind=EXCLUDED.wind, et0=COALESCE(EXCLUDED.et0, public.weather.et0), updated_at=NOW()
