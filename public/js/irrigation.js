@@ -1303,17 +1303,20 @@ const LEAF_NORMS_CHERRY = {
   B:  {min:25,  opt:35,  max:60,  unit:'ppm',action:'Бор 0.3% листовая до цветения'},
 };
 
-// Листовые нормы яблони (% сухого вещества, отбор через 60-70 дней после Petal Fall)
-// Источник: UMass Amherst New England Tree Fruit Management Guide (netreefruit.org/apples/nutrient-management)
+// Листовые нормы яблони (% сухого вещества, отбор середина июля - середина августа)
+// Источники: UMass Amherst New England Tree Fruit Management Guide (netreefruit.org/apples/nutrient-management);
+// WSU Tree Fruit Extension, Table 4 (treefruit.wsu.edu/orchard-management/soils-nutrition/fruit-tree-nutrition) — Cu, S
 const LEAF_NORMS_APPLE = {
   N:  {min:2.2, opt:2.4, max:2.6, unit:'%', action:'КАС/аммиачная селитра почвенно; стоп за 4-6 нед. до сбора'},
   P:  {min:0.08,opt:0.20,max:0.33,unit:'%', action:'MAP/суперфосфат при почвенном дефиците'},
   K:  {min:1.2, opt:1.5, max:1.8, unit:'%', action:'Сульфат калия на налив плода (выше для Empire)'},
   Ca: {min:1.3, opt:1.6, max:2.0, unit:'%', action:'CaCl₂ некорневая с завязи каждые 7-10 дней — против bitter pit'},
   Mg: {min:0.35,opt:0.42,max:0.50,unit:'%', action:'Сульфат магния'},
+  S:  {min:0.01,opt:0.05,max:0.10,unit:'%', action:'Сульфат аммония/гипс при дефиците (WSU)'},
   Fe: {min:60,  opt:150, max:400, unit:'ppm',action:'Хелат Fe (EDTA)'},
   Mn: {min:35,  opt:70,  max:135, unit:'ppm',action:'Сульфат марганца (MnSO4)'},
   Zn: {min:25,  opt:35,  max:50,  unit:'ppm',action:'Хелат Zn (EDTA) от тесной кисти до розового бутона'},
+  Cu: {min:5,   opt:8,   max:12,  unit:'ppm',action:'CuSO₄ постфактум сбора при дефиците (WSU)'},
   B:  {min:35,  opt:42,  max:50,  unit:'ppm',action:'Solubor при полном цветении и через неделю'},
 };
 
