@@ -3915,7 +3915,12 @@ body > .panel.active { display: block; }
       <div class="ff full"><label>Название компании</label><input type="text" id="cmp-name" placeholder="ООО Пример"></div>
       <div class="ff full"><label style="color:var(--text3);font-size:10px;">Первый пользователь (необязательно, можно добавить позже)</label></div>
       <div class="ff"><label>Логин</label><input type="text" id="cmp-username" placeholder="owner_firma"></div>
-      <div class="ff"><label>Пароль</label><input type="password" id="cmp-password"></div>
+      <div class="ff"><label>Пароль</label>
+        <div style="position:relative;">
+          <input type="password" id="cmp-password" style="width:100%;padding-right:36px;">
+          <button type="button" onclick="togglePwVisibility('cmp-password',this)" style="position:absolute;right:2px;top:2px;bottom:2px;padding:0 10px;background:none;border:none;color:var(--text3);cursor:pointer;">👁</button>
+        </div>
+      </div>
       <div class="ff full"><label>Роль</label>
         <select id="cmp-role">
           <option value="owner">👑 Владелец</option>
@@ -3939,7 +3944,12 @@ body > .panel.active { display: block; }
     <h2>👤 Новый пользователь</h2>
     <div class="form-grid">
       <div class="ff full"><label>Логин</label><input type="text" id="usr-username" placeholder="agronom_firma"></div>
-      <div class="ff full"><label>Пароль</label><input type="password" id="usr-password"></div>
+      <div class="ff full"><label>Пароль</label>
+        <div style="position:relative;">
+          <input type="password" id="usr-password" style="width:100%;padding-right:36px;">
+          <button type="button" onclick="togglePwVisibility('usr-password',this)" style="position:absolute;right:2px;top:2px;bottom:2px;padding:0 10px;background:none;border:none;color:var(--text3);cursor:pointer;">👁</button>
+        </div>
+      </div>
       <div class="ff full"><label>Роль</label>
         <select id="usr-role">
           <option value="owner">👑 Владелец</option>

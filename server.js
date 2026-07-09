@@ -208,6 +208,7 @@ async function initDB() {
       password_hash TEXT NOT NULL,
       role TEXT NOT NULL,
       active BOOLEAN DEFAULT true,
+      must_change_password BOOLEAN DEFAULT false,
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
     CREATE TABLE IF NOT EXISTS public.agro_crop_access (
@@ -237,8 +238,9 @@ async function migrateMultiTenant() {
   for (const t of TENANT_TABLES) {
     await db.query(`ALTER TABLE public.${t} ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES public.agro_companies(id)`).catch(()=>{});
   }
+  await db.query(`ALTER TABLE public.agro_users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN DEFAULT false`).catch(()=>{});
   await db.query(`INSERT INTO public.agro_companies (id, name) VALUES (1, 'KKZ (основная ферма)') ON CONFLICT (id) DO NOTHING`).catch(()=>{});
-  await db.query(`SELECT setval('public.agro_agro_companies_id_seq', GREATEST((SELECT COALESCE(MAX(id),1) FROM public.agro_companies), 1))`).catch(()=>{});
+  await db.query(`SELECT setval('public.agro_companies_id_seq', GREATEST((SELECT COALESCE(MAX(id),1) FROM public.agro_companies), 1))`).catch(()=>{});
   // Стартовый логин владельца KKZ — без него после введения реального логина
   // зайти в уже работающий сайт будет некому. Пароль берётся из ENV, либо
   // генерируется случайно при первом запуске и печатается только в лог —
@@ -251,7 +253,7 @@ async function migrateMultiTenant() {
       const adminPassword = process.env.ADMIN_PASSWORD || generated;
       const hash = await hashPassword(adminPassword);
       await db.query(
-        `INSERT INTO public.agro_users (company_id, username, password_hash, role) VALUES (1,$1,$2,'owner') ON CONFLICT (username) DO NOTHING`,
+        `INSERT INTO public.agro_users (company_id, username, password_hash, role, must_change_password) VALUES (1,$1,$2,'owner',true) ON CONFLICT (username) DO NOTHING`,
         [adminUsername, hash]
       );
       console.log(`[DB] Bootstrap admin created — login: ${adminUsername}${process.env.ADMIN_PASSWORD ? ' / пароль из ADMIN_PASSWORD' : ` / пароль: ${adminPassword} (сохраните и смените после входа!)`}`);
@@ -300,7 +302,28 @@ app.post('/api/auth/login-company', async (req, res) => {
     const company = companyR.rows[0];
     if (company && company.status !== 'active') return res.status(403).json({ ok:false, error:'Доступ компании приостановлен' });
     const token = signToken({ userId: user.id, companyId: user.company_id, role: user.role });
-    res.json({ ok:true, token, role: user.role, companyId: user.company_id, companyName: company?.name || '' });
+    res.json({
+      ok:true, token, role: user.role, companyId: user.company_id, companyName: company?.name || '',
+      mustChangePassword: !!user.must_change_password,
+    });
+  } catch(e) { res.status(500).json({ ok:false, error:e.message }); }
+});
+
+// ── Смена пароля (требуется, если must_change_password=true) ────
+app.post('/api/auth/change-password', auth, async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  if (!req.user?.userId) return res.status(401).json({ ok:false, error:'Не авторизован' });
+  if (!currentPassword || !newPassword) return res.status(400).json({ ok:false, error:'Заполните текущий и новый пароль' });
+  if (newPassword.length < 6) return res.status(400).json({ ok:false, error:'Пароль должен быть не короче 6 символов' });
+  try {
+    const r = await db.query('SELECT * FROM public.agro_users WHERE id=$1', [req.user.userId]);
+    const user = r.rows[0];
+    if (!user) return res.status(404).json({ ok:false, error:'Пользователь не найден' });
+    const valid = await verifyPassword(currentPassword, user.password_hash);
+    if (!valid) return res.status(401).json({ ok:false, error:'Текущий пароль неверен' });
+    const hash = await hashPassword(newPassword);
+    await db.query('UPDATE public.agro_users SET password_hash=$2, must_change_password=false WHERE id=$1', [user.id, hash]);
+    res.json({ ok:true });
   } catch(e) { res.status(500).json({ ok:false, error:e.message }); }
 });
 
@@ -341,7 +364,7 @@ app.post('/api/admin/companies', auth, requireRole('owner'), async (req, res) =>
     if (username && password) {
       const hash = await hashPassword(password);
       const u = await db.query(
-        'INSERT INTO public.agro_users (company_id, username, password_hash, role) VALUES ($1,$2,$3,$4) RETURNING id, username, role, active',
+        'INSERT INTO public.agro_users (company_id, username, password_hash, role, must_change_password) VALUES ($1,$2,$3,$4,true) RETURNING id, username, role, active',
         [company.id, String(username).trim(), hash, role || 'owner']
       );
       user = u.rows[0];
@@ -366,7 +389,7 @@ app.post('/api/admin/users', auth, requireRole('owner'), async (req, res) => {
   try {
     const hash = await hashPassword(password);
     const u = await db.query(
-      'INSERT INTO public.agro_users (company_id, username, password_hash, role) VALUES ($1,$2,$3,$4) RETURNING id, company_id, username, role, active',
+      'INSERT INTO public.agro_users (company_id, username, password_hash, role, must_change_password) VALUES ($1,$2,$3,$4,true) RETURNING id, company_id, username, role, active',
       [companyId, String(username).trim(), hash, role]
     );
     res.json({ ok:true, user: u.rows[0] });

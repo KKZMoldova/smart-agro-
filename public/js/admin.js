@@ -1,6 +1,11 @@
 // Smart Agro — admin.js
 // Компании, пользователи, доступ по культурам (мультитенантность)
 
+function togglePwVisibility(inputId, btn) {
+  const input = document.getElementById(inputId);
+  input.type = input.type === 'password' ? 'text' : 'password';
+}
+
 let _adminCurrentCompanyId = null;
 let _adminCurrentCompanyName = '';
 
