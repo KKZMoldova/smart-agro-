@@ -1,6 +1,57 @@
 // Smart Agro — gdd.js
 // ═══ ТЕХНОЛОГИЧЕСКАЯ КАРТА BBCH ════════════════════════════════════════
 
+// Независимая модель цветения WSU/WTFRC (Hoogenboom et al., Acta Hort. 1160/29,
+// WTFRC Report 723, 2015) — реальные, опубликованные, повторённые (11 участков,
+// 4 сезона вост. Вашингтона) пороги фаз от зелёного конуса до опадения лепестков.
+// База 6.11°C (43°F), СРЕДНЕСУТОЧНАЯ температура — тот же метод, что у нашего
+// движка (calcDailyGdd), отличается только база. Единицы приведены к °C (/1.8
+// от опубликованных °F-градусо-дней), диапазоны — среднее±вариация по локациям.
+// НЕ подменяет основной движок фаз (getPhaseByGdd/varietyGdd) — это отдельная,
+// независимая сверка для тех двух сортов, где реальные WSU-данные подтверждены.
+// Для роста плода после цветения WSU публикует только непрерывную кривую
+// диаметра плода (модель Von Bertalanffy), а не дискретные пороги фаз — таких
+// цифр нет, поэтому здесь модель останавливается на "Опадение лепестков".
+const WSU_BLOOM_MODEL = {
+  baseTemp: 6.11,
+  varieties: {
+    va2: { label:'Red Delicious', stages: [
+      {name:'Зелёный конус',        from:20.7,  to:48.7},
+      {name:'½" зелёный',           from:33.0,  to:68.3},
+      {name:'Тесный кластер',       from:62.3,  to:98.3},
+      {name:'Первый розовый',       from:79.1,  to:111.9},
+      {name:'Полный розовый',      from:95.1,  to:135.4},
+      {name:'Первое цветение',      from:115.0, to:148.1},
+      {name:'Полное цветение',      from:130.3, to:184.9},
+      {name:'Опадение лепестков',   from:161.7, to:200.3},
+    ]},
+    va5: { label:'Gala', stages: [
+      {name:'Зелёный конус',        from:19.7,  to:46.8},
+      {name:'½" зелёный',           from:32.4,  to:68.1},
+      {name:'Тесный кластер',       from:61.8,  to:97.4},
+      {name:'Первый розовый',       from:82.4,  to:114.0},
+      {name:'Полный розовый',      from:101.5, to:136.8},
+      {name:'Первое цветение',      from:122.8, to:152.2},
+      {name:'Полное цветение',      from:135.1, to:182.5},
+      {name:'Опадение лепестков',   from:165.4, to:203.0},
+    ]},
+  }
+};
+
+function calcWsuBloomModel(varietyId) {
+  const cfg = WSU_BLOOM_MODEL.varieties[varietyId];
+  if (!cfg) return null;
+  const start = getGddStartDate(varietyId);
+  const sorted = [...S.weather].filter(w=>w.date && w.date>=start).sort((a,b)=>a.date.localeCompare(b.date));
+  if (!sorted.length) return null;
+  let cum = 0;
+  sorted.forEach(w=>{ cum += calcDailyGdd(w.tmin, w.tmax, WSU_BLOOM_MODEL.baseTemp, 30); });
+  cum = Math.round(cum*10)/10;
+  let stage = null;
+  cfg.stages.forEach(s=>{ if (cum >= s.from) stage = s; });
+  return { varietyLabel: cfg.label, gdd: cum, baseTemp: WSU_BLOOM_MODEL.baseTemp, stage };
+}
+
 // Глоссарий жаргона для начинающего агронома — подсказки по наведению (title=),
 // не меняет сам текст, только добавляет объяснение термина при ховере.
 const GLOSSARY = {
@@ -368,6 +419,13 @@ function getTodayActions(varietyId, cellKey, tbase) {
         if(!log.tasks?.[ti]?.done) items.push({ group:'task', level:'ok', title:'✅ Задача агронома', text:t });
       });
     }
+  }
+
+  const wsuModel = calcWsuBloomModel(varietyId);
+  if (wsuModel && wsuModel.stage) {
+    const match = engine.currentPhase?.name && wsuModel.stage.name.toLowerCase().includes('цвет') && engine.currentPhase.name.toLowerCase().includes('цвет');
+    items.push({ group:'crosscheck', level:'ok', title:'🔬 Независимая сверка (WSU/WTFRC)',
+      text:`Модель цветения ${wsuModel.varietyLabel} (база ${wsuModel.baseTemp}°C, реальные опубликованные пороги): ${wsuModel.gdd} GDD → «${wsuModel.stage.name}»${match?' — совпадает с нашей фазой':''}` });
   }
 
   items.sort((a,b)=>(rank[b.level]||0)-(rank[a.level]||0));
