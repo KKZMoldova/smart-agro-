@@ -45,7 +45,8 @@ async function renderAdminCompanies() {
 
 function openCompanyAddModal() {
   document.getElementById('cmp-name').value = '';
-  document.getElementById('cmp-username').value = '';
+  document.getElementById('cmp-phone').value = '';
+  document.getElementById('cmp-email').value = '';
   document.getElementById('cmp-password').value = '';
   document.getElementById('cmp-role').value = 'owner';
   openModal('modal-company-add');
@@ -54,13 +55,14 @@ function openCompanyAddModal() {
 async function saveCompany() {
   const name = document.getElementById('cmp-name').value.trim();
   if (!name) { alert('Введите название компании'); return; }
-  const username = document.getElementById('cmp-username').value.trim();
+  const phone = document.getElementById('cmp-phone').value.trim();
+  const email = document.getElementById('cmp-email').value.trim();
   const password = document.getElementById('cmp-password').value;
   const role = document.getElementById('cmp-role').value;
   try {
     const r = await fetch('/api/admin/companies', {
       method:'POST', headers: getAuthHeaders(),
-      body: JSON.stringify({ name, username: username||undefined, password: password||undefined, role })
+      body: JSON.stringify({ name, phone: phone||undefined, email: email||undefined, password: password||undefined, role })
     });
     const d = await r.json();
     if (!d.ok) { alert('Ошибка: ' + d.error); return; }
@@ -91,10 +93,12 @@ async function renderAdminUsers() {
     if (!d.ok) { el.innerHTML = `<div style="color:var(--red);font-size:12px;">${d.error||'Ошибка'}</div>`; return; }
     if (!d.data.length) { el.innerHTML = '<div style="color:var(--text3);font-size:12px;">Пользователей нет</div>'; return; }
     el.innerHTML = `<table class="data-table">
-      <thead><tr><th>Логин</th><th>Роль</th><th>Статус</th><th></th></tr></thead>
+      <thead><tr><th>Логин</th><th>Телефон</th><th>Email</th><th>Роль</th><th>Статус</th><th></th></tr></thead>
       <tbody>${d.data.map(u => `
         <tr>
           <td style="font-weight:600;">${u.username}</td>
+          <td style="font-size:11px;color:var(--text3);">${u.phone||'—'}</td>
+          <td style="font-size:11px;color:var(--text3);">${u.email||'—'}</td>
           <td style="font-size:11px;">${ROLE_LABELS_ADMIN[u.role]||u.role}</td>
           <td>${u.active ? '<span class="badge badge-green">Активен</span>' : '<span class="badge badge-red">Отключён</span>'}</td>
           <td><button class="btn btn-secondary btn-xs" onclick="toggleUserActive(${u.id},${!u.active})">${u.active?'Отключить':'Включить'}</button></td>
@@ -105,21 +109,23 @@ async function renderAdminUsers() {
 
 function openUserAddModal() {
   if (!_adminCurrentCompanyId) { alert('Сначала откройте компанию'); return; }
-  document.getElementById('usr-username').value = '';
+  document.getElementById('usr-phone').value = '';
+  document.getElementById('usr-email').value = '';
   document.getElementById('usr-password').value = '';
   document.getElementById('usr-role').value = 'agronomist';
   openModal('modal-user-add');
 }
 
 async function saveUser() {
-  const username = document.getElementById('usr-username').value.trim();
+  const phone = document.getElementById('usr-phone').value.trim();
+  const email = document.getElementById('usr-email').value.trim();
   const password = document.getElementById('usr-password').value;
   const role = document.getElementById('usr-role').value;
-  if (!username || !password) { alert('Заполните логин и пароль'); return; }
+  if ((!phone && !email) || !password) { alert('Заполните телефон или email, и пароль'); return; }
   try {
     const r = await fetch('/api/admin/users', {
       method:'POST', headers: getAuthHeaders(),
-      body: JSON.stringify({ companyId: _adminCurrentCompanyId, username, password, role })
+      body: JSON.stringify({ companyId: _adminCurrentCompanyId, phone: phone||undefined, email: email||undefined, password, role })
     });
     const d = await r.json();
     if (!d.ok) { alert('Ошибка: ' + d.error); return; }

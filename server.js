@@ -205,6 +205,8 @@ async function initDB() {
       id SERIAL PRIMARY KEY,
       company_id INTEGER REFERENCES public.agro_companies(id),
       username TEXT UNIQUE NOT NULL,
+      phone TEXT,
+      email TEXT,
       password_hash TEXT NOT NULL,
       role TEXT NOT NULL,
       active BOOLEAN DEFAULT true,
@@ -242,6 +244,8 @@ async function migrateMultiTenant() {
     await db.query(`ALTER TABLE public.${t} ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES public.agro_companies(id)`).catch(()=>{});
   }
   await db.query(`ALTER TABLE public.agro_users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN DEFAULT false`).catch(()=>{});
+  await db.query(`ALTER TABLE public.agro_users ADD COLUMN IF NOT EXISTS phone TEXT`).catch(()=>{});
+  await db.query(`ALTER TABLE public.agro_users ADD COLUMN IF NOT EXISTS email TEXT`).catch(()=>{});
   await db.query(`INSERT INTO public.agro_companies (id, name) VALUES (1, 'KKZ (основная ферма)') ON CONFLICT (id) DO NOTHING`).catch(()=>{});
   await db.query(`SELECT setval('public.agro_companies_id_seq', GREATEST((SELECT COALESCE(MAX(id),1) FROM public.agro_companies), 1))`).catch(()=>{});
   // Стартовый логин владельца KKZ — без него после введения реального логина
@@ -322,7 +326,8 @@ app.post('/api/auth/login-company', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).json({ ok:false, error:'Введите логин и пароль' });
   try {
-    const r = await db.query('SELECT * FROM public.agro_users WHERE username=$1 AND active=true', [String(username).trim()]);
+    const login = String(username).trim();
+    const r = await db.query('SELECT * FROM public.agro_users WHERE (username=$1 OR phone=$1 OR email=$1) AND active=true', [login]);
     const user = r.rows[0];
     if (!user) return res.status(401).json({ ok:false, error:'Неверный логин или пароль' });
     const valid = await verifyPassword(password, user.password_hash);
@@ -383,18 +388,24 @@ app.get('/api/admin/companies', auth, requireRole('owner'), async (req, res) => 
   } catch(e) { res.status(500).json({ ok:false, error:e.message }); }
 });
 
+// Логин сотрудника — телефон или email (что заполнено); email в приоритете, если заданы оба.
+function deriveLogin(phone, email) {
+  return (email && email.trim()) || (phone && phone.trim()) || '';
+}
+
 app.post('/api/admin/companies', auth, requireRole('owner'), async (req, res) => {
-  const { name, username, password, role } = req.body;
+  const { name, phone, email, password, role } = req.body;
   if (!name) return res.status(400).json({ ok:false, error:'Введите название компании' });
   try {
     const c = await db.query('INSERT INTO public.agro_companies (name) VALUES ($1) RETURNING id, name, status, created_at', [name]);
     const company = c.rows[0];
     let user = null;
-    if (username && password) {
+    const login = deriveLogin(phone, email);
+    if (login && password) {
       const hash = await hashPassword(password);
       const u = await db.query(
-        'INSERT INTO public.agro_users (company_id, username, password_hash, role, must_change_password) VALUES ($1,$2,$3,$4,true) RETURNING id, username, role, active',
-        [company.id, String(username).trim(), hash, role || 'owner']
+        'INSERT INTO public.agro_users (company_id, username, phone, email, password_hash, role, must_change_password) VALUES ($1,$2,$3,$4,$5,$6,true) RETURNING id, username, phone, email, role, active',
+        [company.id, login, phone||null, email||null, hash, role || 'owner']
       );
       user = u.rows[0];
     }
@@ -406,20 +417,21 @@ app.get('/api/admin/users', auth, requireRole('owner'), async (req, res) => {
   const companyId = req.query.companyId ? parseInt(req.query.companyId) : null;
   try {
     const r = companyId
-      ? await db.query('SELECT id, company_id, username, role, active, created_at FROM public.agro_users WHERE company_id=$1 ORDER BY created_at', [companyId])
-      : await db.query('SELECT id, company_id, username, role, active, created_at FROM public.agro_users ORDER BY created_at');
+      ? await db.query('SELECT id, company_id, username, phone, email, role, active, created_at FROM public.agro_users WHERE company_id=$1 ORDER BY created_at', [companyId])
+      : await db.query('SELECT id, company_id, username, phone, email, role, active, created_at FROM public.agro_users ORDER BY created_at');
     res.json({ ok:true, data: r.rows });
   } catch(e) { res.status(500).json({ ok:false, error:e.message }); }
 });
 
 app.post('/api/admin/users', auth, requireRole('owner'), async (req, res) => {
-  const { companyId, username, password, role } = req.body;
-  if (!companyId || !username || !password || !role) return res.status(400).json({ ok:false, error:'Заполните компанию, логин, пароль и роль' });
+  const { companyId, phone, email, password, role } = req.body;
+  const login = deriveLogin(phone, email);
+  if (!companyId || !login || !password || !role) return res.status(400).json({ ok:false, error:'Заполните компанию, телефон или email, пароль и роль' });
   try {
     const hash = await hashPassword(password);
     const u = await db.query(
-      'INSERT INTO public.agro_users (company_id, username, password_hash, role, must_change_password) VALUES ($1,$2,$3,$4,true) RETURNING id, company_id, username, role, active',
-      [companyId, String(username).trim(), hash, role]
+      'INSERT INTO public.agro_users (company_id, username, phone, email, password_hash, role, must_change_password) VALUES ($1,$2,$3,$4,$5,$6,true) RETURNING id, company_id, username, phone, email, role, active',
+      [companyId, login, phone||null, email||null, hash, role]
     );
     res.json({ ok:true, user: u.rows[0] });
   } catch(e) { res.status(500).json({ ok:false, error:e.message }); }

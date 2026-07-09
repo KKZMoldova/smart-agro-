@@ -3914,7 +3914,9 @@ body > .panel.active { display: block; }
     <div class="form-grid">
       <div class="ff full"><label>Название компании</label><input type="text" id="cmp-name" placeholder="ООО Пример"></div>
       <div class="ff full"><label style="color:var(--text3);font-size:10px;">Первый пользователь (необязательно, можно добавить позже)</label></div>
-      <div class="ff"><label>Логин</label><input type="text" id="cmp-username" placeholder="owner_firma"></div>
+      <div class="ff"><label>Телефон</label><input type="text" id="cmp-phone" placeholder="+373 6..."></div>
+      <div class="ff"><label>Email</label><input type="text" id="cmp-email" placeholder="owner@firma.com"></div>
+      <div class="ff full" style="color:var(--text3);font-size:10px;">Логином станет email (если указан) или телефон</div>
       <div class="ff"><label>Пароль</label>
         <div style="position:relative;">
           <input type="password" id="cmp-password" style="width:100%;padding-right:36px;">
@@ -3946,7 +3948,9 @@ body > .panel.active { display: block; }
   <div class="modal" style="max-width:380px;">
     <h2>👤 Новый пользователь</h2>
     <div class="form-grid">
-      <div class="ff full"><label>Логин</label><input type="text" id="usr-username" placeholder="agronom_firma"></div>
+      <div class="ff"><label>Телефон</label><input type="text" id="usr-phone" placeholder="+373 6..."></div>
+      <div class="ff"><label>Email</label><input type="text" id="usr-email" placeholder="ivan@firma.com"></div>
+      <div class="ff full" style="color:var(--text3);font-size:10px;">Логином станет email (если указан) или телефон</div>
       <div class="ff full"><label>Пароль</label>
         <div style="position:relative;">
           <input type="password" id="usr-password" style="width:100%;padding-right:36px;">
