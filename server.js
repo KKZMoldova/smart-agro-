@@ -589,13 +589,17 @@ function fcHeaders(method, path, pub, priv) {
 }
 
 // Свои ключи FieldClimate у компании, иначе (только для company_id=1) — общие ENV.
+// Для остальных компаний пустое поле остаётся пустым — no default station/keys,
+// чтобы не получилось так, что не настроенный клиент молча тянет данные KKZ.
 async function getFcCredentials(companyId, queryStation) {
-  if (companyId === 1) return { pub: FC_PUBLIC, priv: FC_PRIVATE, station: queryStation || '00002158' };
+  if (companyId === 1) return { pub: FC_PUBLIC, priv: FC_PRIVATE, station: queryStation || FC_STATION || '00002158' };
   try {
     const r = await db.query('SELECT fc_public_key, fc_private_key, fc_station_id FROM public.agro_companies WHERE id=$1', [companyId]);
     const c = r.rows[0];
     if (!c?.fc_public_key || !c?.fc_private_key) return null;
-    return { pub: c.fc_public_key, priv: c.fc_private_key, station: queryStation || c.fc_station_id || '00002158' };
+    const station = queryStation || c.fc_station_id;
+    if (!station) return null;
+    return { pub: c.fc_public_key, priv: c.fc_private_key, station };
   } catch { return null; }
 }
 
@@ -1107,17 +1111,19 @@ app.post('/api/ai/advisor', auth, async (req,res) => {
 // ── ПРОГНОЗ ПОГОДЫ (FieldClimate /forecast/{station}/daily/last/7) ────────
 // Структура: { dates:["2026-05-24 00:00:00",...], data:[{name_original, values:{avg,max,min}}, ...] }
 app.get('/api/weather/forecast', auth, async (req, res) => {
-  const station = req.query.station || FC_STATION || '00002158';
-  const days    = parseInt(req.query.days) || 7;
+  const companyId = req.user.companyId || 1;
+  const creds = await getFcCredentials(companyId, req.query.station);
+  const days  = parseInt(req.query.days) || 7;
 
-  if (FC_PUBLIC && FC_PRIVATE) {
+  if (creds) {
+    const station = creds.station;
     try {
       const fcPath = `/forecast/${station}/daily/last/7`;
       const date   = new Date().toUTCString();
-      const sig    = crypto.createHmac('sha256', FC_PRIVATE)
-        .update('GET' + fcPath + date + FC_PUBLIC).digest('hex');
+      const sig    = crypto.createHmac('sha256', creds.priv)
+        .update('GET' + fcPath + date + creds.pub).digest('hex');
       const r = await fetch('https://api.fieldclimate.com/v2' + fcPath, {
-        headers: { 'Accept':'application/json', 'Authorization':`hmac ${FC_PUBLIC}:${sig}`, 'Request-Date':date }
+        headers: { 'Accept':'application/json', 'Authorization':`hmac ${creds.pub}:${sig}`, 'Request-Date':date }
       });
       if (r.ok) {
         const fcData = await r.json();
