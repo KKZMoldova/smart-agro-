@@ -116,9 +116,9 @@ init();
 
 const ROLE_ACCESS = {
   agronomist:          ['dashboard','map','gpsmap','crops','weather','gdd','irrigation','catalog','treatments',
-                        'analysis','diseases','warehouse','tasks','ailog','doses','settings'],
+                        'analysis','diseases','warehouse','tasks','ailog','doses','settings','chemistry'],
   owner:               ['dashboard','map','gpsmap','crops','weather','gdd','irrigation','catalog','treatments',
-                        'analysis','diseases','warehouse','tasks','ailog','doses','settings','admin'],
+                        'analysis','diseases','warehouse','tasks','ailog','doses','settings','admin','chemistry'],
   shareholder:         ['dashboard','map','gpsmap','crops','weather','gdd','irrigation','catalog','treatments',
                         'analysis','diseases','warehouse','tasks'],
   director:            ['dashboard','map','gpsmap','crops','weather','gdd','irrigation','catalog','treatments',
