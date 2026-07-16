@@ -140,7 +140,10 @@ async function renderAdminUsers() {
           <td style="font-size:11px;color:var(--text3);">${u.email||'—'}</td>
           <td style="font-size:11px;">${ROLE_LABELS_ADMIN[u.role]||u.role}</td>
           <td>${u.active ? '<span class="badge badge-green">Активен</span>' : '<span class="badge badge-red">Отключён</span>'}</td>
-          <td><button class="btn btn-secondary btn-xs" onclick="toggleUserActive(${u.id},${!u.active})">${u.active?'Отключить':'Включить'}</button></td>
+          <td style="white-space:nowrap;">
+            <button class="btn btn-secondary btn-xs" onclick="toggleUserActive(${u.id},${!u.active})">${u.active?'Отключить':'Включить'}</button>
+            <button class="btn btn-secondary btn-xs" onclick="resetUserPassword(${u.id},'${u.username.replace(/'/g,"\\'")}')">Сбросить пароль</button>
+          </td>
         </tr>`).join('')}</tbody>
     </table>`;
   } catch(e) { el.innerHTML = `<div style="color:var(--red);font-size:12px;">Ошибка загрузки: ${e.message}</div>`; }
@@ -179,6 +182,19 @@ async function toggleUserActive(userId, active) {
       method:'PUT', headers: getAuthHeaders(), body: JSON.stringify({ active })
     });
     renderAdminUsers();
+  } catch(e) { alert('Ошибка: ' + e.message); }
+}
+
+// Старый пароль не восстановить (хэш необратим) — генерируем новый и
+// показываем ОДИН РАЗ. Пользователь сменит его на свой при следующем входе
+// (must_change_password=true).
+async function resetUserPassword(userId, username) {
+  if (!confirm(`Сбросить пароль для ${username}? Старый пароль перестанет работать.`)) return;
+  try {
+    const r = await fetch(`/api/admin/users/${userId}/reset-password`, { method:'POST', headers: getAuthHeaders() });
+    const d = await r.json();
+    if (!d.ok) { alert('Ошибка: ' + d.error); return; }
+    prompt(`Новый пароль для ${d.username} (сохраните — больше не покажется):`, d.password);
   } catch(e) { alert('Ошибка: ' + e.message); }
 }
 

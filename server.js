@@ -476,6 +476,22 @@ app.put('/api/admin/users/:id', auth, requireRole('owner'), async (req, res) => 
   } catch(e) { res.status(500).json({ ok:false, error:e.message }); }
 });
 
+// Сброс пароля — старый пароль восстановить нельзя (хэш необратим), поэтому
+// генерируем новый и отдаём его владельцу ОДИН РАЗ в ответе; в базе остаётся
+// только хэш. must_change_password=true — пользователь сразу сменит его сам.
+app.post('/api/admin/users/:id/reset-password', auth, requireRole('owner'), async (req, res) => {
+  try {
+    const newPassword = crypto.randomBytes(6).toString('base64url');
+    const hash = await hashPassword(newPassword);
+    const r = await db.query(
+      'UPDATE public.agro_users SET password_hash=$2, must_change_password=true WHERE id=$1 RETURNING username',
+      [req.params.id, hash]
+    );
+    if (!r.rows.length) return res.status(404).json({ ok:false, error:'Пользователь не найден' });
+    res.json({ ok:true, username: r.rows[0].username, password: newPassword });
+  } catch(e) { res.status(500).json({ ok:false, error:e.message }); }
+});
+
 const ALL_CROP_IDS = ['crop_cherry','crop_sour_cherry','crop_apricot','crop_apple','crop_peach','crop_plum','crop_grape','crop_walnut'];
 
 app.get('/api/admin/crop-access', auth, requireRole('owner','accountant'), async (req, res) => {
