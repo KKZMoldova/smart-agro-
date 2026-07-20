@@ -6599,118 +6599,10 @@ const ROLES = {
 
 let _currentRole = null;
 
+// Вход и PIN убраны по прямому запросу — не рабочий сервис, старые данные,
+// экран входа только мешал. Всегда открывается с полным доступом (роль owner).
 function initRoleSystem() {
-  // Check if already logged in this session
-  const sessionRole = sessionStorage.getItem('sveg_role');
-  if (sessionRole && ROLES[sessionRole]) {
-    applyRole(sessionRole);
-    return;
-  }
-  showLoginScreen();
-}
-
-function showLoginScreen() {
-  const overlay = document.createElement('div');
-  overlay.id = 'login-overlay';
-  overlay.style.cssText = `
-    position:fixed;inset:0;background:#0a0f0a;z-index:9999;
-    display:flex;align-items:center;justify-content:center;
-    font-family:'Inter',sans-serif;
-  `;
-  overlay.innerHTML = `
-    <div style="width:100%;max-width:480px;padding:24px;">
-      <!-- Logo -->
-      <div style="text-align:center;margin-bottom:32px;">
-        <div style="font-size:48px;margin-bottom:8px;">🥦</div>
-        <div style="font-family:'Unbounded',sans-serif;font-size:18px;font-weight:700;color:#6bdd6b;letter-spacing:3px;">SMART VEGETABLE</div>
-        <div style="font-size:11px;color:#5a7a5a;letter-spacing:4px;text-transform:uppercase;margin-top:4px;">System · Digital Agronomist</div>
-      </div>
-
-      <!-- Role selection -->
-      <div style="font-size:11px;color:#5a7a5a;text-transform:uppercase;letter-spacing:2px;margin-bottom:12px;font-family:'Unbounded',sans-serif;">Выберите роль</div>
-      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:24px;" id="role-btns">
-        ${Object.entries(ROLES).map(([key, r]) => `
-          <button onclick="selectLoginRole('${key}')" id="rolebtn-${key}"
-            style="padding:14px 16px;border:1px solid #2a3a2a;border-radius:10px;background:#101810;
-              color:#a8c8a8;cursor:pointer;text-align:left;transition:all .2s;display:flex;align-items:center;gap:12px;">
-            <span style="font-size:22px;">${r.label.split(' ')[0]}</span>
-            <div>
-              <div style="font-size:13px;font-weight:600;color:#e8f5e8;">${r.label.split(' ').slice(1).join(' ')}</div>
-              <div style="font-size:10px;color:#5a7a5a;margin-top:2px;">${r.description}</div>
-            </div>
-          </button>`).join('')}
-      </div>
-
-      <!-- PIN input -->
-      <div id="pin-block" style="display:none;">
-        <div style="font-size:11px;color:#5a7a5a;text-transform:uppercase;letter-spacing:2px;margin-bottom:8px;font-family:'Unbounded',sans-serif;" id="pin-role-label"></div>
-        <div style="display:flex;gap:8px;">
-          <input type="password" id="pin-input" maxlength="4" placeholder="••••"
-            style="flex:1;background:#182018;border:1px solid #2a3a2a;border-radius:8px;padding:12px 16px;
-              color:#e8f5e8;font-size:20px;letter-spacing:8px;text-align:center;outline:none;"
-            onkeydown="if(event.key==='Enter')doLogin()"
-            oninput="document.getElementById('pin-error').textContent=''">
-          <button onclick="doLogin()"
-            style="padding:12px 20px;background:#6bdd6b;color:#0a0f0a;border:none;border-radius:8px;
-              font-weight:700;cursor:pointer;font-size:13px;">Войти</button>
-        </div>
-        <div id="pin-error" style="color:#ff5555;font-size:11px;margin-top:8px;min-height:16px;"></div>
-        <button onclick="backToRoles()"
-          style="margin-top:12px;background:none;border:none;color:#5a7a5a;cursor:pointer;font-size:11px;">← Назад</button>
-      </div>
-
-      <!-- First time hint -->
-      <div id="first-time-hint" style="margin-top:20px;padding:10px 14px;background:rgba(96,165,250,.06);border:1px solid rgba(96,165,250,.15);border-radius:8px;font-size:11px;color:#a8c8a8;line-height:1.7;">
-        💡 <strong>PIN по умолчанию:</strong><br>
-        👑 Владелец: <strong>1111</strong> &nbsp;·&nbsp; 👨‍🌾 Агроном: <strong>2222</strong><br>
-        🏭 Завод: <strong>3333</strong> &nbsp;·&nbsp; 📋 Оператор: <strong>4444</strong><br>
-        Изменить PIN можно в ⚙️ Настройки после входа как Владелец.
-      </div>
-    </div>`;
-  document.body.appendChild(overlay);
-}
-
-let _selectedLoginRole = null;
-function selectLoginRole(roleKey) {
-  _selectedLoginRole = roleKey;
-  const role = ROLES[roleKey];
-  // Highlight selected
-  Object.keys(ROLES).forEach(k => {
-    const btn = document.getElementById('rolebtn-'+k);
-    if (btn) btn.style.borderColor = k===roleKey ? role.color : '#2a3a2a';
-  });
-  document.getElementById('pin-block').style.display = 'block';
-  document.getElementById('pin-role-label').textContent = role.label + ' — введите PIN';
-  document.getElementById('pin-role-label').style.color = role.color;
-  document.getElementById('pin-input').value = '';
-  document.getElementById('pin-input').focus();
-  document.getElementById('first-time-hint').style.display = 'none';
-}
-
-function backToRoles() {
-  _selectedLoginRole = null;
-  document.getElementById('pin-block').style.display = 'none';
-  document.getElementById('first-time-hint').style.display = 'block';
-  Object.keys(ROLES).forEach(k => {
-    const btn = document.getElementById('rolebtn-'+k);
-    if (btn) btn.style.borderColor = '#2a3a2a';
-  });
-}
-
-function doLogin() {
-  if (!_selectedLoginRole) return;
-  const role = ROLES[_selectedLoginRole];
-  const enteredPin = document.getElementById('pin-input').value;
-  const savedPin = localStorage.getItem(role.pinKey) || role.defaultPin;
-  if (enteredPin === savedPin) {
-    sessionStorage.setItem('sveg_role', _selectedLoginRole);
-    document.getElementById('login-overlay').remove();
-    applyRole(_selectedLoginRole);
-  } else {
-    document.getElementById('pin-error').textContent = '❌ Неверный PIN';
-    document.getElementById('pin-input').value = '';
-    document.getElementById('pin-input').focus();
-  }
+  applyRole('owner');
 }
 
 function applyRole(roleKey) {
@@ -6724,8 +6616,8 @@ function applyRole(roleKey) {
   badge.innerHTML = `
     <div style="font-size:11px;padding:5px 12px;border-radius:20px;
       background:${role.color}22;border:1px solid ${role.color}44;color:${role.color};
-      font-weight:600;cursor:pointer;" onclick="logout()" title="Нажмите чтобы сменить роль">
-      ${role.label} &nbsp;·&nbsp; Выйти
+      font-weight:600;">
+      ${role.label}
     </div>`;
   document.querySelector('.header-stats').prepend(badge);
 
@@ -6764,67 +6656,8 @@ function applyRole(roleKey) {
     document.querySelector('.nav').after(banner);
   }
 
-  // Add PIN change to settings if owner
-  if (roleKey === 'owner') {
-    renderPinSettings();
-  }
-
   // Render main view
   renderParcels();
-}
-
-function logout() {
-  if (!confirm('Сменить роль?')) return;
-  sessionStorage.removeItem('sveg_role');
-  _currentRole = null;
-  const badge = document.getElementById('role-badge');
-  if (badge) badge.remove();
-  const banner = document.getElementById('operator-banner');
-  if (banner) banner.remove();
-  // Restore all tabs
-  document.querySelectorAll('.tab').forEach(t => t.style.display = '');
-  showLoginScreen();
-}
-
-function renderPinSettings() {
-  const settingsPanel = document.getElementById('panel-settings');
-  if (!settingsPanel) return;
-  const pinBlock = document.createElement('div');
-  pinBlock.style.cssText = 'margin-top:24px;';
-  pinBlock.innerHTML = `
-    <div style="font-family:'Unbounded',sans-serif;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:2px;margin-bottom:12px;">🔐 Управление PIN-кодами</div>
-    <div style="display:flex;flex-direction:column;gap:10px;max-width:400px;">
-      ${Object.entries(ROLES).map(([key, r]) => `
-        <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);">
-          <div style="flex:1;">
-            <div style="font-size:12px;font-weight:600;color:${r.color};">${r.label}</div>
-            <div style="font-size:10px;color:var(--text3);">Текущий PIN: ${localStorage.getItem(r.pinKey)||r.defaultPin}</div>
-          </div>
-          <input type="password" id="newpin-${key}" maxlength="4" placeholder="новый PIN"
-            style="width:100px;background:var(--surface3);border:1px solid var(--border);border-radius:6px;
-              padding:6px 10px;color:var(--text);font-size:14px;letter-spacing:4px;text-align:center;">
-          <button onclick="changePin('${key}')" class="btn btn-secondary btn-sm">Изменить</button>
-        </div>`).join('')}
-    </div>
-    <div id="pin-change-msg" style="margin-top:8px;font-size:11px;"></div>`;
-  settingsPanel.appendChild(pinBlock);
-}
-
-function changePin(roleKey) {
-  const role = ROLES[roleKey];
-  const newPin = document.getElementById('newpin-'+roleKey).value;
-  if (!newPin || newPin.length < 3) {
-    document.getElementById('pin-change-msg').innerHTML = '<span style="color:var(--red);">PIN должен быть минимум 3 цифры</span>';
-    return;
-  }
-  if (!/^\d+$/.test(newPin)) {
-    document.getElementById('pin-change-msg').innerHTML = '<span style="color:var(--red);">Только цифры</span>';
-    return;
-  }
-  localStorage.setItem(role.pinKey, newPin);
-  document.getElementById('newpin-'+roleKey).value = '';
-  document.getElementById('pin-change-msg').innerHTML = `<span style="color:var(--accent);">✅ PIN для ${role.label} изменён</span>`;
-  renderPinSettings(); // refresh to show new PIN
 }
 
 // ═══ VEGETABLE ANALYSES ═══════════════════════════════════════════════════
