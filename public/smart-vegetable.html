@@ -6672,25 +6672,10 @@ const ROLE_LABELS_VEG = {
 
 let _currentRole = null;
 
+// Вход и PIN убраны по прямому запросу — не рабочий сервис, старые данные,
+// экран входа только мешал. Всегда открывается с полным доступом (роль owner).
 function initRoleSystem() {
-  // Проверяем JWT токен из login страницы
-  const token = sessionStorage.getItem('agro_jwt') || localStorage.getItem('agro_jwt');
-  const role = sessionStorage.getItem('agro_role') || 'agronomist';
-  
-  if(token) {
-    // JWT авторизация — применяем роль без PIN экрана
-    _currentRole = role;
-    applyRole(role);
-    return;
-  }
-  
-  // Fallback — показываем экран входа
-  showLoginScreen();
-}
-
-function showLoginScreen() {
-  // Редирект на /login если нет токена
-  window.location.href = '/login';
+  applyRole('owner');
 }
 
 function applyRole(roleKey) {
@@ -6712,8 +6697,6 @@ function applyRole(roleKey) {
       font-weight:600;">
       ${ROLE_LABELS_VEG[roleKey]||roleKey}${userName?' · '+userName:''}
     </div>
-    <button onclick="logout()" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);
-      background:transparent;color:var(--text3);font-size:10px;cursor:pointer;">Выйти</button>
     ${roleKey==='agronomist'?`<button onclick="openSendIrrigTaskModalVeg()" style="padding:4px 10px;border-radius:6px;border:1px solid rgba(96,165,250,.4);background:transparent;color:var(--blue);font-size:10px;cursor:pointer;">📱 Задание</button>`:''}
   `;
   const hdrStats = document.querySelector('.header-stats');
@@ -6885,57 +6868,6 @@ async function addUserVeg() {
   else alert('Ошибка: '+d.error);
 }
 
-
-function logout() {
-  if (!confirm('Выйти из системы?')) return;
-  sessionStorage.clear();
-  localStorage.removeItem('agro_jwt');
-  window.location.href = '/login';
-}
-function _logoutOld() {
-  showLoginScreen();
-}
-
-function renderPinSettings() {
-  const settingsPanel = document.getElementById('panel-settings');
-  if (!settingsPanel) return;
-  const pinBlock = document.createElement('div');
-  pinBlock.style.cssText = 'margin-top:24px;';
-  pinBlock.innerHTML = `
-    <div style="font-family:'Unbounded',sans-serif;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:2px;margin-bottom:12px;">🔐 Управление PIN-кодами</div>
-    <div style="display:flex;flex-direction:column;gap:10px;max-width:400px;">
-      ${Object.entries(ROLES).map(([key, r]) => `
-        <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);">
-          <div style="flex:1;">
-            <div style="font-size:12px;font-weight:600;color:${r.color};">${r.label}</div>
-            <div style="font-size:10px;color:var(--text3);">Текущий PIN: ${localStorage.getItem(r.pinKey)||r.defaultPin}</div>
-          </div>
-          <input type="password" id="newpin-${key}" maxlength="4" placeholder="новый PIN"
-            style="width:100px;background:var(--surface3);border:1px solid var(--border);border-radius:6px;
-              padding:6px 10px;color:var(--text);font-size:14px;letter-spacing:4px;text-align:center;">
-          <button onclick="changePin('${key}')" class="btn btn-secondary btn-sm">Изменить</button>
-        </div>`).join('')}
-    </div>
-    <div id="pin-change-msg" style="margin-top:8px;font-size:11px;"></div>`;
-  settingsPanel.appendChild(pinBlock);
-}
-
-function changePin(roleKey) {
-  const role = ROLES[roleKey];
-  const newPin = document.getElementById('newpin-'+roleKey).value;
-  if (!newPin || newPin.length < 3) {
-    document.getElementById('pin-change-msg').innerHTML = '<span style="color:var(--red);">PIN должен быть минимум 3 цифры</span>';
-    return;
-  }
-  if (!/^\d+$/.test(newPin)) {
-    document.getElementById('pin-change-msg').innerHTML = '<span style="color:var(--red);">Только цифры</span>';
-    return;
-  }
-  localStorage.setItem(role.pinKey, newPin);
-  document.getElementById('newpin-'+roleKey).value = '';
-  document.getElementById('pin-change-msg').innerHTML = `<span style="color:var(--accent);">✅ PIN для ${role.label} изменён</span>`;
-  renderPinSettings(); // refresh to show new PIN
-}
 
 // ═══ VEGETABLE ANALYSES ═══════════════════════════════════════════════════
 let _vegAnTab = 'all';
