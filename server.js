@@ -27,9 +27,12 @@ const PINS = {
 };
 
 // ── DATABASE ─────────────────────────────────────────────────
+// Railway требует SSL, локальный postgres его обычно не поднимает —
+// поэтому решаем по хосту, а не по самому факту наличия DATABASE_URL.
+const DB_IS_LOCAL = /@(localhost|127\.0\.0\.1)[:\/]/.test(process.env.DATABASE_URL || '');
 const db = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
+  ssl: process.env.DATABASE_URL && !DB_IS_LOCAL ? { rejectUnauthorized: false } : false,
 });
 
 // ── MIDDLEWARE ────────────────────────────────────────────────
@@ -196,6 +199,12 @@ async function initDB() {
       id TEXT PRIMARY KEY, status TEXT DEFAULT 'new', data JSONB,
       created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
     );
+    CREATE TABLE IF NOT EXISTS public.parcels (
+      id TEXT PRIMARY KEY, name TEXT, ha NUMERIC, crop_id TEXT, variety TEXT,
+      sowing_date DATE, density TEXT, soil TEXT, harvest_gdd NUMERIC, tdu_window INTEGER,
+      yield_plan NUMERIC, yield_fact NUMERIC, field_id TEXT, note TEXT, calibration JSONB,
+      created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
     CREATE TABLE IF NOT EXISTS public.agro_companies (
       id SERIAL PRIMARY KEY, name TEXT NOT NULL,
       status TEXT DEFAULT 'active',
@@ -241,10 +250,14 @@ async function initDB() {
 //    KKZ становится компанией №1 с полным доступом ко всем культурам.
 //    Каждый шаг независим и безопасен для повторного запуска.
 async function migrateMultiTenant() {
-  const TENANT_TABLES = ['state','treatments','analyses','catalog','equipment','attachments','staff','tasks','weather'];
+  const TENANT_TABLES = ['state','treatments','analyses','catalog','equipment','attachments','staff','tasks','weather','parcels'];
   for (const t of TENANT_TABLES) {
     await db.query(`ALTER TABLE public.${t} ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES public.agro_companies(id)`).catch(()=>{});
   }
+  // parcels: колонки, которых нет в старой версии таблицы (создана прежним кодом).
+  await db.query(`ALTER TABLE public.parcels ADD COLUMN IF NOT EXISTS yield_plan NUMERIC`).catch(()=>{});
+  await db.query(`ALTER TABLE public.parcels ADD COLUMN IF NOT EXISTS yield_fact NUMERIC`).catch(()=>{});
+  await db.query(`ALTER TABLE public.parcels ADD COLUMN IF NOT EXISTS field_id TEXT`).catch(()=>{});
   await db.query(`ALTER TABLE public.agro_users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN DEFAULT false`).catch(()=>{});
   await db.query(`ALTER TABLE public.agro_users ADD COLUMN IF NOT EXISTS phone TEXT`).catch(()=>{});
   await db.query(`ALTER TABLE public.agro_users ADD COLUMN IF NOT EXISTS email TEXT`).catch(()=>{});
@@ -872,6 +885,31 @@ app.post('/api/treatments', auth, async (req, res) => {
 });
 app.delete('/api/treatments/:id', auth, async (req,res) => {
   try { await db.query('DELETE FROM public.treatments WHERE id=$1 AND company_id=$2',[req.params.id, req.user.companyId||1]); res.json({ok:true}); }
+  catch(e) { res.status(500).json({ok:false,error:e.message}); }
+});
+
+// ── PARCELS (участки полевых/овощных культур) ──────────────────
+app.get('/api/parcels', auth, async (req, res) => {
+  try { const r=await db.query('SELECT * FROM public.parcels WHERE company_id=$1 ORDER BY created_at', [req.user.companyId||1]); res.json({ok:true,data:r.rows}); }
+  catch(e) { res.status(500).json({ok:false,error:e.message}); }
+});
+app.post('/api/parcels', auth, async (req, res) => {
+  const p=req.body;
+  const companyId = req.user.companyId || 1;
+  try {
+    await db.query(`
+      INSERT INTO public.parcels (id,company_id,name,ha,crop_id,variety,sowing_date,density,soil,harvest_gdd,tdu_window,yield_plan,yield_fact,field_id,note,calibration,updated_at)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,NOW())
+      ON CONFLICT (id) DO UPDATE SET name=$3,ha=$4,crop_id=$5,variety=$6,sowing_date=$7,density=$8,soil=$9,
+        harvest_gdd=$10,tdu_window=$11,yield_plan=$12,yield_fact=$13,field_id=$14,note=$15,calibration=$16,updated_at=NOW()
+    `, [String(p.id),companyId,p.name||'',p.ha||null,p.cropId||null,p.variety||'',p.sowingDate||null,
+        p.density||'',p.soil||'',p.harvestGdd||null,p.tduWindow||null,p.yieldPlan||null,p.yieldFact||null,
+        p.fieldId||null,p.note||'',JSON.stringify(p.calibration||{})]);
+    res.json({ok:true});
+  } catch(e) { res.status(500).json({ok:false,error:e.message}); }
+});
+app.delete('/api/parcels/:id', auth, async (req,res) => {
+  try { await db.query('DELETE FROM public.parcels WHERE id=$1 AND company_id=$2',[req.params.id, req.user.companyId||1]); res.json({ok:true}); }
   catch(e) { res.status(500).json({ok:false,error:e.message}); }
 });
 

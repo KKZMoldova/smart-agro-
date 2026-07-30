@@ -29,6 +29,8 @@ async function init(){
       console.warn('[init] Server state load failed:', e.message);
       await load();
     }
+    // Участки полевых/овощных культур грузятся отдельно от orchard-блоба.
+    await loadParcels();
     try {
       const wRes = await fetch('/api/weather?days=400&station='+(sessionStorage.getItem('agro_fc_orchard')||'00002158'),{headers:getAuthHeaders()});
       const wJson = await wRes.json();

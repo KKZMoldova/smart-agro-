@@ -1510,12 +1510,8 @@ function saveSowingRecord() {
   parcel.sowingDate = date;
 
   save();
-  if (_vServerAvailable) {
-    fetch('/api/state/vegetable', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ sowingRecords: S.sowingRecords, warehouse: S.warehouse, parcels: S.parcels })
-    }).catch(e => console.warn('Sowing sync failed:', e));
+  if (_serverAvailable) {
+    API.saveParcel(parcel).catch(e => console.warn('Parcel sync failed:', e));
   }
   closeModal('modal-sowing');
   renderSowing();

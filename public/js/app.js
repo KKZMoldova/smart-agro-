@@ -5,6 +5,8 @@ let S = {
   warehouse: { chemicals: [], parts: [], seeds: [], history: [] },
   irrigEquip: { pumps: [], valves: [], drip: [], frost: [] },
   rootstocks: [],
+  parcels: [],
+  sowingRecords: [],
   aiLog: [],
   techLog: {}, // {phaseKey: {tasks:{taskIdx:{done,date,comment}}, irrigNote, weatherNote, agronNote}} // [{id, date, type, prompt_summary, ai_text, photo_base64, comments:[{date,author,role,text}]}]
   varieties:[
@@ -648,7 +650,10 @@ function calcCellTotals(cd) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 const API = (() => {
-  const BASE = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
+  // Относительный путь: запросы всегда идут на тот же сервер, что отдал страницу.
+  // Раньше на localhost был жёстко зашит порт 3000 — это ломало запуск бэкенда
+  // на другом порту (напр. вторая dev-копия на 3002 уходила запросами на 3000).
+  const BASE = '';
   let _token = sessionStorage.getItem('agro_token') || '';
   let _role  = sessionStorage.getItem('agro_role')  || '';
 
@@ -712,6 +717,9 @@ const API = (() => {
     getCatalog: () => get('/api/catalog'),
     saveCatalogItem: (c) => post('/api/catalog', c),
     deleteCatalogItem: (id) => del(`/api/catalog/${id}`),
+    getParcels: () => get('/api/parcels'),
+    saveParcel: (p) => post('/api/parcels', p),
+    deleteParcel: (id) => del(`/api/parcels/${id}`),
   };
 })();
 
@@ -894,6 +902,9 @@ async function load() {
       }));
     }
 
+    // Parcels (участки полевых/овощных культур) from server
+    await loadParcels();
+
     // GDD calibration from server
     const gddRes = await API.getSetting('varietyGdd');
     if (gddRes?.value && Object.keys(gddRes.value).length) {
@@ -931,6 +942,29 @@ async function load() {
   } catch(e) {
     console.warn('[load] Server sync error:', e.message);
   }
+}
+
+// Загрузка участков полевых/овощных культур с сервера в S.parcels.
+// Отдельная функция, потому что вызывается из двух мест: из load() и из init()
+// (init грузит orchard-блоб напрямую и load() при этом не вызывает).
+async function loadParcels() {
+  if (!_serverAvailable) return;
+  try {
+    const pRes = await API.getParcels();
+    if (Array.isArray(pRes?.data)) {
+      S.parcels = pRes.data.map(p => ({
+        id: p.id, name: p.name || '', ha: p.ha != null ? Number(p.ha) : 0,
+        cropId: p.crop_id || null, variety: p.variety || '',
+        sowingDate: p.sowing_date || null, density: p.density || '', soil: p.soil || '',
+        harvestGdd: p.harvest_gdd != null ? Number(p.harvest_gdd) : 0,
+        tduWindow: p.tdu_window != null ? Number(p.tdu_window) : null,
+        yieldPlan: p.yield_plan != null ? Number(p.yield_plan) : null,
+        yieldFact: p.yield_fact != null ? Number(p.yield_fact) : null,
+        fieldId: p.field_id || null, note: p.note || '',
+        calibration: p.calibration || {},
+      }));
+    }
+  } catch(e) { console.warn('[loadParcels] failed:', e.message); }
 }
 
 // ── State merge (same logic as before) ───────────────────────────────────
