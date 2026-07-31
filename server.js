@@ -1244,6 +1244,7 @@ app.get('/orchard', (req,res) => {
   res.sendFile(path.join(__dirname,'public','cherry-orchard-passport.html'));
 });
 app.get('/vegetable', (req,res) => res.sendFile(path.join(__dirname,'public','smart-vegetable.html')));
+app.get('/map', (req,res) => res.sendFile(path.join(__dirname,'public','map.html')));
 app.get('/login', (req,res) => res.sendFile(path.join(__dirname,'public','login.html')));
 
 
